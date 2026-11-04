@@ -377,10 +377,11 @@ tests:
             - pattern: "lib/net10.0/DemaConsulting.TextLint.xml"
               min: 1
               max: 1
-            # The library targets net10.0 only.
-            - pattern: "lib/*/DemaConsulting.TextLint.dll"
-              min: 1
-              max: 1
+            # The library targets net10.0 only: the whole lib/ tree must hold exactly the two
+            # files above, so any other assembly or target-framework folder fails the test.
+            - pattern: "lib/**"
+              min: 2
+              max: 2
       # The symbols package is published alongside the library package.
       - pattern: "packages/DemaConsulting.TextLint.*.snupkg"
         count: 1
