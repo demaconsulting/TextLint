@@ -38,9 +38,9 @@ self-validation suite is invoked and completes successfully. This scenario is te
 argument array; the output contains the tool name and copyright notice and exit code is 0.
 This scenario is tested by `Program_Run_NoArguments_DisplaysDefaultBehavior`.
 
-**Program_Version_ReturnsNonEmptyString**: The `Program.Version` static property is read; the
+**Program_Version_Read_ReturnsNonEmptyString**: The `Program.Version` static property is read; the
 returned string is non-empty and non-null, confirming the version is resolvable from the
-assembly attributes. This scenario is tested by `Program_Version_ReturnsNonEmptyString`.
+assembly attributes. This scenario is tested by `Program_Version_Read_ReturnsNonEmptyString`.
 
 **Program_Main_WithInvalidArgs_ReturnsNonZeroExitCode**: `Program.Main` is invoked with
 `["--invalid-argument"]`; the exit code is 1, confirming that invalid arguments are caught and

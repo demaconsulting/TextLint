@@ -150,7 +150,7 @@ public class ProgramTests
     ///     Test that version property returns non-empty version string.
     /// </summary>
     [Fact]
-    public void Program_Version_ReturnsNonEmptyString()
+    public void Program_Version_Read_ReturnsNonEmptyString()
     {
         // Act: execute the operation being tested
         var version = Program.Version;

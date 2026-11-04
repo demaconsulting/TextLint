@@ -411,7 +411,7 @@ public class ContextTests
     ///     Test WriteError sets exit code to 1.
     /// </summary>
     [Fact]
-    public void Context_WriteError_SetsErrorExitCode()
+    public void Context_WriteError_Called_SetsErrorExitCode()
     {
         // Arrange: setup test conditions
         var originalError = Console.Error;
@@ -464,7 +464,7 @@ public class ContextTests
     ///     Test WriteError writes message to log file when logging is enabled.
     /// </summary>
     [Fact]
-    public void Context_WriteError_WritesToLogFile()
+    public void Context_WriteError_WithLogFile_WritesToLogFile()
     {
         // Arrange: setup test conditions
         var logFile = Path.GetTempFileName();

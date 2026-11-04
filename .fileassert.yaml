@@ -363,7 +363,7 @@ tests:
   # 'count: 1' makes a violation loud: if the tool package were already present the pattern
   # would match two files and the test would fail rather than pass vacuously.
 
-  - name: TextLint_Package_ContainsNet10Library
+  - name: TextLint_Package_Packed_ContainsNet10Library
     description: "The library package ships the net10.0 assembly with its XML documentation"
     tags: [packages]
     files:
@@ -386,7 +386,7 @@ tests:
       - pattern: "packages/DemaConsulting.TextLint.*.snupkg"
         count: 1
 
-  - name: TextLint_Package_HasPackageMetadata
+  - name: TextLint_Package_Packed_HasPackageMetadata
     description: "The library package is named DemaConsulting.TextLint and carries its publisher metadata"
     tags: [packages]
     files:
@@ -415,10 +415,11 @@ tests:
   # Asserts the library project file keeps the trim and Native AOT analyzers enabled with
   # warnings treated as errors. These are build-time properties that leave no reliable
   # trace beyond the IsTrimmable marker in the compiled assembly, so the declaration is
-  # checked at its source. (A real Native AOT publish is verified by the later change that
-  # introduces it.)
+  # checked at its source. This is a design-constraint guard, not requirement evidence: it
+  # is intentionally not linked to a requirement. (A real Native AOT publish is verified,
+  # against a Native AOT consumer requirement, by the later change that adds the public API.)
 
-  - name: TextLint_Project_EnablesTrimAotAnalyzersAsErrors
+  - name: TextLint_Project_Configured_EnablesTrimAotAnalyzersAsErrors
     description: "The library project enables the trim and AOT analyzers with warnings as errors"
     tags: [library-project]
     files:
