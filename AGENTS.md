@@ -4,10 +4,10 @@
 - **organization**: DEMA Consulting
 - **project-tagline**: Fast text linting for code and documentation
 - **description**: TextLint is a fast text linter for source code and documentation,
-  delivered as the `DemaConsulting.TextLint` .NET library and the
-  `DemaConsulting.TextLint.Tool` .NET tool (command `textlint`). It provides
-  cspell-compatible spell-checking using embedded English and technical-term
-  dictionaries, configured by a `.textlint.yaml` file, and checks files in parallel
+  delivered as the `DemaConsulting.TextLint.Tool` .NET tool (command `textlint`), with a
+  companion `DemaConsulting.TextLint` .NET library planned. It is being developed to
+  provide cspell-compatible spell-checking using embedded English and technical-term
+  dictionaries, configured by a `.textlint.yaml` file, checking files in parallel
   across all processor cores.
 - **languages**: C#
 - **technologies**: .NET
