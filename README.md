@@ -9,14 +9,15 @@
 [![Security][badge-security]][link-security]
 [![NuGet][badge-nuget]][link-nuget]
 
-TextLint is a fast text linter for source code and documentation, currently delivered as the
-`DemaConsulting.TextLint.Tool` .NET tool (command `textlint`). A companion
-`DemaConsulting.TextLint` .NET library is planned.
+TextLint is a fast text linter for source code and documentation, delivered as the
+`DemaConsulting.TextLint` .NET library and the `DemaConsulting.TextLint.Tool` .NET tool
+(command `textlint`), which is a thin command-line front-end over the library.
 
 **Status**: under active development. TextLint is being developed to provide cspell-compatible
 spell-checking, configured by a `.textlint.yaml` file, using embedded English and technical-term
 dictionaries, and to check files in parallel across all processor cores. These capabilities are
-not yet implemented; the current tool provides the command-line scaffolding described below.
+not yet implemented; the library currently contains only the package skeleton, and the tool
+provides the command-line scaffolding described below.
 
 ## Features
 
@@ -43,6 +44,14 @@ Install the tool globally using the .NET CLI:
 
 ```bash
 dotnet tool install -g DemaConsulting.TextLint.Tool
+```
+
+The reusable library is published separately as the `DemaConsulting.TextLint` NuGet package for
+applications that want to embed TextLint (the library currently contains only the package
+skeleton; its API will grow as the spell-checking capabilities are added):
+
+```bash
+dotnet add package DemaConsulting.TextLint
 ```
 
 ## Usage

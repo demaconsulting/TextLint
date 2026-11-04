@@ -1,0 +1,63 @@
+---
+# TextLint System-Level Requirements
+#
+# PURPOSE:
+# - Define system-level requirements describing what consumers of the DemaConsulting.TextLint
+#   library package need from it
+# - The library owns ALL linting logic (settings, file discovery, dictionaries, tokenization,
+#   spell checking, results); the tool is a thin front-end that depends on it, never the reverse
+# - The library does not yet expose a functional API; these requirements cover the package-level
+#   properties and layering every release must retain. Functional requirements are added,
+#   top-down, as the library gains subsystems and units
+# - System requirements are validated by FileAssert checks of the produced NuGet package and the
+#   library project file (.fileassert.yaml, run by build.yaml) and by the system-level tests in
+#   TextLintTests.cs, which inspect the compiled library assembly
+
+sections:
+  - title: TextLint Requirements
+    requirements:
+      - id: TextLint-System-Package
+        title: The library shall be distributed as the DemaConsulting.TextLint NuGet package.
+        tags: [system]
+        justification: |
+          Consumers (including the TextLint tool) obtain the library as a NuGet package. The
+          package identity, its net10.0 assembly, and its publisher metadata must be stable so
+          that dependent projects can reference the library by a single, predictable name. The
+          primary evidence is the produced package itself: the build packs the library and
+          FileAssert inspects the resulting .nupkg (package id, lib/net10.0 assembly and XML
+          documentation, license, README, icon, and the companion symbols package). The
+          assembly-level tests additionally confirm the compiled assembly carries the same
+          identity and metadata.
+        tests:
+          - TextLint_Package_ContainsNet10Library
+          - TextLint_Package_HasPackageMetadata
+          - TextLint_Assembly_Loaded_HasPackageName
+          - TextLint_Assembly_Loaded_HasPackageMetadata
+
+      - id: TextLint-System-TrimAotAnalyzers
+        title: >-
+          The library shall enable the .NET trim and Native AOT compatibility analyzers and treat
+          their warnings as build errors.
+        tags: [system]
+        justification: |
+          The TextLint tool will be published as a Native AOT executable in a later change, and
+          it depends on this library. Enabling the trim, AOT, and single-file analyzers now
+          (via IsAotCompatible) with warnings treated as errors stops trim- or AOT-unsafe code
+          from entering the library before that publish exists. This requirement covers only the
+          analyzer configuration; proving that a Native AOT publish of the tool actually works is
+          the responsibility of the change that introduces that publish, which will add its own
+          requirement and verification.
+        tests:
+          - TextLint_Project_EnablesTrimAotAnalyzersAsErrors
+          - TextLint_Assembly_Loaded_IsMarkedTrimCompatible
+
+      - id: TextLint-System-ToolIndependent
+        title: The library shall be usable without the TextLint tool and shall not depend on it.
+        tags: [system]
+        justification: |
+          The library owns all linting logic so that any .NET application can lint without the
+          command-line tool; the tool is only a thin front-end that depends on the library. A
+          library that depended on the tool would invert that layering, forcing consumers to take
+          the tool (and its console, argument-parsing, and exit-code concerns) with it.
+        tests:
+          - TextLint_Assembly_Loaded_DoesNotReferenceTool

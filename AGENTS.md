@@ -4,13 +4,21 @@
 - **organization**: DEMA Consulting
 - **project-tagline**: Fast text linting for code and documentation
 - **description**: TextLint is a fast text linter for source code and documentation,
-  delivered as the `DemaConsulting.TextLint.Tool` .NET tool (command `textlint`), with a
-  companion `DemaConsulting.TextLint` .NET library planned. It is being developed to
-  provide cspell-compatible spell-checking using embedded English and technical-term
-  dictionaries, configured by a `.textlint.yaml` file, checking files in parallel
-  across all processor cores.
+  delivered as the `DemaConsulting.TextLint` .NET library and the
+  `DemaConsulting.TextLint.Tool` .NET tool (command `textlint`) built on it. It is being
+  developed to provide cspell-compatible spell-checking using embedded English and
+  technical-term dictionaries, configured by a `.textlint.yaml` file, checking files in
+  parallel across all processor cores.
 - **languages**: C#
 - **technologies**: .NET
+
+# Architecture Layering (ALL Agents)
+
+ALL linting logic - settings/config loading, file discovery/globbing, dictionaries,
+tokenization, spell-checking, and results - belongs in the `DemaConsulting.TextLint` library.
+`DemaConsulting.TextLint.Tool` is a thin CLI front-end only (argument parsing, console/log
+output, exit codes, self-validation, and calling the library). The tool depends on the library;
+the library never depends on the tool. Never add linting logic to the tool.
 
 # Project Structure
 
@@ -28,8 +36,10 @@
 │   ├── user_guide/
 │   └── verification/
 ├── src/
+│   ├── DemaConsulting.TextLint/
 │   └── DemaConsulting.TextLint.Tool/
 └── test/
+    ├── DemaConsulting.TextLint.Tests/
     └── DemaConsulting.TextLint.Tool.Tests/
 ```
 

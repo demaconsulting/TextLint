@@ -1,7 +1,8 @@
 ---
 # FileAssert document validation tests for TextLint.
 # Tests are tagged by document group to allow per-group execution during the build pipeline.
-# Tags: build-notes, code-quality, code-review, design, verification, user-guide, requirements.
+# Tags: build-notes, code-quality, code-review, design, verification, user-guide, requirements,
+# packages, library-project.
 #
 # NOTE: build-notes through user-guide tests provide OTS evidence for Pandoc and WeasyPrint
 # and run before ReqStream. The requirements tests run after ReqStream and validate the
@@ -154,6 +155,12 @@ tests:
           - query: "//*[local-name()='svg']"
             count: 1
       - pattern: "docs/design/generated/TextLintToolView.svg"
+        count: 1
+        min-size: 100
+        xml:
+          - query: "//*[local-name()='svg']"
+            count: 1
+      - pattern: "docs/design/generated/TextLintView.svg"
         count: 1
         min-size: 100
         xml:
@@ -342,3 +349,81 @@ tests:
             min: 1
           text:
             - contains: "Trace Matrix"
+
+  # --- PACKAGES ---
+  #
+  # These tests assert the shape of the DemaConsulting.TextLint library NuGet package the build
+  # just produced, in the flat 'packages' folder written by build.yaml. Packing is a build
+  # activity, so the real artifact is inspected here rather than re-packed from inside the
+  # unit-test suite.
+  #
+  # ORDERING: the library package id is a prefix of the tool package id
+  # (DemaConsulting.TextLint.Tool), and FileAssert globs have no way to exclude it, so
+  # build.yaml runs these tests after packing only the library and before packing the tool.
+  # 'count: 1' makes a violation loud: if the tool package were already present the pattern
+  # would match two files and the test would fail rather than pass vacuously.
+
+  - name: TextLint_Package_ContainsNet10Library
+    description: "The library package ships the net10.0 assembly with its XML documentation"
+    tags: [packages]
+    files:
+      - pattern: "packages/DemaConsulting.TextLint.*.nupkg"
+        count: 1
+        zip:
+          files:
+            - pattern: "lib/net10.0/DemaConsulting.TextLint.dll"
+              min: 1
+              max: 1
+            - pattern: "lib/net10.0/DemaConsulting.TextLint.xml"
+              min: 1
+              max: 1
+            # The library targets net10.0 only: the whole lib/ tree must hold exactly the two
+            # files above, so any other assembly or target-framework folder fails the test.
+            - pattern: "lib/**"
+              min: 2
+              max: 2
+      # The symbols package is published alongside the library package.
+      - pattern: "packages/DemaConsulting.TextLint.*.snupkg"
+        count: 1
+
+  - name: TextLint_Package_HasPackageMetadata
+    description: "The library package is named DemaConsulting.TextLint and carries its publisher metadata"
+    tags: [packages]
+    files:
+      - pattern: "packages/DemaConsulting.TextLint.*.nupkg"
+        count: 1
+        zip:
+          files:
+            - pattern: "DemaConsulting.TextLint.nuspec"
+              min: 1
+              max: 1
+              text:
+                - contains: "<id>DemaConsulting.TextLint</id>"
+                - contains: "<authors>DEMA Consulting</authors>"
+                - contains: '<license type="expression">MIT</license>'
+                - contains: "<readme>README.md</readme>"
+                - contains: "<icon>Icon.png</icon>"
+            - pattern: "README.md"
+              min: 1
+              max: 1
+            - pattern: "Icon.png"
+              min: 1
+              max: 1
+
+  # --- LIBRARY PROJECT ---
+  #
+  # Asserts the library project file keeps the trim and Native AOT analyzers enabled with
+  # warnings treated as errors. These are build-time properties that leave no reliable
+  # trace beyond the IsTrimmable marker in the compiled assembly, so the declaration is
+  # checked at its source. (A real Native AOT publish is verified by the later change that
+  # introduces it.)
+
+  - name: TextLint_Project_EnablesTrimAotAnalyzersAsErrors
+    description: "The library project enables the trim and AOT analyzers with warnings as errors"
+    tags: [library-project]
+    files:
+      - pattern: "src/DemaConsulting.TextLint/DemaConsulting.TextLint.csproj"
+        count: 1
+        text:
+          - contains: "<IsAotCompatible>true</IsAotCompatible>"
+          - contains: "<TreatWarningsAsErrors>true</TreatWarningsAsErrors>"

@@ -5,7 +5,8 @@
 // 'render' - is what scopes the rendered diagram content.
 package TextLintTool {
     view SoftwareStructureView {
-        expose TextLintTool;
+        expose TextLint::*;
+        expose TextLintTool::*;
     }
 
     view TextLintToolView {
@@ -22,5 +23,14 @@ package TextLintTool {
 
     view UtilitiesView {
         expose UtilitiesSubsystem;
+    }
+}
+
+// The repository holds two systems: the TextLint library above and the TextLintTool
+// command-line tool. The TextLint library is flat - it has no subsystems or units yet - so
+// it needs only the one system view.
+package TextLint {
+    view TextLintView {
+        expose TextLintSystem;
     }
 }

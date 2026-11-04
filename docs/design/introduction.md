@@ -1,13 +1,14 @@
 # Introduction
 
-This document provides the detailed design for the TextLint Tool, a .NET command-line
-application that provides fast text linting for code and documentation. It covers local
+This document provides the detailed design for TextLint, which is delivered as the
+`DemaConsulting.TextLint` .NET library and the `DemaConsulting.TextLint.Tool` .NET command-line
+tool, and provides fast text linting for code and documentation. It covers local
 software items (systems, subsystems, and units) and the OTS software items they consume.
 
 ## Purpose
 
 The purpose of this document is to describe the internal design of each software unit that
-comprises the TextLint Tool. It captures data models, algorithms, key methods, and
+comprises TextLint. It captures data models, algorithms, key methods, and
 inter-unit interactions at a level of detail sufficient for formal code review, compliance
 verification, and future maintenance. A reviewer should be able to understand how each item
 satisfies its requirements without reading source code. The document does not restate
@@ -17,7 +18,10 @@ requirements; it explains how they are realized.
 
 Local items:
 
-- **TextLintTool**: system, subsystem, and unit design for all local components.
+- **TextLint**: system design for the `DemaConsulting.TextLint` library. The library is
+  currently a package skeleton with no subsystems or units.
+- **TextLintTool**: system, subsystem, and unit design for all local components of the
+  command-line tool.
 
 OTS items:
 
@@ -49,9 +53,26 @@ the OTS items listed in Scope above are build-time/pipeline tooling, documented 
 
 ![Software Structure](SoftwareStructureView.svg)
 
+### Layering
+
+The two systems form a strict two-layer architecture, and every later change must preserve it:
+
+- **TextLint (library)** owns **all linting logic**: settings and configuration loading, file
+  discovery and globbing, dictionaries, tokenization, spell checking, and results. It is usable
+  by any .NET application and never depends on the tool.
+- **TextLintTool (command-line tool)** is a **thin front-end only**: argument parsing,
+  console and log output, exit codes, self-validation, and calling the library. It contains no
+  linting logic. The tool depends on the library, as shown by the dependency in the SysML2
+  model; the dependency never runs in the other direction.
+
+New linting capability is therefore added to the library as subsystems and units with their own
+requirements, design, and verification, and the tool only gains the command-line options and
+output needed to invoke it.
+
 ## Folder Layout
 
 - **src/** - source files and projects
+  - **DemaConsulting.TextLint/** - library source (package skeleton; no subsystems yet)
   - **DemaConsulting.TextLint.Tool/** - main application source
     - **Cli/** - command-line interface subsystem
     - **SelfTest/** - self-validation subsystem

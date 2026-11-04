@@ -11,6 +11,7 @@ resource-path:
 input-files:
   - docs/verification/title.txt
   - docs/verification/introduction.md
+  - docs/verification/textlint.md
   - docs/verification/textlint-tool.md
   - docs/verification/textlint-tool/program.md
   - docs/verification/textlint-tool/cli.md
