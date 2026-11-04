@@ -50,6 +50,14 @@
     <SBOMPackageSupplier>Organization: $(Company)</SBOMPackageSupplier>
   </PropertyGroup>
 
+  <!-- Runtime Dependencies (flow to consumers of the package): YamlDotNet parses the .textlint.yaml
+       settings file and Microsoft.Extensions.FileSystemGlobbing matches glob patterns against the
+       file system. Both are trim and AOT clean when used as the library uses them. -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.FileSystemGlobbing" Version="10.0.14" />
+    <PackageReference Include="YamlDotNet" Version="18.1.0" />
+  </ItemGroup>
+
   <!-- Build Tool Dependencies -->
   <ItemGroup>
     <PackageReference Include="Microsoft.Sbom.Targets" Version="4.1.13" PrivateAssets="All" />
