@@ -1,11 +1,11 @@
 ---
-title: Template DotNet Tool Code Quality Report
+title: TextLint Code Quality Report
 subtitle: Code Quality Analysis Report
 author: DEMA Consulting
-description: Code Quality Analysis Report for Template DotNet Tool
+description: Code Quality Analysis Report for TextLint
 lang: en-US
 keywords:
-  - Template DotNet Tool
+  - TextLint
   - Code Quality
   - Analysis
   - .NET

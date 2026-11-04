@@ -1,11 +1,11 @@
 ---
-title: Template DotNet Tool Review Report
-subtitle: File Review Report for the Template DotNet Tool
+title: TextLint Review Report
+subtitle: File Review Report for TextLint
 author: DEMA Consulting
-description: File Review Report for the Template DotNet Tool
+description: File Review Report for TextLint
 lang: en-US
 keywords:
-  - Template DotNet Tool
+  - TextLint
   - Review Report
   - File Reviews
   - .NET

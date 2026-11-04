@@ -1,6 +1,6 @@
 ---
 name: 🐛 Bug Report
-description: Report a bug or issue with the TemplateDotNetTool
+description: Report a bug or issue with TextLint
 title: "[Bug]: "
 labels: ["bug"]
 assignees: []
@@ -26,7 +26,7 @@ body:
       label: Steps to Reproduce
       description: Detailed steps to reproduce the behavior
       placeholder: |
-        1. Run TemplateDotNetTool with command '...'
+        1. Run TextLint with command '...'
         2. Provide input file '...'
         3. Observe error...
       value: |
@@ -69,7 +69,7 @@ body:
     id: version
     attributes:
       label: Tool Version
-      description: What version of the TemplateDotNetTool are you using?
+      description: What version of TextLint are you using?
       placeholder: e.g., 1.0.0
     validations:
       required: true
@@ -80,8 +80,6 @@ body:
       label: .NET Version
       description: What version of .NET are you using?
       options:
-        - ".NET 8"
-        - ".NET 9"
         - ".NET 10"
         - Other (please specify in additional context)
     validations:

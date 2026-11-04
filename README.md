@@ -1,4 +1,4 @@
-# Template DotNet Tool
+# TextLint
 
 [![GitHub forks][badge-forks]][link-forks]
 [![GitHub stars][badge-stars]][link-stars]
@@ -9,17 +9,24 @@
 [![Security][badge-security]][link-security]
 [![NuGet][badge-nuget]][link-nuget]
 
-DEMA Consulting template project for DotNet Tools, demonstrating best practices for building command-line tools with .NET.
+TextLint is a fast text linter for source code and documentation, currently delivered as the
+`DemaConsulting.TextLint.Tool` .NET tool (command `textlint`). A companion
+`DemaConsulting.TextLint` .NET library is planned.
+
+**Status**: under active development. TextLint is being developed to provide cspell-compatible
+spell-checking, configured by a `.textlint.yaml` file, using embedded English and technical-term
+dictionaries, and to check files in parallel across all processor cores. These capabilities are
+not yet implemented; the current tool provides the command-line scaffolding described below.
 
 ## Features
 
-This template demonstrates:
+The project currently provides:
 
 - **Standardized Command-Line Interface**: Context class handling common arguments
   (`--version`, `--help`, `--silent`, `--validate`, `--results`, `--depth`, `--log`)
 - **Self-Validation**: Built-in validation tests with TRX/JUnit output
 - **Multi-Platform Support**: Builds and runs on Windows, Linux, and macOS
-- **Multi-Runtime Support**: Targets .NET 8, 9, and 10
+- **Modern Runtime Support**: Targets .NET 10
 - **Comprehensive CI/CD**: GitHub Actions workflows with quality checks, builds, and
   integration tests
 - **Linting Enforcement**: markdownlint, cspell, and yamllint enforced on every CI run
@@ -35,33 +42,33 @@ This template demonstrates:
 Install the tool globally using the .NET CLI:
 
 ```bash
-dotnet tool install -g DemaConsulting.TemplateDotNetTool
+dotnet tool install -g DemaConsulting.TextLint.Tool
 ```
 
 ## Usage
 
 ```bash
 # Default behavior (no arguments) — displays banner and copyright
-templatetool
+textlint
 
 # Display version
-templatetool --version
+textlint --version
 
 # Display help
-templatetool --help
+textlint --help
 
 # Run self-validation
-templatetool --validate
+textlint --validate
 
 # Save validation results (--result is an accepted alias for --results)
-templatetool --validate --results results.trx
-templatetool --validate --result results.xml
+textlint --validate --results results.trx
+textlint --validate --result results.xml
 
 # Set heading depth for embedded validation output
-templatetool --validate --depth 2
+textlint --validate --depth 2
 
 # Silent mode with logging
-templatetool --silent --log output.log
+textlint --silent --log output.log
 ```
 
 ## Command-Line Options
@@ -93,7 +100,7 @@ automatically.
 Running self-validation produces a report containing the following information:
 
 ```text
-# DEMA Consulting Template DotNet Tool
+# DEMA Consulting TextLint Tool
 
 | Information         | Value                                              |
 | :------------------ | :------------------------------------------------- |
@@ -103,8 +110,8 @@ Running self-validation produces a report containing the following information:
 | DotNet Runtime      | <dotnet-runtime-version>                           |
 | Time Stamp          | <timestamp> UTC                                    |
 
-✓ TemplateTool_VersionDisplay - Passed
-✓ TemplateTool_HelpDisplay - Passed
+✓ TextLintTool_VersionDisplay - Passed
+✓ TextLintTool_HelpDisplay - Passed
 
 Total Tests: 2
 Passed: 2
@@ -113,15 +120,15 @@ Failed: 0
 
 Each test in the report proves:
 
-- **`TemplateTool_VersionDisplay`** - `--version` outputs a valid version string.
-- **`TemplateTool_HelpDisplay`** - `--help` outputs usage and options information.
+- **`TextLintTool_VersionDisplay`** - `--version` outputs a valid version string.
+- **`TextLintTool_HelpDisplay`** - `--help` outputs usage and options information.
 
 Use `--depth <#>` to control the heading level of the validation output (default: `1`).
 This is useful when embedding validation output into a larger markdown document:
 
 ```bash
 # Embed validation at heading level 2
-templatetool --validate --depth 2
+textlint --validate --depth 2
 ```
 
 See the [User Guide][link-guide] for more details on the self-validation tests.
@@ -141,7 +148,7 @@ Generated documentation includes:
 
 ## Contributing
 
-See [CONTRIBUTING.md](https://github.com/demaconsulting/TemplateDotNetTool/blob/main/CONTRIBUTING.md) for
+See [CONTRIBUTING.md](https://github.com/demaconsulting/TextLint/blob/main/CONTRIBUTING.md) for
 guidelines on reporting bugs, suggesting features, and submitting pull requests.
 
 ## License
@@ -151,23 +158,23 @@ Copyright (c) DEMA Consulting. Licensed under the MIT License. See [LICENSE][lin
 By contributing to this project, you agree that your contributions will be licensed under the MIT License.
 
 <!-- Badge References -->
-[badge-forks]: https://img.shields.io/github/forks/demaconsulting/TemplateDotNetTool?style=plastic
-[badge-stars]: https://img.shields.io/github/stars/demaconsulting/TemplateDotNetTool?style=plastic
-[badge-contributors]: https://img.shields.io/github/contributors/demaconsulting/TemplateDotNetTool?style=plastic
-[badge-license]: https://img.shields.io/github/license/demaconsulting/TemplateDotNetTool?style=plastic
-[badge-build]: https://img.shields.io/github/actions/workflow/status/demaconsulting/TemplateDotNetTool/build_on_push.yaml?style=plastic
-[badge-quality]: https://sonarcloud.io/api/project_badges/measure?project=demaconsulting_TemplateDotNetTool&metric=alert_status
-[badge-security]: https://sonarcloud.io/api/project_badges/measure?project=demaconsulting_TemplateDotNetTool&metric=security_rating
-[badge-nuget]: https://img.shields.io/nuget/v/DemaConsulting.TemplateDotNetTool?style=plastic
+[badge-forks]: https://img.shields.io/github/forks/demaconsulting/TextLint?style=plastic
+[badge-stars]: https://img.shields.io/github/stars/demaconsulting/TextLint?style=plastic
+[badge-contributors]: https://img.shields.io/github/contributors/demaconsulting/TextLint?style=plastic
+[badge-license]: https://img.shields.io/github/license/demaconsulting/TextLint?style=plastic
+[badge-build]: https://img.shields.io/github/actions/workflow/status/demaconsulting/TextLint/build_on_push.yaml?style=plastic
+[badge-quality]: https://sonarcloud.io/api/project_badges/measure?project=demaconsulting_TextLint&metric=alert_status
+[badge-security]: https://sonarcloud.io/api/project_badges/measure?project=demaconsulting_TextLint&metric=security_rating
+[badge-nuget]: https://img.shields.io/nuget/v/DemaConsulting.TextLint.Tool?style=plastic
 
 <!-- Link References -->
-[link-forks]: https://github.com/demaconsulting/TemplateDotNetTool/network/members
-[link-stars]: https://github.com/demaconsulting/TemplateDotNetTool/stargazers
-[link-contributors]: https://github.com/demaconsulting/TemplateDotNetTool/graphs/contributors
-[link-license]: https://github.com/demaconsulting/TemplateDotNetTool/blob/main/LICENSE
-[link-build]: https://github.com/demaconsulting/TemplateDotNetTool/actions/workflows/build_on_push.yaml
-[link-quality]: https://sonarcloud.io/dashboard?id=demaconsulting_TemplateDotNetTool
-[link-security]: https://sonarcloud.io/dashboard?id=demaconsulting_TemplateDotNetTool
-[link-nuget]: https://www.nuget.org/packages/DemaConsulting.TemplateDotNetTool
-[link-guide]: https://github.com/demaconsulting/TemplateDotNetTool/blob/main/docs/user_guide/introduction.md
+[link-forks]: https://github.com/demaconsulting/TextLint/network/members
+[link-stars]: https://github.com/demaconsulting/TextLint/stargazers
+[link-contributors]: https://github.com/demaconsulting/TextLint/graphs/contributors
+[link-license]: https://github.com/demaconsulting/TextLint/blob/main/LICENSE
+[link-build]: https://github.com/demaconsulting/TextLint/actions/workflows/build_on_push.yaml
+[link-quality]: https://sonarcloud.io/dashboard?id=demaconsulting_TextLint
+[link-security]: https://sonarcloud.io/dashboard?id=demaconsulting_TextLint
+[link-nuget]: https://www.nuget.org/packages/DemaConsulting.TextLint.Tool
+[link-guide]: https://github.com/demaconsulting/TextLint/blob/main/docs/user_guide/introduction.md
 [link-continuous-compliance]: https://github.com/demaconsulting/ContinuousCompliance

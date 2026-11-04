@@ -1,21 +1,18 @@
 # Project Overview
 
-> **Downstream customization required**: Replace the `TODO` values below with
-> values specific to the target repository. These values are the canonical source
-> for project-wide template placeholders used throughout the repository.
-
-- **project-name**: TODO — repository/project name (e.g., `ReqStream`)
-- **organization**: TODO — organization name for document authorship (e.g., `DEMA Consulting`)
-- **project-tagline**: TODO — document subtitle; 4–8 words, noun phrase, no period
-  (e.g., `Requirements traceability for .NET projects`)
-- **description**: TODO — full project description, may be multiple sentences
-- **languages**: TODO — programming languages used (e.g., `C#`, `C++`)
-- **technologies**: TODO — key technologies and frameworks (e.g., `.NET`, `CMake`)
+- **project-name**: TextLint
+- **organization**: DEMA Consulting
+- **project-tagline**: Fast text linting for code and documentation
+- **description**: TextLint is a fast text linter for source code and documentation,
+  delivered as the `DemaConsulting.TextLint.Tool` .NET tool (command `textlint`), with a
+  companion `DemaConsulting.TextLint` .NET library planned. It is being developed to
+  provide cspell-compatible spell-checking using embedded English and technical-term
+  dictionaries, configured by a `.textlint.yaml` file, checking files in parallel
+  across all processor cores.
+- **languages**: C#
+- **technologies**: .NET
 
 # Project Structure
-
-> **Downstream customization required**: Replace `{project}` and
-> `{test-project}` with the actual source and test project folder names.
 
 ```text
 ├── docs/
@@ -31,9 +28,9 @@
 │   ├── user_guide/
 │   └── verification/
 ├── src/
-│   └── {project}/
+│   └── DemaConsulting.TextLint.Tool/
 └── test/
-    └── {test-project}/
+    └── DemaConsulting.TextLint.Tool.Tests/
 ```
 
 # Language and Spelling (ALL Agents)
