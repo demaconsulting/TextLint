@@ -1,7 +1,7 @@
 # Introduction
 
 This document provides the verification design for the TextLint Tool, a .NET command-line
-application demonstrating best practices for DEMA Consulting DotNet Tools.
+application that provides fast text linting for code and documentation.
 
 ## Purpose
 

@@ -1,8 +1,8 @@
 ---
 title: TextLint Trace Matrix
-subtitle: Requirements Traceability Matrix for the TextLint
+subtitle: Requirements Traceability Matrix for TextLint
 author: DEMA Consulting
-description: Requirements Traceability Matrix for the TextLint
+description: Requirements Traceability Matrix for TextLint
 lang: en-US
 keywords:
   - TextLint

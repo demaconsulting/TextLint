@@ -1,7 +1,7 @@
 # Introduction
 
 This document provides the detailed design for the TextLint Tool, a .NET command-line
-application demonstrating best practices for DEMA Consulting DotNet Tools. It covers local
+application that provides fast text linting for code and documentation. It covers local
 software items (systems, subsystems, and units) and the OTS software items they consume.
 
 ## Purpose

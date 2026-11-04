@@ -1,8 +1,8 @@
 ---
 title: TextLint Review Plan
-subtitle: File Review Plan for the TextLint
+subtitle: File Review Plan for TextLint
 author: DEMA Consulting
-description: File Review Plan for the TextLint
+description: File Review Plan for TextLint
 lang: en-US
 keywords:
   - TextLint

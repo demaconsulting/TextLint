@@ -4,9 +4,10 @@ This document contains the requirements for the TextLint project.
 
 ## Purpose
 
-TextLint is a reference implementation demonstrating best practices for DEMA Consulting
-.NET command-line tools. It provides a standardized approach to command-line argument parsing,
-self-validation, and comprehensive documentation generation.
+TextLint is a fast text linter for source code and documentation. It is being developed as
+a .NET command-line tool. The requirements currently cover the command-line interface
+scaffolding: standardized argument parsing, self-validation, and comprehensive documentation
+generation.
 
 ## Scope
 

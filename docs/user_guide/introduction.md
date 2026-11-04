@@ -2,8 +2,15 @@
 
 ## Purpose
 
-TextLint is a demonstration project that showcases best practices for DEMA
-Consulting DotNet Tools.
+TextLint is a fast text linter for source code and documentation, delivered as the
+`DemaConsulting.TextLint` .NET library and the `DemaConsulting.TextLint.Tool` .NET tool
+(command `textlint`).
+
+**Status**: under active development. TextLint is being developed to provide cspell-compatible
+spell-checking, configured by a `.textlint.yaml` file, using embedded English and technical-term
+dictionaries, and to check files in parallel across all processor cores. These capabilities are
+not yet implemented; the current tool provides the command-line scaffolding (version, help, and
+self-validation).
 
 ## Scope
 
@@ -16,7 +23,7 @@ This user guide covers:
 
 # Continuous Compliance
 
-This template follows the
+TextLint follows the
 [Continuous Compliance](https://github.com/demaconsulting/ContinuousCompliance) methodology, which ensures
 compliance evidence is generated automatically on every CI run.
 

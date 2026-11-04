@@ -9,7 +9,7 @@
         "build",
         "--configuration",
         "Release",
-        "${workspaceFolder}/DemaConsulting.TextLint.Tool.slnx"
+        "${workspaceFolder}/DemaConsulting.TextLint.slnx"
       ],
       "problemMatcher": "$msCompile",
       "group": {

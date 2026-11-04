@@ -1,8 +1,8 @@
 ---
 title: TextLint Software Design Document
-subtitle: A .NET Reference Implementation for CLI Tools
+subtitle: Fast text linting for code and documentation
 author: DEMA Consulting
-description: Detailed design document for the TextLint
+description: Detailed design document for TextLint
 lang: en-US
 keywords:
   - TextLint

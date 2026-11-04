@@ -1,6 +1,6 @@
 ---
 name: ❓ Question / Help
-description: Ask a usage question or get help with the TextLint
+description: Ask a usage question or get help with TextLint
 title: "[Question]: "
 labels: ["question"]
 assignees: []
@@ -45,7 +45,7 @@ body:
     id: version
     attributes:
       label: Tool Version
-      description: What version of the TextLint are you using?
+      description: What version of TextLint are you using?
       placeholder: e.g., 1.0.0
     validations:
       required: true

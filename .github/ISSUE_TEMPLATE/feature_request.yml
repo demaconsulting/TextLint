@@ -1,6 +1,6 @@
 ---
 name: ✨ Feature Request
-description: Suggest a new feature or enhancement for the TextLint
+description: Suggest a new feature or enhancement for TextLint
 title: "[Feature]: "
 labels: ["enhancement"]
 assignees: []

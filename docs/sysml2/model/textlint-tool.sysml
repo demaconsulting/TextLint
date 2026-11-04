@@ -1,8 +1,8 @@
 package TextLintTool {
     doc
     /*
-     * TextLintTool is a template .NET command-line application demonstrating
-     * DemaConsulting's compliance/documentation tooling conventions.
+     * TextLintTool is the .NET command-line application (command textlint) that
+     * provides fast text linting for code and documentation.
      */
 
     part def TextLintToolSystem {

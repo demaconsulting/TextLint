@@ -1,8 +1,8 @@
 ---
 title: TextLint Review Report
-subtitle: File Review Report for the TextLint
+subtitle: File Review Report for TextLint
 author: DEMA Consulting
-description: File Review Report for the TextLint
+description: File Review Report for TextLint
 lang: en-US
 keywords:
   - TextLint

@@ -46,7 +46,7 @@ to construct safe temporary file paths.
 
 - *Type*: Standard I/O.
 - *Role*: Provider.
-- *Contract*: Writes version, banner, help text, validation summary, or demo message depending
+- *Contract*: Writes version, banner, help text, validation summary, or default tool message depending
   on the flags provided. Suppressed when `--silent` is active; the log file still receives all
   output.
 - *Constraints*: Human-readable text; no machine-parseable format contract.

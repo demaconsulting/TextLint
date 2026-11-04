@@ -51,8 +51,9 @@ true, calls `PrintHelp` and returns; (4) if `context.Validate` is true, calls
 - *Parameters*: `Context context` — output target.
 - *Returns*: `void`.
 
-**RunToolLogic**: Placeholder for main tool logic; writes a demo message to `context`.
-Downstream projects replace this method body with actual tool behavior.
+**RunToolLogic**: Placeholder for main tool logic; writes the tool name, tagline, and a
+"not yet implemented" notice to `context`. The text linting behavior will replace this method
+body as it is implemented.
 
 - *Parameters*: `Context context` — output target.
 - *Returns*: `void`.

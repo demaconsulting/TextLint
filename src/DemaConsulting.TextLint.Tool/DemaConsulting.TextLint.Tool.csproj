@@ -20,7 +20,7 @@
     <RepositoryUrl>https://github.com/demaconsulting/TextLint</RepositoryUrl>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageIcon>Icon.png</PackageIcon>
-    <PackageTags>template;dotnet-tool</PackageTags>
+    <PackageTags>textlint;linter;dotnet-tool</PackageTags>
     <Copyright>Copyright DEMA Consulting</Copyright>
     <Title>TextLint Tool</Title>
     <Product>DemaConsulting.TextLint.Tool</Product>

@@ -9,11 +9,18 @@
 [![Security][badge-security]][link-security]
 [![NuGet][badge-nuget]][link-nuget]
 
-DEMA Consulting template project for DotNet Tools, demonstrating best practices for building command-line tools with .NET.
+TextLint is a fast text linter for source code and documentation, delivered as the
+`DemaConsulting.TextLint` .NET library and the `DemaConsulting.TextLint.Tool` .NET tool
+(command `textlint`).
+
+**Status**: under active development. TextLint is being developed to provide cspell-compatible
+spell-checking, configured by a `.textlint.yaml` file, using embedded English and technical-term
+dictionaries, and to check files in parallel across all processor cores. These capabilities are
+not yet implemented; the current tool provides the command-line scaffolding described below.
 
 ## Features
 
-This template demonstrates:
+The project currently provides:
 
 - **Standardized Command-Line Interface**: Context class handling common arguments
   (`--version`, `--help`, `--silent`, `--validate`, `--results`, `--depth`, `--log`)

@@ -1,8 +1,8 @@
 ---
 title: TextLint Requirements
-subtitle: Requirements Specification for the TextLint
+subtitle: Requirements Specification for TextLint
 author: DEMA Consulting
-description: Requirements Specification for the TextLint
+description: Requirements Specification for TextLint
 lang: en-US
 keywords:
   - TextLint

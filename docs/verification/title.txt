@@ -1,8 +1,8 @@
 ---
 title: TextLint Verification Design Document
-subtitle: A .NET Reference Implementation for CLI Tools
+subtitle: Fast text linting for code and documentation
 author: DEMA Consulting
-description: Verification design document for the TextLint
+description: Verification design document for TextLint
 lang: en-US
 keywords:
   - TextLint

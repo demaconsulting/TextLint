@@ -9,10 +9,10 @@ query-filters:
   - exclude:
       id: cs/catch-of-all-exceptions
     paths:
-      - src/DemaConsulting.TextLint.Tool/Context.cs
-      - src/DemaConsulting.TextLint.Tool/Validation.cs
+      - src/DemaConsulting.TextLint.Tool/Cli/Context.cs
+      - src/DemaConsulting.TextLint.Tool/SelfTest/Validation.cs
   # Exclude path-combine warnings in PathHelpers (validated safe usage)
   - exclude:
       id: cs/path-combine
     paths:
-      - src/DemaConsulting.TextLint.Tool/PathHelpers.cs
+      - src/DemaConsulting.TextLint.Tool/Utilities/PathHelpers.cs

@@ -1,8 +1,8 @@
 ---
 title: TextLint User Guide
-subtitle: A .NET Reference Implementation for CLI Tools
+subtitle: Fast text linting for code and documentation
 author: DEMA Consulting
-description: A .NET Reference Implementation for CLI Tools
+description: User guide for TextLint
 lang: en-US
 keywords:
   - TextLint

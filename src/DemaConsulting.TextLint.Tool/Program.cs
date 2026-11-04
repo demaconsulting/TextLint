@@ -169,9 +169,9 @@ internal static class Program
     /// <param name="context">The context containing command line arguments and program state.</param>
     private static void RunToolLogic(Context context)
     {
-        context.WriteLine("TextLint Tool - Demo Functionality");
-        context.WriteLine("This is a template project demonstrating best practices.");
+        context.WriteLine("TextLint Tool");
+        context.WriteLine("Fast text linting for code and documentation.");
         context.WriteLine("");
-        context.WriteLine("Replace this with your actual tool implementation.");
+        context.WriteLine("Text linting is not yet implemented. Use --help to see the available options.");
     }
 }
