@@ -19,7 +19,7 @@ This template demonstrates:
   (`--version`, `--help`, `--silent`, `--validate`, `--results`, `--depth`, `--log`)
 - **Self-Validation**: Built-in validation tests with TRX/JUnit output
 - **Multi-Platform Support**: Builds and runs on Windows, Linux, and macOS
-- **Multi-Runtime Support**: Targets .NET 8, 9, and 10
+- **Modern Runtime Support**: Targets .NET 10
 - **Comprehensive CI/CD**: GitHub Actions workflows with quality checks, builds, and
   integration tests
 - **Linting Enforcement**: markdownlint, cspell, and yamllint enforced on every CI run
