@@ -54,6 +54,37 @@ reviews:
       - docs/design/introduction.md
       - "docs/sysml2/**/*.sysml"
 
+  # TextLint (library) - Specials
+  - id: TextLint-Architecture
+    title: Review of TextLint library system architecture and package properties
+    context:
+      - README.md
+      - "docs/user_guide/**/*.md"
+    paths:
+      - "docs/reqstream/textlint.yaml"
+      - "docs/design/introduction.md"
+      - "docs/design/textlint.md"
+      - "docs/verification/introduction.md"
+      - "docs/verification/textlint.md"
+      - "test/**/TextLintTests.cs"
+
+  - id: TextLint-Design
+    title: Review of TextLint library architectural and design consistency
+    context:
+      - docs/reqstream/textlint.yaml
+    paths:
+      - "docs/reqstream/textlint/platform-requirements.yaml"
+      - "docs/design/introduction.md"
+      - "docs/design/textlint.md"
+
+  - id: TextLint-AllRequirements
+    title: Review of TextLint library requirements quality and traceability
+    context:
+      - docs/design/textlint.md
+      - docs/reqstream/textlint.yaml
+    paths:
+      - "docs/reqstream/textlint/**/*.yaml"
+
   # TextLintTool - Specials
   - id: TextLintTool-Architecture
     title: Review of TextLint Tool system architecture and operational validation

@@ -1,11 +1,12 @@
 # Introduction
 
-This document provides the verification design for the TextLint Tool, a .NET command-line
-application that provides fast text linting for code and documentation.
+This document provides the verification design for TextLint, which is delivered as the
+`DemaConsulting.TextLint` .NET library and the `DemaConsulting.TextLint.Tool` .NET command-line
+tool, and provides fast text linting for code and documentation.
 
 ## Purpose
 
-The purpose of this document is to describe how each requirement for the TextLint Tool is
+The purpose of this document is to describe how each requirement for TextLint is
 verified. For every software item — system, subsystem, and unit — this document names the
 verification approach, identifies the test scenarios (including boundary conditions and error
 paths), describes what is mocked or stubbed, and maps each requirement to at least one named
@@ -17,6 +18,8 @@ This document covers the verification design for the following software items:
 
 **Local items:**
 
+- **TextLint** — system verification for the `DemaConsulting.TextLint` library (currently a
+  package skeleton with no subsystems or units)
 - **TextLintTool** — system, subsystem, and unit verification:
   - **Program** — entry point and execution orchestrator
   - **Cli** subsystem
@@ -54,6 +57,7 @@ The test folder structure mirrors the source subsystem breakdown:
 
 ```text
 test/
+├── DemaConsulting.TextLint.Tests/       — library system-level tests
 └── DemaConsulting.TextLint.Tool.Tests/  — unit and integration tests
 ```
 

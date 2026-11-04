@@ -199,12 +199,20 @@ jobs:
           end
           /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
 
-      - name: Create Dotnet Tool
+      # Packages are written to a single flat folder rather than each project's
+      # bin/Release. actions/upload-artifact roots its archive at the common ancestor of
+      # the paths it matches, so with two packable projects per-project output would
+      # preserve 'src/<project>/bin/Release/' inside the artifact, and neither the
+      # integration-test job (which installs the tool with
+      # 'dotnet tool install --add-source packages') nor the release job (which pushes
+      # 'artifacts/*.nupkg') would find the packages at the top of the downloaded folder.
+      - name: Create NuGet Packages
         run: >
           dotnet pack
           --no-build
           --no-restore
           --configuration Release
+          --output packages
           --property:PackageVersion=${{ inputs.version }}
 
       # === UPLOAD ARTIFACTS ===
@@ -217,13 +225,14 @@ jobs:
           name: artifacts-build-${{ matrix.os }}
           path: artifacts/
 
+      # Packages are staged flat by the pack step above (library and tool, each with its
+      # symbols package), so the artifact is a usable local NuGet feed that the integration
+      # tests install from and the release job publishes from.
       - name: Upload packages
         uses: actions/upload-artifact@v7
         with:
           name: packages-${{ matrix.os }}
-          path: |
-            src/DemaConsulting.TextLint.Tool/bin/Release/*.nupkg
-            src/DemaConsulting.TextLint.Tool/bin/Release/*.snupkg
+          path: packages/
 
   # Runs CodeQL security and quality analysis, gathering results to include
   # in the code quality report.

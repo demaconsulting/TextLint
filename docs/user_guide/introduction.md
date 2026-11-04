@@ -44,6 +44,15 @@ Install the tool globally using the .NET CLI:
 dotnet tool install -g DemaConsulting.TextLint.Tool
 ```
 
+The reusable library is published separately as the `DemaConsulting.TextLint` NuGet package, for
+applications that want to embed TextLint rather than run the command-line tool. The library
+currently contains only the package skeleton; its API will grow as the spell-checking
+capabilities are added.
+
+```bash
+dotnet add package DemaConsulting.TextLint
+```
+
 # Usage
 
 ## Display Version

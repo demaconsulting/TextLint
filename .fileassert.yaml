@@ -159,6 +159,12 @@ tests:
         xml:
           - query: "//*[local-name()='svg']"
             count: 1
+      - pattern: "docs/design/generated/TextLintView.svg"
+        count: 1
+        min-size: 100
+        xml:
+          - query: "//*[local-name()='svg']"
+            count: 1
       - pattern: "docs/design/generated/CliView.svg"
         count: 1
         min-size: 100

@@ -9,7 +9,15 @@
   provide cspell-compatible spell-checking using embedded English and technical-term
   dictionaries, configured by a `.textlint.yaml` file, checking files in parallel
   across all processor cores.
-- **languages**: C#
+
+# Architecture Layering (ALL Agents)
+
+ALL linting logic - settings/config loading, file discovery/globbing, dictionaries,
+tokenization, spell-checking, and results - belongs in the `DemaConsulting.TextLint` library.
+`DemaConsulting.TextLint.Tool` is a thin CLI front-end only (argument parsing, console/log
+output, exit codes, self-validation, and calling the library). The tool depends on the library;
+the library never depends on the tool. Never add linting logic to the tool.- **languages**: C#
+
 - **technologies**: .NET
 
 # Project Structure
@@ -28,8 +36,10 @@
 │   ├── user_guide/
 │   └── verification/
 ├── src/
+│   ├── DemaConsulting.TextLint/
 │   └── DemaConsulting.TextLint.Tool/
 └── test/
+    ├── DemaConsulting.TextLint.Tests/
     └── DemaConsulting.TextLint.Tool.Tests/
 ```
 

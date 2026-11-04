@@ -79,6 +79,11 @@
     <InternalsVisibleTo Include="DemaConsulting.TextLint.Tool.Tests" />
   </ItemGroup>
 
+  <!-- Project References -->
+  <ItemGroup>
+    <ProjectReference Include="..\DemaConsulting.TextLint\DemaConsulting.TextLint.csproj" />
+  </ItemGroup>
+
   <ItemGroup>
     <None Include="..\..\README.md" Pack="true" PackagePath="\" />
     <None Include="..\..\Icon.png" Pack="true" PackagePath="\" />

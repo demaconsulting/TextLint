@@ -42,6 +42,7 @@ words:
   - sysml
   - sysml2tools
   - textlint
+  - trimmable
   - venv
   - versionmark
   - Weasyprint

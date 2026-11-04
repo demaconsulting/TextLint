@@ -8,6 +8,8 @@
 root-tags: [system, quality]
 includes:
   - docs/reqstream/quality.yaml
+  - docs/reqstream/textlint.yaml
+  - docs/reqstream/textlint/platform-requirements.yaml
   - docs/reqstream/textlint-tool.yaml
   - docs/reqstream/textlint-tool/program.yaml
   - docs/reqstream/textlint-tool/cli.yaml

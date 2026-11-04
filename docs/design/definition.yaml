@@ -11,6 +11,7 @@ resource-path:
 input-files:
   - docs/design/title.txt
   - docs/design/introduction.md
+  - docs/design/textlint.md
   - docs/design/textlint-tool.md
   - docs/design/textlint-tool/program.md
   - docs/design/textlint-tool/cli.md

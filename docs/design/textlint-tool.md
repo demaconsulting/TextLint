@@ -4,7 +4,14 @@
 
 ## Architecture
 
-The TextLint Tool is a command-line application built on .NET. It is structured as one
+The TextLint Tool is a command-line application built on .NET. It is a **thin front-end** over
+the `DemaConsulting.TextLint` library (see the _TextLint_ design): it parses arguments, writes
+console and log output, sets exit codes, runs self-validation, and calls the library. **All
+linting logic** - settings and configuration loading, file discovery and globbing, dictionaries,
+tokenization, spell checking, and results - belongs in the library, and the tool must not contain
+any of it. The tool depends on the library; the library never depends on the tool.
+
+It is structured as one
 system containing one top-level unit (`Program`) and three subsystems (`Cli`, `SelfTest`,
 `Utilities`):
 
@@ -35,49 +42,53 @@ to construct safe temporary file paths.
 
 **Command-Line Interface**: The primary input interface for tool invocation.
 
-- *Type*: CLI.
-- *Role*: Consumer (the host environment invokes the system with command-line arguments).
-- *Contract*: Accepts arguments `-v`/`--version`, `-?`/`-h`/`--help`, `--silent`, `--validate`,
+- _Type_: CLI.
+- _Role_: Consumer (the host environment invokes the system with command-line arguments).
+- _Contract_: Accepts arguments `-v`/`--version`, `-?`/`-h`/`--help`, `--silent`, `--validate`,
   `--results <file>`, `--result <file>` (legacy alias for `--results`), `--depth <n>`, and
   `--log <file>`. Returns exit code 0 for success and 1 for failures.
-- *Constraints*: Unknown arguments cause exit code 1 and an error message on stderr.
+- _Constraints_: Unknown arguments cause exit code 1 and an error message on stderr.
 
 **Standard Output**: Normal program output written to `Console.Out`.
 
-- *Type*: Standard I/O.
-- *Role*: Provider.
-- *Contract*: Writes version, banner, help text, validation summary, or default tool message depending
+- _Type_: Standard I/O.
+- _Role_: Provider.
+- _Contract_: Writes version, banner, help text, validation summary, or default tool message depending
   on the flags provided. Suppressed when `--silent` is active; the log file still receives all
   output.
-- *Constraints*: Human-readable text; no machine-parseable format contract.
+- _Constraints_: Human-readable text; no machine-parseable format contract.
 
 **Standard Error**: Error message output written to `Console.Error`.
 
-- *Type*: Standard I/O.
-- *Role*: Provider.
-- *Contract*: Writes error messages in red when a failure occurs. Suppressed when `--silent`
+- _Type_: Standard I/O.
+- _Role_: Provider.
+- _Contract_: Writes error messages in red when a failure occurs. Suppressed when `--silent`
   is active but the exit code is still set to 1.
-- *Constraints*: Color output requires a terminal that supports `ConsoleColor`.
+- _Constraints_: Color output requires a terminal that supports `ConsoleColor`.
 
 **Log File**: Optional persistent output file.
 
-- *Type*: File.
-- *Role*: Provider.
-- *Contract*: When `--log <file>` is supplied, all `Context.WriteLine` and `Context.WriteError`
+- _Type_: File.
+- _Role_: Provider.
+- _Contract_: When `--log <file>` is supplied, all `Context.WriteLine` and `Context.WriteError`
   output is written to the file regardless of `--silent`. The file is truncated at open.
-- *Constraints*: The path must be writable; failure to open the file raises an
+- _Constraints_: The path must be writable; failure to open the file raises an
   `InvalidOperationException` and causes exit code 1.
 
 **Results File**: Optional self-validation results file.
 
-- *Type*: File.
-- *Role*: Provider.
-- *Contract*: When `--results <file>` is supplied alongside `--validate`, self-validation results
+- _Type_: File.
+- _Role_: Provider.
+- _Contract_: When `--results <file>` is supplied alongside `--validate`, self-validation results
   are serialized to the file. Extension `.trx` selects MSTest TRX format; `.xml` selects JUnit
   XML format.
-- *Constraints*: Any other extension causes an error message and exit code 1; no file is written.
+- _Constraints_: Any other extension causes an error message and exit code 1; no file is written.
 
 ## Dependencies
+
+- **DemaConsulting.TextLint** (library, same repository): the tool depends on this project for
+  all linting functionality. The tool does not call any library API yet, so the reference
+  currently carries no behavioral coupling; see the _TextLint_ design.
 
 - **DemaConsulting.TestResults**: provides `TestResults`, `TestResult`, and `TestOutcome` for
   accumulating self-validation results.
@@ -113,3 +124,6 @@ N/A - not a safety-classified software item.
   close any open log file handle.
 - Path safety: all caller-supplied path components are validated by `PathHelpers.SafePathCombine`
   before file-system use.
+- Layering: the tool is a thin command-line front-end. No linting logic (configuration loading,
+  file discovery, dictionaries, tokenization, spell checking, results) may be added to the tool;
+  it belongs in the `DemaConsulting.TextLint` library, which the tool calls.

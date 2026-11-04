@@ -1,0 +1,84 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- The library targets net10.0 only (plural property so further frameworks can be appended). -->
+    <TargetFrameworks>net10.0</TargetFrameworks>
+    <LangVersion>latest</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+
+    <!-- NuGet Package Configuration -->
+    <PackageId>DemaConsulting.TextLint</PackageId>
+    <Version>0.0.0</Version>
+    <Authors>DEMA Consulting</Authors>
+    <Company>DEMA Consulting</Company>
+    <Description>DEMA Consulting TextLint library for fast linting of code and documentation</Description>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/demaconsulting/TextLint</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/demaconsulting/TextLint</RepositoryUrl>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageIcon>Icon.png</PackageIcon>
+    <PackageTags>textlint;linter;dotnet-library</PackageTags>
+    <Copyright>Copyright DEMA Consulting</Copyright>
+    <Title>TextLint</Title>
+    <Product>DemaConsulting.TextLint</Product>
+
+    <!-- Trim and Native AOT Compatibility: the tool is published as a Native AOT executable, so the
+         library must stay trim and AOT safe. IsAotCompatible enables the trim, AOT, and single-file
+         analyzers, which TreatWarningsAsErrors below turns into build failures. -->
+    <IsAotCompatible>true</IsAotCompatible>
+
+    <!-- Symbol Package Configuration -->
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>
+
+    <!-- Code Quality Configuration -->
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <AnalysisLevel>latest</AnalysisLevel>
+
+    <!-- SBOM Configuration -->
+    <GenerateSBOM>true</GenerateSBOM>
+    <SBOMPackageName>$(PackageId)</SBOMPackageName>
+    <SBOMPackageVersion>$(Version)</SBOMPackageVersion>
+    <SBOMPackageSupplier>Organization: $(Company)</SBOMPackageSupplier>
+  </PropertyGroup>
+
+  <!-- Build Tool Dependencies -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Sbom.Targets" Version="4.1.13" PrivateAssets="All" />
+    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="10.0.403" PrivateAssets="All" />
+  </ItemGroup>
+
+  <!-- Code Analysis Dependencies -->
+  <ItemGroup>
+    <!-- Analyzer packages use child-element form to configure both PrivateAssets and IncludeAssets:
+         - PrivateAssets="all" prevents these build-time analyzers from becoming transitive dependencies
+           in packages that consume this library.
+         - IncludeAssets lists all asset types (including 'analyzers' and 'buildtransitive') to ensure
+           Roslyn analyzers and MSBuild targets are fully activated during the build. -->
+    <PackageReference Include="Microsoft.CodeAnalysis.NetAnalyzers" Version="10.0.403">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="SonarAnalyzer.CSharp" Version="10.35.0.4138">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="DemaConsulting.TextLint.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\..\README.md" Pack="true" PackagePath="\" />
+    <None Include="..\..\Icon.png" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+</Project>
