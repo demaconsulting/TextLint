@@ -35,7 +35,8 @@ library and is not permitted to carry linting logic of its own.
 - _Type_: .NET assembly.
 - _Role_: Provider.
 - _Contract_: None yet - the library exposes no public types in this release.
-- _Constraints_: Every public type added later must be trim and Native AOT safe.
+- _Constraints_: Every public type added later must be trim and AOT safe, because the tool is
+  planned to be published as a Native AOT executable.
 
 ## Dependencies
 
@@ -60,10 +61,13 @@ N/A - the library exposes no operations yet, so there is no input-to-output data
 - Trimming and Native AOT: the library enables the trim, AOT, and single-file analyzers
   (`IsAotCompatible`) with warnings treated as errors, so reflection-dependent or otherwise
   AOT-unsafe code cannot be added without failing the build. The assembly is marked trimmable.
+  The tool is planned to be published as a Native AOT executable in a later change; that change
+  will add the real AOT-publish verification, and this library only guarantees the analyzer
+  configuration until then.
 - Packaging: the library and the tool are packed and published as separate NuGet packages from the
   same repository and version.
-- Dependencies: runtime dependencies must be kept minimal, because the tool is published as a
-  self-contained Native AOT executable.
+- Dependencies: runtime dependencies must be kept minimal, because the tool is planned to be
+  published as a self-contained Native AOT executable.
 - Layering: all linting logic belongs in this library. The library must not reference the tool,
   and must not depend on console output, command-line parsing, or process exit codes, which are
   the tool's concerns.

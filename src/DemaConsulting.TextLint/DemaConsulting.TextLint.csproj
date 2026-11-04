@@ -23,8 +23,9 @@
     <Title>TextLint</Title>
     <Product>DemaConsulting.TextLint</Product>
 
-    <!-- Trim and Native AOT Compatibility: the tool is published as a Native AOT executable, so the
-         library must stay trim and AOT safe. IsAotCompatible enables the trim, AOT, and single-file
+    <!-- Trim and Native AOT Compatibility: the tool is planned to be published as a Native AOT
+         executable, so the library must stay trim and AOT safe. IsAotCompatible enables the trim,
+         AOT, and single-file
          analyzers, which TreatWarningsAsErrors below turns into build failures. -->
     <IsAotCompatible>true</IsAotCompatible>
 

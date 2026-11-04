@@ -137,7 +137,7 @@ jobs:
           JOB_ID="build-${OS_SHORT}"
           dotnet versionmark --capture --job-id "${JOB_ID}" \
             --output "artifacts/versionmark-${JOB_ID}.json" -- \
-            dotnet git dotnet-sonarscanner versionmark
+            dotnet git dotnet-sonarscanner versionmark fileassert
           echo "✓ Tool versions captured"
 
       # === CAPTURE OTS SELF-VALIDATION RESULTS ===
@@ -206,9 +206,37 @@ jobs:
       # integration-test job (which installs the tool with
       # 'dotnet tool install --add-source packages') nor the release job (which pushes
       # 'artifacts/*.nupkg') would find the packages at the top of the downloaded folder.
-      - name: Create NuGet Packages
+      #
+      # The library is packed first and asserted before the tool is packed: the library
+      # package id (DemaConsulting.TextLint) is a prefix of the tool package id
+      # (DemaConsulting.TextLint.Tool), and FileAssert globs cannot exclude the latter, so
+      # the library assertions in .fileassert.yaml are only unambiguous while the tool
+      # package is not yet in the folder.
+      - name: Create Library Package
         run: >
           dotnet pack
+          src/DemaConsulting.TextLint/DemaConsulting.TextLint.csproj
+          --no-build
+          --no-restore
+          --configuration Release
+          --output packages
+          --property:PackageVersion=${{ inputs.version }}
+
+      # Asserts the shape of the library package just produced (net10.0 assembly, package
+      # id and metadata). These run here, against the real artifact, rather than inside the
+      # test suite - packing is a build activity. The results are linked as evidence for
+      # the TextLint-System-Package requirement.
+      - name: Assert Library Package with FileAssert
+        run: >
+          dotnet fileassert
+          --results artifacts/fileassert-packages-${{ matrix.os }}.trx
+          packages
+          library-project
+
+      - name: Create Dotnet Tool Package
+        run: >
+          dotnet pack
+          src/DemaConsulting.TextLint.Tool/DemaConsulting.TextLint.Tool.csproj
           --no-build
           --no-restore
           --configuration Release

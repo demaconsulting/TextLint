@@ -96,7 +96,8 @@ public class TextLintTests
     }
 
     /// <summary>
-    ///     Test that the library assembly is marked as trim and Native AOT compatible.
+    ///     Test that the library assembly is marked trimmable, as emitted when the project enables
+    ///     the trim and Native AOT compatibility analyzers.
     /// </summary>
     [Fact]
     public void TextLint_Assembly_Loaded_IsMarkedTrimCompatible()
