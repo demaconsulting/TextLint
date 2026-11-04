@@ -45,7 +45,7 @@ reviews:
 
   # Decomposition Review (only one per repository)
   - id: Decomposition
-    title: Review that TextLint Tool Decomposition Addresses the Stated Purpose
+    title: Review that TextLint Decomposition Addresses the Stated Purpose
     context:
       - README.md
       - "docs/user_guide/**/*.md"
