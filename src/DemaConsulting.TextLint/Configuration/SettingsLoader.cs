@@ -212,7 +212,7 @@ public static class SettingsLoader
     ///     Applies one key and value from the top-level mapping to the settings.
     /// </summary>
     /// <remarks>
-    ///     Keys are matched ordinally, so they are case-sensitive; <c>Files</c> is not <c>files</c>.
+    ///     Keys are matched with exact (ordinal) comparison, so they are case-sensitive; <c>Files</c> is not <c>files</c>.
     ///     A key that is not supported is an error naming the key, because silently ignoring it
     ///     would let a setting the user believes is in force have no effect. Side effects: appends
     ///     to <paramref name="diagnostics"/>. Thread-safe.
