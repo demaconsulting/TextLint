@@ -4,13 +4,13 @@
 > values specific to the target repository. These values are the canonical source
 > for project-wide template placeholders used throughout the repository.
 
-- **project-name**: TODO — repository/project name (e.g., `ReqStream`)
-- **organization**: TODO — organization name for document authorship (e.g., `DEMA Consulting`)
+- **project-name**: TextLint
+- **organization**: DEMA Consulting
 - **project-tagline**: TODO — document subtitle; 4–8 words, noun phrase, no period
   (e.g., `Requirements traceability for .NET projects`)
 - **description**: TODO — full project description, may be multiple sentences
-- **languages**: TODO — programming languages used (e.g., `C#`, `C++`)
-- **technologies**: TODO — key technologies and frameworks (e.g., `.NET`, `CMake`)
+- **languages**: C#
+- **technologies**: .NET
 
 # Project Structure
 
@@ -31,9 +31,9 @@
 │   ├── user_guide/
 │   └── verification/
 ├── src/
-│   └── {project}/
+│   └── DemaConsulting.TextLint.Tool/
 └── test/
-    └── {test-project}/
+    └── DemaConsulting.TextLint.Tool.Tests/
 ```
 
 # Language and Spelling (ALL Agents)

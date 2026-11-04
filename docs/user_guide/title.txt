@@ -1,11 +1,11 @@
 ---
-title: Template DotNet Tool User Guide
+title: TextLint User Guide
 subtitle: A .NET Reference Implementation for CLI Tools
 author: DEMA Consulting
 description: A .NET Reference Implementation for CLI Tools
 lang: en-US
 keywords:
-  - Template DotNet Tool
+  - TextLint
   - .NET
   - Command-Line Tool
   - Documentation

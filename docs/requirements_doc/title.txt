@@ -1,11 +1,11 @@
 ---
-title: Template DotNet Tool Requirements
-subtitle: Requirements Specification for the Template DotNet Tool
+title: TextLint Requirements
+subtitle: Requirements Specification for the TextLint
 author: DEMA Consulting
-description: Requirements Specification for the Template DotNet Tool
+description: Requirements Specification for the TextLint
 lang: en-US
 keywords:
-  - Template DotNet Tool
+  - TextLint
   - Requirements
   - Specification
   - .NET
