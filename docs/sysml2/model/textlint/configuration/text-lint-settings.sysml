@@ -1,0 +1,11 @@
+package TextLint {
+    part def TextLintSettings {
+        doc /* The immutable settings value (version, include patterns, ignore patterns, hidden-file switch) shared by the file and code routes. */
+
+        comment sourceRef /* Source: src/DemaConsulting.TextLint/Configuration/TextLintSettings.cs */
+        comment testRef /* Test: test/DemaConsulting.TextLint.Tests/Configuration/TextLintSettingsTests.cs */
+        comment designRef /* Design: docs/design/textlint/configuration/text-lint-settings.md */
+        comment verificationRef /* Verification: docs/verification/textlint/configuration/text-lint-settings.md */
+        comment reqRef /* Requirements: docs/reqstream/textlint/configuration/text-lint-settings.yaml */
+    }
+}

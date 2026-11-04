@@ -77,6 +77,7 @@ reviews:
       - "docs/design/introduction.md"
       - "docs/design/textlint.md"
       - "docs/design/textlint/**/*.md"
+      - "docs/design/ots.md"
 
   - id: TextLint-Verification
     title: Review that TextLint Verification is Consistent and Complete
@@ -86,6 +87,7 @@ reviews:
       - "docs/verification/introduction.md"
       - "docs/verification/textlint.md"
       - "docs/verification/textlint/**/*.md"
+      - "docs/verification/ots.md"
 
   - id: TextLint-AllRequirements
     title: Review that All TextLint Requirements are Complete
@@ -94,6 +96,114 @@ reviews:
       - docs/reqstream/textlint.yaml
     paths:
       - "docs/reqstream/textlint/**/*.yaml"
+
+  # TextLint - Configuration
+  - id: TextLint-Configuration
+    title: Review that TextLint Configuration Satisfies Subsystem Requirements
+    context:
+      - docs/design/textlint.md
+      - docs/reqstream/textlint.yaml
+    paths:
+      - "docs/reqstream/textlint/configuration.yaml"
+      - "docs/design/textlint/configuration.md"
+      - "docs/verification/textlint/configuration.md"
+      - "test/**/Configuration/ConfigurationSubsystemTests.cs"
+
+  - id: TextLint-Configuration-TextLintSettings
+    title: Review that TextLint Configuration TextLintSettings Implementation is Correct
+    context:
+      - docs/design/textlint.md
+      - docs/reqstream/textlint.yaml
+      - docs/design/textlint/configuration.md
+      - docs/reqstream/textlint/configuration.yaml
+    paths:
+      - "docs/reqstream/textlint/configuration/text-lint-settings.yaml"
+      - "docs/design/textlint/configuration/text-lint-settings.md"
+      - "docs/verification/textlint/configuration/text-lint-settings.md"
+      - "src/DemaConsulting.TextLint/Configuration/TextLintSettings.cs"
+      - "test/**/Configuration/TextLintSettingsTests.cs"
+
+  - id: TextLint-Configuration-SettingsLoader
+    title: Review that TextLint Configuration SettingsLoader Implementation is Correct
+    context:
+      - docs/design/textlint.md
+      - docs/reqstream/textlint.yaml
+      - docs/design/textlint/configuration.md
+      - docs/reqstream/textlint/configuration.yaml
+    paths:
+      - "docs/reqstream/textlint/configuration/settings-loader.yaml"
+      - "docs/design/textlint/configuration/settings-loader.md"
+      - "docs/verification/textlint/configuration/settings-loader.md"
+      - "src/DemaConsulting.TextLint/Configuration/SettingsLoader.cs"
+      - "src/DemaConsulting.TextLint/Configuration/SettingsLoadResult.cs"
+      - "src/DemaConsulting.TextLint/Configuration/SettingsDiagnostic.cs"
+      - "test/**/Configuration/SettingsLoaderTests.cs"
+
+  # TextLint - FileSelection
+  - id: TextLint-FileSelection
+    title: Review that TextLint FileSelection Satisfies Subsystem Requirements
+    context:
+      - docs/design/textlint.md
+      - docs/reqstream/textlint.yaml
+    paths:
+      - "docs/reqstream/textlint/file-selection.yaml"
+      - "docs/design/textlint/file-selection.md"
+      - "docs/verification/textlint/file-selection.md"
+      - "test/**/FileSelection/FileSelectionSubsystemTests.cs"
+
+  - id: TextLint-FileSelection-GlobPatternExpander
+    title: Review that TextLint FileSelection GlobPatternExpander Implementation is Correct
+    context:
+      - docs/design/textlint.md
+      - docs/reqstream/textlint.yaml
+      - docs/design/textlint/file-selection.md
+      - docs/reqstream/textlint/file-selection.yaml
+    paths:
+      - "docs/reqstream/textlint/file-selection/glob-pattern-expander.yaml"
+      - "docs/design/textlint/file-selection/glob-pattern-expander.md"
+      - "docs/verification/textlint/file-selection/glob-pattern-expander.md"
+      - "src/DemaConsulting.TextLint/FileSelection/GlobPatternExpander.cs"
+      - "src/DemaConsulting.TextLint/FileSelection/InvalidGlobPatternException.cs"
+      - "test/**/FileSelection/GlobPatternExpanderTests.cs"
+
+  - id: TextLint-FileSelection-HiddenPathPolicy
+    title: Review that TextLint FileSelection HiddenPathPolicy Implementation is Correct
+    context:
+      - docs/design/textlint.md
+      - docs/reqstream/textlint.yaml
+      - docs/design/textlint/file-selection.md
+      - docs/reqstream/textlint/file-selection.yaml
+    paths:
+      - "docs/reqstream/textlint/file-selection/hidden-path-policy.yaml"
+      - "docs/design/textlint/file-selection/hidden-path-policy.md"
+      - "docs/verification/textlint/file-selection/hidden-path-policy.md"
+      - "src/DemaConsulting.TextLint/FileSelection/HiddenPathPolicy.cs"
+      - "test/**/FileSelection/HiddenPathPolicyTests.cs"
+
+  - id: TextLint-FileSelection-FileSelector
+    title: Review that TextLint FileSelection FileSelector Implementation is Correct
+    context:
+      - docs/design/textlint.md
+      - docs/reqstream/textlint.yaml
+      - docs/design/textlint/file-selection.md
+      - docs/reqstream/textlint/file-selection.yaml
+    paths:
+      - "docs/reqstream/textlint/file-selection/file-selector.yaml"
+      - "docs/design/textlint/file-selection/file-selector.md"
+      - "docs/verification/textlint/file-selection/file-selector.md"
+      - "src/DemaConsulting.TextLint/FileSelection/FileSelector.cs"
+      - "src/DemaConsulting.TextLint/FileSelection/SelectedFile.cs"
+      - "src/DemaConsulting.TextLint/FileSelection/HiddenFilteringDirectory.cs"
+      - "test/**/FileSelection/FileSelectorTests.cs"
+
+  # TextLint - Test Support (shared helpers used by the library tests; not a software item)
+  - id: TextLint-TestSupport
+    title: Review that TextLint Test Support Helpers are Correct
+    context:
+      - docs/verification/textlint.md
+      - docs/verification/textlint/file-selection/file-selector.md
+    paths:
+      - "test/**/TestSupport/*.cs"
 
   # TextLintTool - Specials
   - id: TextLintTool-Architecture
@@ -244,6 +354,13 @@ reviews:
       - "docs/design/ots/fileassert.md"
       - "docs/verification/ots/fileassert.md"
 
+  - id: OTS-FileSystemGlobbing
+    title: Review that FileSystemGlobbing Provides Required Functionality
+    paths:
+      - "docs/reqstream/ots/filesystemglobbing.yaml"
+      - "docs/design/ots/filesystemglobbing.md"
+      - "docs/verification/ots/filesystemglobbing.md"
+
   - id: OTS-Pandoc
     title: Review that Pandoc Provides Required Functionality
     paths:
@@ -306,3 +423,10 @@ reviews:
       - "docs/reqstream/ots/xunit.yaml"
       - "docs/design/ots/xunit.md"
       - "docs/verification/ots/xunit.md"
+
+  - id: OTS-YamlDotNet
+    title: Review that YamlDotNet Provides Required Functionality
+    paths:
+      - "docs/reqstream/ots/yamldotnet.yaml"
+      - "docs/design/ots/yamldotnet.md"
+      - "docs/verification/ots/yamldotnet.md"

@@ -1,0 +1,39 @@
+---
+# YamlDotNet OTS Software Requirements
+#
+# Requirements for the YamlDotNet functionality the library relies on to read .textlint.yaml.
+# YamlDotNet is a runtime dependency; its evidence is the library test suite that exercises it
+# (see the YamlDotNet verification document).
+
+sections:
+  - title: OTS Software Requirements
+    sections:
+      - title: YamlDotNet Requirements
+        requirements:
+          - id: TextLint-OTS-YamlDotNet-ParseYaml
+            title: >-
+              YamlDotNet shall parse YAML text into a node model of mappings, sequences, and
+              scalars, resolving anchors and aliases.
+            justification: |
+              The settings loader maps the YAML node model onto settings by hand, without
+              reflection. Flow and block lists, quoted and unquoted scalars, and aliases must all
+              be presented correctly for settings files written in any common YAML style to load.
+            tags: [ots]
+            tests:
+              - SettingsLoader_Parse_AllSupportedKeys_MapsEveryValue
+              - SettingsLoader_Parse_FlowAndBlockLists_BothMap
+              - SettingsLoader_Parse_AnchorsAndAliases_AreResolved
+
+          - id: TextLint-OTS-YamlDotNet-SourcePositions
+            title: >-
+              YamlDotNet shall report the 1-based line and column of every node and of every
+              syntax error.
+            justification: |
+              Configuration errors are reported with the file, line, and column of the problem.
+              That is only possible if the parser supplies the position of each node it produces
+              and of the point where it failed.
+            tags: [ots]
+            tests:
+              - SettingsLoader_Parse_MalformedYaml_ReportsLineAndColumn
+              - SettingsLoader_Parse_FilesNotAList_ReportsErrorAtValue
+              - SettingsLoader_Parse_DuplicateKey_ReportsErrorAtDuplicate

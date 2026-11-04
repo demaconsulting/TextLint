@@ -1,0 +1,40 @@
+---
+# Microsoft.Extensions.FileSystemGlobbing OTS Software Requirements
+#
+# Requirements for the file system globbing functionality the library relies on to select files.
+# FileSystemGlobbing is a runtime dependency; its evidence is the library test suite that
+# exercises it (see the FileSystemGlobbing verification document).
+
+sections:
+  - title: OTS Software Requirements
+    sections:
+      - title: FileSystemGlobbing Requirements
+        requirements:
+          - id: TextLint-OTS-FileSystemGlobbing-MatchPatterns
+            title: >-
+              Microsoft.Extensions.FileSystemGlobbing shall match include and exclude glob
+              patterns against a directory tree, with the case sensitivity chosen by the caller.
+            justification: |
+              File selection delegates the matching of glob patterns to this component. It must
+              honor exclusion over inclusion, find files at any depth, and compare names
+              case-sensitively when asked, so selection is identical on every operating system.
+            tags: [ots]
+            tests:
+              - FileSelector_Select_IncludePatterns_ReturnsMatchingFiles
+              - FileSelector_Select_IgnorePatterns_ExcludesMatches
+              - FileSelector_Select_DifferentCaseExtension_IsNotSelected
+              - FileSelector_Select_NestedFiles_AreFound
+
+          - id: TextLint-OTS-FileSystemGlobbing-ExcludePruning
+            title: >-
+              Microsoft.Extensions.FileSystemGlobbing shall not enumerate the contents of a
+              directory that an exclude pattern excludes in full.
+            justification: |
+              Scanning excluded trees such as node_modules would dominate the run time on large
+              repositories, so the library relies on the matcher to skip them. The behavior is
+              observable through the directory abstraction the matcher walks.
+            tags: [ots]
+            tests:
+              - FileSelector_Select_IgnoredDirectory_IsNeverEnumerated
+              - FileSelector_Select_NestedIgnoredDirectory_IsNeverEnumerated
+              - TextLint_Files_IgnoredDirectory_IsNotEnumerated

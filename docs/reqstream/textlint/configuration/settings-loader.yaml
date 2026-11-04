@@ -1,0 +1,122 @@
+---
+# Software Unit Requirements for the SettingsLoader Class
+#
+# The SettingsLoader class reads a .textlint.yaml file and maps it onto settings, returning every
+# configuration problem as a positioned error instead of throwing.
+
+sections:
+  - title: TextLint Requirements
+    sections:
+      - title: Configuration Requirements
+        sections:
+          - title: SettingsLoader Requirements
+            requirements:
+              - id: TextLint-Configuration-SettingsLoader-ReadFile
+                title: >-
+                  SettingsLoader shall read the named file asynchronously, honor cancellation, and
+                  report an unreadable file as an error that names it.
+                justification: |
+                  Reading must not block the caller and must be abortable. A file that cannot be
+                  read is a configuration problem the user must be told about by name, not an
+                  unhandled exception.
+                tests:
+                  - SettingsLoader_LoadAsync_ValidFile_ReturnsSettings
+                  - SettingsLoader_LoadAsync_MissingFile_ReturnsErrorNamingFile
+                  - SettingsLoader_LoadAsync_CancelledToken_ThrowsOperationCanceled
+                  - SettingsLoader_LoadAsync_NullPath_ThrowsArgumentNullException
+                  - SettingsLoader_LoadAsync_EmptyPath_ThrowsArgumentException
+                  - SettingsLoader_LoadAsync_Utf8BomFile_ReturnsSettings
+
+              - id: TextLint-Configuration-SettingsLoader-MapKeys
+                title: >-
+                  SettingsLoader shall map version, files, ignorePaths, and enableGlobDot to
+                  settings, treating an empty document or a null value as absent.
+                justification: |
+                  These are the supported cspell-named keys. Configurations written by hand are
+                  often empty or have commented-out lists, and neither may be an error.
+                tests:
+                  - SettingsLoader_Parse_AllSupportedKeys_MapsEveryValue
+                  - SettingsLoader_Parse_EmptyDocument_ReturnsDefaultSettings
+                  - SettingsLoader_Parse_CommentOnlyDocument_ReturnsDefaultSettings
+                  - SettingsLoader_Parse_NullListValue_TreatedAsAbsent
+                  - SettingsLoader_Parse_NumericVersion_MapsToText
+                  - SettingsLoader_Parse_FlowAndBlockLists_BothMap
+                  - SettingsLoader_Parse_AnchorsAndAliases_AreResolved
+
+              - id: TextLint-Configuration-SettingsLoader-TypeErrors
+                title: >-
+                  SettingsLoader shall report a value of the wrong type or shape, and any file
+                  with more than one YAML document, as an error at the offending position,
+                  collecting every such error and returning no settings.
+                justification: |
+                  A value that is not understood cannot be applied. Reporting all such errors at
+                  once lets the user fix a file in one pass, and returning no settings prevents a
+                  run from proceeding on a partly understood configuration.
+                tests:
+                  - SettingsLoader_Parse_FilesNotAList_ReportsErrorAtValue
+                  - SettingsLoader_Parse_FilesItemNotText_ReportsErrorAtItem
+                  - SettingsLoader_Parse_EnableGlobDotNotBoolean_ReportsError
+                  - SettingsLoader_Parse_EnableGlobDotYes_ReportsError
+                  - SettingsLoader_Parse_VersionNotText_ReportsError
+                  - SettingsLoader_Parse_RootNotMapping_ReportsError
+                  - SettingsLoader_Parse_NonScalarKey_ReportsError
+                  - SettingsLoader_Parse_MultipleDocuments_ReportsError
+                  - SettingsLoader_Parse_MultipleTypeErrors_ReportsEveryError
+                  - SettingsLoader_Parse_AnyError_ReturnsNoSettings
+
+              - id: TextLint-Configuration-SettingsLoader-SyntaxErrors
+                title: >-
+                  SettingsLoader shall report malformed YAML as an error at the position where
+                  the problem was detected.
+                justification: |
+                  Syntax errors are the most common configuration mistake; the line and column
+                  turn a cryptic failure into a one-step fix.
+                tests:
+                  - SettingsLoader_Parse_MalformedYaml_ReportsLineAndColumn
+                  - SettingsLoader_Parse_DuplicateKey_ReportsErrorAtDuplicate
+                  - SettingsLoader_Parse_TabIndentation_ReportsError
+                  - SettingsLoader_Parse_UnknownAlias_ReportsError
+
+              - id: TextLint-Configuration-SettingsLoader-UnsupportedKeys
+                title: >-
+                  SettingsLoader shall report each unsupported top-level key as an error naming
+                  the key at the key's position, and shall return no settings.
+                justification: |
+                  A key that is silently ignored leaves the user believing a setting is in force.
+                  Naming the key tells them exactly what is unavailable. Matching is
+                  case-sensitive, because that is how the keys are defined.
+                tests:
+                  - SettingsLoader_Parse_UnsupportedKey_ReportsErrorNamingKey
+                  - SettingsLoader_Parse_UnsupportedKey_ReturnsNoSettings
+                  - SettingsLoader_Parse_SeveralUnsupportedKeys_ReportsEach
+                  - SettingsLoader_Parse_UnsupportedKeyWithNestedValue_ReportsSingleError
+                  - SettingsLoader_Parse_KeyDifferentCase_TreatedAsUnsupported
+
+              - id: TextLint-Configuration-SettingsLoader-InvalidPatterns
+                title: >-
+                  SettingsLoader shall report each include or ignore pattern that the file
+                  selection rules reject as an error at that pattern, naming the pattern and the
+                  reason.
+                justification: |
+                  Reporting a bad pattern while the file is loaded keeps its line and column,
+                  which are lost by the time files are selected. Using the same rules as file
+                  selection ensures a pattern accepted at load is never rejected later.
+                tests:
+                  - SettingsLoader_Parse_InvalidFilesPattern_ReportsErrorAtItem
+                  - SettingsLoader_Parse_InvalidIgnorePathsPattern_ReportsErrorAtItem
+                  - SettingsLoader_Parse_InvalidPattern_NamesPatternAndReason
+                  - SettingsLoader_Parse_ValidBraceAndBareNamePatterns_AreAccepted
+
+              - id: TextLint-Configuration-SettingsLoader-Diagnostics
+                title: >-
+                  SettingsLoader errors shall carry the message, the source file, and the 1-based
+                  line and column when known, and shall format as file(line,column): error: message.
+                justification: |
+                  A single, compiler-style format lets editors, build servers, and CI logs
+                  recognize and link configuration errors without tool-specific integration.
+                tests:
+                  - SettingsLoader_Parse_ErrorDiagnostic_CarriesSourceNameLineAndColumn
+                  - SettingsLoader_Parse_Diagnostic_ToString_FormatsFileLineColumn
+                  - SettingsLoader_Parse_Diagnostic_ToStringWithoutSource_OmitsFileName
+                  - SettingsLoader_Parse_Diagnostic_ToStringWithNothingKnown_ShowsOnlyMessage
+                  - SettingsLoader_LoadAsync_MissingFile_DiagnosticHasNoPosition

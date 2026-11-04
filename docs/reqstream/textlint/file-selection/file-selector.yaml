@@ -1,0 +1,97 @@
+---
+# Software Unit Requirements for the FileSelector Class
+#
+# The FileSelector class applies settings to a root directory and returns the ordered list of
+# files to check.
+
+sections:
+  - title: TextLint Requirements
+    sections:
+      - title: FileSelection Requirements
+        sections:
+          - title: FileSelector Requirements
+            requirements:
+              - id: TextLint-FileSelection-FileSelector-Matching
+                title: >-
+                  FileSelector shall return the files under the root that match an include pattern
+                  and no ignore pattern, select nothing when there are no include patterns, and
+                  reject a missing root.
+                justification: |
+                  This is the core selection behavior: includes choose, ignores win, and an empty
+                  configuration selects nothing rather than everything. A missing root is a caller
+                  error that must be reported, not treated as an empty result.
+                tests:
+                  - FileSelector_Select_IncludePatterns_ReturnsMatchingFiles
+                  - FileSelector_Select_IgnorePatterns_ExcludesMatches
+                  - FileSelector_Select_NoIncludePatterns_ReturnsEmpty
+                  - FileSelector_Select_IgnoreAndIncludeOverlap_IgnoreWins
+                  - FileSelector_Select_NestedFiles_AreFound
+                  - FileSelector_Select_NamesWithSpaces_AreSelected
+                  - FileSelector_Select_BareDirectoryNameIgnored_ExcludesNestedSubtree
+                  - FileSelector_Select_RootDirectoryMissing_ThrowsDirectoryNotFound
+                  - FileSelector_Select_NullSettings_ThrowsArgumentNullException
+                  - FileSelector_Select_NullRoot_ThrowsArgumentNullException
+                  - FileSelector_Select_EmptyRoot_ThrowsArgumentException
+                  - FileSelector_Select_Result_ExposesFullPath
+
+              - id: TextLint-FileSelection-FileSelector-CaseSensitive
+                title: FileSelector shall match patterns case-sensitively on every platform.
+                justification: |
+                  A configuration must select the same files on Windows, Linux, and macOS; the
+                  file systems differ in case sensitivity, so matching must not follow them.
+                tests:
+                  - FileSelector_Select_DifferentCaseExtension_IsNotSelected
+                  - FileSelector_Select_DifferentCaseDirectory_IsNotSelected
+
+              - id: TextLint-FileSelection-FileSelector-HiddenFiles
+                title: >-
+                  FileSelector shall not let wildcards select hidden files and directories unless
+                  EnableGlobDot is true, and shall select hidden names a pattern writes literally.
+                justification: |
+                  Matches the cspell rule: wildcards skip dot-prefixed names by default, an
+                  explicit pattern such as .github/** still works, and enabling hidden matching
+                  lets wildcards reach everything.
+                tests:
+                  - FileSelector_Select_HiddenFile_SkippedByDefault
+                  - FileSelector_Select_HiddenDirectory_SkippedByDefault
+                  - FileSelector_Select_HiddenEntries_SelectedWhenGlobDotEnabled
+                  - FileSelector_Select_LiteralHiddenDirectoryPattern_SelectsFilesBeneath
+                  - FileSelector_Select_LiteralHiddenFilePattern_SelectsFileAtAnyDepth
+                  - FileSelector_Select_WildcardBeneathLiteralHidden_SkipsNestedHidden
+                  - FileSelector_Select_LiteralInOtherPattern_DoesNotLetWildcardReachHidden
+
+              - id: TextLint-FileSelection-FileSelector-PrunedTraversal
+                title: >-
+                  FileSelector shall not enumerate a directory that an ignore pattern excludes, or
+                  a hidden directory that no include pattern names, but shall enumerate a hidden
+                  directory that an include pattern names.
+                justification: |
+                  Large excluded trees dominate run time if they are read; the test double
+                  observes enumeration directly so the property is proven without timing.
+                tests:
+                  - FileSelector_Select_IgnoredDirectory_IsNeverEnumerated
+                  - FileSelector_Select_HiddenDirectory_IsNeverEnumeratedByDefault
+                  - FileSelector_Select_NestedIgnoredDirectory_IsNeverEnumerated
+                  - FileSelector_Select_LiteralHiddenDirectory_IsEnumerated
+
+              - id: TextLint-FileSelection-FileSelector-StableOrder
+                title: >-
+                  FileSelector shall order results by ordinal relative path and express relative
+                  paths with forward slashes.
+                justification: |
+                  Reproducible output across platforms and runs is needed for reports, diffs, and
+                  caches.
+                tests:
+                  - FileSelector_Select_FilesCreatedOutOfOrder_ReturnsOrdinalOrder
+                  - FileSelector_Select_NestedFiles_UseForwardSlashes
+
+              - id: TextLint-FileSelection-FileSelector-InvalidPatterns
+                title: >-
+                  FileSelector shall reject settings whose include or ignore patterns are
+                  unsupported or malformed, with an error that names the pattern.
+                justification: |
+                  Settings built in code bypass the settings file check, so selection must
+                  enforce the same pattern rules rather than silently select the wrong files.
+                tests:
+                  - FileSelector_Select_InvalidIncludePattern_ThrowsInvalidGlobPattern
+                  - FileSelector_Select_InvalidIgnorePattern_ThrowsInvalidGlobPattern

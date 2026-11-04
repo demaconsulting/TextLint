@@ -24,6 +24,7 @@ words:
   - Dema
   - demaconsulting
   - doctitle
+  - filesystemglobbing
   - docversion
   - errorlevel
   - fileassert
@@ -47,6 +48,7 @@ words:
   - versionmark
   - Weasyprint
   - yamlfix
+  - yamldotnet
 
 # Exclude common build artifacts, dependencies, and vendored third-party code
 ignorePaths:

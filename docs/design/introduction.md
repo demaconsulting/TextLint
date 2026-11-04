@@ -18,8 +18,12 @@ requirements; it explains how they are realized.
 
 Local items:
 
-- **TextLint**: system design for the `DemaConsulting.TextLint` library. The library is
-  currently a package skeleton with no subsystems or units.
+- **TextLint**: system, subsystem, and unit design for the `DemaConsulting.TextLint` library:
+  - **Configuration** subsystem: **TextLintSettings** (the immutable settings value) and
+    **SettingsLoader** (reads a `.textlint.yaml` file, with its result and diagnostic types)
+  - **FileSelection** subsystem: **GlobPatternExpander** (pattern validation and rewriting),
+    **HiddenPathPolicy** (the hidden-name rule), and **FileSelector** (selects files, with its
+    result and exception types)
 - **TextLintTool**: system, subsystem, and unit design for all local components of the
   command-line tool.
 
@@ -27,6 +31,7 @@ OTS items:
 
 - **BuildMark**: integration and usage design.
 - **FileAssert**: integration and usage design.
+- **FileSystemGlobbing** (Microsoft.Extensions.FileSystemGlobbing): integration and usage design.
 - **Pandoc**: integration and usage design.
 - **ReqStream**: integration and usage design.
 - **ReviewMark**: integration and usage design.
@@ -36,6 +41,7 @@ OTS items:
 - **VersionMark**: integration and usage design.
 - **WeasyPrint**: integration and usage design.
 - **xUnit**: integration and usage design.
+- **YamlDotNet**: integration and usage design.
 
 The following topics are out of scope:
 
@@ -47,9 +53,11 @@ The following topics are out of scope:
 The software structure is modeled in SysML2 under `docs/sysml2/` and rendered to the diagram
 below by SysML2Tools as part of the build pipeline. AI agents should query the SysML2 model
 directly (see the `sysml2tools-query` skill) rather than parsing this diagram or the prose
-elsewhere in this document. The model captures the shipped system's runtime composition only;
-the OTS items listed in Scope above are build-time/pipeline tooling, documented separately
-(see `docs/design/ots.md`) rather than modeled as SysML2 parts.
+elsewhere in this document. The model captures the shipped system's runtime composition: the local
+items of both systems and the runtime OTS items the library depends on (YamlDotNet and
+Microsoft.Extensions.FileSystemGlobbing). The remaining OTS items listed in Scope above are
+build-time and pipeline tooling, documented separately (see `docs/design/ots.md`) rather than
+modeled as SysML2 parts.
 
 ![Software Structure](SoftwareStructureView.svg)
 
@@ -72,7 +80,9 @@ output needed to invoke it.
 ## Folder Layout
 
 - **src/** - source files and projects
-  - **DemaConsulting.TextLint/** - library source (package skeleton; no subsystems yet)
+  - **DemaConsulting.TextLint/** - library source
+    - **Configuration/** - settings and settings-file loading subsystem
+    - **FileSelection/** - glob pattern and file selection subsystem
   - **DemaConsulting.TextLint.Tool/** - main application source
     - **Cli/** - command-line interface subsystem
     - **SelfTest/** - self-validation subsystem

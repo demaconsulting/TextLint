@@ -1,0 +1,59 @@
+---
+# Software Unit Requirements for the HiddenPathPolicy Class
+#
+# The HiddenPathPolicy class decides which hidden (dot-prefixed) files and directories the include
+# patterns may reach: wildcards never match a hidden name, but a pattern segment that itself
+# starts with a literal dot does.
+
+sections:
+  - title: TextLint Requirements
+    sections:
+      - title: FileSelection Requirements
+        sections:
+          - title: HiddenPathPolicy Requirements
+            requirements:
+              - id: TextLint-FileSelection-HiddenPathPolicy-WildcardsSkipHidden
+                title: >-
+                  HiddenPathPolicy shall not permit a hidden file or directory to be reached
+                  through a wildcard, including through a wildcard that follows a literal hidden
+                  segment, and shall permit paths without hidden segments.
+                justification: |
+                  Wildcards must not select content such as .git or .cache by default, matching
+                  cspell, and one pattern's literal hidden name must not excuse another pattern's
+                  wildcard.
+                tests:
+                  - HiddenPathPolicy_IsPathPermitted_NoHiddenSegment_IsPermitted
+                  - HiddenPathPolicy_IsPathPermitted_WildcardAndHiddenFile_IsNotPermitted
+                  - HiddenPathPolicy_IsPathPermitted_LeadingStarAndHiddenFile_IsNotPermitted
+                  - HiddenPathPolicy_IsPathPermitted_WildcardAndHiddenDirectory_IsNotPermitted
+                  - HiddenPathPolicy_IsPathPermitted_WildcardBeneathLiteralHidden_SkipsNestedHidden
+                  - HiddenPathPolicy_IsPathPermitted_LiteralInOtherPattern_DoesNotExcuseWildcard
+                  - HiddenPathPolicy_IsHidden_DotPrefixedName_IsTrueOtherwiseFalse
+
+              - id: TextLint-FileSelection-HiddenPathPolicy-LiteralSegmentsMatchHidden
+                title: >-
+                  HiddenPathPolicy shall permit a hidden file or directory that a pattern names
+                  with a literal leading dot, case-sensitively.
+                justification: |
+                  Users must be able to lint specific hidden content, such as .github workflows,
+                  by naming it, without enabling hidden-file matching for every wildcard.
+                tests:
+                  - HiddenPathPolicy_IsPathPermitted_LiteralHiddenDirectory_IsPermitted
+                  - HiddenPathPolicy_IsPathPermitted_LiteralHiddenFileName_IsPermitted
+                  - HiddenPathPolicy_IsPathPermitted_DotPrefixedWildcardSegment_IsPermitted
+                  - HiddenPathPolicy_IsPathPermitted_LiteralHiddenDifferentCase_IsNotPermitted
+
+              - id: TextLint-FileSelection-HiddenPathPolicy-DirectoryTraversal
+                title: >-
+                  HiddenPathPolicy shall report that a hidden directory need not be entered when no
+                  include pattern can reach beneath it, and that one a pattern names literally, or
+                  any directory that is not hidden, may be entered.
+                justification: |
+                  Skipping hidden directories such as .git without reading them avoids scanning
+                  content that can never be selected, while a literally named hidden directory
+                  must still be searched.
+                tests:
+                  - HiddenPathPolicy_CanContainPermittedPaths_WildcardOnlyAndHiddenDirectory_IsFalse
+                  - HiddenPathPolicy_CanContainPermittedPaths_LiteralHiddenDirectory_IsTrue
+                  - HiddenPathPolicy_CanContainPermittedPaths_NonHiddenDirectory_IsTrue
+                  - HiddenPathPolicy_CanContainPermittedPaths_HiddenBeneathLiteralPrefix_FollowsPattern

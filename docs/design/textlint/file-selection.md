@@ -1,0 +1,63 @@
+## FileSelection
+
+![FileSelection Structure](FileSelectionView.svg)
+
+### Overview
+
+The `FileSelection` subsystem applies TextLint settings to a root directory and returns the ordered
+list of files to check. It owns the glob pattern rules: which pattern forms are accepted, how
+brace alternatives and bare names are interpreted, case sensitivity, the hidden-file rule, and the
+order of the result. The subsystem contains three units: `GlobPatternExpander`, which validates
+and rewrites patterns; `HiddenPathPolicy`, which decides which hidden paths the patterns may
+reach; and `FileSelector`, which walks the directory and produces the result. The supporting types
+`SelectedFile`, `InvalidGlobPatternException`, and an internal directory view are documented with
+the unit that uses them.
+
+The subsystem reads directory listings but never opens a file, and it does no console output. It
+does not read settings files; that belongs to the `Configuration` subsystem.
+
+### Interfaces
+
+**FileSelector.Select**: Selects files.
+
+- _Type_: In-process .NET static method.
+- _Role_: Provider.
+- _Contract_: Accepts a `TextLintSettings` and a root directory path and returns the selected files
+  as a read-only list of `SelectedFile`, each with a root-relative path using forward slashes and
+  the full operating-system path. The list is ordered by ordinal relative path. Empty include patterns
+  select nothing.
+- _Constraints_: Throws `ArgumentNullException` or `ArgumentException` for a null or empty argument,
+  `DirectoryNotFoundException` when the root does not exist, and `InvalidGlobPatternException` when
+  a pattern is unsupported or malformed. Matching is case-sensitive on every platform.
+
+**Supported pattern forms**: Patterns use `/` as the separator and `*` and `**` as wildcards.
+`**` matches any number of directory levels. Brace alternatives such as `*.{md,cs}` expand to one
+pattern per alternative. A pattern with no `/` names a file or directory at any depth, so
+`node_modules` excludes every such directory; a leading `/` or `./` anchors a pattern at the root; a
+trailing `/` limits it to directories. Negation (`!`), backslashes, the `?` wildcard, drive-rooted
+paths, empty and `..` segments, unbalanced braces, and expansions beyond a fixed limit are rejected.
+
+**Dependency on Configuration**: `FileSelector` takes `TextLintSettings` from the `Configuration`
+subsystem as its input. This is the one documented dependency of this subsystem outside itself, and
+the subsystem's tests use `TextLintSettings` as an input type.
+
+### Design
+
+Selection is a pipeline. `FileSelector` first expands every include and ignore pattern with
+`GlobPatternExpander`, which also validates them, so a bad pattern fails before any directory is read
+and even when no files would be selected. It then builds a matcher from Microsoft.Extensions.FileSystemGlobbing
+(see _FileSystemGlobbing Integration Design_) configured for ordinal, case-sensitive comparison,
+adds the expanded patterns, and walks the root directory.
+
+Ignored directories are never read: the ignore patterns become exclude patterns that the matcher
+uses to skip whole subtrees. Hidden directories are skipped the same way by wrapping the root in a
+view that consults `HiddenPathPolicy` before exposing a hidden subdirectory. A plain exclude pattern
+cannot do this, because excluding every dot-prefixed path would also suppress a pattern such as
+`.github/**` that names a hidden directory literally. After the matcher returns its candidates,
+`HiddenPathPolicy` makes the exact decision for each path that contains a hidden segment, pattern by
+pattern, so one pattern's literal hidden name never excuses another pattern's wildcard. Finally the
+paths are sorted by ordinal comparison, which makes the result identical on every platform and run.
+
+Case sensitivity is requested explicitly because the matcher is case-insensitive by default. Symbolic
+links and junctions are handled however the matcher's directory abstraction handles them; the
+subsystem adds no special treatment.
