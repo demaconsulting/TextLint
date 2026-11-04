@@ -58,12 +58,14 @@ N/A - the library exposes no operations yet, so there is no input-to-output data
 ## Design Constraints
 
 - Platform: targets net10.0 only; the platform requirements apply on Windows, Linux, and macOS.
-- Trimming and Native AOT: the library enables the trim, AOT, and single-file analyzers
-  (`IsAotCompatible`) with warnings treated as errors, so reflection-dependent or otherwise
-  AOT-unsafe code cannot be added without failing the build. The assembly is marked trimmable.
-  The tool is planned to be published as a Native AOT executable in a later change; that change
-  will add the real AOT-publish verification, and this library only guarantees the analyzer
-  configuration until then.
+- Trimming and Native AOT: the library will be required to support Native AOT consumers, because
+  the tool is planned to be published as a Native AOT executable. To keep that door open, the
+  library enables the trim, AOT, and single-file analyzers (`IsAotCompatible`) with warnings
+  treated as errors, so reflection-dependent or otherwise AOT-unsafe code cannot be added without
+  failing the build. The assembly is marked trimmable. This is a design constraint rather than a
+  requirement: with no public API yet, Native AOT consumption cannot be meaningfully verified.
+  The change that introduces the first public API will add the requirement that the library is
+  usable from Native AOT applications, together with a real AOT-publish verification.
 - Packaging: the library and the tool are packed and published as separate NuGet packages from the
   same repository and version.
 - Dependencies: runtime dependencies must be kept minimal, because the tool is planned to be

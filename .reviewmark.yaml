@@ -36,7 +36,7 @@ context:
 reviews:
   # Purpose
   - id: Purpose
-    title: Review of user-facing capabilities and system promises
+    title: Review that README and User Guide are Coherent and Complete
     context:
       - "!docs/design/introduction.md"
     paths:
@@ -56,7 +56,7 @@ reviews:
 
   # TextLint (library) - Specials
   - id: TextLint-Architecture
-    title: Review of TextLint library system architecture and package properties
+    title: Review that TextLint Architecture Satisfies Requirements
     context:
       - README.md
       - "docs/user_guide/**/*.md"
@@ -69,16 +69,26 @@ reviews:
       - "test/**/TextLintTests.cs"
 
   - id: TextLint-Design
-    title: Review of TextLint library architectural and design consistency
+    title: Review that TextLint Design is Consistent and Complete
     context:
       - docs/reqstream/textlint.yaml
     paths:
       - "docs/reqstream/textlint/platform-requirements.yaml"
       - "docs/design/introduction.md"
       - "docs/design/textlint.md"
+      - "docs/design/textlint/**/*.md"
+
+  - id: TextLint-Verification
+    title: Review that TextLint Verification is Consistent and Complete
+    context:
+      - docs/reqstream/textlint.yaml
+    paths:
+      - "docs/verification/introduction.md"
+      - "docs/verification/textlint.md"
+      - "docs/verification/textlint/**/*.md"
 
   - id: TextLint-AllRequirements
-    title: Review of TextLint library requirements quality and traceability
+    title: Review that All TextLint Requirements are Complete
     context:
       - docs/design/textlint.md
       - docs/reqstream/textlint.yaml
@@ -87,7 +97,7 @@ reviews:
 
   # TextLintTool - Specials
   - id: TextLintTool-Architecture
-    title: Review of TextLint Tool system architecture and operational validation
+    title: Review that TextLintTool Architecture Satisfies Requirements
     context:
       - README.md
       - "docs/user_guide/**/*.md"
@@ -100,18 +110,28 @@ reviews:
       - "test/**/IntegrationTests.cs"
 
   - id: TextLintTool-Design
-    title: Review of TextLint Tool architectural and design consistency
+    title: Review that TextLintTool Design is Consistent and Complete
     context:
       - docs/reqstream/textlint-tool.yaml
     paths:
       - "docs/reqstream/textlint-tool/platform-requirements.yaml"
       - "docs/design/introduction.md"
+      - "docs/design/textlint-tool.md"
       - "docs/design/textlint-tool/**/*.md"
       - "docs/design/ots.md"
+
+  - id: TextLintTool-Verification
+    title: Review that TextLintTool Verification is Consistent and Complete
+    context:
+      - docs/reqstream/textlint-tool.yaml
+    paths:
+      - "docs/verification/introduction.md"
+      - "docs/verification/textlint-tool.md"
+      - "docs/verification/textlint-tool/**/*.md"
       - "docs/verification/ots.md"
 
   - id: TextLintTool-AllRequirements
-    title: Review of TextLint Tool requirements quality and traceability
+    title: Review that All TextLintTool Requirements are Complete
     context:
       - docs/design/textlint-tool.md
       - docs/reqstream/textlint-tool.yaml
@@ -120,7 +140,7 @@ reviews:
 
   # TextLintTool - Program
   - id: TextLintTool-Program
-    title: Review of TextLint Tool Program unit implementation
+    title: Review that TextLintTool Program Implementation is Correct
     context:
       - docs/design/textlint-tool.md
       - docs/reqstream/textlint-tool.yaml
@@ -133,7 +153,7 @@ reviews:
 
   # TextLintTool - Cli
   - id: TextLintTool-Cli
-    title: Review of TextLint Tool Cli subsystem architecture and interfaces
+    title: Review that TextLintTool Cli Satisfies Subsystem Requirements
     context:
       - docs/design/textlint-tool.md
       - docs/reqstream/textlint-tool.yaml
@@ -144,7 +164,7 @@ reviews:
       - "test/**/Cli/CliSubsystemTests.cs"
 
   - id: TextLintTool-Cli-Context
-    title: Review of TextLint Tool Context unit implementation
+    title: Review that TextLintTool Cli Context Implementation is Correct
     context:
       - docs/design/textlint-tool.md
       - docs/reqstream/textlint-tool.yaml
@@ -159,7 +179,7 @@ reviews:
 
   # TextLintTool - SelfTest
   - id: TextLintTool-SelfTest
-    title: Review of TextLint Tool SelfTest subsystem architecture and interfaces
+    title: Review that TextLintTool SelfTest Satisfies Subsystem Requirements
     context:
       - docs/design/textlint-tool.md
       - docs/reqstream/textlint-tool.yaml
@@ -170,7 +190,7 @@ reviews:
       - "test/**/SelfTest/SelfTestSubsystemTests.cs"
 
   - id: TextLintTool-SelfTest-Validation
-    title: Review of TextLint Tool Validation unit implementation
+    title: Review that TextLintTool SelfTest Validation Implementation is Correct
     context:
       - docs/design/textlint-tool.md
       - docs/reqstream/textlint-tool.yaml
@@ -185,7 +205,7 @@ reviews:
 
   # TextLintTool - Utilities
   - id: TextLintTool-Utilities
-    title: Review of TextLint Tool Utilities subsystem architecture and interfaces
+    title: Review that TextLintTool Utilities Satisfies Subsystem Requirements
     context:
       - docs/design/textlint-tool.md
       - docs/reqstream/textlint-tool.yaml
@@ -196,7 +216,7 @@ reviews:
       - "test/**/Utilities/UtilitiesSubsystemTests.cs"
 
   - id: TextLintTool-Utilities-PathHelpers
-    title: Review of TextLint Tool PathHelpers unit implementation
+    title: Review that TextLintTool Utilities PathHelpers Implementation is Correct
     context:
       - docs/design/textlint-tool.md
       - docs/reqstream/textlint-tool.yaml
@@ -211,77 +231,77 @@ reviews:
 
   # OTS Items
   - id: OTS-BuildMark
-    title: Review of BuildMark OTS verification evidence
+    title: Review that BuildMark Provides Required Functionality
     paths:
       - "docs/reqstream/ots/buildmark.yaml"
       - "docs/design/ots/buildmark.md"
       - "docs/verification/ots/buildmark.md"
 
   - id: OTS-FileAssert
-    title: Review of FileAssert OTS verification evidence
+    title: Review that FileAssert Provides Required Functionality
     paths:
       - "docs/reqstream/ots/fileassert.yaml"
       - "docs/design/ots/fileassert.md"
       - "docs/verification/ots/fileassert.md"
 
   - id: OTS-Pandoc
-    title: Review of Pandoc OTS verification evidence
+    title: Review that Pandoc Provides Required Functionality
     paths:
       - "docs/reqstream/ots/pandoc.yaml"
       - "docs/design/ots/pandoc.md"
       - "docs/verification/ots/pandoc.md"
 
   - id: OTS-ReqStream
-    title: Review of ReqStream OTS verification evidence
+    title: Review that ReqStream Provides Required Functionality
     paths:
       - "docs/reqstream/ots/reqstream.yaml"
       - "docs/design/ots/reqstream.md"
       - "docs/verification/ots/reqstream.md"
 
   - id: OTS-ReviewMark
-    title: Review of ReviewMark OTS verification evidence
+    title: Review that ReviewMark Provides Required Functionality
     paths:
       - "docs/reqstream/ots/reviewmark.yaml"
       - "docs/design/ots/reviewmark.md"
       - "docs/verification/ots/reviewmark.md"
 
   - id: OTS-SarifMark
-    title: Review of SarifMark OTS verification evidence
+    title: Review that SarifMark Provides Required Functionality
     paths:
       - "docs/reqstream/ots/sarifmark.yaml"
       - "docs/design/ots/sarifmark.md"
       - "docs/verification/ots/sarifmark.md"
 
   - id: OTS-SonarMark
-    title: Review of SonarMark OTS verification evidence
+    title: Review that SonarMark Provides Required Functionality
     paths:
       - "docs/reqstream/ots/sonarmark.yaml"
       - "docs/design/ots/sonarmark.md"
       - "docs/verification/ots/sonarmark.md"
 
   - id: OTS-SysML2Tools
-    title: Review of SysML2Tools OTS verification evidence
+    title: Review that SysML2Tools Provides Required Functionality
     paths:
       - "docs/reqstream/ots/sysml2tools.yaml"
       - "docs/design/ots/sysml2tools.md"
       - "docs/verification/ots/sysml2tools.md"
 
   - id: OTS-VersionMark
-    title: Review of VersionMark OTS verification evidence
+    title: Review that VersionMark Provides Required Functionality
     paths:
       - "docs/reqstream/ots/versionmark.yaml"
       - "docs/design/ots/versionmark.md"
       - "docs/verification/ots/versionmark.md"
 
   - id: OTS-WeasyPrint
-    title: Review of WeasyPrint OTS verification evidence
+    title: Review that WeasyPrint Provides Required Functionality
     paths:
       - "docs/reqstream/ots/weasyprint.yaml"
       - "docs/design/ots/weasyprint.md"
       - "docs/verification/ots/weasyprint.md"
 
   - id: OTS-xUnit
-    title: Review of xUnit OTS verification evidence
+    title: Review that xUnit Provides Required Functionality
     paths:
       - "docs/reqstream/ots/xunit.yaml"
       - "docs/design/ots/xunit.md"

@@ -59,7 +59,7 @@ sections:
           inspection of tool output without requiring console capture.
         tests:
           - Context_Create_LogFlag_OpensLogFile
-          - Context_WriteError_WritesToLogFile
+          - Context_WriteError_WithLogFile_WritesToLogFile
 
       - id: TextLintTool-Context-Silent
         title: The Context class shall suppress console output when the silent flag is set.
@@ -85,7 +85,7 @@ sections:
           Callers (scripts, CI/CD pipelines) must be able to detect failure conditions
           programmatically via the process exit code.
         tests:
-          - Context_WriteError_SetsErrorExitCode
+          - Context_WriteError_Called_SetsErrorExitCode
 
       - id: TextLintTool-Context-LogFailure
         title: The Context class shall report an error when the specified log file cannot be opened.

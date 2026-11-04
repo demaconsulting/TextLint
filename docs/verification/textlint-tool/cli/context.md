@@ -119,17 +119,17 @@ suppresses normal output. This scenario is tested by
 standard error receives nothing, confirming `--silent` also suppresses error output. This
 scenario is tested by `Context_WriteError_Silent_DoesNotWriteToConsole`.
 
-**Context_WriteError_SetsErrorExitCode**: A `Context` calls `WriteError`; `ExitCode` is 1
-after the call. This scenario is tested by `Context_WriteError_SetsErrorExitCode`.
+**Context_WriteError_Called_SetsErrorExitCode**: A `Context` calls `WriteError`; `ExitCode` is 1
+after the call. This scenario is tested by `Context_WriteError_Called_SetsErrorExitCode`.
 
 **Context_WriteError_NotSilent_WritesToConsole**: A non-silent `Context` calls `WriteError`
 with a test message; the message appears on standard error. This scenario is tested by
 `Context_WriteError_NotSilent_WritesToConsole`.
 
-**Context_WriteError_WritesToLogFile**: A `Context` created with
+**Context_WriteError_WithLogFile_WritesToLogFile**: A `Context` created with
 `["--silent", "--log", "<tmp>.log"]` calls `WriteError` with a test message; the message appears
 in the log file, confirming errors are always written to the log regardless of `--silent`. This
-scenario is tested by `Context_WriteError_WritesToLogFile`.
+scenario is tested by `Context_WriteError_WithLogFile_WritesToLogFile`.
 
 **Context_Create_LogFlag_InvalidPath_ThrowsInvalidOperationException**:
 `Context.Create` is called with `["--log", "/invalid/\x00path.log"]`; an

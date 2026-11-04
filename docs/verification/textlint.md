@@ -2,7 +2,9 @@
 
 ## Verification Approach
 
-System-level verification combines three kinds of evidence:
+System-level verification combines three kinds of evidence. Requirement evidence comes from package
+inspection and assembly inspection; project configuration checks are design-constraint guards that
+are not linked to a requirement:
 
 - **Package inspection**: after packing the library, the build pipeline runs FileAssert
   (`.fileassert.yaml`, tag `packages`) against the real `DemaConsulting.TextLint.<version>.nupkg`
@@ -11,9 +13,9 @@ System-level verification combines three kinds of evidence:
   the NuGet package requirement, because it inspects the artifact that is actually published.
   The library package id is a prefix of the tool package id, so the build asserts the library
   package after packing only the library and before packing the tool.
-- **Project configuration**: FileAssert (tag `library-project`) checks that the library project
-  file enables `IsAotCompatible` and `TreatWarningsAsErrors`, which is the source of the
-  trim/AOT analyzer requirement.
+- **Project configuration** _(guard, not requirement evidence)_: FileAssert (tag `library-project`)
+  checks that the library project file enables `IsAotCompatible` and `TreatWarningsAsErrors`,
+  guarding the Trimming and Native AOT design constraint described in the system design.
 - **Assembly inspection**: unit-test-style checks in `TextLintTests.cs` load the compiled
   `DemaConsulting.TextLint` assembly by name and inspect its identity, metadata, target framework,
   trim-compatibility marker, and referenced assemblies through reflection. The library exposes no
@@ -21,9 +23,11 @@ System-level verification combines three kinds of evidence:
 
 The trim and AOT analyzers run on every build with warnings treated as errors, so any trim- or
 AOT-unsafe construct fails the build; the assembly-level test confirms the resulting assembly
-carries the trim-compatibility marker. These checks verify analyzer configuration only. The tool
-is not yet published as a Native AOT executable; the later change that introduces that publish is
-responsible for adding verification that it actually works.
+carries the trim-compatibility marker. These checks verify analyzer configuration only and are not
+linked to a requirement, because the library has no public API yet and a Native AOT consumer
+cannot be meaningfully exercised. The change that introduces the first public API will add a
+requirement that the library is usable from Native AOT applications, together with verification
+that performs a real Native AOT publish.
 
 ## Test Environment
 
@@ -40,7 +44,7 @@ are required.
   nuspec names the package `DemaConsulting.TextLint` with the publisher, MIT license, README, and
   icon metadata.
 - A symbols package is produced alongside the library package.
-- The library project enables `IsAotCompatible` and `TreatWarningsAsErrors`.
+- The library project enables `IsAotCompatible` and `TreatWarningsAsErrors` (design-constraint guard).
 - All system-level tests pass on every supported platform with zero failures.
 - The library assembly name equals the NuGet package name.
 - The product and company metadata identify the package and DEMA Consulting.
@@ -50,19 +54,20 @@ are required.
 
 ## Test Scenarios
 
-**TextLint_Package_ContainsNet10Library**: FileAssert inspects the produced library package and
-finds exactly one `lib/net10.0/DemaConsulting.TextLint.dll` (and no other framework folder), its
-XML documentation file, and the companion `.snupkg`. This scenario is tested by
-`TextLint_Package_ContainsNet10Library`.
+**TextLint_Package_Packed_ContainsNet10Library**: FileAssert inspects the produced library package
+and finds exactly one `lib/net10.0/DemaConsulting.TextLint.dll` (and no other framework folder),
+its XML documentation file, and the companion `.snupkg`. This scenario is tested by
+`TextLint_Package_Packed_ContainsNet10Library`.
 
-**TextLint_Package_HasPackageMetadata**: FileAssert inspects the nuspec inside the produced library
-package and finds the id `DemaConsulting.TextLint`, the author, the MIT license expression, and the
-README and icon references, with `README.md` and `Icon.png` present in the package. This scenario
-is tested by `TextLint_Package_HasPackageMetadata`.
+**TextLint_Package_Packed_HasPackageMetadata**: FileAssert inspects the nuspec inside the produced
+library package and finds the id `DemaConsulting.TextLint`, the author, the MIT license expression,
+and the README and icon references, with `README.md` and `Icon.png` present in the package. This
+scenario is tested by `TextLint_Package_Packed_HasPackageMetadata`.
 
-**TextLint_Project_EnablesTrimAotAnalyzersAsErrors**: FileAssert inspects the library project file
-and finds `IsAotCompatible` and `TreatWarningsAsErrors` both set to `true`. This scenario is tested
-by `TextLint_Project_EnablesTrimAotAnalyzersAsErrors`.
+**TextLint_Project_Configured_EnablesTrimAotAnalyzersAsErrors**: FileAssert inspects the library
+project file and finds `IsAotCompatible` and `TreatWarningsAsErrors` both set to `true`. This is a
+design-constraint guard and is not linked to a requirement. This scenario is tested by
+`TextLint_Project_Configured_EnablesTrimAotAnalyzersAsErrors`.
 
 **TextLint_Assembly_Loaded_HasPackageName**: The library assembly is loaded by name and its simple
 name is `DemaConsulting.TextLint`. This scenario also serves as the per-platform evidence that the
@@ -78,8 +83,8 @@ library builds and runs on Windows, Linux, and macOS. This scenario is tested by
 `TextLint_Assembly_Loaded_TargetsNet10`.
 
 **TextLint_Assembly_Loaded_IsMarkedTrimCompatible**: The loaded assembly carries the `IsTrimmable`
-assembly metadata set to `True`, supporting the trim/AOT analyzer requirement: the marker is
-emitted only when the project enables `IsAotCompatible`.
+assembly metadata set to `True`, guarding the Trimming and Native AOT design constraint: the marker
+is emitted only when the project enables `IsAotCompatible`. This is not linked to a requirement.
 This scenario is tested by `TextLint_Assembly_Loaded_IsMarkedTrimCompatible`.
 
 **TextLint_Assembly_Loaded_DoesNotReferenceTool**: The loaded assembly's referenced-assembly list

@@ -34,11 +34,11 @@ traversal patterns (e.g., `../`, `subfolder/../../../`) are passed to `SafePathC
 scenario is tested by
 `UtilitiesSubsystem_PathTraversalValidation_DangerousPaths_ThrowsException`.
 
-**UtilitiesSubsystem_AbsolutePathRejection_ThrowsException**: Absolute paths (e.g.,
-`/etc/passwd` and on Windows `C:\Windows\System32\file.txt`) are passed as the relative path
+**UtilitiesSubsystem_AbsolutePathRejection_AbsolutePathProvided_ThrowsException**: Absolute paths
+(e.g., `/etc/passwd` and on Windows `C:\Windows\System32\file.txt`) are passed as the relative path
 argument to `SafePathCombine`; an `ArgumentException` is thrown for each and no injection
 succeeds. This scenario is tested by
-`UtilitiesSubsystem_AbsolutePathRejection_ThrowsException`.
+`UtilitiesSubsystem_AbsolutePathRejection_AbsolutePathProvided_ThrowsException`.
 
 **UtilitiesSubsystem_DirectoryCreationWorkflow_ValidPaths_CreatesDirectories**:
 `PathHelpers.SafePathCombine` is used to compute a nested path, and the resulting path is

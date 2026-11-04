@@ -14,7 +14,7 @@ sections:
         tests:
           - Program_Run_WithVersionFlag_DisplaysVersionOnly
           - Program_Run_WithShortVersionFlag_DisplaysVersion
-          - Program_Version_ReturnsNonEmptyString
+          - Program_Version_Read_ReturnsNonEmptyString
 
       - id: TextLintTool-Program-Help
         title: The Program class shall support -?, -h, and --help flags to display usage information.

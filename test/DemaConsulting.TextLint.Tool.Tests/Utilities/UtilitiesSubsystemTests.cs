@@ -89,7 +89,7 @@ public class UtilitiesSubsystemTests
     ///     Test that utilities subsystem rejects absolute path injection at the subsystem level.
     /// </summary>
     [Fact]
-    public void UtilitiesSubsystem_AbsolutePathRejection_ThrowsException()
+    public void UtilitiesSubsystem_AbsolutePathRejection_AbsolutePathProvided_ThrowsException()
     {
         // Arrange: setup base path and absolute path injection attempts
         var basePath = Path.GetTempPath();
