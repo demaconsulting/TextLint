@@ -223,9 +223,10 @@ jobs:
           --property:PackageVersion=${{ inputs.version }}
 
       # Asserts the shape of the library package just produced (net10.0 assembly, package
-      # id and metadata). These run here, against the real artifact, rather than inside the
-      # test suite - packing is a build activity. The results are linked as evidence for
-      # the TextLint-System-Package requirement.
+      # id and metadata, third-party notices, embedded dictionaries). These run here, against the
+      # real artifact, rather than inside the test suite - packing is a build activity. The
+      # results are linked as evidence for the TextLint-System-Package,
+      # TextLint-System-ThirdPartyNotices, and TextLint-System-EmbeddedDictionaries requirements.
       - name: Assert Library Package with FileAssert
         run: >
           dotnet fileassert
@@ -242,6 +243,16 @@ jobs:
           --configuration Release
           --output packages
           --property:PackageVersion=${{ inputs.version }}
+
+      # Asserts that the tool package carries the license notices of the third-party word lists
+      # embedded in the library assembly that the tool bundles. This runs after the tool is
+      # packed (the tool package pattern matches only the tool) and its results are linked as
+      # evidence for the TextLintTool-System-ThirdPartyNotices requirement.
+      - name: Assert Tool Package with FileAssert
+        run: >
+          dotnet fileassert
+          --results artifacts/fileassert-tool-package-${{ matrix.os }}.trx
+          tool-package
 
       # === UPLOAD ARTIFACTS ===
       # This section uploads all generated artifacts for use by downstream jobs.

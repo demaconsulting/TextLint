@@ -87,6 +87,9 @@
   <ItemGroup>
     <None Include="..\..\README.md" Pack="true" PackagePath="\" />
     <None Include="..\..\Icon.png" Pack="true" PackagePath="\" />
+    <!-- The tool package carries the library assembly, and with it the embedded third-party word lists,
+         whose licenses require their notices to accompany every copy of the data. -->
+    <None Include="..\..\third-party\THIRD-PARTY-NOTICES.txt" Pack="true" PackagePath="\" />
   </ItemGroup>
 
 </Project>
