@@ -24,6 +24,8 @@ Local items:
   - **FileSelection** subsystem: **GlobPatternExpander** (pattern validation and rewriting),
     **HiddenPathPolicy** (the hidden-name rule), and **FileSelector** (selects files, with its
     result and exception types)
+  - **Dictionaries** subsystem: **SpellingDictionary** (the public word lookup and language
+    selection) and **DictionaryImage** (loads, validates, and probes one embedded binary dictionary)
 - **TextLintTool**: system, subsystem, and unit design for all local components of the
   command-line tool.
 - **DictionaryBuilder**: system and unit design for the build-time program that converts the word
@@ -86,8 +88,8 @@ requirements, design, and verification, and the tool only gains the command-line
 output needed to invoke it.
 
 The third system, **DictionaryBuilder**, sits outside this layering: it is a build-time program that
-neither the library nor the tool calls at run time. The library's build will run it to produce the
-binary dictionary files that the library embeds, and the library will compile one of its source files
+neither the library nor the tool calls at run time. The library's build runs it to produce the
+binary dictionary files that the library embeds, and the library compiles one of its source files
 (`DictionaryFormat`) so that the writer and the reader of those files share their definitions. It depends
 on nothing but the .NET base class library.
 
@@ -96,11 +98,13 @@ on nothing but the .NET base class library.
 - **dictionaries/** - plain-text word lists, one sub-folder per dictionary (the technical dictionary's
   folder is split into `language/` and `general/` lists plus a reviewed `variant-keep.txt`), and the script
   that regenerates the imported lists (data, not a software item)
-- **third-party/** - license notices for the third-party data in the word lists
+- **third-party/** - license notices for the third-party data in the word lists, packed into both NuGet packages
 - **src/** - source files and projects
   - **DemaConsulting.TextLint/** - library source
     - **Configuration/** - settings and settings-file loading subsystem
     - **FileSelection/** - glob pattern and file selection subsystem
+    - **Dictionaries/** - word lookup subsystem (the dictionary format source is linked from the
+      DictionaryBuilder project)
   - **DemaConsulting.TextLint.DictionaryBuilder/** - build-time dictionary builder source (five units)
   - **DemaConsulting.TextLint.Tool/** - main application source
     - **Cli/** - command-line interface subsystem

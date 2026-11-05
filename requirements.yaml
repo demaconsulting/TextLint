@@ -17,6 +17,9 @@ includes:
   - docs/reqstream/textlint/file-selection/glob-pattern-expander.yaml
   - docs/reqstream/textlint/file-selection/hidden-path-policy.yaml
   - docs/reqstream/textlint/file-selection/file-selector.yaml
+  - docs/reqstream/textlint/dictionaries.yaml
+  - docs/reqstream/textlint/dictionaries/spelling-dictionary.yaml
+  - docs/reqstream/textlint/dictionaries/dictionary-image.yaml
   - docs/reqstream/textlint-tool.yaml
   - docs/reqstream/textlint-tool/program.yaml
   - docs/reqstream/textlint-tool/cli.yaml

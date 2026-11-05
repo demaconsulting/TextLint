@@ -4,6 +4,7 @@ resource-path:
   - docs/verification/textlint
   - docs/verification/textlint/configuration
   - docs/verification/textlint/file-selection
+  - docs/verification/textlint/dictionaries
   - docs/verification/textlint-tool
   - docs/verification/textlint-tool/cli
   - docs/verification/textlint-tool/self-test
@@ -23,6 +24,9 @@ input-files:
   - docs/verification/textlint/file-selection/glob-pattern-expander.md
   - docs/verification/textlint/file-selection/hidden-path-policy.md
   - docs/verification/textlint/file-selection/file-selector.md
+  - docs/verification/textlint/dictionaries.md
+  - docs/verification/textlint/dictionaries/spelling-dictionary.md
+  - docs/verification/textlint/dictionaries/dictionary-image.md
   - docs/verification/textlint-tool.md
   - docs/verification/textlint-tool/program.md
   - docs/verification/textlint-tool/cli.md

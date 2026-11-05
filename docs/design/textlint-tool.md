@@ -127,3 +127,6 @@ N/A - not a safety-classified software item.
 - Layering: the tool is a thin command-line front-end. No linting logic (configuration loading,
   file discovery, dictionaries, tokenization, spell checking, results) may be added to the tool;
   it belongs in the `DemaConsulting.TextLint` library, which the tool calls.
+- Third-party notices: the tool package bundles the library assembly, which embeds third-party word
+  lists whose licenses require their notices to accompany the data. The tool project therefore packs
+  `THIRD-PARTY-NOTICES.txt` at the root of the package, as the library project does for its own package.

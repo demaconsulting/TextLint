@@ -18,9 +18,15 @@ package TextLint {
 
         part configuration : ConfigurationSubsystem;
         part fileSelection : FileSelectionSubsystem;
+        part dictionaries : DictionariesSubsystem;
 
         // Runtime OTS dependencies: both ship as package dependencies of the library.
         part yamlDotNet : YamlDotNet;
         part fileSystemGlobbing : FileSystemGlobbing;
     }
+
+    // The library's build runs the DictionaryBuilder to turn the word lists into the dictionaries
+    // that the library embeds, and compiles one of its source files (the shared format definitions).
+    // The builder is not shipped, and it depends on nothing in the library.
+    dependency TextLintBuildsWithDictionaryBuilder from TextLintSystem to DictionaryBuilder::DictionaryBuilderSystem;
 }

@@ -26,6 +26,9 @@ This document covers the verification design for the following software items:
     - **GlobPatternExpander** — glob pattern validation and rewriting
     - **HiddenPathPolicy** — hidden-name rule
     - **FileSelector** — file selection
+  - **Dictionaries** subsystem
+    - **SpellingDictionary** — language selection and word lookup
+    - **DictionaryImage** — loading, validation, and probing of one embedded dictionary
 - **TextLintTool** — system, subsystem, and unit verification:
   - **Program** — entry point and execution orchestrator
   - **Cli** subsystem
@@ -61,7 +64,8 @@ The following topics are out of scope:
 
 - Verification documents are not produced for the test projects themselves — they are the
   means of verification, not subjects of it. This includes the shared test support types
-  (a temporary-directory helper, a recording directory used to observe enumeration, and for the
+  (a temporary-directory helper, a recording directory used to observe enumeration, a builder of tiny
+  dictionary images, and for the
   dictionary builder a process runner, an independent reader of the dictionary file format, a builder of the
   shared variant word-list tree, and a file operations double that fails on demand).
 - Build pipeline CI configuration is excluded
@@ -77,7 +81,9 @@ test/
 ├── DemaConsulting.TextLint.Tests/       — library tests
 │   ├── Configuration/                   — Configuration subsystem and unit tests
 │   ├── FileSelection/                   — FileSelection subsystem and unit tests
-│   └── TestSupport/                     — shared test helpers (temporary directory, recording directory)
+│   ├── Dictionaries/                    — Dictionaries subsystem and unit tests
+│   └── TestSupport/                     — shared test helpers (temporary directory, recording directory,
+│                                          dictionary image builder, a damaged embedded resource)
 ├── DemaConsulting.TextLint.DictionaryBuilder.Tests/  — dictionary builder system and unit tests
 │   └── TestSupport/                     — shared test helpers (temporary directory, process runner,
 │                                          independent dictionary file reader, variant fixture,

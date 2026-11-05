@@ -101,6 +101,7 @@ buffer that is too small is a programming error and surfaces as an index error.
 - **WordListReader** - the alphabet test, the fold, the maximum word length, and the capitalization
   classification.
 - **DictionaryWriter** - the layout constants, the key fold, the hash, the load limit, and the alignment.
-- **Library (planned)** - the library's dictionary reader will compile this source file and use the same
-  definitions to validate a file's header and to look words up. It reads each embedded dictionary once into a
-  managed byte array and uses spans and `BinaryPrimitives` over that array, so this unit contains only safe code.
+- **Library** - the library's dictionary reader (`DictionaryImage`) and its word lookup (`SpellingDictionary`)
+  compile this source file and use the same definitions to validate a file's header and to look words up. The
+  library reads each embedded dictionary once into a managed byte array and uses spans and `BinaryPrimitives`
+  over that array, so this unit contains only safe code.

@@ -202,6 +202,46 @@ reviews:
       - "src/DemaConsulting.TextLint/FileSelection/HiddenFilteringDirectory.cs"
       - "test/**/FileSelection/FileSelectorTests.cs"
 
+  # TextLint - Dictionaries
+  - id: TextLint-Dictionaries
+    title: Review that TextLint Dictionaries Satisfies Subsystem Requirements
+    context:
+      - docs/design/textlint.md
+      - docs/reqstream/textlint.yaml
+    paths:
+      - "docs/reqstream/textlint/dictionaries.yaml"
+      - "docs/design/textlint/dictionaries.md"
+      - "docs/verification/textlint/dictionaries.md"
+      - "test/**/Dictionaries/DictionariesSubsystemTests.cs"
+
+  - id: TextLint-Dictionaries-SpellingDictionary
+    title: Review that TextLint Dictionaries SpellingDictionary Implementation is Correct
+    context:
+      - docs/design/textlint.md
+      - docs/reqstream/textlint.yaml
+      - docs/design/textlint/dictionaries.md
+      - docs/reqstream/textlint/dictionaries.yaml
+    paths:
+      - "docs/reqstream/textlint/dictionaries/spelling-dictionary.yaml"
+      - "docs/design/textlint/dictionaries/spelling-dictionary.md"
+      - "docs/verification/textlint/dictionaries/spelling-dictionary.md"
+      - "src/DemaConsulting.TextLint/Dictionaries/SpellingDictionary.cs"
+      - "test/**/Dictionaries/SpellingDictionaryTests.cs"
+
+  - id: TextLint-Dictionaries-DictionaryImage
+    title: Review that TextLint Dictionaries DictionaryImage Implementation is Correct
+    context:
+      - docs/design/textlint.md
+      - docs/reqstream/textlint.yaml
+      - docs/design/textlint/dictionaries.md
+      - docs/reqstream/textlint/dictionaries.yaml
+    paths:
+      - "docs/reqstream/textlint/dictionaries/dictionary-image.yaml"
+      - "docs/design/textlint/dictionaries/dictionary-image.md"
+      - "docs/verification/textlint/dictionaries/dictionary-image.md"
+      - "src/DemaConsulting.TextLint/Dictionaries/DictionaryImage.cs"
+      - "test/**/Dictionaries/DictionaryImageTests.cs"
+
   # TextLint - Test Support (shared helpers used by the library tests; not a software item)
   - id: TextLint-TestSupport
     title: Review that TextLint Test Support Helpers are Correct

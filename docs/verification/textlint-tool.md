@@ -12,6 +12,10 @@ outputs; no internal implementation details are assumed.
 (e.g., "standard error is empty") are not possible at this level; all assertions are made
 against the combined output.
 
+The package requirement is verified differently, because the artifact to inspect is the produced
+NuGet package and not a running process. After the build pipeline packs the tool, it runs FileAssert
+(`.fileassert.yaml`, tag `tool-package`) against the real `DemaConsulting.TextLint.Tool.<version>.nupkg`.
+
 ## Test Environment
 
 Integration tests run on .NET 10.0 across Windows, Linux, and macOS.
@@ -25,6 +29,8 @@ combinations. Temporary files and directories are created and cleaned up within 
 - Exit code non-zero is returned for all invalid argument combinations.
 - Results files are created at the specified paths when `--results` is used with `--validate`.
 - Silent mode (`--silent`) produces empty combined output.
+- The tool package contains `THIRD-PARTY-NOTICES.txt` at its root with the notices of the third-party word
+  lists in the bundled library.
 
 ## Test Scenarios
 
@@ -85,3 +91,8 @@ path and the tool exits with code 0. This scenario is tested by
 flag is combined with `--results <path>.bad` (unsupported extension); the tool exits with a
 non-zero code and no file is created at the specified path. This scenario is tested by
 `TextLintTool_ValidateWithBadExtension_ExtensionInvalid_ReturnsNonZero`.
+
+**TextLintTool_Package_Packed_ContainsThirdPartyNotices**: FileAssert inspects the produced tool package and
+finds exactly one `THIRD-PARTY-NOTICES.txt` at its root whose text names the author of the English word lists,
+carries the permission sentence of their license verbatim, and names the publisher of the technical word lists.
+This scenario is tested by `TextLintTool_Package_Packed_ContainsThirdPartyNotices`.

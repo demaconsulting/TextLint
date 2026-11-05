@@ -1,0 +1,101 @@
+---
+# Dictionaries Subsystem Requirements
+#
+# PURPOSE:
+# - Define requirements for the TextLint Dictionaries subsystem
+# - The Dictionaries subsystem answers whether a word is known to the selected English language
+#   and the technical vocabulary, from dictionaries embedded in the library assembly
+# - Subsystem requirements decompose the system requirements for word lookup; they are validated
+#   by DictionariesSubsystemTests.cs
+
+sections:
+  - title: TextLint Requirements
+    sections:
+      - title: Dictionaries Requirements
+        requirements:
+          - id: TextLint-Dictionaries-WordLookup
+            title: >-
+              The Dictionaries subsystem shall report a word as known when a dictionary of the
+              selection holds it, and as not known otherwise, whatever the text.
+            justification: |
+              This is the question the whole subsystem exists to answer. Text that cannot be a
+              word (nothing at all, blanks, very long runs of letters) must get the answer "not
+              known" rather than a failure, because a spell checker meets such text in real files.
+            children:
+              - TextLint-Dictionaries-SpellingDictionary-Composition
+              - TextLint-Dictionaries-DictionaryImage-Lookup
+            tests:
+              - DictionariesSubsystem_IsKnown_ListedAndUnlistedWords_ReportsCorrectly
+              - DictionariesSubsystem_IsKnown_EmptyWhitespaceAndOverlongWords_AreUnknown
+
+          - id: TextLint-Dictionaries-WordMatching
+            title: >-
+              The Dictionaries subsystem shall ignore letter case, treat the typographic
+              apostrophe as the straight apostrophe, keep accents significant, and report text
+              outside the supported alphabet as not known.
+            justification: |
+              Matching must be forgiving about what authors cannot control (capitalization at
+              the start of a sentence, the apostrophe a word processor inserts) and strict about
+              what changes a word (a wrong accent). Text in other scripts is not English and is
+              not in any dictionary, so it is not known rather than an error.
+            children:
+              - TextLint-Dictionaries-SpellingDictionary-WordMatching
+            tests:
+              - DictionariesSubsystem_IsKnown_DifferentCase_IsKnown
+              - DictionariesSubsystem_IsKnown_TypographicApostrophe_IsKnown
+              - DictionariesSubsystem_IsKnown_AccentedAndUnaccentedSpelling_BothKnown
+              - DictionariesSubsystem_IsKnown_OtherScript_IsUnknown
+
+          - id: TextLint-Dictionaries-LanguageSelection
+            title: >-
+              The Dictionaries subsystem shall select its English dictionaries by language name
+              (en, en-US, en-GB, or a combination), with American English as the default, and
+              shall reject any other language by name.
+            justification: |
+              The language setting decides which spellings are correct. Following cspell's names
+              and default lets configurations migrate, and an unsupported name must be refused so
+              that a typo cannot silently select the wrong dialect.
+            children:
+              - TextLint-Dictionaries-SpellingDictionary-LanguageSelection
+            tests:
+              - DictionariesSubsystem_ForLanguages_AmericanBritishAndBoth_SelectExpectedSpellings
+              - DictionariesSubsystem_ForLanguages_UnsupportedLanguage_ThrowsNamingLanguage
+
+          - id: TextLint-Dictionaries-TechnicalTerms
+            title: The Dictionaries subsystem shall include the technical terms in every selection.
+            justification: |
+              Software terms do not depend on the dialect of the prose around them, and leaving
+              them out of any selection would report them as mistakes.
+            children:
+              - TextLint-Dictionaries-SpellingDictionary-TechnicalTerms
+            tests:
+              - DictionariesSubsystem_IsKnown_TechnicalTermInEveryLanguage_IsKnown
+
+          - id: TextLint-Dictionaries-SharedUse
+            title: >-
+              The Dictionaries subsystem shall be safe for use from many threads at once and shall
+              share one selection between all callers that ask for it.
+            justification: |
+              Files are checked in parallel, so every thread uses the same dictionaries. Sharing
+              the selection means the data is loaded once for the whole process, and thread safety
+              means callers need no locking of their own.
+            children:
+              - TextLint-Dictionaries-SpellingDictionary-SharedInstances
+            tests:
+              - DictionariesSubsystem_ForLanguages_SameSelection_ReturnsSameInstance
+              - DictionariesSubsystem_IsKnown_ParallelCallers_ReturnConsistentAnswers
+
+          - id: TextLint-Dictionaries-EmbeddedContent
+            title: >-
+              The Dictionaries subsystem shall draw its words from dictionaries embedded in the
+              library assembly, one for each group of word lists.
+            justification: |
+              Embedding the dictionaries keeps the library self-contained, and one dictionary per
+              group (common English, American, British, technical) is what lets a selection
+              combine exactly the groups its languages need. A missing or unusable embedded
+              dictionary must be reported by name, because it means the library was built or
+              packaged incorrectly.
+            children:
+              - TextLint-Dictionaries-DictionaryImage-EmbeddedLoad
+            tests:
+              - DictionariesSubsystem_ForLanguages_EmbeddedDictionaries_ContainSampleWordsOfEachList

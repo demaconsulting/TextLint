@@ -1,0 +1,43 @@
+---
+# Software Unit Requirements for the DictionaryImage Class
+#
+# The DictionaryImage class holds one binary dictionary in memory and answers whether a word is
+# stored in it; it is internal to the library and is exercised through the Dictionaries subsystem.
+
+sections:
+  - title: TextLint Requirements
+    sections:
+      - title: Dictionaries Requirements
+        sections:
+          - title: DictionaryImage Requirements
+            requirements:
+              - id: TextLint-Dictionaries-DictionaryImage-Lookup
+                title: >-
+                  DictionaryImage shall report a word as stored exactly when the dictionary holds
+                  it, never reporting a word that merely starts with, or is extended from, a stored
+                  word.
+                justification: |
+                  A false "known" hides a spelling mistake and a false "unknown" reports a correct
+                  word as a mistake, so the lookup must be exact for every word, including words
+                  that share a prefix, words whose hash positions collide, and the first and last
+                  words of the dictionary.
+                tests:
+                  - DictionaryImage_Contains_EveryWordInImage_IsTrue
+                  - DictionaryImage_Contains_WordNotInImage_IsFalse
+                  - DictionaryImage_Contains_PrefixOfStoredWord_IsFalse
+                  - DictionaryImage_Contains_KeyLongerThanStoredWord_IsFalse
+                  - DictionaryImage_Contains_CollidingKeys_FoundByProbing
+                  - DictionaryImage_Contains_EmptyImage_IsFalse
+
+              - id: TextLint-Dictionaries-DictionaryImage-EmbeddedLoad
+                title: >-
+                  DictionaryImage shall load a dictionary embedded in an assembly by its resource
+                  name, and shall report a missing or unusable one with an error that names it.
+                justification: |
+                  The dictionaries travel inside the library assembly. If one is absent or damaged,
+                  the library was built or packaged incorrectly, and the person who has to fix it
+                  needs to know which dictionary it is.
+                tests:
+                  - DictionaryImage_LoadEmbedded_ExistingResource_Loads
+                  - DictionaryImage_LoadEmbedded_MissingResource_ThrowsNamingResource
+                  - DictionaryImage_LoadEmbedded_CorruptResource_ThrowsNamingResource

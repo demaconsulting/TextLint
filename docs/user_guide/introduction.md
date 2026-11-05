@@ -9,9 +9,10 @@ TextLint is a fast text linter for source code and documentation, delivered as t
 **Status**: under active development. TextLint is being developed to provide cspell-compatible
 spell-checking, configured by a `.textlint.yaml` file, using embedded English and technical-term
 dictionaries, and to check files in parallel across all processor cores. Spell-checking is not yet
-implemented. The library can already load a `.textlint.yaml` settings file and select the files to
-check from it (see _Configuration File_ and _Library Usage_ below); the tool does not read the settings
-file yet and provides only the command-line scaffolding (version, help, and self-validation).
+implemented. The library can already load a `.textlint.yaml` settings file, select the files to
+check from it, and look words up in its embedded dictionaries (see _Configuration File_ and
+_Library Usage_ below); the tool does not read the settings file or use the dictionaries yet and
+provides only the command-line scaffolding (version, help, and self-validation).
 
 ## Scope
 
@@ -47,7 +48,7 @@ dotnet tool install -g DemaConsulting.TextLint.Tool
 
 The reusable library is published separately as the `DemaConsulting.TextLint` NuGet package, for
 applications that want to embed TextLint rather than run the command-line tool. It currently loads
-settings and selects files; its API will grow as the spell-checking capabilities are added.
+settings, selects files, and looks words up; its API will grow as the spell-checking capabilities are added.
 
 ```bash
 dotnet add package DemaConsulting.TextLint
@@ -237,8 +238,9 @@ Every problem found is reported, not just the first, as `file(line,column): erro
 
 # Library Usage
 
-The `DemaConsulting.TextLint` library loads settings from a file or from code, and selects files from
-them. The sample below loads `.textlint.yaml`, reports any errors, and lists the files selected.
+The `DemaConsulting.TextLint` library loads settings from a file or from code, selects files from
+them, and looks words up in its dictionaries. The sample below loads `.textlint.yaml`, reports any errors,
+and lists the files selected.
 
 ```csharp
 using DemaConsulting.TextLint.Configuration;
@@ -292,6 +294,57 @@ immutable: its list of errors cannot be changed after it is returned.
 `FileSelector.Select` throws `InvalidGlobPatternException`, naming the pattern, if a pattern is unsupported,
 and `DirectoryNotFoundException` if the root does not exist. Selected files
 are ordered by ordinal relative path, so the order is the same on every platform.
+
+## Word Lookup
+
+<!-- cspell:ignore favourite cafè -->
+
+The library also answers whether a word is known, using dictionaries embedded in the assembly: the English words
+that American and British English share, the American-only and the British-only spellings, and a dictionary of
+technical terms (programming languages, tools, companies, file types, and licenses). A selection always includes
+the common words and the technical terms, and adds the spellings of the languages you choose.
+
+```csharp
+using DemaConsulting.TextLint.Dictionaries;
+
+// American English plus technical terms: the default
+var american = SpellingDictionary.Default;
+
+// Choose by language name: en and en-US (American), en-GB (British), or a comma-separated list
+var british = SpellingDictionary.ForLanguages("en-GB");
+var both = SpellingDictionary.ForLanguages("en-US, en-GB");
+
+Console.WriteLine(american.IsKnown("favorite"));   // True
+Console.WriteLine(american.IsKnown("favourite"));  // False: a British spelling
+Console.WriteLine(british.IsKnown("favourite"));   // True
+Console.WriteLine(both.IsKnown("favourite"));      // True
+Console.WriteLine(british.IsKnown("kubernetes"));  // True: technical terms are known in every language
+```
+
+The language names are `en` (the same as `en-US`), `en-US`, and `en-GB`, in any letter case with optional spaces
+around names; `SpellingDictionary.SupportedLanguages` lists them. Asking for anything else, such as `en-AU`,
+throws an `ArgumentException` that names the language. Asking twice for the same selection returns the same
+object.
+
+The lookup follows these rules:
+
+- Letter case is ignored: `Table`, `TABLE`, and `table` are the same word.
+- The typographic apostrophe is the same as the straight one: `don’t` is known because `don't` is.
+- Accents matter: `café` and `cafe` are both known, but `cafè` is not.
+- Other punctuation is not removed, so `table.` is not known; splitting text into words is the job of the
+  tokenizer in a later release.
+- Empty text, text longer than 64 characters, and text containing characters outside Latin-1, such as other
+  scripts, are not known. The lookup never throws for any text.
+- A word that is a programming term and also an American or British spelling, such as `tokenizer`, is known in
+  every language. Other spellings that belong to one language, such as `favorite`, follow the language you choose.
+
+`IsKnown` takes a `ReadOnlySpan<char>`, so a word can be checked inside larger text without copying, and it does
+not allocate. The dictionaries are loaded the first time a word is looked up (a few milliseconds) and are shared by
+the whole process, and a selection can be used from many threads at once.
+
+The word lists the dictionaries are built from are third-party data: SCOWL for English and the cspell dictionaries
+for technical terms. Their license notices are in the `THIRD-PARTY-NOTICES.txt` file at the root of both NuGet
+packages.
 
 # Command-Line Options
 

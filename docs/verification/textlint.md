@@ -11,6 +11,10 @@ checks are design-constraint guards that are not linked to a requirement:
   and its `.snupkg`. The checks assert the package id, the `lib/net10.0` assembly and XML
   documentation, and the publisher, license, README, and icon metadata. This is the evidence for
   the NuGet package requirement, because it inspects the artifact that is actually published.
+  A further check asserts that the package carries `THIRD-PARTY-NOTICES.txt` at its root with the
+  notices of the embedded word lists; that is the evidence for the third-party notices requirement.
+  Another asserts that the packaged assembly contains the four embedded dictionaries, which together
+  with the assembly inspection below is the evidence for the embedded dictionaries requirement.
   The library package id is a prefix of the tool package id, so the build asserts the library
   package after packing only the library and before packing the tool.
 - **Project configuration** _(guard, not requirement evidence)_: FileAssert (tag `library-project`)
@@ -27,7 +31,10 @@ checks are design-constraint guards that are not linked to a requirement:
   on the loaded values, the diagnostics, and the selected paths. They cover both the Configuration
   and FileSelection subsystems together. The one test double is the recording directory used to prove
   that excluded directories are never enumerated; everything else, including YamlDotNet and
-  Microsoft.Extensions.FileSystemGlobbing, is real.
+  Microsoft.Extensions.FileSystemGlobbing, is real. The dictionary tests use the real embedded
+  dictionaries, and the data test reads the repository word lists, which the test project copies beside
+  the test assembly, to check every listed word, in its original, lower, and upper case, against the
+  public lookup for the language selection that includes its list.
 
 The trim and AOT analyzers run on every build with warnings treated as errors, so any trim- or
 AOT-unsafe construct fails the build; the assembly-level test confirms the resulting assembly
@@ -42,8 +49,10 @@ produced by `dotnet pack` in that job; FileAssert is the only tool required. Ass
 end-to-end tests run under xUnit on .NET 10.0 on the same platforms. The test project references
 the library project, so the library assembly is present beside the test assembly. End-to-end tests
 need permission to create and delete files under the operating system's temporary directory; each
-test uses its own uniquely named directory, so tests share no state and may run in parallel. No
-services or special configuration are required.
+test uses its own uniquely named directory, so tests share no state and may run in parallel. The
+dictionary tests need no files of their own except the word lists that the test project copies to
+its output folder. No services or special configuration are required. Building the library
+requires the DictionaryBuilder project, which the library project builds first; no other tool is needed.
 
 ## Acceptance Criteria
 
@@ -67,6 +76,16 @@ services or special configuration are required.
   literally.
 - Selected files are in ordinal order and use forward slashes.
 - Unsupported glob patterns are rejected naming the pattern.
+- The library package contains `THIRD-PARTY-NOTICES.txt` at its root with the notices of the embedded word
+  lists, and its assembly contains the four embedded dictionaries.
+- Known words are reported as known and unknown words as not known, whatever the letter case or the
+  apostrophe, and unusual text (accents, other scripts, empty, blank, very long) is handled without error.
+- American spellings are known by default and British spellings are not, the British selection reverses
+  that, the combined selection knows both, and an unsupported language is rejected naming it.
+- Technical terms, including a programming term in an American spelling, are known in every selection.
+- The assembly embeds exactly the four dictionaries, each a dictionary file.
+- Every word of every repository word list is known for the selection that includes its list.
+- Lookups from many threads at once return correct answers.
 
 ## Test Scenarios
 
@@ -209,3 +228,67 @@ absolute paths are not supported. This scenario is tested by
 **TextLint_Settings_QuestionMarkPattern_ReportsErrorSuggestingStar**: A settings file whose pattern is
 `docs/file?.md` is loaded; the error is at the item, names the pattern, and suggests using `*`. This scenario is
 tested by `TextLint_Settings_QuestionMarkPattern_ReportsErrorSuggestingStar`.
+
+**TextLint_Package_Packed_ContainsThirdPartyNotices**: FileAssert inspects the produced library package and finds
+exactly one `THIRD-PARTY-NOTICES.txt` at its root whose text names the author of the English word lists, carries
+the permission sentence of their license verbatim, and names the publisher of the technical word lists. This
+scenario is tested by `TextLint_Package_Packed_ContainsThirdPartyNotices`.
+
+**TextLint_Package_Packed_ContainsEmbeddedDictionaries**: FileAssert inspects the packaged library assembly and
+finds the name of each of the four embedded dictionary resources in it, proving that the package, which is packed
+from the build output without building again, carries the data. This scenario is tested by
+`TextLint_Package_Packed_ContainsEmbeddedDictionaries`.
+
+**TextLint_Dictionary_KnownWord_IsKnown**: The default selection is asked about an ordinary English word; the
+word is known. This scenario is tested by `TextLint_Dictionary_KnownWord_IsKnown`.
+
+**TextLint_Dictionary_UnknownWord_IsNotKnown**: The default selection is asked about a misspelling and a nonsense
+word; neither is known. This scenario is tested by `TextLint_Dictionary_UnknownWord_IsNotKnown`.
+
+**TextLint_Dictionary_DifferentCase_IsKnown**: A word is looked up in lower, capitalized, upper, and mixed case,
+and a name that the word lists write with a capital is looked up in lower and upper case; all are known. This
+scenario is tested by `TextLint_Dictionary_DifferentCase_IsKnown`.
+
+**TextLint_Dictionary_TypographicApostrophe_IsKnown**: Contractions and possessives are looked up with the
+straight and with the curly apostrophe; all are known. This scenario is tested by
+`TextLint_Dictionary_TypographicApostrophe_IsKnown`.
+
+**TextLint_Dictionary_UnusualText_IsHandledWithoutError**: An accented word is known in either case and in its
+unaccented spelling, while a word with a wrong accent, text in another script, empty text, blank text, and a text of
+ten thousand letters are not known, and no lookup throws. This scenario is tested by
+`TextLint_Dictionary_UnusualText_IsHandledWithoutError`.
+
+**TextLint_Dictionary_DefaultLanguage_AcceptsAmericanNotBritishSpelling**: The default selection, and the one
+named `en`, know American spellings and not British ones, and are the same shared instance. This scenario is tested
+by `TextLint_Dictionary_DefaultLanguage_AcceptsAmericanNotBritishSpelling`.
+
+**TextLint_Dictionary_BritishLanguage_AcceptsBritishNotAmericanSpelling**: The `en-GB` selection knows British
+spellings and not American ones. This scenario is tested by
+`TextLint_Dictionary_BritishLanguage_AcceptsBritishNotAmericanSpelling`.
+
+**TextLint_Dictionary_BothLanguages_AcceptBothSpellings**: The selection `en-US, en-GB`, written with a space,
+knows both spellings. This scenario is tested by `TextLint_Dictionary_BothLanguages_AcceptBothSpellings`.
+
+**TextLint_Dictionary_UnsupportedLanguage_ThrowsNamingLanguage**: Asking for `en-AU` throws an error that names
+`en-AU` and lists the supported languages. This scenario is tested by
+`TextLint_Dictionary_UnsupportedLanguage_ThrowsNamingLanguage`.
+
+**TextLint_Dictionary_TechnicalTerm_IsKnownInEveryLanguage**: Technical terms of several kinds, including a
+programming term in an American spelling that the word lists keep for every language, are known in the American,
+British, and combined selections. This scenario is tested by
+`TextLint_Dictionary_TechnicalTerm_IsKnownInEveryLanguage`.
+
+**TextLint_Assembly_Loaded_EmbedsDictionaries**: The loaded library assembly's resources include exactly the four
+dictionary resources under their stable names, and each starts with the dictionary file identifier. This scenario
+is tested by `TextLint_Assembly_Loaded_EmbedsDictionaries`.
+
+**TextLint_Dictionary_EveryListedWord_IsKnown**: Every entry of every word list in the repository is looked up as
+written, in lower case, and in upper case, in each language selection that must know the list: the common words
+in the American and the British selection, the regional lists in their own selection, the programming-language
+lists and the reviewed variant list in both single-language selections, and the general technical lists in the
+combined selection. Every lookup is known, and the test fails for a word list in a folder it does not know, so a
+new list cannot go unchecked. This scenario is tested by `TextLint_Dictionary_EveryListedWord_IsKnown`.
+
+**TextLint_Dictionary_ParallelLookups_ReturnCorrectAnswers**: Twenty thousand lookups spread over the three
+selections are made from many threads at once; every answer is correct. This scenario is tested by
+`TextLint_Dictionary_ParallelLookups_ReturnCorrectAnswers`.

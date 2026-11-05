@@ -16,9 +16,9 @@ TextLint is a fast text linter for source code and documentation, delivered as t
 **Status**: under active development. TextLint is being developed to provide cspell-compatible
 spell-checking, configured by a `.textlint.yaml` file, using embedded English and technical-term
 dictionaries, and to check files in parallel across all processor cores. Spell-checking is not yet
-implemented. The library can already load a `.textlint.yaml` settings file and select the files to
-check; the tool does not read the settings file yet and provides only the command-line scaffolding
-described below.
+implemented. The library can already load a `.textlint.yaml` settings file, select the files to
+check, and look words up in its embedded dictionaries; the tool does not read the settings file or
+use the dictionaries yet and provides only the command-line scaffolding described below.
 
 ## Features
 
@@ -30,6 +30,10 @@ The project currently provides:
 - **File Selection**: The library selects files from glob patterns (brace alternatives, bare names at any
   depth, case-sensitive matching, cspell-style hidden-file rules), skipping excluded directories without
   scanning them
+- **Word Lookup**: The library reports whether a word is known to American English (the default), British
+  English, or both, plus a dictionary of technical terms (programming languages, tools, companies, file
+  types, and licenses). The dictionaries are embedded in the assembly, so no data files are needed, and
+  lookups are safe from many threads at once
 - **Standardized Command-Line Interface**: Context class handling common arguments
   (`--version`, `--help`, `--silent`, `--validate`, `--results`, `--depth`, `--log`)
 - **Self-Validation**: Built-in validation tests with TRX/JUnit output
@@ -54,8 +58,8 @@ dotnet tool install -g DemaConsulting.TextLint.Tool
 ```
 
 The reusable library is published separately as the `DemaConsulting.TextLint` NuGet package for
-applications that want to embed TextLint (it currently loads settings and selects files; its API will
-grow as the spell-checking capabilities are added):
+applications that want to embed TextLint (it currently loads settings, selects files, and looks words up;
+its API will grow as the spell-checking capabilities are added):
 
 ```bash
 dotnet add package DemaConsulting.TextLint
@@ -103,6 +107,35 @@ var files = FileSelector.Select("/path/to/repo", settings.Files, settings.Ignore
 
 The supported `.textlint.yaml` keys are `version`, `files`, `ignorePaths`, and `enableGlobDot`; any other
 key is an error. See the [User Guide][link-guide] for the glob pattern rules.
+
+Look words up in the embedded dictionaries. The default is American English; pass a language name, or a
+comma-separated list, to choose another (`en` is the same as `en-US`, the others are `en-GB` and
+combinations such as `en-US,en-GB`):
+
+<!-- cspell:ignore favourite tabel cafè -->
+
+```csharp
+using DemaConsulting.TextLint.Dictionaries;
+
+var american = SpellingDictionary.Default;                  // American English plus technical terms
+var british = SpellingDictionary.ForLanguages("en-GB");     // British English plus technical terms
+var both = SpellingDictionary.ForLanguages("en-US, en-GB"); // either spelling
+
+american.IsKnown("favorite");   // true
+american.IsKnown("favourite");  // false: a British spelling
+british.IsKnown("favourite");   // true
+both.IsKnown("favourite");      // true
+american.IsKnown("Kubernetes"); // true: technical terms are known in every language
+american.IsKnown("don\u2019t"); // true: the typographic apostrophe matches the straight one
+american.IsKnown("TABLE");      // true: letter case is ignored
+american.IsKnown("tabel");      // false: a misspelling
+```
+
+`IsKnown` takes a `ReadOnlySpan<char>`, so a word can be checked inside larger text without copying, and
+it neither allocates nor throws for any text; empty text, text longer than 64 characters, and text outside
+Latin-1 are simply not known. Accents matter (`café` is known, `cafè` is not). An unsupported language such
+as `en-AU` throws an `ArgumentException` that names it. The dictionaries load on first use and are shared by
+the whole process, so one `SpellingDictionary` can be used from many threads at once.
 
 ## Usage
 
@@ -212,13 +245,13 @@ guidelines on reporting bugs, suggesting features, and submitting pull requests.
 
 ## Third-Party Data
 
-The English and technical-term word lists under `dictionaries/` are built from third-party data:
-SCOWL (a permissive license by Kevin Atkinson) for English, and the MIT-licensed cspell-dicts packages
-by Street Side Software for technical terms. The required license notices are in
+The library embeds English and technical-term dictionaries built from third-party data: SCOWL (a
+permissive license by Kevin Atkinson) for English, and the MIT-licensed cspell-dicts packages by Street
+Side Software for technical terms. The required license notices are in
 [THIRD-PARTY-NOTICES.txt](https://github.com/demaconsulting/TextLint/blob/main/third-party/THIRD-PARTY-NOTICES.txt),
-and the provenance of every list is described in the
-[dictionaries README](https://github.com/demaconsulting/TextLint/blob/main/dictionaries/README.md). The lists are
-not yet used by the library or the tool; they are converted into embedded dictionaries by a later change.
+which is also included at the root of both NuGet packages, and the provenance of every list is described in
+the [dictionaries README](https://github.com/demaconsulting/TextLint/blob/main/dictionaries/README.md). The
+tool does not use the dictionaries yet.
 
 ## License
 
