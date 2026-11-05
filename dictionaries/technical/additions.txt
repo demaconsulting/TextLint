@@ -1,0 +1,18 @@
+# Project-specific technical terms.
+# This file is owned by the project and is NEVER overwritten by dictionaries/refresh.py.
+# Add genuine technical terms and names here, one per line (letters and straight apostrophes only,
+# no digits, hyphens, or spaces). Never add a misspelling to make a spelling error go away.
+# Lines that start with a hash are comments; blank lines are ignored.
+
+buildmark
+cspell
+fileassert
+markdownlint
+reqstream
+reviewmark
+sarifmark
+sonarmark
+sysml
+textlint
+versionmark
+yamllint

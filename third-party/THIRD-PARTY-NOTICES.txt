@@ -1,0 +1,81 @@
+THIRD-PARTY NOTICES
+===================
+
+TextLint's own source code is distributed under the MIT license (see the LICENSE file of the repository).
+
+The English and technical word lists that TextLint is built from contain data from the third-party sources
+listed below. The notices are reproduced here because the licenses require them to accompany the data.
+
+
+1. ENGLISH WORD LISTS: SCOWL / ESDB
+-----------------------------------
+
+The English word lists (dictionaries/en-common, dictionaries/en-US, and dictionaries/en-GB) are derived from
+SCOWL (Spell Checker Oriented Word Lists), also known as ESDB, version 2, size 70, spelling codes A and B,
+from https://github.com/en-wl/wordlist (tag rel-2026.02.25). The copyright notice of that work follows
+verbatim.
+
+Copyright 2000-2026 by Kevin Atkinson
+
+Permission to use, copy, modify, distribute, and sell any part of SCOWLv2, or
+word lists created from it, is hereby granted without fee, provided that the
+above copyright notice appears in all copies and that both the above
+copyright notice and this notice appear in supporting documentation.  Kevin
+Atkinson makes no representations about the suitability of this database for
+any purpose.  It is provided "as is" without express or implied warranty.
+
+SCOWL is derived from many sources, most of which are in the Public Domain.
+Data from the Corpus of Contemporary American English (COCA) was also used.
+
+All data from COCA comes from 3-gram data that is not freely available;
+however, the usage is within the rights given by the NDA that was signed when
+purchasing the data.  More information on COCA is available at
+https://www.english-corpora.org/coca/.
+
+The primary source of words for SCOWL comes from 12dicts and ENABLE2K.  Both
+are in the Public Domain, but Alan Beale <biljir@pobox.com> deserves special
+credit as he is the author of 12dicts and a major contributor to ENABLE2K.  In
+addition, he gave me an incredible amount of feedback and created a number of
+special lists in order to help improve the overall quality of SCOWL.
+
+
+2. TECHNICAL TERM LISTS: cspell-dicts
+-------------------------------------
+
+The technical term lists (dictionaries/technical, except additions.txt) are imported from the following
+packages of the cspell-dicts project, https://github.com/streetsidesoftware/cspell-dicts, as published on the
+npm registry. Each package is licensed under the MIT license that follows the list of packages.
+
+  @cspell/dict-software-terms 5.4.8   Copyright (c) 2017-2025 Street Side Software <support@streetsidesoftware.nl>
+  @cspell/dict-companies 3.2.13       Copyright (c) 2017-2025 Street Side Software <support@streetsidesoftware.nl>
+  @cspell/dict-filetypes 3.0.18       Copyright (c) 2017-2025 Street Side Software <support@streetsidesoftware.nl>
+  @cspell/dict-public-licenses 2.0.17 Copyright (c) 2017-2025 Street Side Software <support@streetsidesoftware.nl>
+  @cspell/dict-fullstack 3.2.9        Copyright (c) 2017-2025 Street Side Software <support@streetsidesoftware.nl>
+  @cspell/dict-dotnet 5.0.15          Copyright (c) 2017-2025 Street Side Software <support@streetsidesoftware.nl>
+  @cspell/dict-csharp 4.0.8           Copyright (c) 2017-2025 Street Side Software <support@streetsidesoftware.nl>
+  @cspell/dict-node 5.0.9             Copyright (c) 2017-2025 Street Side Software <support@streetsidesoftware.nl>
+  @cspell/dict-npm 5.2.55             Copyright (c) 2017-2025 Street Side Software <support@streetsidesoftware.nl>
+  @cspell/dict-typescript 3.2.3       Copyright (c) 2017-2025 Street Side Software <support@streetsidesoftware.nl>
+  @cspell/dict-html 4.0.16            Copyright (c) 2017-2025 Street Side Software <support@streetsidesoftware.nl>
+  @cspell/dict-powershell 5.0.17      Copyright (c) 2017-2025 Street Side Software <support@streetsidesoftware.nl>
+  @cspell/dict-k8s 1.0.13             Copyright (c) 2017-2022 Street Side Software <info@streetsidesoftware.nl>
+
+The MIT License (MIT)
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
