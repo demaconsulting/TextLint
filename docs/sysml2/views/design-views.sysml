@@ -26,11 +26,19 @@ package TextLintTool {
     }
 }
 
-// The repository holds two systems: the TextLint library above and the TextLintTool
-// command-line tool. The TextLint library is flat - it has no subsystems or units yet - so
-// it needs only the one system view.
+// The repository holds two systems: the TextLint library below and the TextLintTool
+// command-line tool above. The TextLint library has two subsystems, each with its own view;
+// units are shown by their subsystem's view.
 package TextLint {
     view TextLintView {
         expose TextLintSystem;
+    }
+
+    view ConfigurationView {
+        expose ConfigurationSubsystem;
+    }
+
+    view FileSelectionView {
+        expose FileSelectionSubsystem;
     }
 }

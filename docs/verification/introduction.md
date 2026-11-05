@@ -18,8 +18,14 @@ This document covers the verification design for the following software items:
 
 **Local items:**
 
-- **TextLint** — system verification for the `DemaConsulting.TextLint` library (currently a
-  package skeleton with no subsystems or units)
+- **TextLint** — system, subsystem, and unit verification for the `DemaConsulting.TextLint` library:
+  - **Configuration** subsystem
+    - **TextLintSettings** — immutable settings value
+    - **SettingsLoader** — settings-file loader
+  - **FileSelection** subsystem
+    - **GlobPatternExpander** — glob pattern validation and rewriting
+    - **HiddenPathPolicy** — hidden-name rule
+    - **FileSelector** — file selection
 - **TextLintTool** — system, subsystem, and unit verification:
   - **Program** — entry point and execution orchestrator
   - **Cli** subsystem
@@ -33,6 +39,7 @@ This document covers the verification design for the following software items:
 
 - **BuildMark** — build-notes documentation tool
 - **FileAssert** — document assertion tool
+- **FileSystemGlobbing** — glob pattern matching library (runtime)
 - **Pandoc** — Markdown-to-HTML conversion tool
 - **ReqStream** — requirements traceability tool
 - **ReviewMark** — file review enforcement tool
@@ -42,11 +49,13 @@ This document covers the verification design for the following software items:
 - **VersionMark** — tool-version documentation tool
 - **WeasyPrint** — HTML-to-PDF conversion tool
 - **xUnit** — unit-testing framework
+- **YamlDotNet** — YAML parsing library (runtime)
 
 The following topics are out of scope:
 
 - Verification documents are not produced for the test projects themselves — they are the
-  means of verification, not subjects of it
+  means of verification, not subjects of it. This includes the shared test support types
+  (a temporary-directory helper and a recording directory used to observe enumeration).
 - Build pipeline CI configuration is excluded
 - The internal implementation of OTS software items is excluded; only integration and usage
   are verified
@@ -57,7 +66,10 @@ The test folder structure mirrors the source subsystem breakdown:
 
 ```text
 test/
-├── DemaConsulting.TextLint.Tests/       — library system-level tests
+├── DemaConsulting.TextLint.Tests/       — library tests
+│   ├── Configuration/                   — Configuration subsystem and unit tests
+│   ├── FileSelection/                   — FileSelection subsystem and unit tests
+│   └── TestSupport/                     — shared test helpers (temporary directory, recording directory)
 └── DemaConsulting.TextLint.Tool.Tests/  — unit and integration tests
 ```
 

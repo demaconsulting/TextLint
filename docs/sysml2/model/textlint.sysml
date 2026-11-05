@@ -15,5 +15,12 @@ package TextLint {
         comment designRef /* Design: docs/design/textlint.md */
         comment verificationRef /* Verification: docs/verification/textlint.md */
         comment reqRef /* Requirements: docs/reqstream/textlint.yaml */
+
+        part configuration : ConfigurationSubsystem;
+        part fileSelection : FileSelectionSubsystem;
+
+        // Runtime OTS dependencies: both ship as package dependencies of the library.
+        part yamlDotNet : YamlDotNet;
+        part fileSystemGlobbing : FileSystemGlobbing;
     }
 }

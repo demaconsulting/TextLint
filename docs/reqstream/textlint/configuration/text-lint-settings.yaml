@@ -1,0 +1,41 @@
+---
+# Software Unit Requirements for the TextLintSettings Class
+#
+# The TextLintSettings class is the immutable settings value that carries the version, include
+# patterns, ignore patterns, and hidden-file switch, whether loaded from a file or built in code.
+
+sections:
+  - title: TextLint Requirements
+    sections:
+      - title: Configuration Requirements
+        sections:
+          - title: TextLintSettings Requirements
+            requirements:
+              - id: TextLint-Configuration-TextLintSettings-Defaults
+                title: >-
+                  TextLintSettings shall default to no version, no include patterns, no ignore
+                  patterns, and hidden-file matching disabled.
+                justification: |
+                  A project that configures nothing must get safe, predictable behavior: no files
+                  are selected until the user asks for some, and hidden files are not reached by
+                  wildcards, matching cspell.
+                tests:
+                  - TextLintSettings_New_NoValues_HasDocumentedDefaults
+
+              - id: TextLint-Configuration-TextLintSettings-Immutable
+                title: >-
+                  TextLintSettings shall be immutable: a copy shall not change the original, a
+                  later change to a supplied list shall not change the settings, and a missing
+                  list shall be rejected.
+                justification: |
+                  Settings are shared across the whole run, including concurrent work, so no
+                  holder may be able to alter what another holder sees. A null list is a
+                  programming error that must surface where it is made.
+                tests:
+                  - TextLintSettings_With_ChangedFiles_LeavesOriginalUnchanged
+                  - TextLintSettings_Init_ListMutatedAfterAssignment_DoesNotAffectSettings
+                  - TextLintSettings_Init_IgnorePathsMutatedAfterAssignment_DoesNotAffectSettings
+                  - TextLintSettings_Init_ArrayMutatedAfterAssignment_DoesNotAffectSettings
+                  - TextLintSettings_Init_NullFiles_ThrowsArgumentNullException
+                  - TextLintSettings_Init_NullIgnorePaths_ThrowsArgumentNullException
+                  - TextLintSettings_Files_ExposedList_CannotBeMutatedThroughInterface

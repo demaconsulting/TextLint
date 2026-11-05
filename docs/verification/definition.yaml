@@ -1,6 +1,9 @@
 ---
 resource-path:
   - docs/verification
+  - docs/verification/textlint
+  - docs/verification/textlint/configuration
+  - docs/verification/textlint/file-selection
   - docs/verification/textlint-tool
   - docs/verification/textlint-tool/cli
   - docs/verification/textlint-tool/self-test
@@ -12,6 +15,13 @@ input-files:
   - docs/verification/title.txt
   - docs/verification/introduction.md
   - docs/verification/textlint.md
+  - docs/verification/textlint/configuration.md
+  - docs/verification/textlint/configuration/text-lint-settings.md
+  - docs/verification/textlint/configuration/settings-loader.md
+  - docs/verification/textlint/file-selection.md
+  - docs/verification/textlint/file-selection/glob-pattern-expander.md
+  - docs/verification/textlint/file-selection/hidden-path-policy.md
+  - docs/verification/textlint/file-selection/file-selector.md
   - docs/verification/textlint-tool.md
   - docs/verification/textlint-tool/program.md
   - docs/verification/textlint-tool/cli.md
@@ -23,6 +33,7 @@ input-files:
   - docs/verification/ots.md
   - docs/verification/ots/buildmark.md
   - docs/verification/ots/fileassert.md
+  - docs/verification/ots/filesystemglobbing.md
   - docs/verification/ots/pandoc.md
   - docs/verification/ots/reqstream.md
   - docs/verification/ots/reviewmark.md
@@ -32,6 +43,7 @@ input-files:
   - docs/verification/ots/versionmark.md
   - docs/verification/ots/weasyprint.md
   - docs/verification/ots/xunit.md
+  - docs/verification/ots/yamldotnet.md
 template: template.html
 table-of-contents: true
 number-sections: true

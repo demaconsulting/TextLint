@@ -15,14 +15,21 @@ TextLint is a fast text linter for source code and documentation, delivered as t
 
 **Status**: under active development. TextLint is being developed to provide cspell-compatible
 spell-checking, configured by a `.textlint.yaml` file, using embedded English and technical-term
-dictionaries, and to check files in parallel across all processor cores. These capabilities are
-not yet implemented; the library currently contains only the package skeleton, and the tool
-provides the command-line scaffolding described below.
+dictionaries, and to check files in parallel across all processor cores. Spell-checking is not yet
+implemented. The library can already load a `.textlint.yaml` settings file and select the files to
+check; the tool does not read the settings file yet and provides only the command-line scaffolding
+described below.
 
 ## Features
 
 The project currently provides:
 
+- **Settings File**: The library loads a cspell-compatible `.textlint.yaml` (keys `version`, `files`,
+  `ignorePaths`, and `enableGlobDot`), reporting every problem with its file, line, and column; unsupported
+  keys are errors
+- **File Selection**: The library selects files from glob patterns (brace alternatives, bare names at any
+  depth, case-sensitive matching, cspell-style hidden-file rules), skipping excluded directories without
+  scanning them
 - **Standardized Command-Line Interface**: Context class handling common arguments
   (`--version`, `--help`, `--silent`, `--validate`, `--results`, `--depth`, `--log`)
 - **Self-Validation**: Built-in validation tests with TRX/JUnit output
@@ -47,12 +54,55 @@ dotnet tool install -g DemaConsulting.TextLint.Tool
 ```
 
 The reusable library is published separately as the `DemaConsulting.TextLint` NuGet package for
-applications that want to embed TextLint (the library currently contains only the package
-skeleton; its API will grow as the spell-checking capabilities are added):
+applications that want to embed TextLint (it currently loads settings and selects files; its API will
+grow as the spell-checking capabilities are added):
 
 ```bash
 dotnet add package DemaConsulting.TextLint
 ```
+
+## Library Usage
+
+Load a `.textlint.yaml` settings file and select the files it describes:
+
+```csharp
+using DemaConsulting.TextLint.Configuration;
+using DemaConsulting.TextLint.FileSelection;
+
+// Problems in the file are returned, not thrown
+var result = await SettingsLoader.LoadAsync(".textlint.yaml");
+if (!result.Succeeded)
+{
+    foreach (var diagnostic in result.Diagnostics)
+    {
+        // For example: .textlint.yaml(3,1): error: 'words' is not a supported setting.
+        Console.Error.WriteLine(diagnostic);
+    }
+
+    return;
+}
+
+var settings = result.Settings!;
+foreach (var file in FileSelector.Select(".", settings.Files, settings.IgnorePaths, settings.EnableGlobDot))
+{
+    Console.WriteLine(file.RelativePath);
+}
+```
+
+Settings can also be built in code, without a file. File selection takes the patterns directly, so
+pass the values you want:
+
+```csharp
+var settings = new TextLintSettings
+{
+    Files = ["**/*.{md,cs}"],
+    IgnorePaths = ["node_modules"],
+};
+var files = FileSelector.Select("/path/to/repo", settings.Files, settings.IgnorePaths, settings.EnableGlobDot);
+```
+
+The supported `.textlint.yaml` keys are `version`, `files`, `ignorePaths`, and `enableGlobDot`; any other
+key is an error. See the [User Guide][link-guide] for the glob pattern rules.
 
 ## Usage
 

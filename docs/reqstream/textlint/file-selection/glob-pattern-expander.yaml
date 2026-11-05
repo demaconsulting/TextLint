@@ -1,0 +1,91 @@
+---
+# Software Unit Requirements for the GlobPatternExpander Class
+#
+# The GlobPatternExpander class validates user-written glob patterns and rewrites them into the
+# patterns the matcher understands: brace alternatives expanded, bare names matching at any depth.
+
+sections:
+  - title: TextLint Requirements
+    sections:
+      - title: FileSelection Requirements
+        sections:
+          - title: GlobPatternExpander Requirements
+            requirements:
+              - id: TextLint-FileSelection-GlobPatternExpander-BraceExpansion
+                title: >-
+                  GlobPatternExpander shall expand each brace group that has alternatives into one
+                  pattern per alternative, including nested and multiple groups, and shall leave a
+                  group without alternatives as written.
+                justification: |
+                  Brace alternatives such as *.{md,cs} are common in cspell configurations but are
+                  not understood by the matcher, so they must be expanded to behave as users expect.
+                tests:
+                  - GlobPatternExpander_Expand_SingleBraceGroup_ReturnsOnePatternPerAlternative
+                  - GlobPatternExpander_Expand_MultipleBraceGroups_ReturnsCartesianProduct
+                  - GlobPatternExpander_Expand_NestedBraceGroups_ExpandsAllCombinations
+                  - GlobPatternExpander_Expand_EmptyAlternative_ReturnsPatternWithoutIt
+                  - GlobPatternExpander_Expand_BraceWithoutComma_LeavesGroupLiteral
+                  - GlobPatternExpander_Expand_AlternativesOfDifferentShape_AreAnchoredIndependently
+
+              - id: TextLint-FileSelection-GlobPatternExpander-BareNames
+                title: >-
+                  GlobPatternExpander shall make a pattern without a separator match a file or
+                  directory of that name at any depth, and shall honor a trailing separator as
+                  limiting a pattern to directories.
+                justification: |
+                  Ignore-style patterns such as node_modules and build/ are expected to apply
+                  wherever the name occurs.
+                tests:
+                  - GlobPatternExpander_Expand_BareName_MatchesFileOrDirectoryAtAnyDepth
+                  - GlobPatternExpander_Expand_PatternWithSeparator_StaysAnchored
+                  - GlobPatternExpander_Expand_TrailingSlashOnly_MatchesDirectoryAtAnyDepth
+                  - GlobPatternExpander_Expand_TrailingSlashOnAnchoredPattern_SelectsSubtree
+                  - GlobPatternExpander_Expand_CurrentDirectorySegment_IsRemoved
+                  - GlobPatternExpander_Expand_RecursivePattern_IsUnchanged
+                  - GlobPatternExpander_Expand_RepeatedRecursiveSegments_AreMerged
+                  - GlobPatternExpander_Expand_LoneRecursiveSegment_IsUnchanged
+
+              - id: TextLint-FileSelection-GlobPatternExpander-RootAnchoring
+                title: >-
+                  GlobPatternExpander shall treat a single leading slash, or a leading ./, as
+                  anchoring the pattern at the root directory, and shall not treat it as an
+                  absolute path.
+                justification: |
+                  A leading slash means the project root in ignore files and cspell configurations,
+                  so /build/ and /README.md must mean the root directory's own entries. Absolute
+                  paths are rejected separately, so the two meanings never conflict.
+                tests:
+                  - GlobPatternExpander_Expand_LeadingSlash_AnchorsToRoot
+                  - GlobPatternExpander_Expand_LeadingSlashDirectoryPattern_AnchorsToRootNotAbsolute
+                  - GlobPatternExpander_Expand_LeadingDotSlash_IsStrippedAndAnchors
+
+              - id: TextLint-FileSelection-GlobPatternExpander-Validation
+                title: >-
+                  GlobPatternExpander shall reject empty, negated, backslash, question-mark,
+                  absolute (drive-letter and double-slash network), empty-segment, parent-segment,
+                  unbalanced-brace, and over-expanding patterns, naming the pattern and the reason,
+                  and shall suggest the star in place of a question mark.
+                justification: |
+                  Each of these forms cannot be honored reliably (negation, separators and wildcards
+                  that differ by platform or are unsupported, paths that escape the root, or an
+                  expansion that exhausts memory). Rejecting them with a clear message is safer than
+                  silently selecting the wrong files, and an absolute path copied from the file
+                  system must be told apart from a root-anchored pattern.
+                tests:
+                  - GlobPatternExpander_Expand_EmptyPattern_ThrowsInvalidGlobPattern
+                  - GlobPatternExpander_Expand_WhitespacePattern_ThrowsInvalidGlobPattern
+                  - GlobPatternExpander_Expand_NegatedPattern_ThrowsInvalidGlobPattern
+                  - GlobPatternExpander_Expand_BackslashPattern_ThrowsInvalidGlobPattern
+                  - GlobPatternExpander_Expand_QuestionMarkPattern_ThrowsInvalidGlobPattern
+                  - GlobPatternExpander_Expand_DriveRootedPattern_ThrowsInvalidGlobPattern
+                  - GlobPatternExpander_Expand_DriveLetterWithoutSlash_ThrowsInvalidGlobPattern
+                  - GlobPatternExpander_Expand_DriveRootedBackslashPattern_ReportsAbsolutePath
+                  - GlobPatternExpander_Expand_DoubleSlashRoot_ThrowsInvalidGlobPattern
+                  - GlobPatternExpander_Expand_AbsolutePathFromBraces_ThrowsInvalidGlobPattern
+                  - GlobPatternExpander_Expand_ParentSegment_ThrowsInvalidGlobPattern
+                  - GlobPatternExpander_Expand_ParentSegmentFromBraces_ThrowsInvalidGlobPattern
+                  - GlobPatternExpander_Expand_UnclosedBrace_ThrowsInvalidGlobPattern
+                  - GlobPatternExpander_Expand_UnopenedBrace_ThrowsInvalidGlobPattern
+                  - GlobPatternExpander_Expand_ExcessiveExpansion_ThrowsInvalidGlobPattern
+                  - GlobPatternExpander_Expand_ExceptionMessage_NamesPattern
+                  - GlobPatternExpander_Expand_NullPattern_ThrowsArgumentNullException

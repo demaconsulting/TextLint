@@ -1,14 +1,17 @@
 # OTS Software Verification
 
-This section provides verification evidence for all Off-The-Shelf (OTS) software items
-used by the TextLint Tool.
+This section provides verification evidence for all Off-The-Shelf (OTS) software items used by
+TextLint: the runtime dependencies of the `DemaConsulting.TextLint` library and the build, test, and
+documentation tooling used by the repository.
 
 ## Scope
 
-Each OTS item is verified by a combination of:
+Each OTS item is verified by one of:
 
 - The OTS tool's own self-validation suite (where the tool supports `--validate`)
 - Pipeline output assertions performed by FileAssert on documents produced by the tool
+- Transitive evidence from the library test suite, for the runtime dependencies (YamlDotNet and
+  Microsoft.Extensions.FileSystemGlobbing), which the library's tests exercise for real, without test doubles
 
 Internal OTS tool design is out of scope; only integration and usage evidence is documented.
 
@@ -18,6 +21,7 @@ The following OTS items have verification evidence in this section:
 
 - BuildMark (_buildmark.md_) — build-notes documentation tool
 - FileAssert (_fileassert.md_) — document assertion tool
+- FileSystemGlobbing (_filesystemglobbing.md_) — glob pattern matching library (runtime)
 - Pandoc (_pandoc.md_) — Markdown-to-HTML conversion tool
 - ReqStream (_reqstream.md_) — requirements traceability tool
 - ReviewMark (_reviewmark.md_) — file review enforcement tool
@@ -27,3 +31,4 @@ The following OTS items have verification evidence in this section:
 - VersionMark (_versionmark.md_) — tool-version documentation tool
 - WeasyPrint (_weasyprint.md_) — HTML-to-PDF conversion tool
 - xUnit (_xunit.md_) — unit-testing framework
+- YamlDotNet (_yamldotnet.md_) — YAML parsing library (runtime)

@@ -1,6 +1,9 @@
 ---
 resource-path:
   - docs/design
+  - docs/design/textlint
+  - docs/design/textlint/configuration
+  - docs/design/textlint/file-selection
   - docs/design/textlint-tool
   - docs/design/textlint-tool/cli
   - docs/design/textlint-tool/self-test
@@ -12,6 +15,13 @@ input-files:
   - docs/design/title.txt
   - docs/design/introduction.md
   - docs/design/textlint.md
+  - docs/design/textlint/configuration.md
+  - docs/design/textlint/configuration/text-lint-settings.md
+  - docs/design/textlint/configuration/settings-loader.md
+  - docs/design/textlint/file-selection.md
+  - docs/design/textlint/file-selection/glob-pattern-expander.md
+  - docs/design/textlint/file-selection/hidden-path-policy.md
+  - docs/design/textlint/file-selection/file-selector.md
   - docs/design/textlint-tool.md
   - docs/design/textlint-tool/program.md
   - docs/design/textlint-tool/cli.md
@@ -23,6 +33,7 @@ input-files:
   - docs/design/ots.md
   - docs/design/ots/buildmark.md
   - docs/design/ots/fileassert.md
+  - docs/design/ots/filesystemglobbing.md
   - docs/design/ots/pandoc.md
   - docs/design/ots/reqstream.md
   - docs/design/ots/reviewmark.md
@@ -32,6 +43,7 @@ input-files:
   - docs/design/ots/versionmark.md
   - docs/design/ots/weasyprint.md
   - docs/design/ots/xunit.md
+  - docs/design/ots/yamldotnet.md
 template: template.html
 table-of-contents: true
 number-sections: true

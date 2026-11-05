@@ -1,0 +1,100 @@
+---
+# Configuration Subsystem Requirements
+#
+# PURPOSE:
+# - Define requirements for the TextLint Configuration subsystem
+# - The Configuration subsystem turns a .textlint.yaml file, or values built in code, into one
+#   immutable settings value, and reports every configuration problem as data
+# - Subsystem requirements decompose the system requirements for settings; they are validated by
+#   ConfigurationSubsystemTests.cs
+
+sections:
+  - title: TextLint Requirements
+    sections:
+      - title: Configuration Requirements
+        requirements:
+          - id: TextLint-Configuration-FileLoading
+            title: >-
+              The Configuration subsystem shall load a settings file asynchronously and return
+              either settings or the errors that prevented them.
+            justification: |
+              Settings files are read from disk, which may be slow or fail, so loading must not
+              block the caller and must report a missing or unreadable file the same way as any
+              other configuration problem, so that one code path handles every failure.
+            children:
+              - TextLint-Configuration-SettingsLoader-ReadFile
+            tests:
+              - ConfigurationSubsystem_LoadAsync_ValidFile_ReturnsSettings
+              - ConfigurationSubsystem_LoadAsync_MissingFile_ReturnsErrorDiagnostic
+
+          - id: TextLint-Configuration-KeyMapping
+            title: >-
+              The Configuration subsystem shall map the supported cspell-named keys (version,
+              files, ignorePaths, and enableGlobDot) onto settings, using defaults for absent keys.
+            justification: |
+              These keys are the cspell keys needed to select files, and a user migrating from
+              cspell expects them to keep their meaning. An empty file must be valid so a project
+              can start without configuration.
+            children:
+              - TextLint-Configuration-SettingsLoader-MapKeys
+              - TextLint-Configuration-TextLintSettings-Defaults
+            tests:
+              - ConfigurationSubsystem_LoadAsync_AllSupportedKeys_PopulatesSettings
+              - ConfigurationSubsystem_LoadAsync_EmptyFile_ReturnsDefaults
+
+          - id: TextLint-Configuration-ProgrammaticSettings
+            title: >-
+              The Configuration subsystem shall provide immutable settings that applications
+              construct and copy in code.
+            justification: |
+              Embedding applications, and a command line that overrides the configuration file,
+              build settings without a file. Settings that could change after they were handed
+              over would make a lint run depend on hidden shared state.
+            children:
+              - TextLint-Configuration-TextLintSettings-Immutable
+              - TextLint-Configuration-TextLintSettings-Defaults
+            tests:
+              - ConfigurationSubsystem_Settings_ConstructedInCode_IsImmutable
+              - ConfigurationSubsystem_Settings_LoadedThenCopied_LeavesLoadedUnchanged
+
+          - id: TextLint-Configuration-ErrorReporting
+            title: >-
+              The Configuration subsystem shall report every configuration error with its file,
+              line, and column.
+            justification: |
+              Users must be able to locate and fix every problem in a settings file from the
+              report alone, and fixing them one run at a time is needlessly slow.
+            children:
+              - TextLint-Configuration-SettingsLoader-SyntaxErrors
+              - TextLint-Configuration-SettingsLoader-TypeErrors
+              - TextLint-Configuration-SettingsLoader-Diagnostics
+            tests:
+              - ConfigurationSubsystem_LoadAsync_MalformedYaml_ReportsPosition
+              - ConfigurationSubsystem_LoadAsync_MultipleTypeErrors_ReportsAll
+
+          - id: TextLint-Configuration-UnsupportedKeys
+            title: >-
+              The Configuration subsystem shall report an unsupported key as an error naming the
+              key and its position, and shall not return settings.
+            justification: |
+              A key the user believes is in force but that has no effect is a silent
+              misconfiguration. Failing loudly with the key's name tells the user precisely which
+              setting is not available.
+            children:
+              - TextLint-Configuration-SettingsLoader-UnsupportedKeys
+            tests:
+              - ConfigurationSubsystem_LoadAsync_UnsupportedKey_ReportsErrorWithKeyAndPosition
+
+          - id: TextLint-Configuration-InvalidPatterns
+            title: >-
+              The Configuration subsystem shall report an unsupported or malformed glob pattern as
+              an error at the pattern's position.
+            justification: |
+              A bad pattern is a configuration problem, so it is best reported when the file is
+              loaded, at the line and column of the offending entry, rather than later when the
+              files are selected and the position is lost.
+            children:
+              - TextLint-Configuration-SettingsLoader-InvalidPatterns
+            tests:
+              - ConfigurationSubsystem_LoadAsync_InvalidPattern_ReportsErrorWithPosition
+              - ConfigurationSubsystem_LoadAsync_AbsolutePathPattern_ReportsErrorWithPosition

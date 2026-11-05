@@ -1,0 +1,110 @@
+---
+# FileSelection Subsystem Requirements
+#
+# PURPOSE:
+# - Define requirements for the TextLint FileSelection subsystem
+# - The FileSelection subsystem turns include and ignore glob patterns into the ordered list of
+#   files to check beneath a root directory
+# - Subsystem requirements decompose the system requirements for file selection; they are
+#   validated by FileSelectionSubsystemTests.cs
+
+sections:
+  - title: TextLint Requirements
+    sections:
+      - title: FileSelection Requirements
+        requirements:
+          - id: TextLint-FileSelection-PatternMatching
+            title: >-
+              The FileSelection subsystem shall select the files that match an include pattern
+              and no ignore pattern, relative to the root and case-sensitively.
+            justification: |
+              This is the core behavior of file selection: include patterns choose files, ignore
+              patterns always win, and the same configuration must select the same files on every
+              operating system.
+            children:
+              - TextLint-FileSelection-FileSelector-Matching
+              - TextLint-FileSelection-FileSelector-CaseSensitive
+            tests:
+              - FileSelectionSubsystem_Select_IncludeAndIgnorePatterns_SelectsExpectedFiles
+              - FileSelectionSubsystem_Select_DifferentCase_IsNotSelected
+
+          - id: TextLint-FileSelection-PatternForms
+            title: >-
+              The FileSelection subsystem shall accept brace alternatives and bare names
+              (patterns without a separator) in patterns.
+            justification: |
+              Users migrating from cspell already write patterns such as **/*.{md,cs} and
+              node_modules, and expect a bare name to match at any depth.
+            children:
+              - TextLint-FileSelection-GlobPatternExpander-BraceExpansion
+              - TextLint-FileSelection-GlobPatternExpander-BareNames
+            tests:
+              - FileSelectionSubsystem_Select_BraceAlternatives_SelectsAllAlternatives
+              - FileSelectionSubsystem_Select_BareName_MatchesAtAnyDepth
+
+          - id: TextLint-FileSelection-PatternValidation
+            title: >-
+              The FileSelection subsystem shall reject unsupported or malformed patterns,
+              including absolute paths, with an error that names the pattern.
+            justification: |
+              Patterns that cannot be honored reliably must fail visibly rather than silently
+              select the wrong files.
+            children:
+              - TextLint-FileSelection-GlobPatternExpander-Validation
+              - TextLint-FileSelection-FileSelector-InvalidPatterns
+            tests:
+              - FileSelectionSubsystem_Select_NegatedPattern_ThrowsNamingPattern
+              - FileSelectionSubsystem_Select_AbsolutePathPattern_ThrowsNamingPattern
+
+          - id: TextLint-FileSelection-RootAnchoredPatterns
+            title: >-
+              The FileSelection subsystem shall interpret a pattern that begins with a single slash
+              as anchored to the root directory, not as an absolute path.
+            justification: |
+              Users write /build/ or /README.md to mean the project root, as in ignore files and
+              cspell configurations; the pattern must select the same files on every platform.
+            children:
+              - TextLint-FileSelection-GlobPatternExpander-RootAnchoring
+            tests:
+              - FileSelectionSubsystem_Select_LeadingSlashPattern_AnchorsToRoot
+
+          - id: TextLint-FileSelection-HiddenFiles
+            title: >-
+              The FileSelection subsystem shall not let wildcards match hidden files and
+              directories unless hidden-file matching is enabled, and shall let hidden names
+              written literally in a pattern match.
+            justification: |
+              Wildcards must not reach content such as .git by default, matching cspell, while an
+              explicit pattern such as .github/** must still select what it names.
+            children:
+              - TextLint-FileSelection-FileSelector-HiddenFiles
+              - TextLint-FileSelection-HiddenPathPolicy-WildcardsSkipHidden
+              - TextLint-FileSelection-HiddenPathPolicy-LiteralSegmentsMatchHidden
+            tests:
+              - FileSelectionSubsystem_Select_HiddenEntries_SkippedUnlessEnabled
+              - FileSelectionSubsystem_Select_LiteralHiddenPattern_SelectsHiddenEntries
+
+          - id: TextLint-FileSelection-IgnoredDirectoriesSkipped
+            title: >-
+              The FileSelection subsystem shall not enumerate directories excluded by the ignore
+              patterns or hidden from wildcards.
+            justification: |
+              Excluded directories such as node_modules and .git can hold hundreds of thousands
+              of files; reading them only to discard the result would dominate the run time.
+            children:
+              - TextLint-FileSelection-FileSelector-PrunedTraversal
+              - TextLint-FileSelection-HiddenPathPolicy-DirectoryTraversal
+            tests:
+              - FileSelectionSubsystem_Select_IgnoredDirectory_IsNotEnumerated
+
+          - id: TextLint-FileSelection-StableOrder
+            title: >-
+              The FileSelection subsystem shall return files ordered by ordinal relative path
+              with forward-slash separators.
+            justification: |
+              A stable order and path form make results reproducible across platforms and runs,
+              which reports, diffs, and caches depend on.
+            children:
+              - TextLint-FileSelection-FileSelector-StableOrder
+            tests:
+              - FileSelectionSubsystem_Select_UnorderedTree_ReturnsOrdinalOrder

@@ -6,13 +6,13 @@
 #   library package need from it
 # - The library owns ALL linting logic (settings, file discovery, dictionaries, tokenization,
 #   spell checking, results); the tool is a thin front-end that depends on it, never the reverse
-# - The library does not yet expose a functional API; these requirements cover the package-level
-#   properties and layering every release must retain. Functional requirements (including
-#   Native AOT consumer support, verified by a real AOT publish) are added, top-down, as the
-#   library gains its public API, subsystems, and units
-# - System requirements are validated by FileAssert checks of the produced NuGet package
-#   (.fileassert.yaml, run by build.yaml) and by the system-level tests in TextLintTests.cs,
-#   which inspect the compiled library assembly
+# - The library exposes settings loading and file selection; the remaining linting capabilities
+#   (dictionaries, tokenization, spell checking, results) are added, top-down, as later subsystems
+#   with their own requirements, design, and verification
+# - Package requirements are validated by FileAssert checks of the produced NuGet package
+#   (.fileassert.yaml, run by build.yaml) and by assembly-level tests in TextLintTests.cs;
+#   functional requirements are validated by system-level tests in TextLintTests.cs that drive
+#   the public API end to end
 
 sections:
   - title: TextLint Requirements
@@ -45,3 +45,173 @@ sections:
           the tool (and its console, argument-parsing, and exit-code concerns) with it.
         tests:
           - TextLint_Assembly_Loaded_DoesNotReferenceTool
+
+      - id: TextLint-System-ConfigFile
+        title: The library shall load settings from a .textlint.yaml file that uses cspell-compatible key names.
+        tags: [system]
+        justification: |
+          TextLint is meant to replace cspell in existing repositories, so users must be able to
+          carry their configuration over with the key names they already know, and to keep their
+          lint configuration as code beside the project. An empty file must be valid so a new
+          project can start with no configuration.
+        children:
+          - TextLint-Configuration-FileLoading
+          - TextLint-Configuration-KeyMapping
+          - TextLint-OTS-YamlDotNet-ParseYaml
+        tests:
+          - TextLint_Settings_CspellStyleConfigFile_LoadsConfiguredValues
+          - TextLint_Settings_EmptyConfigFile_LoadsDefaultSettings
+
+      - id: TextLint-System-ProgrammaticSettings
+        title: The library shall let applications supply settings built in code instead of a file.
+        tags: [system]
+        justification: |
+          Applications that embed the library, and the tool when a command line overrides the
+          configuration file, must be able to supply settings without writing a file and without
+          the risk that later changes to the values they passed alter the settings in force.
+        children:
+          - TextLint-Configuration-ProgrammaticSettings
+        tests:
+          - TextLint_Settings_ConstructedInCode_SelectsFiles
+
+      - id: TextLint-System-ConfigErrors
+        title: The library shall report each configuration error with the file, line, and column of the problem.
+        tags: [system]
+        justification: |
+          A linter whose own configuration errors are cryptic cannot be adopted in continuous
+          integration. Users must be able to find and fix every problem in a settings file from
+          the message alone, including a file that is missing or cannot be read.
+        children:
+          - TextLint-Configuration-ErrorReporting
+          - TextLint-OTS-YamlDotNet-SourcePositions
+        tests:
+          - TextLint_Settings_MalformedConfigFile_ReportsFileLineAndColumn
+          - TextLint_Settings_WrongValueType_ReportsFileLineAndColumn
+          - TextLint_Settings_MissingConfigFile_ReportsFileError
+
+      - id: TextLint-System-UnsupportedKeys
+        title: >-
+          The library shall reject a settings file that contains a key it does not support,
+          with an error that names the key and its position.
+        tags: [system]
+        justification: |
+          Settings carried over from a cspell configuration may include keys TextLint does not
+          support yet. Silently ignoring them would let a setting the user believes is in force
+          have no effect, so loading fails and names the key, which tells the user exactly what
+          is not available.
+        children:
+          - TextLint-Configuration-UnsupportedKeys
+        tests:
+          - TextLint_Settings_UnsupportedKey_ReportsErrorNamingKey
+
+      - id: TextLint-System-FileSelection
+        title: >-
+          The library shall select the files to check by matching include glob patterns,
+          case-sensitively, against paths relative to a root directory.
+        tags: [system]
+        justification: |
+          Choosing which files to lint is the first step of every run. Matching case-sensitively
+          on every operating system makes a configuration select the same files on Windows,
+          Linux, and macOS, and brace alternatives and bare names are accepted because cspell
+          users already write patterns that way.
+        children:
+          - TextLint-FileSelection-PatternMatching
+          - TextLint-FileSelection-PatternForms
+          - TextLint-OTS-FileSystemGlobbing-MatchPatterns
+        tests:
+          - TextLint_Files_IncludePatterns_SelectsMatchingFiles
+          - TextLint_Files_BraceAndBareNamePatterns_SelectAtAnyDepth
+          - TextLint_Files_DifferentCase_IsNotSelected
+
+      - id: TextLint-System-IgnoredPaths
+        title: The library shall exclude files that match the ignore glob patterns from the selection.
+        tags: [system]
+        justification: |
+          Repositories contain generated, vendored, and third-party content that must never be
+          linted; users need a way to exclude it that always wins over the include patterns.
+        children:
+          - TextLint-FileSelection-PatternMatching
+        tests:
+          - TextLint_Files_IgnorePatterns_ExcludesIgnoredFiles
+
+      - id: TextLint-System-IgnoredDirectoriesSkipped
+        title: The library shall not scan the contents of directories excluded by the ignore patterns.
+        tags: [system, performance]
+        justification: |
+          Directories such as node_modules, bin, and obj routinely hold hundreds of thousands of
+          files. Scanning them only to discard the results would dominate the run time on large
+          repositories, so excluded directories must not be read at all.
+        children:
+          - TextLint-FileSelection-IgnoredDirectoriesSkipped
+          - TextLint-OTS-FileSystemGlobbing-ExcludePruning
+        tests:
+          - TextLint_Files_IgnoredDirectory_IsNotEnumerated
+
+      - id: TextLint-System-HiddenFiles
+        title: >-
+          The library shall not let wildcards match hidden files and directories (names starting
+          with a dot) unless hidden-file matching is enabled, while hidden names written
+          literally in a pattern shall match.
+        tags: [system]
+        justification: |
+          Hidden directories such as .git hold content users never want linted, so a wildcard
+          must not reach them by default, matching cspell. Files such as .github workflows are
+          often wanted, so naming them explicitly in a pattern must work without enabling hidden
+          matching everywhere.
+        children:
+          - TextLint-FileSelection-HiddenFiles
+        tests:
+          - TextLint_Files_HiddenEntries_SkippedByDefault
+          - TextLint_Files_LiteralHiddenPattern_SelectsHiddenEntries
+          - TextLint_Files_HiddenEntries_SelectedWhenEnabled
+
+      - id: TextLint-System-StableOrder
+        title: >-
+          The library shall return selected files in a stable, platform-independent order using
+          forward-slash relative paths.
+        tags: [system]
+        justification: |
+          Reproducible reports, diffs, and result caches require the same files in the same
+          order with the same names on every operating system and on every run.
+        children:
+          - TextLint-FileSelection-StableOrder
+        tests:
+          - TextLint_Files_SelectedFiles_AreOrderedWithForwardSlashes
+
+      - id: TextLint-System-RootAnchoredPatterns
+        title: >-
+          The library shall interpret a glob pattern that begins with a single slash as anchored
+          to the root directory being searched, not as an absolute file system path.
+        tags: [system]
+        justification: |
+          Users write /build/ or /README.md to mean the project root, as in ignore files and
+          cspell configurations. The same pattern must select the same files on every operating
+          system, which an interpretation as an absolute path could not guarantee.
+        children:
+          - TextLint-FileSelection-RootAnchoredPatterns
+        tests:
+          - TextLint_Files_LeadingSlashPattern_AnchorsAtRoot
+
+      - id: TextLint-System-PatternValidation
+        title: >-
+          The library shall reject unsupported or malformed glob patterns, including absolute file
+          system paths (drive-letter and network forms), negation, backslash separators, and the
+          question-mark wildcard, with an error that names the pattern and the reason, and shall
+          report such a pattern in a settings file at its line and column.
+        tags: [system]
+        justification: |
+          Some pattern forms users may expect (negation, backslash separators, the ? wildcard,
+          absolute or parent-relative paths, unbalanced braces) cannot be honored reliably. Silently
+          selecting the wrong files is worse than failing, so the pattern is rejected at the
+          earliest point, with enough detail to correct it; the message for ? points to the
+          supported * wildcard.
+        children:
+          - TextLint-FileSelection-PatternValidation
+          - TextLint-Configuration-InvalidPatterns
+        tests:
+          - TextLint_Files_NegatedPattern_ThrowsNamingPattern
+          - TextLint_Files_BackslashPattern_ThrowsNamingPattern
+          - TextLint_Files_AbsolutePathPattern_ThrowsNamingPattern
+          - TextLint_Settings_InvalidPattern_ReportsFileLineAndColumn
+          - TextLint_Settings_AbsolutePathPattern_ReportsFileLineAndColumn
+          - TextLint_Settings_QuestionMarkPattern_ReportsErrorSuggestingStar
