@@ -9,7 +9,9 @@ patterns and the hidden-file switch are passed as plain parameters, since the un
 configuration type. The
 internal `Select` overload that accepts an abstract directory is tested with a recording directory, the only
 test double: it wraps the real directory and records which directories are enumerated, which proves pruning
-deterministically where a timing test would be flaky. Case sensitivity is tested with files whose names differ
+deterministically where a timing test would be flaky. It can also run a callback as each directory starts to be
+read, which the cancellation tests use to cancel the token at a chosen point of the walk, so that stopping the walk is
+proven without timing. Case sensitivity is tested with files whose names differ
 from the pattern only in case, which works on case-insensitive file systems because the selector, not the file
 system, compares names.
 
@@ -22,12 +24,15 @@ uses its own uniquely named directory, so tests share no state and may run in pa
 
 - All unit tests pass with zero failures.
 - Include patterns select, ignore patterns remove and win over includes, and no includes select nothing.
-- Argument and root-directory errors throw the documented exceptions.
+- Argument and root-directory errors throw the documented exceptions; a missing root is distinguished from an
+  unreadable one.
 - Matching is case-sensitive.
 - Hidden entries follow the hidden-file rule, including literal hidden names.
 - Excluded and unreachable hidden directories are never enumerated; literally named hidden directories are.
 - Results are in ordinal order with forward-slash paths and expose the full path.
 - Invalid patterns in either list are rejected naming the pattern.
+- A cancelled token stops the selection with a cancellation before the call and during the walk, with and without
+  hidden-name wildcards, and a token that is not cancelled does not change the selection.
 
 #### Test Scenarios
 
@@ -55,6 +60,42 @@ removes a nested `node_modules` subtree. This scenario is tested by
 
 **FileSelector_Select_RootDirectoryMissing_ThrowsDirectoryNotFound**: A root that does not exist throws. This
 scenario is tested by `FileSelector_Select_RootDirectoryMissing_ThrowsDirectoryNotFound`.
+
+**FileSelector_Select_TokenAlreadyCancelled_ThrowsOperationCanceled**: A token that is cancelled before the call
+makes the call throw a cancellation. This scenario is tested by
+`FileSelector_Select_TokenAlreadyCancelled_ThrowsOperationCanceled`.
+
+**FileSelector_Select_CancelledDuringWalk_StopsWalkAndThrows**: With and without hidden-name wildcards, a token
+cancelled as the first subdirectory starts to be read ends the call with a cancellation; only the root and that
+subdirectory were read. This scenario is tested by `FileSelector_Select_CancelledDuringWalk_StopsWalkAndThrows`.
+
+**FileSelector_Select_TokenNotCancelled_ReturnsSelection**: A live token does not change the selection. This
+scenario is tested by `FileSelector_Select_TokenNotCancelled_ReturnsSelection`.
+
+**FileSelector_Select_RootDirectoryMissingNoIncludes_ThrowsDirectoryNotFound**: A missing root throws even when
+the include list is empty. This scenario is tested by
+`FileSelector_Select_RootDirectoryMissingNoIncludes_ThrowsDirectoryNotFound`.
+
+**FileSelector_Select_RootIsFile_ThrowsIOException**: A root that names a file throws an `IOException` and is not
+silently treated as empty. This scenario is tested by `FileSelector_Select_RootIsFile_ThrowsIOException`.
+
+**FileSelector_Select_EmptyRootDirectory_ReturnsEmpty**: An existing empty root selects nothing without failing.
+This scenario is tested by `FileSelector_Select_EmptyRootDirectory_ReturnsEmpty`.
+
+**FileSelector_ProbeRoot_DirectoryNotFound_ThrowsDirectoryNotFoundNamingRoot**: A directory-not-found failure of
+the root listing becomes a `DirectoryNotFoundException` that names the root and keeps the original failure. This
+scenario is tested by `FileSelector_ProbeRoot_DirectoryNotFound_ThrowsDirectoryNotFoundNamingRoot`.
+
+**FileSelector_ProbeRoot_AccessDenied_PropagatesUnauthorizedAccess**: An access failure of the root listing
+reaches the caller as the same `UnauthorizedAccessException`, not as a missing root. This scenario is tested by
+`FileSelector_ProbeRoot_AccessDenied_PropagatesUnauthorizedAccess`.
+
+**FileSelector_ProbeRoot_LazyListingFails_PropagatesIOException**: A failure raised only when the listing is
+stepped through reaches the caller as an `IOException`, not as a missing root. This scenario is tested by
+`FileSelector_ProbeRoot_LazyListingFails_PropagatesIOException`.
+
+**FileSelector_ProbeRoot_NullArguments_ThrowsArgumentNullException**: A null root or null listing throws. This
+scenario is tested by `FileSelector_ProbeRoot_NullArguments_ThrowsArgumentNullException`.
 
 **FileSelector_Select_InvalidPatternAndMissingRoot_ThrowsInvalidGlobPattern**: An invalid pattern is reported
 even when the root directory is also missing, because patterns are validated before any directory is read. This

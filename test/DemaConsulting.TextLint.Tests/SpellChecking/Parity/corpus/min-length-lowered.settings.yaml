@@ -1,0 +1,6 @@
+---
+# cspell:disable
+# Settings of the lowered-minimum parity corpus: words of 2 or more characters are checked.
+version: "0.2"
+language: en
+minWordLength: 2

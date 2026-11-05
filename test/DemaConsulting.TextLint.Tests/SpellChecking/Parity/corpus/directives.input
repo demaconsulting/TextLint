@@ -1,0 +1,42 @@
+zorbA visible line
+// cspell:disable-next-line
+zorbB zorbC hidden next line
+zorbD visible after next line
+zorbE hidden // cspell:disable-line
+zorbF visible after disable line
+/* cspell:disable */
+zorbG zorbH hidden in block
+/* cspell:enable */
+zorbI visible after block
+// spell-checker:disable
+zorbJ hidden in second block
+// spell:enable
+zorbK still hidden: enable uses another prefix
+// spell-checker:enable
+zorbL visible after second block
+// cspell:ignore zorbM, zorbN;zorbO
+zorbM ZORBM zorbN zorbO zorbP only P is reported
+// cspell:words zorbQ
+zorbQ zorbqq
+// cspell: disable
+zorbR hidden with a space after the colon
+// cspell: enable
+zorbS visible after the spaced block
+// CSPELL:DISABLE-LINE zorbT hidden by upper case directive
+text before // cspell:disable-next zorbU hidden rest of directive line
+zorbV hidden next line after other text
+zorbW visible
+// cspell:disable-next-line
+
+zorbX visible after a blank next line
+xcspell:disable zorbY visible: not a directive
+// cspell::disable
+zorbBB hidden by double colon
+// cspell::enable
+zorbCC visible after double colon block
+// cspell:ignore zork8s
+zork8s zork8s zork8sbb
+// spellchecker:disable-line zorbDD hidden
+// cspell:disable-next-line zorbEE
+zorbFF hidden next line
+zorbGG visible

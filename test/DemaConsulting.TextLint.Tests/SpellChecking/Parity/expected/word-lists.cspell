@@ -1,0 +1,31 @@
+# Recorded with cspell 10.1.1 by record-cspell.ps1 from corpus/word-lists.input (line feed line endings) and corpus/word-lists.settings.yaml. # One finding per line: LINE:COLUMN WORD [flagged]. Do not edit by hand; run the script again.
+2:49 zork
+2:57 xzork
+3:23 zorfoo
+3:30 barbaz
+3:37 zorfoo
+3:47 zorfoo
+5:21 zormy
+7:1 zorbflag flagged
+7:10 ZORBFLAG flagged
+7:19 Zorbflag flagged
+7:28 zorbflags
+8:1 ZorbFlagCap flagged
+8:13 zorbflagcap
+8:25 ZORBFLAGCAP
+9:1 zorbsuggest flagged
+9:13 zorbcolon flagged
+10:1 zorbboth flagged
+11:1 zorbflag8 flagged
+11:11 zorbflag flagged
+11:22 zorflag-dash flagged
+11:35 zorflag
+11:43 dashx
+12:4 Zorbflag flagged
+12:13 zorbflag flagged
+12:21 Quix
+12:29 Zorb
+13:1 zorb
+13:16 Quix
+14:1 zbf flagged
+14:5 zbfx

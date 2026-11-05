@@ -1,0 +1,223 @@
+---
+# Software Unit Requirements for the DefaultPatterns Class
+#
+# The DefaultPatterns class finds the text that is never spell-checked because it is not prose: URLs, email
+# addresses, certificates and keys, encoded data, hashes, hexadecimal values, Unicode references, and UUIDs. It
+# follows the default ignore list of cspell so that a migrated project stays quiet where it was quiet.
+
+sections:
+  - title: TextLint Requirements
+    sections:
+      - title: TextScanning Requirements
+        sections:
+          - title: DefaultPatterns Requirements
+            requirements:
+              - id: TextLint-TextScanning-DefaultPatterns-Urls
+                title: >-
+                  DefaultPatterns shall report a URL that starts with http://, https://, or ftp:// in any
+                  letter case, up to the next white space or double quote, and shall not report a host
+                  written without a scheme or a URL with another scheme.
+                justification: |
+                  The host and path of a URL are not prose, and their fragments would bury real findings.
+                  cspell ignores such URLs by default, so a migrated project must find them ignored here too;
+                  it does not ignore a bare www. host, and neither must this.
+                tests:
+                  - DefaultPatterns_FindExcludedRanges_UrlWithScheme_IsMatched
+                  - DefaultPatterns_FindExcludedRanges_UrlInQuotes_EndsBeforeQuote
+                  - DefaultPatterns_FindExcludedRanges_SeveralUrls_AreEachMatched
+                  - DefaultPatterns_FindExcludedRanges_HostWithoutScheme_IsNotMatched
+
+              - id: TextLint-TextScanning-DefaultPatterns-Emails
+                title: >-
+                  DefaultPatterns shall report an email address, with or without surrounding angle brackets,
+                  whose local part has at most 128 characters and whose domain has two to five labels of at
+                  most 63 characters each, and shall not report an address that does not fit these limits or
+                  has no dot in its domain.
+                justification: |
+                  An address is not prose, and its parts would be reported as unknown words. The limits keep
+                  the work a hostile text can cause bounded, and an at sign without a complete address, such
+                  as a social media handle, is not an address.
+                tests:
+                  - DefaultPatterns_FindExcludedRanges_EmailAddress_IsMatched
+                  - DefaultPatterns_FindExcludedRanges_IncompleteEmailAddress_IsNotMatched
+                  - DefaultPatterns_FindExcludedRanges_EmailLocalPartAtLimit_IsMatched
+                  - DefaultPatterns_FindExcludedRanges_EmailLocalPartOverLimit_IsNotMatched
+                  - DefaultPatterns_FindExcludedRanges_EmailLabelAtLimit_IsMatched
+                  - DefaultPatterns_FindExcludedRanges_EmailLabelOverLimit_IsNotMatched
+
+              - id: TextLint-TextScanning-DefaultPatterns-KeysAndCertificates
+                title: >-
+                  DefaultPatterns shall report a certificate or a public or private key block from its BEGIN
+                  line to the END line of the same kind, and an SSH public key with at least 28 key characters
+                  and its padding, and shall not report a block whose markers are in lower case, whose END
+                  line is of another kind, or whose body holds characters that cannot occur in encoded data.
+                justification: |
+                  Keys and certificates are pages of encoded data that would be reported as unknown words
+                  line by line. Being strict about the markers keeps a prose mention of a key from hiding
+                  the text around it.
+                tests:
+                  - DefaultPatterns_FindExcludedRanges_PemBlock_IsMatchedWhole
+                  - DefaultPatterns_FindExcludedRanges_PemEndOfDifferentKind_IsNotMatched
+                  - DefaultPatterns_FindExcludedRanges_PemLowerCase_IsNotMatched
+                  - DefaultPatterns_FindExcludedRanges_PemBodyWithInvalidCharacter_IsNotMatched
+                  - DefaultPatterns_FindExcludedRanges_SshRsaKey_IsMatchedWithPadding
+                  - DefaultPatterns_FindExcludedRanges_SshRsaKeyTooShort_IsNotMatched
+
+              - id: TextLint-TextScanning-DefaultPatterns-Base64Data
+                title: >-
+                  DefaultPatterns shall report Base64 data of at least 40 characters on one line when it
+                  looks encoded rather than like words, and Base64 data over several lines, each of at least
+                  40 characters, with its quotes and a shorter final line, whichever line terminator
+                  separates the lines, and shall not report a long run of lower-case letters or a single
+                  long line followed by a short one.
+                justification: |
+                  Embedded images, tokens, and blobs are long runs of encoded characters. They must be
+                  skipped, while a long ordinary word or identifier must still be checked.
+                tests:
+                  - DefaultPatterns_FindExcludedRanges_Base64SingleLine_IsMatched
+                  - DefaultPatterns_FindExcludedRanges_Base64SingleLineLength_IsMatchedFromMinimum
+                  - DefaultPatterns_FindExcludedRanges_LongLowerCaseRunWithoutDigit_IsNotMatched
+                  - DefaultPatterns_FindExcludedRanges_Base64MultiLine_IsMatchedWhole
+                  - DefaultPatterns_FindExcludedRanges_Base64MultiLineWithShortLastLine_IncludesLastLine
+                  - DefaultPatterns_FindExcludedRanges_Base64MultiLineQuoted_IncludesQuotes
+                  - DefaultPatterns_FindExcludedRanges_Base64LongLineThenShortLine_IsNotMatched
+                  - DefaultPatterns_FindExcludedRanges_Base64LinesJoinedByNextLineCharacter_IsNotMatched
+
+              - id: TextLint-TextScanning-DefaultPatterns-CommitHashes
+                title: >-
+                  DefaultPatterns shall report a run of seven or more hexadecimal digits that contains at
+                  least one decimal digit, with an optional 0x prefix, and a run of seven or more hexadecimal
+                  digits in square brackets, and shall not report a word made only of the letters a to f or a
+                  run that is too short.
+                justification: |
+                  Commit hashes are common in changelogs and issue trackers and are not words. Ordinary words
+                  such as defaced or effaced are written with the same letters and must still be checked,
+                  which is why a decimal digit is required.
+                tests:
+                  - DefaultPatterns_FindExcludedRanges_HexadecimalRunWithDigit_IsMatchedAsHash
+                  - DefaultPatterns_FindExcludedRanges_LettersOnlyOrTooShort_IsNotMatchedAsHash
+                  - DefaultPatterns_FindExcludedRanges_CommitHashLink_IncludesBrackets
+                  - DefaultPatterns_FindExcludedRanges_CommitHashLinkTooShort_IsNotMatched
+
+              - id: TextLint-TextScanning-DefaultPatterns-HexValues
+                title: >-
+                  DefaultPatterns shall report a C-style hexadecimal literal (0x with hexadecimal digits and
+                  underscores and an optional trailing n) and a CSS color (a number sign and three to eight
+                  hexadecimal digits), and shall not report a prefix without digits, a prefix inside a word,
+                  or a number sign with too few, too many, or non-hexadecimal characters.
+                justification: |
+                  Source code is full of hexadecimal literals and colors that are not words. A heading marker
+                  or a hash tag must not be mistaken for one.
+                tests:
+                  - DefaultPatterns_FindExcludedRanges_CStyleHexLiteral_IsMatched
+                  - DefaultPatterns_FindExcludedRanges_IncompleteHexLiteral_IsNotMatched
+                  - DefaultPatterns_FindExcludedRanges_CssColor_IsMatchedWithNumberSign
+                  - DefaultPatterns_FindExcludedRanges_NotACssColor_IsNotMatched
+
+              - id: TextLint-TextScanning-DefaultPatterns-Digests
+                title: >-
+                  DefaultPatterns shall report a digest written as sha, a number, a hyphen, and at least 25
+                  encoding characters, and the data of at least 25 characters that follows a hash scheme name
+                  and separator (sha256, md5, base64, crypt, bcrypt, scrypt, security-token, assertion, or
+                  # code/), including data continued in a concatenated quoted string, and shall not report
+                  data after another name or data that is too short.
+                justification: |
+                  Integrity attributes, lock files, and credentials hold long digests that would be reported
+                  as unknown words. A word followed by a colon and ordinary text is not a digest.
+                tests:
+                  - DefaultPatterns_FindExcludedRanges_ShaDigest_IsMatchedWhole
+                  - DefaultPatterns_FindExcludedRanges_ShaDigestTooShort_IsNotMatched
+                  - DefaultPatterns_FindExcludedRanges_HashString_IsMatchedWhole
+                  - DefaultPatterns_FindExcludedRanges_UnknownSchemeOrShortData_IsNotMatched
+                  - DefaultPatterns_FindExcludedRanges_HashStringContinuedInQuotedString_IsMatchedToEnd
+
+              - id: TextLint-TextScanning-DefaultPatterns-UnicodeReferences
+                title: >-
+                  DefaultPatterns shall report a Unicode code point reference of U+ and four or five
+                  hexadecimal digits, and a range of two such references, in any letter case, and shall not
+                  report a reference with fewer digits or one that follows a word character.
+                justification: |
+                  Character tables and documentation cite code points such as U+1F600, which are not words.
+                tests:
+                  - DefaultPatterns_FindExcludedRanges_UnicodeReference_IsMatched
+                  - DefaultPatterns_FindExcludedRanges_NotAUnicodeReference_IsNotMatched
+
+              - id: TextLint-TextScanning-DefaultPatterns-Uuids
+                title: >-
+                  DefaultPatterns shall report a UUID in its 8-4-4-4-12 form in any letter case, also when
+                  the letter x stands in place of a digit, and shall not report a UUID with a segment of the
+                  wrong length or with an invalid character as a whole.
+                justification: |
+                  Identifiers in logs, configuration, and test data are UUIDs, and templates write them with
+                  x placeholders. They are not words.
+                tests:
+                  - DefaultPatterns_FindExcludedRanges_Uuid_IsMatchedWhole
+                  - DefaultPatterns_FindExcludedRanges_NotAUuid_IsNotMatchedWhole
+
+              - id: TextLint-TextScanning-DefaultPatterns-OrdinaryText
+                title: >-
+                  DefaultPatterns shall report nothing in ordinary prose and identifiers, including words
+                  made of the letters a to f, version numbers, dates, paths, accented words, and a
+                  host written without a scheme, and shall report nothing in an empty text.
+                justification: |
+                  A pattern that hides ordinary words would hide real spelling mistakes. Everything that is
+                  prose must keep being checked.
+                tests:
+                  - DefaultPatterns_FindExcludedRanges_OrdinaryText_IsNeverMatched
+                  - DefaultPatterns_FindExcludedRanges_OneMegabyteOfProse_ReturnsNoRanges
+                  - DefaultPatterns_FindExcludedRanges_EmptyText_ReturnsNoRanges
+
+              - id: TextLint-TextScanning-DefaultPatterns-AsciiWordBoundaries
+                title: >-
+                  DefaultPatterns shall treat only ASCII letters, digits, and the underscore as word
+                  characters and only ASCII digits and letters a to f as hexadecimal digits, and shall treat
+                  line feed, carriage return, line separator, and paragraph separator as line breaks, so that
+                  a value next to a non-ASCII letter is found and a value next to an ASCII word character
+                  is not.
+                justification: |
+                  cspell evaluates its patterns with ASCII-only word characters and boundaries. A project
+                  migrated from cspell must get the same ranges, for example a hash directly after an
+                  accented letter in a French sentence, and digits of other scripts must not be taken as
+                  hexadecimal.
+                tests:
+                  - DefaultPatterns_FindExcludedRanges_HashNextToNonAsciiLetter_IsMatched
+                  - DefaultPatterns_FindExcludedRanges_EmailNextToNonAsciiLetter_IsMatched
+                  - DefaultPatterns_FindExcludedRanges_HashNextToAsciiWordCharacter_IsNotMatched
+                  - DefaultPatterns_FindExcludedRanges_NonAsciiDigits_AreNotHexadecimal
+                  - DefaultPatterns_FindExcludedRanges_Base64MultiLine_IsMatchedWhole
+                  - DefaultPatterns_FindExcludedRanges_Base64LinesJoinedByNextLineCharacter_IsNotMatched
+
+              - id: TextLint-TextScanning-DefaultPatterns-BoundedMatching
+                title: >-
+                  DefaultPatterns shall limit the time every pattern may spend on a text to five seconds, so
+                  that hostile input ends with a time-out error instead of hanging a run, and shall search a
+                  text of one megabyte completely.
+                justification: |
+                  A repository can contain files built to make a pattern backtrack catastrophically. A run
+                  that never finishes is worse than one that reports the file as not checked.
+                tests:
+                  - DefaultPatterns_All_EveryPattern_HasDocumentedMatchTimeout
+                  - DefaultPatterns_All_Patterns_AreTheDocumentedNumber
+                  - DefaultPatterns_FindExcludedRanges_HostileInput_CompletesOrTimesOut
+                  - DefaultPatterns_FindExcludedRanges_OneMegabyteOfProse_ReturnsNoRanges
+
+              - id: TextLint-TextScanning-DefaultPatterns-AppendedRanges
+                title: >-
+                  DefaultPatterns shall add the ranges it finds to the list it is given without removing the
+                  items it already holds, and shall report a text that several patterns match once for each
+                  pattern, leaving sorting and merging to the caller.
+                justification: |
+                  The caller combines the ranges of several sources into one list, so the list must not be
+                  cleared, and no range may be dropped before the caller has seen it.
+                tests:
+                  - DefaultPatterns_FindExcludedRanges_ExistingListContent_IsKeptAndAppendedTo
+                  - DefaultPatterns_FindExcludedRanges_TextMatchedByTwoPatterns_ReportsEachMatch
+
+              - id: TextLint-TextScanning-DefaultPatterns-ArgumentValidation
+                title: >-
+                  DefaultPatterns shall reject a missing text or a missing list with a null-argument error.
+                justification: |
+                  A caller that passes nothing has a defect, and it is better found at once than as a
+                  failure deep inside a search.
+                tests:
+                  - DefaultPatterns_FindExcludedRanges_NullArguments_ThrowArgumentNullException

@@ -8,7 +8,7 @@ TextLint is the `DemaConsulting.TextLint` .NET class library. It is the reusable
 TextLint product: the `textlint` command-line tool (see the _TextLintTool_ design) consumes it,
 and any other .NET application may reference it directly.
 
-The library is composed of three subsystems and consumes two OTS items:
+The library is composed of five subsystems and consumes two OTS items:
 
 - **Configuration** turns a `.textlint.yaml` file, or values built in code, into one immutable
   settings value, and reports every configuration problem as a positioned error. It contains the
@@ -19,20 +19,31 @@ The library is composed of three subsystems and consumes two OTS items:
 - **Dictionaries** answers whether a word is known to the selected English language (American, British, or
   both) and the technical vocabulary, from dictionaries embedded in the assembly. It contains the
   `SpellingDictionary` and `DictionaryImage` units. See _Dictionaries Design_.
+- **TextScanning** is the pure text logic of spell checking: it decides what a word is, finds the text that is
+  never checked (URLs, hashes, and similar), and reads the directives that comments use to control checking. It
+  reads no file and no setting. It contains the `WordTokenizer`, `DefaultPatterns`, and `DocumentDirectives`
+  units. See _TextScanning Design_.
+- **SpellChecking** puts the other subsystems together: `TextChecker` checks a string against the dictionary and
+  the word lists of the settings, `FileTextReader` turns a file into text, and `SpellChecker` selects the files
+  of a directory, checks them in parallel, and returns one deterministic result. See _SpellChecking Design_.
 - **YamlDotNet** (OTS) parses the settings file and **Microsoft.Extensions.FileSystemGlobbing**
   (OTS) matches glob patterns against the file system. See _OTS Software Integration Design_.
 
-The dependency between the Configuration and FileSelection subsystems runs in one direction only, so
-there is no cycle at
-any level. `SettingsLoader` (Configuration) validates glob patterns with `GlobPatternExpander`
-(FileSelection) so that a bad pattern is reported at load time with its line and column, and
-sharing the one expander guarantees that a pattern accepted when the file is loaded is never
-rejected when files are selected. FileSelection depends on nothing in Configuration: `FileSelector`
-takes the include patterns, the ignore patterns, and the hidden-file switch as plain parameters,
-and a caller that holds `TextLintSettings` passes its `Files`, `IgnorePaths`, and `EnableGlobDot`
-values. The dependency is documented in the design of the Configuration subsystem. The Dictionaries
-subsystem depends on neither of them: it has no settings and selects files of nothing, and a later
-change connects a language setting to it.
+The dependencies between the subsystems form a directed graph without cycles, and they are the reason for the
+split into five subsystems. `TextScanning` and `Dictionaries` depend on nothing else in the library.
+`FileSelection` depends on nothing either: `FileSelector` takes the include patterns, the ignore patterns, and
+the hidden-file switch as plain parameters. `Configuration` depends on three of them, because a settings file is
+validated while it is loaded: `SettingsLoader` validates glob patterns with `GlobPatternExpander`
+(FileSelection), the language with `SpellingDictionary` (Dictionaries), and the word-list entries with
+`WordTokenizer` (TextScanning), so that a bad value is reported with its line and column and so that a value
+accepted when the file is loaded is never rejected later. `SpellChecking` depends on all four others: it
+consumes `TextLintSettings` (Configuration), selects files with `FileSelector` (FileSelection), looks words up
+with `SpellingDictionary` (Dictionaries), and uses the three units of `TextScanning`. If `TextScanning` had
+instead been placed inside `SpellChecking`, `Configuration` would depend on `SpellChecking` while `SpellChecking`
+depends on `Configuration`, which is the cycle the separate subsystem avoids. A caller that holds
+`TextLintSettings` passes its `Files`, `IgnorePaths`, and `EnableGlobDot` values to `FileSelector` and its other
+values to the checker; `SpellChecker` does this itself. The dependencies are documented in the design of each
+subsystem.
 
 The library is also the consumer of a build-time system, the **DictionaryBuilder** (see the
 _DictionaryBuilder_ design). Its build runs the builder to convert the plain-text word lists under
@@ -43,12 +54,12 @@ hash. The builder is not shipped and the library has no run-time dependency on i
 
 **Layering.** The library owns **all linting logic**: settings and configuration loading, file
 discovery and globbing, dictionaries, tokenization, spell checking, and results. The settings,
-file selection, and word lookup capabilities described above are in place; the remaining
-capabilities are added in
-later changes as further subsystems of this system, each with its own requirements, design, and
+file selection, word lookup, and spell-checking capabilities described above are in place; further
+capabilities (custom ignore patterns and the remaining cspell settings) are added in
+later changes as further units or subsystems of this system, each with its own requirements, design, and
 verification documents. The library is self-contained: it never depends on the tool, so any .NET
 application can lint without it. The command-line tool is only a thin front-end over this library
-and is not permitted to carry linting logic of its own; it is unchanged by the dictionaries.
+and is not permitted to carry linting logic of its own; it is unchanged by the spell checker.
 
 ## External Interfaces
 
@@ -73,7 +84,10 @@ and is not permitted to carry linting logic of its own; it is unchanged by the d
   and `SettingsDiagnostic`. In the `DemaConsulting.TextLint.FileSelection` namespace, `FileSelector`
   (selecting files), `SelectedFile`, and `InvalidGlobPatternException`. In the
   `DemaConsulting.TextLint.Dictionaries` namespace, `SpellingDictionary` (selecting a language and asking
-  whether a word is known).
+  whether a word is known). In the `DemaConsulting.TextLint.SpellChecking` namespace, `TextChecker` (checking a
+  string), `SpellChecker` (checking the files of a directory) with `SpellCheckOptions` and `SpellCheckResult`,
+  and the finding types `SpellingIssue`, `SpellingIssueKind`, `FileDiagnostic`, and `FileDiagnosticKind`. The
+  `TextScanning` subsystem has no public type.
 - _Constraints_: No public signature exposes a type from YamlDotNet or
   Microsoft.Extensions.FileSystemGlobbing, so upgrading those packages can never break consumers.
   Every public type is trim and AOT safe.
@@ -92,10 +106,11 @@ and is not permitted to carry linting logic of its own; it is unchanged by the d
 - _Type_: YAML file, conventionally named `.textlint.yaml`, supplied to the loader by explicit path.
 - _Role_: Consumer.
 - _Contract_: A single YAML document of cspell-compatible keys. The supported keys are `version`,
-  `files`, `ignorePaths`, and `enableGlobDot`; an empty file or a file of only comments is valid and
-  yields default settings.
+  `files`, `ignorePaths`, `enableGlobDot`, `language`, `words`, `ignoreWords`, `flagWords`, `minWordLength`, and
+  `maxFileSize`; an empty file or a file of only comments is valid and yields default settings.
 - _Constraints_: Any other key is an error that names the key. A file with more than one YAML
-  document is an error. Glob patterns must be valid under the file selection rules. The library never
+  document is an error. Glob patterns, the language, word-list entries, the minimum word length, and the
+  maximum file size must be valid. The library never
   searches for the file; the caller supplies its path.
 
 ## Dependencies
@@ -109,8 +124,10 @@ and is not permitted to carry linting logic of its own; it is unchanged by the d
   flow to consumers.
 - **Data**: the English word lists derive from SCOWL, and the technical word lists from the cspell
   dictionaries; both are permissively licensed third-party data, embedded in the assembly in binary form.
-  Their notices are in `third-party/THIRD-PARTY-NOTICES.txt`, which the build packs into the package.
-  They are data, not software items, and the provenance of each list is recorded with the lists.
+  The default list of text that is never checked and the directive patterns are ported from cspell-lib, which is
+  likewise permissively licensed. Their notices are in `third-party/THIRD-PARTY-NOTICES.txt`, which the build packs
+  into the package. The word lists are data, not software items, and the provenance of each list is recorded with the
+  lists.
 - **Consumers**: the `DemaConsulting.TextLint.Tool` project depends on this library, never the
   reverse. The tool currently uses none of its types; the reference establishes the dependency
   direction that later changes build on.
@@ -121,12 +138,13 @@ N/A - not a safety-classified software item.
 
 ## Data Flow
 
-Settings reach the rest of the library by one of two routes, and from there a single route selects files:
+Settings reach the rest of the library by one of two routes, and from there the routes below select files, look
+words up, and check text and files:
 
 1. **File route**: the caller passes the path of a `.textlint.yaml` file to `SettingsLoader`, which
    reads it, parses it with YamlDotNet, maps the supported keys onto an immutable `TextLintSettings`,
-   and validates each glob pattern. The outcome is a `SettingsLoadResult` holding either the
-   settings or the errors, each with file, line, and column.
+   and validates each glob pattern, the language, each word-list entry, and the numbers. The outcome is a
+   `SettingsLoadResult` holding either the settings or the errors, each with file, line, and column.
 2. **Code route**: the caller builds a `TextLintSettings` directly, optionally deriving it from
    loaded settings with a `with` expression, for example to replace the include patterns with
    patterns given on a command line.
@@ -139,10 +157,19 @@ Settings reach the rest of the library by one of two routes, and from there a si
 4. **Word lookup**: the caller chooses a language with `SpellingDictionary.ForLanguages` (or takes
    `SpellingDictionary.Default`) and passes words to `IsKnown`. The first lookup loads the selection's
    embedded dictionaries once; each word is then folded to a key, hashed, and probed in each dictionary of
-   the selection, and the answer is returned. This route is independent of the other two: nothing in the
-   settings or the file selection feeds it yet.
+   the selection, and the answer is returned. This route is also what the spell checker uses for every word.
+5. **Text checking**: the caller creates a `TextChecker` from settings (which validates the language and the
+   word lists once) and passes a string to `Check`. The checker finds the directives and the text that is never
+   checked, splits what remains into tokens and words, and for each word applies the word rules (flagged words,
+   minimum length, dictionary, word lists, the allowances for possessives and escapes, and the split at case
+   changes for unknown words). The findings are returned in text order with a line and column each.
+6. **File checking**: the caller passes settings and a root directory to `SpellChecker.CheckAsync`. The checker
+   creates a `TextChecker`, selects the files as in route 3 on a thread-pool thread, and checks them in parallel:
+   each file is read by `FileTextReader` (encoding, binary and size rules) and its text is checked as in route 5.
+   Each file's outcome goes to its own slot, and the slots are assembled in file order into one
+   `SpellCheckResult` with the findings, the per-file diagnostics, and the counts.
 
-At build time a fourth flow produces the data: the build runs the DictionaryBuilder over the word lists
+At build time a further flow produces the data: the build runs the DictionaryBuilder over the word lists
 and embeds the four resulting files in the assembly; see _Design Constraints_.
 
 ## Design Constraints
@@ -195,8 +222,27 @@ and embeds the four resulting files in the assembly; see _Design Constraints_.
   for unsafe code. The embedded dictionaries are read once into managed arrays and accessed through
   bounds-checked spans, as described in the _Dictionaries Design_, which also explains why a precomputed binary
   format was chosen over building a set at run time. Safety is chosen over speed when they conflict.
-- Third-party notices: the third-party word lists require their notices to accompany the data, so the
+- Third-party notices: the third-party word lists and the rules ported from cspell-lib require their notices to
+  accompany the data and the code, so the
   package carries `THIRD-PARTY-NOTICES.txt` at its root. The command-line tool package carries the library
   assembly and therefore the same notice file, which the tool project also packs.
-- No speed requirement: the library states no requirement on lookup speed or start-up time. The design
-  choices that favor speed are justified in the design only, and no requirement or test depends on them.
+- Bounded regular expressions: every regular expression of the spell checker is generated at build time (which
+  keeps the library trim and Native AOT safe) and has a match timeout, so hostile content cannot hang a run. A
+  timeout surfaces as an exception from `TextChecker` and as a `TimedOut` file diagnostic from `SpellChecker`.
+  The expressions are ports of cspell's with explicit ASCII classes, because JavaScript and .NET differ in what
+  the word class and the word boundary mean; see the _DefaultPatterns Design_.
+- Deterministic parallelism: files are checked on all processor cores, and the result is the same whatever the
+  degree of parallelism. Shared state is immutable (the checker, the word sets, the dictionaries, and the
+  generated expressions); the per-file outcomes are written to separate array slots and assembled in the
+  order of the ordinal-sorted file selection. See the _SpellChecking Design_.
+- Per-file problems are data: a file that cannot be read, looks binary, is too large, or times out is reported in
+  the result and never stops the run; argument errors, a missing root directory, defects, and cancellation are
+  exceptions. There is no default file size limit beyond a fixed ceiling of 1 GiB that a string cannot
+  exceed anyway.
+- Documented differences from cspell: the checker follows cspell's documented word-splitting, ignore, directive,
+  and word-list rules and proves it with a parity corpus (see the _TextLint Verification_ document), but it does
+  not port cspell's heuristic splitter, uses its own dictionaries, reports unsupported directives, and has no
+  duplicate-problem cap. The differences are listed in the user guide and, for the corpora, in a file that the
+  parity test compares exactly.
+- No speed requirement: the library states no requirement on lookup speed, checking speed, or start-up time. The
+  design choices that favor speed are justified in the design only, and no requirement or test depends on them.

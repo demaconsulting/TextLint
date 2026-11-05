@@ -1,0 +1,112 @@
+---
+# SpellChecking Subsystem Requirements
+#
+# PURPOSE:
+# - Define requirements for the TextLint SpellChecking subsystem
+# - The SpellChecking subsystem checks the spelling of a string of text, and of the files that the settings
+#   select under a directory, and returns every finding in a deterministic order
+# - Subsystem requirements decompose the system requirements for spell checking; they are validated by
+#   SpellCheckingSubsystemTests.cs
+
+sections:
+  - title: TextLint Requirements
+    sections:
+      - title: SpellChecking Requirements
+        requirements:
+          - id: TextLint-SpellChecking-TextChecking
+            title: >-
+              The SpellChecking subsystem shall check a string of text against the dictionary of the
+              configured language and the word lists, and report each unknown word, flagged word, and
+              unsupported directive with its line, column, and text in text order, applying the
+              word-splitting, known-word-form, minimum-length, ignored-text, and directive rules, and
+              shall reject settings that cannot be used.
+            justification: |
+              Checking text without files is the basis of every other behavior: editors and build steps
+              hold text that is not on disk, and the same rules must produce the same findings whether
+              the text came from a string or a file.
+            children:
+              - TextLint-SpellChecking-TextChecker-UnknownWords
+              - TextLint-SpellChecking-TextChecker-WordSplitting
+              - TextLint-SpellChecking-TextChecker-KnownWordForms
+              - TextLint-SpellChecking-TextChecker-MinimumWordLength
+              - TextLint-SpellChecking-TextChecker-WordListPrecedence
+              - TextLint-SpellChecking-TextChecker-FlaggedWords
+              - TextLint-SpellChecking-TextChecker-Language
+              - TextLint-SpellChecking-TextChecker-IssuePositions
+              - TextLint-SpellChecking-TextChecker-IssueOrder
+              - TextLint-SpellChecking-TextChecker-Directives
+              - TextLint-SpellChecking-TextChecker-IgnoredText
+              - TextLint-SpellChecking-TextChecker-InvalidSettings
+              - TextLint-SpellChecking-TextChecker-IssueFormat
+            tests:
+              - SpellCheckingSubsystem_Check_UnknownWord_ReportsLineColumnAndWord
+              - SpellCheckingSubsystem_Check_KnownWords_ReportsNothing
+              - SpellCheckingSubsystem_Check_CamelAndSnakeCase_ReportsEachUnknownWord
+              - SpellCheckingSubsystem_Check_ShortWord_IsNotChecked
+              - SpellCheckingSubsystem_Check_PossessiveAndBackslashEscape_AreAccepted
+              - SpellCheckingSubsystem_Check_WordLists_ApplyPrecedence
+              - SpellCheckingSubsystem_Check_Directives_ControlChecking
+              - SpellCheckingSubsystem_Check_UnsupportedDirective_IsReportedAtItsPosition
+              - SpellCheckingSubsystem_Check_UrlsAndEmails_AreNotChecked
+              - SpellCheckingSubsystem_Check_BritishLanguage_ChangesResult
+              - SpellCheckingSubsystem_Check_CrLfAndLoneCr_CountLinesByLineFeed
+              - SpellCheckingSubsystem_Check_UnusableSettings_Throw
+
+          - id: TextLint-SpellChecking-FileChecking
+            title: >-
+              The SpellChecking subsystem shall check the files that the settings select under a root
+              directory and report each unknown word with its file, line, and column, shall read UTF-8
+              and UTF-16 files, shall skip and report binary files and files over the size limit, shall
+              report an unreadable file without stopping the run, and shall return the counts of files
+              checked and skipped.
+            justification: |
+              Checking the files of a repository is the purpose of the product. A repository holds
+              files in several encodings, binary files, and files that other programs have locked, so
+              the subsystem must cope with all of them and say exactly what it did not check, so that
+              nothing is silently left out.
+            children:
+              - TextLint-SpellChecking-SpellChecker-FileSelection
+              - TextLint-SpellChecking-SpellChecker-SettingsApplied
+              - TextLint-SpellChecking-SpellChecker-FileDiagnostics
+              - TextLint-SpellChecking-SpellChecker-Defects
+              - TextLint-SpellChecking-SpellChecker-Counts
+              - TextLint-SpellChecking-SpellChecker-InvalidArguments
+              - TextLint-SpellChecking-SpellChecker-ImmutableResults
+              - TextLint-SpellChecking-FileTextReader-Encodings
+              - TextLint-SpellChecking-FileTextReader-BinaryDetection
+              - TextLint-SpellChecking-FileTextReader-SizeLimit
+              - TextLint-SpellChecking-FileTextReader-ReadFailures
+              - TextLint-SpellChecking-FileTextReader-InvalidArguments
+            tests:
+              - SpellCheckingSubsystem_CheckAsync_FilesWithUnknownWords_ReportsFileLineColumnAndWord
+              - SpellCheckingSubsystem_CheckAsync_CleanFiles_ReportsNothing
+              - SpellCheckingSubsystem_CheckAsync_IgnoredAndUnselectedFiles_AreNotChecked
+              - SpellCheckingSubsystem_CheckAsync_Utf8Utf16AndBom_ReportSamePositions
+              - SpellCheckingSubsystem_CheckAsync_BinaryFile_IsSkippedAndReported
+              - SpellCheckingSubsystem_CheckAsync_FileOverMaxFileSize_IsSkippedAndReported
+              - SpellCheckingSubsystem_CheckAsync_UnreadableFile_IsReportedAndRunContinues
+              - SpellCheckingSubsystem_CheckAsync_MissingRoot_ThrowsDirectoryNotFoundException
+
+          - id: TextLint-SpellChecking-ParallelDeterminism
+            title: >-
+              The SpellChecking subsystem shall return the same results in the same order, by file path,
+              then line, then column, however many files are checked at the same time, shall let the
+              caller limit that number and reject a limit below one, and shall stop and signal
+              cancellation, without a partial result, when the caller cancels.
+            justification: |
+              Files are checked in parallel to use every processor core, but build output must be
+              reproducible: a difference between two runs must mean a difference in the files, never in
+              the timing. A caller must be able to leave cores free for other work, and to abandon a long
+              run without being handed a partial result that looks complete.
+            children:
+              - TextLint-SpellChecking-SpellChecker-Parallelism
+              - TextLint-SpellChecking-SpellChecker-Ordering
+              - TextLint-SpellChecking-SpellChecker-Cancellation
+              - TextLint-SpellChecking-TextChecker-ConcurrentUse
+              - TextLint-SpellChecking-FileTextReader-ConcurrentUse
+              - TextLint-SpellChecking-FileTextReader-Cancellation
+            tests:
+              - SpellCheckingSubsystem_CheckAsync_DifferentParallelism_ReturnsIdenticalOrderedResults
+              - SpellCheckingSubsystem_CheckAsync_ConcurrentRuns_ReturnIdenticalResults
+              - SpellCheckingSubsystem_Options_InvalidParallelism_ThrowsArgumentOutOfRangeException
+              - SpellCheckingSubsystem_CheckAsync_CancelledToken_ThrowsOperationCanceledException

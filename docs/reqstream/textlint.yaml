@@ -8,14 +8,16 @@
 #   library package need from it
 # - The library owns ALL linting logic (settings, file discovery, dictionaries, tokenization,
 #   spell checking, results); the tool is a thin front-end that depends on it, never the reverse
-# - The library exposes settings loading, file selection, and word lookup over embedded English
-#   and technical dictionaries; the remaining linting capabilities (tokenization, spell
-#   checking, results) are added, top-down, as later subsystems with their own requirements,
-#   design, and verification
+# - The library exposes settings loading, file selection, word lookup over embedded English
+#   and technical dictionaries, and spell checking of text and of files in cspell-compatible
+#   ways; custom ignore patterns and the remaining cspell features are added, top-down, with
+#   their own requirements, design, and verification
 # - Package requirements are validated by FileAssert checks of the produced NuGet package
 #   (.fileassert.yaml, run by build.yaml) and by assembly-level tests in TextLintTests.cs;
-#   functional requirements are validated by system-level tests in TextLintTests.cs that drive
-#   the public API end to end
+#   functional requirements are validated by system-level tests in TextLintTests.cs and
+#   TextLintSpellCheckTests.cs that drive
+#   the public API end to end, and the cspell compatibility requirement by the recorded-output
+#   corpus tests in CspellParityTests.cs
 
 sections:
   - title: TextLint Requirements
@@ -63,6 +65,7 @@ sections:
           - TextLint-OTS-YamlDotNet-ParseYaml
         tests:
           - TextLint_Settings_CspellStyleConfigFile_LoadsConfiguredValues
+          - TextLint_Settings_SpellingKeysConfigFile_LoadsConfiguredValues
           - TextLint_Settings_EmptyConfigFile_LoadsDefaultSettings
 
       - id: TextLint-System-ProgrammaticSettings
@@ -327,12 +330,292 @@ sections:
       - id: TextLint-System-ThirdPartyNotices
         title: >-
           The library package shall carry the license notices for the third-party data embedded in
-          the library.
+          the library and for the third-party rules that its spell checking is derived from.
         tags: [system]
         justification: |
           The English word lists and the technical term lists come from third parties whose
           licenses require their copyright and permission notices to accompany every copy of the
-          data. The package is the copy that reaches users, so the notices must be in it. The
-          evidence is the produced package itself, inspected by FileAssert.
+          data, and the default ignore patterns of the spell checker are ported from cspell under
+          the same kind of requirement. The package is the copy that reaches users, so the notices
+          must be in it. The evidence is the produced package itself, inspected by FileAssert.
         tests:
           - TextLint_Package_Packed_ContainsThirdPartyNotices
+
+      - id: TextLint-System-CheckText
+        title: >-
+          The library shall check a string of text, without files, and report each unknown word
+          with its line, its column, and the word.
+        tags: [system]
+        justification: |
+          Editors, build steps, and embedding applications hold text that is not a file on disk.
+          Checking a string is also the simplest observable form of the product's purpose, so it
+          is the basis for every other spell-checking behavior.
+        children:
+          - TextLint-SpellChecking-TextChecking
+        tests:
+          - TextLint_CheckText_UnknownWord_ReportsLineColumnAndWord
+          - TextLint_CheckText_KnownWords_ReportsNothing
+
+      - id: TextLint-System-SpellCheck
+        title: >-
+          The library shall check the text of the files selected by the settings and report each
+          unknown word with its file, line, column, and the word.
+        tags: [system]
+        justification: |
+          Checking the files of a repository is the purpose of the product: the settings choose
+          the files, and every unknown word must be reported where a user can find it, in a form
+          that editors and build servers can link to.
+        children:
+          - TextLint-SpellChecking-FileChecking
+          - TextLint-SpellChecking-TextChecking
+        tests:
+          - TextLint_SpellCheck_FilesWithUnknownWords_ReportsFileLineColumnAndWord
+          - TextLint_SpellCheck_CleanFiles_ReportsNothing
+
+      - id: TextLint-System-WordSplitting
+        title: >-
+          The library shall split identifiers and prose into words at case changes, digits,
+          underscores, hyphens, and other punctuation, keep apostrophes inside words, and not
+          check words shorter than the minimum word length.
+        tags: [system]
+        justification: |
+          Source code and documentation are full of identifiers. A user expects fooBar_baz to be
+          checked as the words foo, Bar, and baz, and does not want short fragments, such as the
+          variable name idx, reported. cspell behaves this way, so migrated projects stay quiet
+          where they were quiet.
+        children:
+          - TextLint-TextScanning-WordExtraction
+          - TextLint-SpellChecking-TextChecking
+        tests:
+          - TextLint_CheckText_CamelAndSnakeCase_ReportsEachWordSeparately
+          - TextLint_CheckText_ShortWords_AreNotChecked
+          - TextLint_CheckText_ApostropheWords_StayWhole
+
+      - id: TextLint-System-KnownWordForms
+        title: >-
+          The library shall accept the possessive of a known word and a known word that follows a
+          backslash escape.
+        tags: [system]
+        justification: |
+          Without these allowances prose such as "the parser's output" and string literals such
+          as "\nfoo" produce findings that cspell does not, which would make a migrated project
+          noisy and the findings untrustworthy.
+        children:
+          - TextLint-SpellChecking-TextChecking
+        tests:
+          - TextLint_CheckText_PossessiveOfKnownWord_IsAccepted
+          - TextLint_CheckText_WordAfterBackslashEscape_IsAccepted
+
+      - id: TextLint-System-IgnoredText
+        title: >-
+          The library shall not check URLs, email addresses, hexadecimal values, UUIDs, hashes,
+          and encoded data.
+        tags: [system]
+        justification: |
+          These strings are never prose, and their fragments would bury real findings. cspell
+          ignores them by default, so a migrated project must find them ignored here too.
+        children:
+          - TextLint-TextScanning-IgnoredPatterns
+        tests:
+          - TextLint_CheckText_UrlsAndEmails_AreNotChecked
+          - TextLint_CheckText_HexUuidAndHashValues_AreNotChecked
+          - TextLint_CheckText_EncodedData_IsNotChecked
+
+      - id: TextLint-System-Directives
+        title: >-
+          The library shall let comments in the text switch off checking for a region, for a
+          line, and for the next line, and add words for the document.
+        tags: [system]
+        justification: |
+          Directives in comments are how cspell users silence deliberate exceptions next to the
+          text that needs them. A project migrated from cspell relies on them, and without them
+          every exception would have to be added to the project settings.
+        children:
+          - TextLint-TextScanning-Directives
+          - TextLint-SpellChecking-TextChecking
+        tests:
+          - TextLint_CheckText_DisableEnableBlock_SkipsRegion
+          - TextLint_CheckText_DisableLine_SkipsLine
+          - TextLint_CheckText_DisableNextLine_SkipsNextLine
+          - TextLint_CheckText_IgnoreAndWordsDirectives_AddDocumentWords
+          - TextLint_CheckText_UnterminatedDisable_RunsToEndOfText
+
+      - id: TextLint-System-DirectivePrefixes
+        title: >-
+          The library shall accept the directive prefixes cspell, spell, spellchecker,
+          spell-checker, and textlint, in any letter case.
+        tags: [system]
+        justification: |
+          The cspell prefixes keep existing comments working during a migration, and the textlint
+          prefix lets a project use the name of the tool it now runs.
+        children:
+          - TextLint-TextScanning-Directives
+        tests:
+          - TextLint_CheckText_AllDirectivePrefixes_AreAccepted
+
+      - id: TextLint-System-UnsupportedDirectives
+        title: >-
+          The library shall report, at its position, a directive that cspell supports and the
+          library does not.
+        tags: [system]
+        justification: |
+          An author who writes a directive believes it is in force. A directive that silently
+          does nothing would hide a difference from cspell, so it is reported where it is written.
+        children:
+          - TextLint-TextScanning-Directives
+        tests:
+          - TextLint_CheckText_UnsupportedDirective_ReportsPosition
+
+      - id: TextLint-System-LanguageSetting
+        title: >-
+          The library shall use the language setting to choose the dictionary, and shall report
+          an unsupported language in a settings file as an error at its position.
+        tags: [system]
+        justification: |
+          A word that is correct in American English (favorite) is a mistake in British English
+          and the reverse, so the language setting must change the result. An unsupported
+          language must fail loudly rather than fall back to another dialect.
+        children:
+          - TextLint-Configuration-SpellingSettings
+          - TextLint-Configuration-InvalidSpellingValues
+          - TextLint-SpellChecking-TextChecking
+        tests:
+          - TextLint_SpellCheck_BritishLanguage_AcceptsBritishNotAmericanSpelling
+          - TextLint_Settings_UnsupportedLanguage_ReportsFileLineAndColumn
+
+      - id: TextLint-System-WordLists
+        title: >-
+          The library shall accept the words of the words and ignoreWords settings, always report
+          the words of the flagWords setting, and apply the order ignored, then flagged, then
+          accepted, then dictionary, matching letter case as cspell does.
+        tags: [system]
+        justification: |
+          Every project has a vocabulary of its own and some terms it forbids. cspell users
+          expect an ignored word never to be reported, a flagged word always to be, and an entry
+          written in lower case to match any letter case, so the same configuration must give the
+          same answers here. An entry that could never match must be reported when the settings
+          are loaded, because it would otherwise have no effect.
+        children:
+          - TextLint-TextScanning-WordListEntries
+          - TextLint-Configuration-SpellingSettings
+          - TextLint-Configuration-InvalidSpellingValues
+          - TextLint-SpellChecking-TextChecking
+        tests:
+          - TextLint_CheckText_WordsSetting_AcceptsAnyCase
+          - TextLint_CheckText_FlagWords_ReportsFlaggedKind
+          - TextLint_CheckText_FlagWordCapitalEntry_MatchesExactCase
+          - TextLint_CheckText_IgnoreWordsOverrideFlagWords_ReportsNothing
+          - TextLint_CheckText_WordWithDigitsOrPunctuation_MatchesWholeToken
+          - TextLint_Settings_UnusableWordEntry_ReportsFileLineAndColumn
+
+      - id: TextLint-System-MinimumWordLength
+        title: >-
+          The library shall not check words shorter than the minWordLength setting, except
+          flagged words, and shall report an invalid value in a settings file as an error at its
+          position.
+        tags: [system]
+        justification: |
+          The minimum length tunes how noisy the checker is: short abbreviations and variable
+          names are quiet at the default, and a project can raise or lower the limit. A flagged
+          word is reported whatever its length because the user asked for exactly that word.
+        children:
+          - TextLint-Configuration-SpellingSettings
+          - TextLint-Configuration-InvalidSpellingValues
+          - TextLint-SpellChecking-TextChecking
+        tests:
+          - TextLint_CheckText_MinWordLengthRaised_SkipsShorterWords
+          - TextLint_CheckText_MinWordLengthLowered_ChecksShorterWords
+
+      - id: TextLint-System-FileEncodings
+        title: >-
+          The library shall read UTF-8 files with or without a byte order mark and UTF-16 files
+          with a byte order mark, and shall report positions relative to the decoded text.
+        tags: [system]
+        justification: |
+          Real repositories contain files in these encodings, and a finding is useful only if its
+          position is the position a user sees in an editor, whatever the encoding or the mark.
+        children:
+          - TextLint-SpellChecking-FileChecking
+        tests:
+          - TextLint_SpellCheck_Utf8Utf16AndBom_ReportSamePositions
+
+      - id: TextLint-System-UncheckableFiles
+        title: >-
+          The library shall skip files that look binary and report them, and shall report a file
+          it cannot read without stopping the run.
+        tags: [system]
+        justification: |
+          A repository holds images, archives, and files that other programs have locked. One such
+          file must not fail a whole run, and the user must still be told which files were not
+          checked so that nothing is silently left out.
+        children:
+          - TextLint-SpellChecking-FileChecking
+        tests:
+          - TextLint_SpellCheck_BinaryFile_IsSkippedAndReported
+          - TextLint_SpellCheck_UnreadableFile_IsReportedAndRunContinues
+
+      - id: TextLint-System-MaxFileSize
+        title: >-
+          The library shall skip files larger than the maxFileSize setting and report them, and
+          shall report an invalid value in a settings file as an error at its position.
+        tags: [system]
+        justification: |
+          Generated files can be enormous, and a project may choose not to check them. The skip
+          must be reported so it is never mistaken for a clean file. There is no limit unless one
+          is configured, as in cspell.
+        children:
+          - TextLint-Configuration-SpellingSettings
+          - TextLint-Configuration-InvalidSpellingValues
+          - TextLint-SpellChecking-FileChecking
+        tests:
+          - TextLint_SpellCheck_FileOverMaxSize_IsSkippedAndReported
+          - TextLint_Settings_InvalidMaxFileSize_ReportsFileLineAndColumn
+
+      - id: TextLint-System-DeterministicResults
+        title: >-
+          The library shall return the same results in the same order (by file path, then line,
+          then column) however many files are checked at the same time, and shall let the caller
+          limit that number.
+        tags: [system]
+        justification: |
+          Files are checked in parallel to use every processor core, but build output must be
+          reproducible: a difference between two runs must mean a difference in the files, never
+          in the timing. A caller must be able to leave cores free for other work.
+        children:
+          - TextLint-SpellChecking-ParallelDeterminism
+        tests:
+          - TextLint_SpellCheck_DifferentConcurrency_ReturnsIdenticalOrderedResults
+          - TextLint_SpellCheck_InvalidConcurrency_Throws
+
+      - id: TextLint-System-Cancellation
+        title: The library shall stop checking and signal cancellation when its caller cancels.
+        tags: [system]
+        justification: |
+          A run over a large repository can take long enough that a user or a host needs to
+          abandon it, and abandoning it must not leave work running or return a partial result
+          that looks complete.
+        children:
+          - TextLint-SpellChecking-ParallelDeterminism
+          - TextLint-FileSelection-Cancellation
+        tests:
+          - TextLint_SpellCheck_CancelledToken_ThrowsOperationCanceled
+
+      - id: TextLint-System-CspellCompatibility
+        title: >-
+          The library shall report the same unknown words, at the same positions, as cspell for
+          the documented word-splitting, ignore, directive, and word-list rules.
+        tags: [system]
+        justification: |
+          The stated goal is to replace cspell in existing repositories without surprises. The
+          evidence is a set of corpora that were checked by the real cspell, whose recorded
+          output is compared with the library's, and a list of the differences that are
+          deliberate, which the comparison must match exactly so that a fixed or a new difference
+          is noticed.
+        tests:
+          - TextLint_CspellParity_TokenizationCorpus_MatchesRecordedCspellOutput
+          - TextLint_CspellParity_DirectiveCorpora_MatchRecordedCspellOutput
+          - TextLint_CspellParity_CrlfDirectiveCorpus_MatchesRecordedCspellOutput
+          - TextLint_CspellParity_WordListCorpus_MatchesRecordedCspellOutput
+          - TextLint_CspellParity_MinimumLengthCorpora_MatchRecordedCspellOutput
+          - TextLint_CspellParity_PossessiveCorpus_MatchesRecordedCspellOutput
+          - TextLint_CspellParity_KnownDivergences_AreExactlyTheDocumentedOnes

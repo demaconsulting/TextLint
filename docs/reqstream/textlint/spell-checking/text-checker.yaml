@@ -1,0 +1,266 @@
+---
+# Software Unit Requirements for the TextChecker Class
+#
+# The TextChecker class checks the spelling of a string of text against the dictionary of the configured language
+# and the word lists of a settings value, and returns each finding with its position. The SpellingIssue and
+# SpellingIssueKind types that carry the findings, and the internal word-list types, belong to this unit.
+
+sections:
+  - title: TextLint Requirements
+    sections:
+      - title: SpellChecking Requirements
+        sections:
+          - title: TextChecker Requirements
+            requirements:
+              - id: TextLint-SpellChecking-TextChecker-UnknownWords
+                title: >-
+                  TextChecker shall report each unknown word of a text as a finding that carries the source
+                  name, the line, the column, and the word, report nothing for an empty text or for a text
+                  of known words, and reject a null text.
+                justification: |
+                  This is the core behavior of the checker and the basis of every other rule: a finding is
+                  useful only if it names the word and where it is, and hostile input such as an enormous
+                  word or a lone surrogate must not stop the check.
+                tests:
+                  - TextChecker_Check_UnknownWord_ReportsWordAtPosition
+                  - TextChecker_Check_KnownWords_ReportsNothing
+                  - TextChecker_Check_EmptyText_ReturnsEmpty
+                  - TextChecker_Check_WhiteSpaceAndPunctuationOnly_ReturnsEmpty
+                  - TextChecker_Check_SourceName_IsCopiedToFindings
+                  - TextChecker_Check_NoSourceName_LeavesFilePathNull
+                  - TextChecker_Check_NullText_ThrowsArgumentNullException
+                  - TextChecker_Check_Result_IsImmutable
+                  - TextChecker_Check_VeryLongWord_IsReportedOnce
+                  - TextChecker_Check_LoneSurrogate_ReportsFollowingWord
+
+              - id: TextLint-SpellChecking-TextChecker-WordSplitting
+                title: >-
+                  TextChecker shall check a word as a whole before splitting it, so that a known compound
+                  identifier is not taken apart, and shall split an unknown identifier at case changes,
+                  digits, underscores, hyphens, and other punctuation, keeping apostrophes inside words,
+                  and report only the pieces that are unknown.
+                justification: |
+                  Source code is full of identifiers such as fooBar_baz. A user expects the unknown piece
+                  to be reported, not the whole identifier, and a compound that the dictionary or the word
+                  lists know must stay quiet. cspell behaves this way, so migrated projects stay quiet where
+                  they were quiet.
+                tests:
+                  - TextChecker_Check_KnownCompoundIdentifier_IsNotSplit
+                  - TextChecker_Check_UnknownCamelCase_ReportsOnlyUnknownPieces
+                  - TextChecker_Check_SnakeCase_ReportsEachUnknownWord
+                  - TextChecker_Check_DigitsBetweenWords_SeparateWords
+                  - TextChecker_Check_HyphenatedWords_AreCheckedSeparately
+                  - TextChecker_Check_AcronymBeforeWord_SplitsAtTheLastCapital
+                  - TextChecker_Check_LowerCaseConcatenation_IsReportedWhole
+                  - TextChecker_Check_ApostropheWord_StaysWhole
+
+              - id: TextLint-SpellChecking-TextChecker-KnownWordForms
+                title: >-
+                  TextChecker shall accept the possessive of a known word, with a straight or a typographic
+                  apostrophe, a known word that follows a backslash escape, and a run of capitals with a
+                  plural or verb ending whose capitals are known or too short to check, and shall never
+                  report a word that is one letter repeated four or more times.
+                justification: |
+                  Without these allowances prose such as "the parser's output", string literals such as
+                  "\nfoo", acronyms such as URLs, and placeholders such as xxxx produce findings that cspell
+                  does not, which would make a migrated project noisy and the findings untrustworthy.
+                tests:
+                  - TextChecker_Check_PossessiveOfKnownWord_IsAccepted
+                  - TextChecker_Check_PossessiveOfUnknownWord_IsReported
+                  - TextChecker_Check_WordAfterBackslashEscape_IsAccepted
+                  - TextChecker_Check_UnknownWordAfterBackslashEscape_IsReported
+                  - TextChecker_Check_LetterPrefixWithoutBackslash_IsReported
+                  - TextChecker_Check_CapitalRunWithEnding_IsAccepted
+                  - TextChecker_Check_ShortCapitalRunWithEnding_IsAccepted
+                  - TextChecker_Check_UnknownCapitalRunWithEnding_IsReported
+                  - TextChecker_Check_RepeatedLetters_AreNeverReported
+                  - TextChecker_Check_ThreeRepeatedLettersAtLowMinimum_AreReported
+
+              - id: TextLint-SpellChecking-TextChecker-MinimumWordLength
+                title: >-
+                  TextChecker shall not check a word, or a piece of an identifier, that is shorter than the
+                  minimum word length of the settings, counted in UTF-16 code units, and shall check a word
+                  that has exactly that length.
+                justification: |
+                  The minimum length tunes how noisy the checker is: short abbreviations and variable names
+                  are quiet at the default and a project can raise or lower the limit. Counting UTF-16 code
+                  units is what cspell does, so the same limit gives the same findings.
+                tests:
+                  - TextChecker_Check_WordShorterThanMinimum_IsNotChecked
+                  - TextChecker_Check_WordAtMinimumLength_IsChecked
+                  - TextChecker_Check_MinimumLengthRaised_SkipsShorterWords
+                  - TextChecker_Check_MinimumLengthLowered_ChecksShorterWords
+                  - TextChecker_Check_MinimumLength_CountsUtf16Units
+                  - TextChecker_Check_ShortPieceOfUnknownWord_IsNotReported
+
+              - id: TextLint-SpellChecking-TextChecker-WordListPrecedence
+                title: >-
+                  TextChecker shall accept the words of the words and ignoreWords settings in any letter
+                  case, match an entry that contains digits or punctuation against the whole token, and
+                  apply the order ignored, then flagged, then accepted, then dictionary.
+                justification: |
+                  Every project has a vocabulary of its own. cspell users expect an ignored word never to
+                  be reported, a flagged word always to be, and an entry written in one letter case to
+                  match any case, so the same configuration must give the same answers here.
+                tests:
+                  - TextChecker_Check_WordsEntry_AcceptsAnyCase
+                  - TextChecker_Check_WordsEntryWithCapital_AcceptsAnyCase
+                  - TextChecker_Check_IgnoreWordsEntry_IsNotReported
+                  - TextChecker_Check_WordBothIgnoredAndFlagged_IsNotReported
+                  - TextChecker_Check_WordBothAcceptedAndFlagged_IsReported
+                  - TextChecker_Check_KnownWordThatIsFlagged_IsReported
+                  - TextChecker_Check_WordsEntryWithDigits_MatchesWholeToken
+                  - TextChecker_Check_IgnoreEntryWithPunctuation_MatchesWholeToken
+
+              - id: TextLint-SpellChecking-TextChecker-FlaggedWords
+                title: >-
+                  TextChecker shall report a word of the flagWords setting as a flagged word, with the
+                  suggestions of its entry, whatever its length, match an entry written in lower case in any
+                  letter case and an entry with a capital letter only in that spelling, and report a
+                  flagged entry that contains digits or punctuation as one finding for the whole token.
+                justification: |
+                  Projects forbid terms, and a forbidden term must be reported even when the dictionary
+                  knows it and even when it is short. The suggestion forms let a finding say what to write
+                  instead, and the case rule matches cspell so that migrated flag lists behave the same.
+                tests:
+                  - TextChecker_Check_FlagWords_ReportsFlaggedKind
+                  - TextChecker_Check_FlagEntryWithArrow_ReportsSuggestions
+                  - TextChecker_Check_FlagEntryWithColon_ReportsSuggestion
+                  - TextChecker_Check_FlaggedWordShorterThanMinimum_IsStillReported
+                  - TextChecker_Check_FlagEntryInLowerCase_MatchesAnyCase
+                  - TextChecker_Check_FlagEntryWithCapital_MatchesOnlyThatSpelling
+                  - TextChecker_Check_FlaggedPieceOfIdentifier_IsReportedAsFlagged
+                  - TextChecker_Check_FlagEntryWithDigits_ReportsWholeToken
+
+              - id: TextLint-SpellChecking-TextChecker-Language
+                title: >-
+                  TextChecker shall use the language setting to choose the dictionary, so that a spelling
+                  of one dialect is reported under another, and shall accept the spellings of every
+                  language in a list of languages.
+                justification: |
+                  A word that is correct in American English (favorite) is a mistake in British English and
+                  the reverse, so the language setting must change the result.
+                tests:
+                  - TextChecker_Check_DefaultLanguage_RejectsBritishSpelling
+                  - TextChecker_Check_BritishLanguage_AcceptsBritishNotAmericanSpelling
+                  - TextChecker_Check_BothLanguages_AcceptEitherSpelling
+
+              - id: TextLint-SpellChecking-TextChecker-IssuePositions
+                title: >-
+                  TextChecker shall report positions that count lines by the line feed character only and
+                  columns in UTF-16 code units from the start of the line, both starting at one, so that a
+                  carriage return alone is not a line break, a character outside the Basic Multilingual
+                  Plane counts as two columns, and a byte order mark character counts as one.
+                justification: |
+                  A finding is useful only if its position is the position a user sees in an editor, and
+                  cspell counts this way, so recorded positions from cspell stay valid.
+                tests:
+                  - TextChecker_Check_LineFeed_StartsNewLine
+                  - TextChecker_Check_CarriageReturnLineFeed_CountsOneLineBreak
+                  - TextChecker_Check_LoneCarriageReturn_IsNotLineBreak
+                  - TextChecker_Check_LineSeparatorCharacter_IsNotLineBreak
+                  - TextChecker_Check_AstralCharacter_CountsTwoColumns
+                  - TextChecker_Check_ByteOrderMarkCharacter_CountsOneColumn
+                  - TextChecker_Check_Tab_CountsOneColumn
+                  - TextChecker_Check_ManyLines_CountsLinesExactly
+
+              - id: TextLint-SpellChecking-TextChecker-IssueOrder
+                title: >-
+                  TextChecker shall return its findings in text order, including the findings for
+                  unsupported directives, which belong at the position where the directive is written.
+                justification: |
+                  Editors and build logs present findings top to bottom, and a stable order makes results
+                  reproducible and comparable between runs.
+                tests:
+                  - TextChecker_Check_SeveralFindings_AreInTextOrder
+                  - TextChecker_Check_UnsupportedDirectiveBetweenWords_IsInTextOrder
+                  - TextChecker_Check_UnsupportedDirectiveBeforeWords_IsReportedFirst
+
+              - id: TextLint-SpellChecking-TextChecker-Directives
+                title: >-
+                  TextChecker shall honor the directives in a text: switch checking off for a region, for a
+                  line, and for the next line, add the listed words for the whole document without
+                  affecting any other text, accept the directive prefixes in any letter case, and report a
+                  directive that is not supported at its position unless checking is switched off there.
+                justification: |
+                  Directives in comments are how cspell users silence deliberate exceptions next to the
+                  text that needs them, and a directive that silently did nothing would hide a difference
+                  from cspell. Words added for one document must not leak into the next one.
+                tests:
+                  - TextChecker_Check_DisableEnableBlock_SkipsRegion
+                  - TextChecker_Check_UnterminatedDisable_RunsToEndOfText
+                  - TextChecker_Check_DisableLine_SkipsLine
+                  - TextChecker_Check_DisableNextLine_SkipsNextLine
+                  - TextChecker_Check_WordsDirective_AcceptsWordsInWholeDocument
+                  - TextChecker_Check_IgnoreDirective_AcceptsListedWords
+                  - TextChecker_Check_DocumentWords_DoNotLeakToNextCall
+                  - TextChecker_Check_DirectivePrefixInUpperCase_IsAccepted
+                  - TextChecker_Check_CspellPrefix_IsAccepted
+                  - TextChecker_Check_UnsupportedDirective_ReportsKindAndPosition
+                  - TextChecker_Check_UnsupportedDirectiveInDisabledRegion_IsNotReported
+
+              - id: TextLint-SpellChecking-TextChecker-IgnoredText
+                title: >-
+                  TextChecker shall not check URLs, email addresses, hexadecimal values, UUIDs, and hashes,
+                  shall still check the text on either side of them, and shall check a word that such text
+                  cuts in two as separate pieces.
+                justification: |
+                  These strings are never prose and their fragments would bury real findings, but the words
+                  around them are prose and must still be checked. cspell ignores them by default, so a
+                  migrated project must find them ignored here too.
+                tests:
+                  - TextChecker_Check_UrlEmailAndHash_AreNotChecked
+                  - TextChecker_Check_Uuid_IsNotChecked
+                  - TextChecker_Check_TextAroundExcludedRange_IsStillChecked
+                  - TextChecker_Check_WordSplitByExcludedRange_IsCheckedAsSeparateSegments
+
+              - id: TextLint-SpellChecking-TextChecker-InvalidSettings
+                title: >-
+                  TextChecker shall reject null settings, an unsupported language, and a word-list entry
+                  that could never match, because it is blank, contains white space or a character that
+                  cannot be part of a word, begins with the forbidden-word marker, or has no letter or
+                  digit, with an error that names the language, or the setting and the entry.
+                justification: |
+                  Settings built in code bypass the checks of the settings file loader, and an entry that
+                  can never match would give a setting the user believes is in force no effect. Failing at
+                  once with the name of the entry is the only way the user can find it.
+                tests:
+                  - TextChecker_Constructor_NullSettings_ThrowsArgumentNullException
+                  - TextChecker_Constructor_UnsupportedLanguage_ThrowsNamingLanguage
+                  - TextChecker_Constructor_UnsupportedLanguageAndBadEntry_ReportsLanguage
+                  - TextChecker_Constructor_BlankEntry_ThrowsNamingSetting
+                  - TextChecker_Constructor_WhiteSpaceEntry_ThrowsNamingSettingAndEntry
+                  - TextChecker_Constructor_ForbiddenMarkerEntry_ThrowsNamingSettingAndEntry
+                  - TextChecker_Constructor_DisallowedCharacterEntry_ThrowsNamingSettingAndEntry
+                  - TextChecker_Constructor_EntryWithoutLetterOrDigit_ThrowsNamingSettingAndEntry
+                  - TextChecker_Constructor_FlagEntryWithoutWord_ThrowsNamingSetting
+                  - TextChecker_Constructor_SuggestionFormInWords_ThrowsNamingSetting
+
+              - id: TextLint-SpellChecking-TextChecker-ConcurrentUse
+                title: >-
+                  TextChecker shall give identical findings when one checker is used by several threads at
+                  the same time, and shall keep no state from one check to the next.
+                justification: |
+                  Files are checked in parallel with one checker, so a result that depended on what another
+                  thread was checking, or on an earlier text, would not be reproducible.
+                tests:
+                  - TextChecker_Check_ConcurrentCalls_GiveIdenticalResults
+                  - TextChecker_Check_DocumentWords_DoNotLeakToNextCall
+
+              - id: TextLint-SpellChecking-TextChecker-IssueFormat
+                title: >-
+                  TextChecker shall return findings that expose their file name, line, column, text, kind,
+                  and suggestions, cannot be changed by the caller, and are formatted as
+                  file(line,column): error: message, with the suggestions in the message and with only the
+                  position when there is no file name.
+                justification: |
+                  The compiler style is understood by editors, build servers, and CI log parsers, so
+                  findings become clickable without any tool-specific integration, and a finding that a
+                  consumer could change would not be a trustworthy record.
+                tests:
+                  - TextChecker_Check_Issue_ExposesAllProperties
+                  - TextChecker_Check_IssueWithFileName_FormatsCompilerStyle
+                  - TextChecker_Check_IssueWithoutFileName_FormatsPositionOnly
+                  - TextChecker_Check_FlaggedIssueWithSuggestions_FormatsSuggestions
+                  - TextChecker_Check_UnsupportedDirectiveIssue_FormatsDirectiveMessage
+                  - TextChecker_Check_IssueSuggestions_AreImmutable

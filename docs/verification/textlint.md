@@ -2,9 +2,9 @@
 
 ## Verification Approach
 
-System-level verification combines four kinds of evidence. Requirement evidence comes from package
-inspection, assembly inspection, and end-to-end tests of the public API; project configuration
-checks are design-constraint guards that are not linked to a requirement:
+System-level verification combines five kinds of evidence. Requirement evidence comes from package
+inspection, assembly inspection, end-to-end tests of the public API, and the cspell parity corpus; project
+configuration checks are design-constraint guards that are not linked to a requirement:
 
 - **Package inspection**: after packing the library, the build pipeline runs FileAssert
   (`.fileassert.yaml`, tag `packages`) against the real `DemaConsulting.TextLint.<version>.nupkg`
@@ -25,16 +25,30 @@ checks are design-constraint guards that are not linked to a requirement:
   and referenced assemblies through reflection. A further guard, not linked to a requirement,
   confirms that no public signature exposes a type from YamlDotNet or
   Microsoft.Extensions.FileSystemGlobbing.
-- **End-to-end tests**: tests in `TextLintTests.cs` drive the public API as a consuming
-  application would. They write real settings files and directory trees into a per-test temporary
-  directory, load the settings with `SettingsLoader`, select files with `FileSelector`, and assert
-  on the loaded values, the diagnostics, and the selected paths. They cover both the Configuration
-  and FileSelection subsystems together. The one test double is the recording directory used to prove
+- **End-to-end tests**: tests in `TextLintTests.cs` and `TextLintSpellCheckTests.cs` drive the public API as a
+  consuming application would. They write real settings files and directory trees into a per-test temporary
+  directory, load the settings with `SettingsLoader`, select files with `FileSelector`, check text with
+  `TextChecker` and files with `SpellChecker`, and assert on the loaded values, the diagnostics, the findings, and
+  the selected paths. They cover the Configuration, FileSelection, Dictionaries, TextScanning, and SpellChecking
+  subsystems together. The one test double is the recording directory used to prove
   that excluded directories are never enumerated; everything else, including YamlDotNet and
   Microsoft.Extensions.FileSystemGlobbing, is real. The dictionary tests use the real embedded
   dictionaries, and the data test reads the repository word lists, which the test project copies beside
   the test assembly, to check every listed word, in its original, lower, and upper case, against the
-  public lookup for the language selection that includes its list.
+  public lookup for the language selection that includes its list. Directive prefixes in the spell-checking
+  tests are assembled from pieces, so that the spell checker that checks this repository does not read them as
+  directives of the test source.
+- **cspell parity corpus**: the requirement to report the same words as cspell is verified against the real
+  cspell, not against a description of it. The folder `test/DemaConsulting.TextLint.Tests/SpellChecking/Parity`
+  holds corpora (text files built from invented words, so that the result does not depend on the dictionary of
+  either tool), a settings file beside each corpus that both tools read, the output that cspell produced for each
+  corpus (recorded by the script `record-cspell.ps1`, which is run by hand and not by the build, and which records
+  the version of cspell it used), and a list of the differences that are deliberate, each with its reason.
+  `CspellParityTests.cs` loads each settings file with `SettingsLoader`, checks the corpus with `TextChecker`, and
+  requires the findings to equal the recorded ones except for exactly the listed differences. Because the list must
+  match exactly, a difference that is fixed or newly introduced fails the test, so the documented differences from
+  cspell cannot drift from the real ones. The corpora that exist only to show the differences are kept apart from
+  the others, so that every other corpus must match without exceptions.
 
 The trim and AOT analyzers run on every build with warnings treated as errors, so any trim- or
 AOT-unsafe construct fails the build; the assembly-level test confirms the resulting assembly
@@ -51,7 +65,10 @@ the library project, so the library assembly is present beside the test assembly
 need permission to create and delete files under the operating system's temporary directory; each
 test uses its own uniquely named directory, so tests share no state and may run in parallel. The
 dictionary tests need no files of their own except the word lists that the test project copies to
-its output folder. No services or special configuration are required. Building the library
+its output folder. The parity tests need the corpus files, the recorded cspell output, and the list of differences,
+which the test project also copies to its output folder; cspell itself is needed only to record the output again,
+never to run the tests. The unreadable-file test holds a file open with no sharing, which behaves the same way on
+Windows, Linux, and macOS. No services or special configuration are required. Building the library
 requires the DictionaryBuilder project, which the library project builds first; no other tool is needed.
 
 ## Acceptance Criteria
@@ -88,6 +105,21 @@ requires the DictionaryBuilder project, which the library project builds first; 
 - The assembly embeds exactly the four dictionaries, each a dictionary file.
 - Every word of every repository word list is known for the selection that includes its list.
 - Lookups from many threads at once return correct answers.
+- A text is checked without any file, and each unknown word is reported with its line, column, and the word;
+  known words are not reported.
+- Identifiers are split at case changes, digits, underscores, and punctuation and each word is checked; words
+  shorter than the minimum length are not; an apostrophe stays inside a word; the possessive of a known word and a
+  known word after a backslash escape are accepted.
+- URLs, email addresses, hexadecimal values, UUIDs, hashes, and encoded data are not checked.
+- Directives switch checking off for a block, a line, and the next line, and add words for the document, with every
+  prefix and in any letter case; a directive that is not supported is reported at its position.
+- The language, the word lists with their precedence and letter-case rules, the minimum word length, and the maximum
+  file size act as configured, and an invalid value in a settings file is reported with its file, line, and column.
+- Files are read as UTF-8 or UTF-16 and report the same positions; binary and too-large files are skipped and
+  reported; an unreadable file is an error that does not stop the run.
+- The results are identical and identically ordered at every degree of parallelism, an invalid degree is rejected,
+  and a cancelled run throws.
+- On every corpus the findings equal those that cspell recorded, except for exactly the documented differences.
 
 ## Test Scenarios
 
@@ -162,9 +194,26 @@ loaded; no exception is thrown and one error names the file. This scenario is te
 `TextLint_Settings_MissingConfigFile_ReportsFileError`.
 
 **TextLint_Settings_UnsupportedKey_ReportsErrorNamingKey**: A settings file containing the unsupported
-key `words` is loaded; loading fails with an error that names `words` and the file, at line 2 column 1,
-and no settings are returned. This scenario is tested by
+key `caseSensitive` is loaded; loading fails with an error that names `caseSensitive` and the file, at line 2
+column 1, and no settings are returned. This scenario is tested by
 `TextLint_Settings_UnsupportedKey_ReportsErrorNamingKey`.
+
+**TextLint_Settings_SpellingKeysConfigFile_LoadsConfiguredValues**: A settings file that uses the six spelling
+keys (`language`, `words`, `ignoreWords`, `flagWords`, `minWordLength`, and `maxFileSize` with a unit) is loaded;
+every value is present in the settings. This scenario is tested by
+`TextLint_Settings_SpellingKeysConfigFile_LoadsConfiguredValues`.
+
+**TextLint_Settings_UnsupportedLanguage_ReportsFileLineAndColumn**: A settings file whose language is `fr` is
+loaded; the error is at the value (line 1 column 11), names the file and the language, and no settings are
+returned. This scenario is tested by `TextLint_Settings_UnsupportedLanguage_ReportsFileLineAndColumn`.
+
+**TextLint_Settings_UnusableWordEntry_ReportsFileLineAndColumn**: A settings file whose `words` list has an entry
+with white space is loaded; the error is at the entry (line 2 column 5) and says that the entry contains white
+space. This scenario is tested by `TextLint_Settings_UnusableWordEntry_ReportsFileLineAndColumn`.
+
+**TextLint_Settings_InvalidMaxFileSize_ReportsFileLineAndColumn**: A settings file whose `maxFileSize` is text that
+is not a size is loaded; the error is at the value (line 1 column 14) and names the setting. This scenario is
+tested by `TextLint_Settings_InvalidMaxFileSize_ReportsFileLineAndColumn`.
 
 **TextLint_Settings_InvalidPattern_ReportsFileLineAndColumn**: A settings file whose second include
 pattern uses a backslash is loaded; the error is at that list item, line 3 column 5, names the file,
@@ -233,7 +282,8 @@ tested by `TextLint_Settings_QuestionMarkPattern_ReportsErrorSuggestingStar`.
 
 **TextLint_Package_Packed_ContainsThirdPartyNotices**: FileAssert inspects the produced library package and finds
 exactly one `THIRD-PARTY-NOTICES.txt` at its root whose text names the author of the English word lists, carries
-the permission sentence of their license verbatim, and names the publisher of the technical word lists. This
+the permission sentence of their license verbatim, names the publisher of the technical word lists, and names the
+author of the cspell-lib rules from which the default ignore patterns are ported. This
 scenario is tested by `TextLint_Package_Packed_ContainsThirdPartyNotices`.
 
 **TextLint_Package_Packed_ContainsEmbeddedDictionaries**: FileAssert inspects the packaged library assembly and
@@ -300,3 +350,171 @@ new list cannot go unchecked. This scenario is tested by `TextLint_Dictionary_Ev
 **TextLint_Dictionary_ParallelLookups_ReturnCorrectAnswers**: Twenty thousand lookups spread over the three
 selections are made from many threads at once; every answer is correct. This scenario is tested by
 `TextLint_Dictionary_ParallelLookups_ReturnCorrectAnswers`.
+
+**TextLint_CheckText_UnknownWord_ReportsLineColumnAndWord**: A text with one misspelling on its second line is
+checked; the one finding is an unknown word with the line, the column, and the word. This scenario is tested by
+`TextLint_CheckText_UnknownWord_ReportsLineColumnAndWord`.
+
+**TextLint_CheckText_KnownWords_ReportsNothing**: A sentence of ordinary English words is checked; nothing is
+reported. This scenario is tested by `TextLint_CheckText_KnownWords_ReportsNothing`.
+
+**TextLint_CheckText_CamelAndSnakeCase_ReportsEachWordSeparately**: An identifier made of a short word, a
+capitalized unknown word, an underscore, and a second unknown word is checked; each unknown word is reported at its
+own position. This scenario is tested by `TextLint_CheckText_CamelAndSnakeCase_ReportsEachWordSeparately`.
+
+**TextLint_CheckText_ShortWords_AreNotChecked**: Two short unknown words and one unknown word of exactly four
+letters are checked; only the word of four letters is reported. This scenario is tested by
+`TextLint_CheckText_ShortWords_AreNotChecked`.
+
+**TextLint_CheckText_ApostropheWords_StayWhole**: A contraction of known words and the possessive of an unknown
+word are checked; the contraction passes and the possessive is reported as one word. This scenario is tested by
+`TextLint_CheckText_ApostropheWords_StayWhole`.
+
+**TextLint_CheckText_PossessiveOfKnownWord_IsAccepted**: Possessives of known words, with the straight and the
+typographic apostrophe, are checked; nothing is reported. This scenario is tested by
+`TextLint_CheckText_PossessiveOfKnownWord_IsAccepted`.
+
+**TextLint_CheckText_WordAfterBackslashEscape_IsAccepted**: A string literal with a line-feed escape in front of a
+known word is checked; nothing is reported. This scenario is tested by
+`TextLint_CheckText_WordAfterBackslashEscape_IsAccepted`.
+
+**TextLint_CheckText_UrlsAndEmails_AreNotChecked**: A URL and an email address made of unknown words are checked;
+nothing is reported. This scenario is tested by `TextLint_CheckText_UrlsAndEmails_AreNotChecked`.
+
+**TextLint_CheckText_HexUuidAndHashValues_AreNotChecked**: A C hexadecimal literal, a CSS color, a UUID, a commit
+hash, and a digest are checked; nothing is reported. This scenario is tested by
+`TextLint_CheckText_HexUuidAndHashValues_AreNotChecked`.
+
+**TextLint_CheckText_EncodedData_IsNotChecked**: A line of Base64 data is checked; nothing is reported. This
+scenario is tested by `TextLint_CheckText_EncodedData_IsNotChecked`.
+
+**TextLint_CheckText_DisableEnableBlock_SkipsRegion**: A misspelling before, inside, and after a block that a
+directive disables and enables is checked; only the words outside the block are reported. This scenario is tested
+by `TextLint_CheckText_DisableEnableBlock_SkipsRegion`.
+
+**TextLint_CheckText_DisableLine_SkipsLine**: A misspelling before a disable-line directive on its line, and one on
+the next line, are checked; only the next line is reported. This scenario is tested by
+`TextLint_CheckText_DisableLine_SkipsLine`.
+
+**TextLint_CheckText_DisableNextLine_SkipsNextLine**: A disable-next-line directive followed by two misspelled lines
+is checked; only the second line is reported. This scenario is tested by
+`TextLint_CheckText_DisableNextLine_SkipsNextLine`.
+
+**TextLint_CheckText_IgnoreAndWordsDirectives_AddDocumentWords**: An ignore directive and a words directive each add
+one word, and a third word is not added; only the third word is reported. This scenario is tested by
+`TextLint_CheckText_IgnoreAndWordsDirectives_AddDocumentWords`.
+
+**TextLint_CheckText_UnterminatedDisable_RunsToEndOfText**: A visible misspelling is followed by a disable directive
+that is never closed; only the visible one is reported. This scenario is tested by
+`TextLint_CheckText_UnterminatedDisable_RunsToEndOfText`.
+
+**TextLint_CheckText_AllDirectivePrefixes_AreAccepted**: For each of the five prefixes, and for upper-case spellings
+of two of them, a text whose first line is hidden by a disable-line directive and whose second line is not is
+checked; only the second line is reported. This scenario is tested by
+`TextLint_CheckText_AllDirectivePrefixes_AreAccepted`.
+
+**TextLint_CheckText_UnsupportedDirective_ReportsPosition**: A locale directive is checked; the finding is an
+unsupported directive named `locale` at the position of its name. This scenario is tested by
+`TextLint_CheckText_UnsupportedDirective_ReportsPosition`.
+
+**TextLint_SpellCheck_BritishLanguage_AcceptsBritishNotAmericanSpelling**: A file that uses an American and a British
+spelling of one word is checked with the default language and with British English; each language reports the other's
+spelling only. This scenario is tested by `TextLint_SpellCheck_BritishLanguage_AcceptsBritishNotAmericanSpelling`.
+
+**TextLint_CheckText_WordsSetting_AcceptsAnyCase**: An unknown word written in lower, upper, and capitalized form is
+checked with and without the word in the `words` setting; with it nothing is reported and without it all three are.
+This scenario is tested by `TextLint_CheckText_WordsSetting_AcceptsAnyCase`.
+
+**TextLint_CheckText_FlagWords_ReportsFlaggedKind**: A known word that a `flagWords` entry flags, with two
+suggestions, is checked; the finding is a flagged word with the suggestions. This scenario is tested by
+`TextLint_CheckText_FlagWords_ReportsFlaggedKind`.
+
+**TextLint_CheckText_FlagWordCapitalEntry_MatchesExactCase**: A `flagWords` entry written with a capital letter is
+checked against three letter cases of the word; only the exact spelling is flagged. This scenario is tested by
+`TextLint_CheckText_FlagWordCapitalEntry_MatchesExactCase`.
+
+**TextLint_CheckText_IgnoreWordsOverrideFlagWords_ReportsNothing**: A word that is both ignored and flagged is
+checked; nothing is reported. This scenario is tested by
+`TextLint_CheckText_IgnoreWordsOverrideFlagWords_ReportsNothing`.
+
+**TextLint_CheckText_WordWithDigitsOrPunctuation_MatchesWholeToken**: An entry with a digit and a hyphen is used as
+a whole token in two letter cases and its last part is used alone; the whole tokens are accepted and the part alone is
+reported. This scenario is tested by `TextLint_CheckText_WordWithDigitsOrPunctuation_MatchesWholeToken`.
+
+**TextLint_CheckText_MinWordLengthRaised_SkipsShorterWords**: An unknown word of five letters and one of seven are
+checked with a minimum of six; only the longer word is reported. This scenario is tested by
+`TextLint_CheckText_MinWordLengthRaised_SkipsShorterWords`.
+
+**TextLint_CheckText_MinWordLengthLowered_ChecksShorterWords**: An unknown word of two letters is checked with a
+minimum of two and with the default; it is reported only with the lowered minimum. This scenario is tested by
+`TextLint_CheckText_MinWordLengthLowered_ChecksShorterWords`.
+
+**TextLint_SpellCheck_FilesWithUnknownWords_ReportsFileLineColumnAndWord**: Two text files, one in a subdirectory, hold
+misspellings and a file that the patterns do not select holds another; the findings name the two files in path order,
+with line, column, and word, and the third file is not checked. This scenario is tested by
+`TextLint_SpellCheck_FilesWithUnknownWords_ReportsFileLineColumnAndWord`.
+
+**TextLint_SpellCheck_CleanFiles_ReportsNothing**: Files with only ordinary words are checked; there are no
+findings, no file diagnostics, and the run has no problems. This scenario is tested by
+`TextLint_SpellCheck_CleanFiles_ReportsNothing`.
+
+**TextLint_SpellCheck_Utf8Utf16AndBom_ReportSamePositions**: The same text is written as UTF-8, UTF-8 with a byte
+order mark, and UTF-16 in both byte orders with a mark; every file reports the same word at the same position and none
+is skipped. This scenario is tested by `TextLint_SpellCheck_Utf8Utf16AndBom_ReportSamePositions`.
+
+**TextLint_SpellCheck_BinaryFile_IsSkippedAndReported**: A file with a NUL character and a text file with a
+misspelling are checked; the binary file is reported as skipped (not an error) and the text file is checked. This
+scenario is tested by `TextLint_SpellCheck_BinaryFile_IsSkippedAndReported`.
+
+**TextLint_SpellCheck_UnreadableFile_IsReportedAndRunContinues**: A file that another stream holds with no sharing
+and a readable file with a misspelling are checked; the locked file is an error diagnostic, the other file is checked,
+and the run has problems. This scenario is tested by `TextLint_SpellCheck_UnreadableFile_IsReportedAndRunContinues`.
+
+**TextLint_SpellCheck_FileOverMaxSize_IsSkippedAndReported**: A file larger than the configured size limit and a
+small file are checked; the large file is reported as too large and the small file is checked. This scenario is tested
+by `TextLint_SpellCheck_FileOverMaxSize_IsSkippedAndReported`.
+
+**TextLint_SpellCheck_DifferentConcurrency_ReturnsIdenticalOrderedResults**: Forty files spread over directories are
+checked with one worker and with eight; the findings are identical and ordered by file path. This scenario is tested
+by `TextLint_SpellCheck_DifferentConcurrency_ReturnsIdenticalOrderedResults`.
+
+**TextLint_SpellCheck_InvalidConcurrency_Throws**: A degree of parallelism of zero is rejected when the options are
+created. This scenario is tested by `TextLint_SpellCheck_InvalidConcurrency_Throws`.
+
+**TextLint_SpellCheck_CancelledToken_ThrowsOperationCanceled**: A run is started with a token that is already
+cancelled; it throws an operation-cancelled exception. This scenario is tested by
+`TextLint_SpellCheck_CancelledToken_ThrowsOperationCanceled`.
+
+**TextLint_CspellParity_TokenizationCorpus_MatchesRecordedCspellOutput**: The corpus of word splitting, ignored text,
+escapes, scripts, and positions is checked with the settings stored beside it; the findings equal the output that
+the real cspell produced for the same files, with no listed differences. This scenario is tested by
+`TextLint_CspellParity_TokenizationCorpus_MatchesRecordedCspellOutput`.
+
+**TextLint_CspellParity_DirectiveCorpora_MatchRecordedCspellOutput**: The corpus of every supported directive and
+the corpus of a disable that is never enabled are checked; the findings equal cspell's recorded output. This scenario
+is tested by `TextLint_CspellParity_DirectiveCorpora_MatchRecordedCspellOutput`.
+
+**TextLint_CspellParity_CrlfDirectiveCorpus_MatchesRecordedCspellOutput**: The two directive corpora are checked with
+every line ending turned into a carriage return and a line feed; the findings equal the output that cspell produced
+for those line endings, which differs from the output for line feeds in the scope of a next-line directive. This
+scenario is tested by `TextLint_CspellParity_CrlfDirectiveCorpus_MatchesRecordedCspellOutput`.
+
+**TextLint_CspellParity_WordListCorpus_MatchesRecordedCspellOutput**: The corpus of accepted, ignored, and flagged
+words, letter cases, and entries with digits and punctuation is checked with the word lists stored beside it; the
+findings equal cspell's recorded output. This scenario is tested by
+`TextLint_CspellParity_WordListCorpus_MatchesRecordedCspellOutput`.
+
+**TextLint_CspellParity_MinimumLengthCorpora_MatchRecordedCspellOutput**: The corpora with a minimum word length of
+six and of two are checked; the findings equal cspell's recorded output. This scenario is tested by
+`TextLint_CspellParity_MinimumLengthCorpora_MatchRecordedCspellOutput`.
+
+**TextLint_CspellParity_PossessiveCorpus_MatchesRecordedCspellOutput**: The corpus of possessives, contractions, and
+apostrophes at the edges of words is checked; the findings equal cspell's recorded output. This scenario is tested by
+`TextLint_CspellParity_PossessiveCorpus_MatchesRecordedCspellOutput`.
+
+**TextLint_CspellParity_KnownDivergences_AreExactlyTheDocumentedOnes**: The corpora that exist only to show the
+deliberate differences (the heuristic splitter and dictionaries, the unsupported directives, and the directive names
+that cspell's range patterns and its directive reader end differently) are checked; the findings that only TextLint
+reports and the findings that only cspell reports are exactly the ones listed with their reasons in the divergences
+file, every listed difference belongs to a corpus, and every corpus has a settings file and recorded output. This
+scenario is tested by `TextLint_CspellParity_KnownDivergences_AreExactlyTheDocumentedOnes`.

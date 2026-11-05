@@ -29,6 +29,14 @@ This document covers the verification design for the following software items:
   - **Dictionaries** subsystem
     - **SpellingDictionary** — language selection and word lookup
     - **DictionaryImage** — loading, validation, and probing of one embedded dictionary
+  - **TextScanning** subsystem
+    - **WordTokenizer** — words, tokens, case-change pieces, and word-list entries
+    - **DefaultPatterns** — the text that is never checked
+    - **DocumentDirectives** — directives in comments
+  - **SpellChecking** subsystem
+    - **TextChecker** — spell checking of a string
+    - **FileTextReader** — reading a file into text
+    - **SpellChecker** — parallel, deterministic checking of the files of a directory
 - **TextLintTool** — system, subsystem, and unit verification:
   - **Program** — entry point and execution orchestrator
   - **Cli** subsystem
@@ -82,6 +90,9 @@ test/
 │   ├── Configuration/                   — Configuration subsystem and unit tests
 │   ├── FileSelection/                   — FileSelection subsystem and unit tests
 │   ├── Dictionaries/                    — Dictionaries subsystem and unit tests
+│   ├── TextScanning/                    — TextScanning subsystem and unit tests
+│   ├── SpellChecking/                   — SpellChecking subsystem and unit tests
+│   │   └── Parity/                      — cspell parity corpora, recorded cspell output, and their test
 │   └── TestSupport/                     — shared test helpers (temporary directory, recording directory,
 │                                          dictionary image builder, a damaged embedded resource)
 ├── DemaConsulting.TextLint.DictionaryBuilder.Tests/  — dictionary builder system and unit tests

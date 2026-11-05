@@ -440,7 +440,8 @@ tests:
   # The library carries third-party word lists whose licenses require their notices to
   # accompany the data, so the notice file is at the package root. The assertion texts are
   # the author of the English word lists, the permission sentence of their license
-  # (verbatim, on one line of the file), and the publisher of the technical word lists.
+  # (verbatim, on one line of the file), the publisher of the technical word lists, and the
+  # author of the cspell-lib rules that the spell checker is derived from.
   - name: TextLint_Package_Packed_ContainsThirdPartyNotices
     description: "The library package carries the license notices of the embedded word lists"
     tags: [packages]
@@ -456,6 +457,7 @@ tests:
                 - contains: "Kevin Atkinson"
                 - contains: "Permission to use, copy, modify, distribute, and sell any part of SCOWLv2"
                 - contains: "Street Side Software"
+                - contains: "Jason Dent"
 
   # The dictionaries are embedded in the library assembly, and the package is packed from the
   # build output without building again, so the packed assembly itself is inspected: the
@@ -499,6 +501,7 @@ tests:
                 - contains: "Kevin Atkinson"
                 - contains: "Permission to use, copy, modify, distribute, and sell any part of SCOWLv2"
                 - contains: "Street Side Software"
+                - contains: "Jason Dent"
 
   # --- LIBRARY PROJECT ---
   #

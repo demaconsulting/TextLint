@@ -123,7 +123,7 @@ public class TextLintTests
     /// <param name="settings">The settings whose patterns and hidden-file switch are passed on.</param>
     /// <returns>The selected files.</returns>
     private static IReadOnlyList<SelectedFile> SelectFiles(string root, TextLintSettings settings) =>
-        FileSelector.Select(root, settings.Files, settings.IgnorePaths, settings.EnableGlobDot);
+        FileSelector.Select(root, settings.Files, settings.IgnorePaths, settings.EnableGlobDot, TestContext.Current.CancellationToken);
 
     /// <summary>
     ///     Test that the library assembly loads and carries the NuGet package name.
@@ -395,13 +395,13 @@ public class TextLintTests
         using var temp = new TempDirectory();
 
         // Act: load it
-        var result = await LoadConfigAsync(temp, "version: 0.2\nwords:\n  - foo\n");
+        var result = await LoadConfigAsync(temp, "version: 0.2\ncaseSensitive: true\n");
 
         // Assert: loading fails and the error names the key, file, and position
         var diagnostic = Assert.Single(result.Diagnostics);
         Assert.Multiple(
             () => Assert.Null(result.Settings),
-            () => Assert.Contains("'words' is not a supported setting", diagnostic.Message),
+            () => Assert.Contains("'caseSensitive' is not a supported setting", diagnostic.Message),
             () => Assert.EndsWith(".textlint.yaml", diagnostic.FilePath),
             () => Assert.Equal(2, diagnostic.Line),
             () => Assert.Equal(1, diagnostic.Column));
@@ -516,7 +516,7 @@ public class TextLintTests
         var settings = new TextLintSettings { Files = ["**/*.md"], IgnorePaths = ["node_modules"] };
 
         // Act: select files
-        var files = FileSelector.Select(recording, settings.Files, settings.IgnorePaths, settings.EnableGlobDot);
+        var files = FileSelector.Select(recording, settings.Files, settings.IgnorePaths, settings.EnableGlobDot, TestContext.Current.CancellationToken);
 
         // Assert: the ignored directory was never read, and the visible file was still found
         Assert.Multiple(

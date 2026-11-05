@@ -5,6 +5,8 @@ resource-path:
   - docs/design/textlint/configuration
   - docs/design/textlint/file-selection
   - docs/design/textlint/dictionaries
+  - docs/design/textlint/text-scanning
+  - docs/design/textlint/spell-checking
   - docs/design/textlint-tool
   - docs/design/textlint-tool/cli
   - docs/design/textlint-tool/self-test
@@ -27,6 +29,14 @@ input-files:
   - docs/design/textlint/dictionaries.md
   - docs/design/textlint/dictionaries/spelling-dictionary.md
   - docs/design/textlint/dictionaries/dictionary-image.md
+  - docs/design/textlint/text-scanning.md
+  - docs/design/textlint/text-scanning/word-tokenizer.md
+  - docs/design/textlint/text-scanning/default-patterns.md
+  - docs/design/textlint/text-scanning/document-directives.md
+  - docs/design/textlint/spell-checking.md
+  - docs/design/textlint/spell-checking/text-checker.md
+  - docs/design/textlint/spell-checking/file-text-reader.md
+  - docs/design/textlint/spell-checking/spell-checker.md
   - docs/design/textlint-tool.md
   - docs/design/textlint-tool/program.md
   - docs/design/textlint-tool/cli.md

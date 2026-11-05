@@ -4,7 +4,9 @@ THIRD-PARTY NOTICES
 TextLint's own source code is distributed under the MIT license (see the LICENSE file of the repository).
 
 The English and technical word lists that TextLint is built from contain data from the third-party sources
-listed below. The notices are reproduced here because the licenses require them to accompany the data.
+listed below, and the spell-checking rules of TextLint include regular expressions and behavior taken from the
+cspell project. The notices are reproduced here because the licenses require them to accompany the data and the
+code derived from them.
 
 
 1. ENGLISH WORD LISTS: SCOWL / ESDB
@@ -81,3 +83,35 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
+
+3. SPELL-CHECKING RULES: cspell-lib
+-----------------------------------
+
+The default list of text that is never spell-checked (URLs, email addresses, hexadecimal values, UUIDs, hashes,
+and encoded data), the patterns that recognize the in-document directives, and the word-splitting rules of the
+spell checker are ported from cspell-lib, a package of the cspell project,
+https://github.com/streetsidesoftware/cspell (cspell-lib 10.1.1, packages/cspell-lib). The regular expressions
+were rewritten for the .NET regular-expression engine, and the rules are implemented in new code. The copyright
+notice of cspell-lib and its MIT license follow verbatim.
+
+MIT License
+
+Copyright (c) 2017 Jason Dent
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.

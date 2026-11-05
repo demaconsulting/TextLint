@@ -48,15 +48,23 @@ public static class FileSelector
     ///     The directory walk is synchronous because the underlying matcher is, and wrapping it in a
     ///     background task would only hide the blocking. Side effects: reads directory listings
     ///     beneath <paramref name="rootDirectory"/>; no file is opened. The result is a snapshot.
+    ///     A root that is missing or unreadable is reported (see the exceptions below). Below the root,
+    ///     a subdirectory that no longer exists when it is listed is treated by the matcher as empty, and
+    ///     any other failure to list a subdirectory propagates.
     ///     The pattern lists are only read during the call and must not be changed by another
-    ///     thread while it runs.
+    ///     thread while it runs. Cancellation is cooperative: the walk stops at the next directory or
+    ///     entry after the token is cancelled, so a very large single directory delays it by at most one entry.
     /// </remarks>
-    /// <param name="rootDirectory">The directory that patterns are relative to. Must name an existing directory.</param>
+    /// <param name="rootDirectory">The directory that patterns are relative to. Must name a readable directory.</param>
     /// <param name="includePatterns">The include glob patterns. Must not be null; an empty list selects nothing.</param>
     /// <param name="ignorePatterns">The exclude glob patterns, which win over include patterns. Must not be null.</param>
     /// <param name="enableGlobDot">
     ///     <see langword="true"/> to let wildcards match hidden (dot-prefixed) names; otherwise only
     ///     hidden names written literally in a pattern match.
+    /// </param>
+    /// <param name="cancellationToken">
+    ///     Token that stops the call. It is checked before the root is probed and while the directory tree
+    ///     is walked, before each directory is listed and before each entry of a listing is used.
     /// </param>
     /// <returns>
     ///     The selected files ordered by ordinal relative path, using forward slashes. Empty when
@@ -65,12 +73,23 @@ public static class FileSelector
     /// <exception cref="ArgumentNullException">Thrown when an argument is null.</exception>
     /// <exception cref="ArgumentException">Thrown when <paramref name="rootDirectory"/> is empty or white space.</exception>
     /// <exception cref="DirectoryNotFoundException">Thrown when <paramref name="rootDirectory"/> does not exist.</exception>
+    /// <exception cref="UnauthorizedAccessException">
+    ///     Thrown when the process is not allowed to read <paramref name="rootDirectory"/>; it is not reported as missing.
+    /// </exception>
+    /// <exception cref="IOException">
+    ///     Thrown when <paramref name="rootDirectory"/> cannot be read for another reason, for example when it names a file.
+    /// </exception>
     /// <exception cref="InvalidGlobPatternException">Thrown when a pattern is unsupported or malformed.</exception>
+    /// <exception cref="OperationCanceledException">
+    ///     Thrown when <paramref name="cancellationToken"/> is cancelled before or during the call; no partial
+    ///     result is returned.
+    /// </exception>
     public static IReadOnlyList<SelectedFile> Select(
         string rootDirectory,
         IReadOnlyList<string> includePatterns,
         IReadOnlyList<string> ignorePatterns,
-        bool enableGlobDot = false)
+        bool enableGlobDot = false,
+        CancellationToken cancellationToken = default)
     {
         // Validate the arguments and every pattern before touching the file system, so an invalid
         // pattern is always reported, even when the root directory is also missing
@@ -80,14 +99,54 @@ public static class FileSelector
         var includes = ExpandAll(includePatterns);
         var excludes = ExpandAll(ignorePatterns);
 
-        // Only then probe the root directory
-        var root = new DirectoryInfo(rootDirectory);
-        if (!root.Exists)
-        {
-            throw new DirectoryNotFoundException($"The selection root directory '{rootDirectory}' does not exist.");
-        }
+        // Honor a token that is already cancelled before any directory is read
+        cancellationToken.ThrowIfCancellationRequested();
 
-        return SelectExpanded(new DirectoryInfoWrapper(root), includes, excludes, enableGlobDot);
+        // Only then probe the root directory. Asking whether it exists would report an unreadable
+        // directory as missing, so the directory is read instead and the failure is reported as it is
+        var root = new DirectoryInfo(rootDirectory);
+        ProbeRoot(rootDirectory, root.EnumerateFileSystemInfos);
+
+        return SelectExpanded(new DirectoryInfoWrapper(root), includes, excludes, enableGlobDot, cancellationToken);
+    }
+
+    /// <summary>
+    ///     Reads the first entry of the selection root so a missing or unreadable root is reported as such.
+    /// </summary>
+    /// <remarks>
+    ///     The matcher's directory wrapper treats every failure to list a directory as an empty directory,
+    ///     so without this probe a missing root, or one the process may not read, would silently select
+    ///     nothing. Reading the real directory lets the file system say which failure it is: only a
+    ///     directory-not-found failure becomes <see cref="DirectoryNotFoundException"/>, and every other
+    ///     failure (for example <see cref="UnauthorizedAccessException"/> or a general
+    ///     <see cref="IOException"/>) propagates with its own type. Internal test seam: the enumeration is
+    ///     passed in so tests can supply each failure on every platform. Side effects: reads one directory
+    ///     entry. Stateless and thread-safe.
+    /// </remarks>
+    /// <param name="rootDirectory">The root path as the caller gave it, used in the error message. Must not be null.</param>
+    /// <param name="enumerateRoot">Lists the root directory. Must not be null.</param>
+    /// <exception cref="ArgumentNullException">Thrown when an argument is null.</exception>
+    /// <exception cref="DirectoryNotFoundException">
+    ///     Thrown when the listing fails because the directory does not exist; the original failure is the inner exception.
+    /// </exception>
+    /// <exception cref="UnauthorizedAccessException">Propagated when the process may not read the directory.</exception>
+    /// <exception cref="IOException">Propagated when the directory cannot be read for any other reason.</exception>
+    internal static void ProbeRoot(string rootDirectory, Func<IEnumerable<FileSystemInfo>> enumerateRoot)
+    {
+        ArgumentNullException.ThrowIfNull(rootDirectory);
+        ArgumentNullException.ThrowIfNull(enumerateRoot);
+
+        try
+        {
+            // The listing is lazy, so the first step is what reaches the file system
+            using var entries = enumerateRoot().GetEnumerator();
+            _ = entries.MoveNext();
+        }
+        catch (DirectoryNotFoundException exception)
+        {
+            throw new DirectoryNotFoundException(
+                $"The selection root directory '{rootDirectory}' does not exist.", exception);
+        }
     }
 
     /// <summary>
@@ -95,27 +154,31 @@ public static class FileSelector
     /// </summary>
     /// <remarks>
     ///     Internal test seam: it lets tests supply a directory that records which directories are
-    ///     enumerated, which proves pruning deterministically instead of by timing. Stateless and thread-safe.
+    ///     enumerated, which proves pruning deterministically instead of by timing, and that cancels the
+    ///     token while the walk is running, which proves cancellation deterministically. Stateless and thread-safe.
     /// </remarks>
     /// <param name="root">The directory that patterns are relative to. Must not be null.</param>
     /// <param name="includePatterns">The include glob patterns. Must not be null.</param>
     /// <param name="ignorePatterns">The exclude glob patterns. Must not be null.</param>
     /// <param name="enableGlobDot">Whether wildcards may match hidden (dot-prefixed) names.</param>
+    /// <param name="cancellationToken">Token that stops the walk.</param>
     /// <returns>The selected files ordered by ordinal relative path, using forward slashes.</returns>
     /// <exception cref="ArgumentNullException">Thrown when an argument is null.</exception>
     /// <exception cref="InvalidGlobPatternException">Thrown when a pattern is unsupported or malformed.</exception>
+    /// <exception cref="OperationCanceledException">Thrown when <paramref name="cancellationToken"/> is cancelled.</exception>
     internal static IReadOnlyList<SelectedFile> Select(
         DirectoryInfoBase root,
         IReadOnlyList<string> includePatterns,
         IReadOnlyList<string> ignorePatterns,
-        bool enableGlobDot)
+        bool enableGlobDot,
+        CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(root);
         ArgumentNullException.ThrowIfNull(includePatterns);
         ArgumentNullException.ThrowIfNull(ignorePatterns);
 
         // Validate and expand every pattern first so a bad pattern fails even when nothing is selected
-        return SelectExpanded(root, ExpandAll(includePatterns), ExpandAll(ignorePatterns), enableGlobDot);
+        return SelectExpanded(root, ExpandAll(includePatterns), ExpandAll(ignorePatterns), enableGlobDot, cancellationToken);
     }
 
     /// <summary>
@@ -129,21 +192,25 @@ public static class FileSelector
     /// <param name="includes">The expanded include patterns. Must not be null.</param>
     /// <param name="excludes">The expanded exclude patterns. Must not be null.</param>
     /// <param name="enableGlobDot">Whether wildcards may match hidden (dot-prefixed) names.</param>
+    /// <param name="cancellationToken">Token that stops the walk.</param>
     /// <returns>The selected files ordered by ordinal relative path, using forward slashes.</returns>
     private static IReadOnlyList<SelectedFile> SelectExpanded(
         DirectoryInfoBase root,
         List<string> includes,
         List<string> excludes,
-        bool enableGlobDot)
+        bool enableGlobDot,
+        CancellationToken cancellationToken)
     {
         if (includes.Count == 0)
         {
             return [];
         }
 
-        // Walk through a hidden-directory filter unless wildcards may match hidden names
+        // Walk through a hidden-directory filter unless wildcards may match hidden names, and through a
+        // view that stops the walk on cancellation, because the matcher cannot be cancelled itself
         var matcher = BuildMatcher(includes, excludes);
-        DirectoryInfoBase walked = enableGlobDot ? root : new HiddenFilteringDirectory(root, includes);
+        DirectoryInfoBase filtered = enableGlobDot ? root : new HiddenFilteringDirectory(root, includes);
+        var walked = new CancellableDirectory(filtered, cancellationToken);
         IEnumerable<string> paths = matcher.Execute(walked).Files.Select(match => match.Path);
 
         // Decide hidden files exactly, now that the matcher has found every candidate

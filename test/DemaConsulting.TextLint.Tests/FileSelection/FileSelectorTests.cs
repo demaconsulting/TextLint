@@ -49,7 +49,7 @@ public class FileSelectorTests
         string[] files,
         string[]? ignorePaths = null,
         bool enableGlobDot = false) =>
-        [.. FileSelector.Select(temp.FullPath, files, ignorePaths ?? [], enableGlobDot).Select(file => file.RelativePath)];
+        [.. FileSelector.Select(temp.FullPath, files, ignorePaths ?? [], enableGlobDot, TestContext.Current.CancellationToken).Select(file => file.RelativePath)];
 
     /// <summary>
     ///     Selects files from a temporary tree through a recording directory.
@@ -62,7 +62,7 @@ public class FileSelectorTests
     {
         // Wrap the real directory so every enumeration is observed
         var recording = new RecordingDirectoryInfo(new DirectoryInfoWrapper(new DirectoryInfo(temp.FullPath)));
-        _ = FileSelector.Select(recording, files, ignorePaths ?? [], enableGlobDot: false);
+        _ = FileSelector.Select(recording, files, ignorePaths ?? [], enableGlobDot: false, TestContext.Current.CancellationToken);
         return recording.EnumeratedDirectories;
     }
 
@@ -190,6 +190,74 @@ public class FileSelectorTests
     }
 
     /// <summary>
+    ///     Test that a token that is already cancelled is honored before any directory is read.
+    /// </summary>
+    [Fact]
+    public void FileSelector_Select_TokenAlreadyCancelled_ThrowsOperationCanceled()
+    {
+        // Arrange: a valid tree and a token that is cancelled before the call
+        using var temp = new TempDirectory();
+        temp.CreateFile("README.md");
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+
+        // Act / Assert: the call throws and returns no result
+        Assert.Throws<OperationCanceledException>(
+            () => FileSelector.Select(temp.FullPath, ["**/*.md"], [], false, cancellation.Token));
+    }
+
+    /// <summary>
+    ///     Test that cancelling while the walk is running stops it at the next entry, whether or not wildcards may match hidden names.
+    /// </summary>
+    /// <param name="enableGlobDot">Whether wildcards may match hidden names.</param>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void FileSelector_Select_CancelledDuringWalk_StopsWalkAndThrows(bool enableGlobDot)
+    {
+        // Arrange: three directories with a file each, and a recording directory that cancels the token as soon as
+        // the walk starts to read the first subdirectory
+        using var temp = new TempDirectory();
+        temp.CreateFile("a/one.md");
+        temp.CreateFile("b/two.md");
+        temp.CreateFile("c/three.md");
+        using var cancellation = new CancellationTokenSource();
+        var recording = new RecordingDirectoryInfo(
+            new DirectoryInfoWrapper(new DirectoryInfo(temp.FullPath)),
+            relative => { if (relative.Length > 0) { cancellation.Cancel(); } });
+
+        // Act: select through the seam
+        var exception = Record.Exception(
+            () => FileSelector.Select(recording, ["**/*.md"], [], enableGlobDot, cancellation.Token));
+
+        // Assert: the walk was cancelled, and it read only the root and the first subdirectory, not the other two
+        Assert.IsType<OperationCanceledException>(exception);
+        Assert.Equal(2, recording.EnumeratedDirectories.Count);
+        Assert.Equal(string.Empty, recording.EnumeratedDirectories[0]);
+    }
+
+    /// <summary>
+    ///     Test that a token that is never cancelled does not change the selection.
+    /// </summary>
+    [Fact]
+    public void FileSelector_Select_TokenNotCancelled_ReturnsSelection()
+    {
+        // Arrange: a tree and a live token
+        using var temp = new TempDirectory();
+        temp.CreateFile("a/one.md");
+        temp.CreateFile("b/two.md");
+        using var cancellation = new CancellationTokenSource();
+
+        // Act: select with the token
+        var paths = FileSelector.Select(temp.FullPath, ["**/*.md"], [], false, cancellation.Token)
+            .Select(file => file.RelativePath)
+            .ToArray();
+
+        // Assert: both files are selected
+        Assert.Equal(["a/one.md", "b/two.md"], paths);
+    }
+
+    /// <summary>
     ///     Test that a missing root directory is rejected.
     /// </summary>
     [Fact]
@@ -200,7 +268,117 @@ public class FileSelectorTests
         var missing = Path.Combine(temp.FullPath, "missing");
 
         // Act / Assert: selecting from it throws
-        Assert.Throws<DirectoryNotFoundException>(() => FileSelector.Select(missing, ["**/*.md"], []));
+        Assert.Throws<DirectoryNotFoundException>(
+            () => FileSelector.Select(missing, ["**/*.md"], [], false, TestContext.Current.CancellationToken));
+    }
+
+    /// <summary>
+    ///     Test that a missing root is reported even when no include pattern would read it.
+    /// </summary>
+    [Fact]
+    public void FileSelector_Select_RootDirectoryMissingNoIncludes_ThrowsDirectoryNotFound()
+    {
+        // Arrange: a root that does not exist and an empty include list
+        using var temp = new TempDirectory();
+        var missing = Path.Combine(temp.FullPath, "missing");
+
+        // Act / Assert: the root is still probed, so the caller error is not hidden by the empty selection
+        Assert.Throws<DirectoryNotFoundException>(
+            () => FileSelector.Select(missing, [], [], false, TestContext.Current.CancellationToken));
+    }
+
+    /// <summary>
+    ///     Test that a root that names a file is reported as an input/output failure and not as a selection.
+    /// </summary>
+    [Fact]
+    public void FileSelector_Select_RootIsFile_ThrowsIOException()
+    {
+        // Arrange: a root path that names a file
+        using var temp = new TempDirectory();
+        temp.CreateFile("file.txt");
+        var file = Path.Combine(temp.FullPath, "file.txt");
+
+        // Act / Assert: the file system's failure is reported (a directory-not-found failure is also an IOException)
+        Assert.ThrowsAny<IOException>(
+            () => FileSelector.Select(file, ["**/*.md"], [], false, TestContext.Current.CancellationToken));
+    }
+
+    /// <summary>
+    ///     Test that an existing empty root selects nothing without failing.
+    /// </summary>
+    [Fact]
+    public void FileSelector_Select_EmptyRootDirectory_ReturnsEmpty()
+    {
+        // Arrange: an existing directory with no entries
+        using var temp = new TempDirectory();
+
+        // Act: select from it
+        var paths = SelectPaths(temp, ["**/*.md"]);
+
+        // Assert: the probe of an empty directory is not a failure
+        Assert.Empty(paths);
+    }
+
+    /// <summary>
+    ///     Test that a directory-not-found failure from the probe is reported as a missing root that names the root.
+    /// </summary>
+    [Fact]
+    public void FileSelector_ProbeRoot_DirectoryNotFound_ThrowsDirectoryNotFoundNamingRoot()
+    {
+        // Arrange: a listing that fails because the directory does not exist
+        var original = new DirectoryNotFoundException("gone");
+
+        // Act: probe through the failing listing
+        var exception = Assert.Throws<DirectoryNotFoundException>(
+            () => FileSelector.ProbeRoot("some/root", () => throw original));
+
+        // Assert: the message names the root and the original failure is kept
+        Assert.Contains("some/root", exception.Message, StringComparison.Ordinal);
+        Assert.Same(original, exception.InnerException);
+    }
+
+    /// <summary>
+    ///     Test that an access failure from the probe is not reported as a missing root.
+    /// </summary>
+    [Fact]
+    public void FileSelector_ProbeRoot_AccessDenied_PropagatesUnauthorizedAccess()
+    {
+        // Arrange: a listing that fails because the process may not read the directory
+        var original = new UnauthorizedAccessException("denied");
+
+        // Act / Assert: the same exception reaches the caller, not a DirectoryNotFoundException
+        var exception = Assert.Throws<UnauthorizedAccessException>(
+            () => FileSelector.ProbeRoot("some/root", () => throw original));
+        Assert.Same(original, exception);
+    }
+
+    /// <summary>
+    ///     Test that a failure raised while stepping through the listing is reported as it is.
+    /// </summary>
+    [Fact]
+    public void FileSelector_ProbeRoot_LazyListingFails_PropagatesIOException()
+    {
+        // Arrange: a listing that fails only when its first entry is requested, as file system listings do
+        static IEnumerable<FileSystemInfo> FailingListing() =>
+            Enumerable.Range(0, 1).Select<int, FileSystemInfo>(_ => throw new IOException("device error"));
+
+        // Act / Assert: the input/output failure is neither swallowed nor turned into a missing root
+        var exception = Assert.Throws<IOException>(() => FileSelector.ProbeRoot("some/root", FailingListing));
+        Assert.IsNotType<DirectoryNotFoundException>(exception);
+    }
+
+    /// <summary>
+    ///     Test that the probe rejects null arguments.
+    /// </summary>
+    [Fact]
+    public void FileSelector_ProbeRoot_NullArguments_ThrowsArgumentNullException()
+    {
+        // Arrange: a valid listing and root
+        static IEnumerable<FileSystemInfo> Listing() => [];
+
+        // Act / Assert: each null argument is rejected
+        Assert.Throws<ArgumentNullException>(() => FileSelector.ProbeRoot(null!, Listing));
+        Assert.Throws<ArgumentNullException>(() => FileSelector.ProbeRoot("some/root", null!));
     }
 
     /// <summary>
@@ -215,7 +393,7 @@ public class FileSelectorTests
 
         // Act / Assert: the pattern error wins because patterns are validated before the directory is read
         var exception = Assert.Throws<InvalidGlobPatternException>(
-            () => FileSelector.Select(missing, ["**/*.md"], ["file?.md"]));
+            () => FileSelector.Select(missing, ["**/*.md"], ["file?.md"], false, TestContext.Current.CancellationToken));
         Assert.Equal("file?.md", exception.Pattern);
     }
 
@@ -229,7 +407,8 @@ public class FileSelectorTests
         using var temp = new TempDirectory();
 
         // Act / Assert: null include patterns throw
-        Assert.Throws<ArgumentNullException>(() => FileSelector.Select(temp.FullPath, null!, []));
+        Assert.Throws<ArgumentNullException>(
+            () => FileSelector.Select(temp.FullPath, null!, [], false, TestContext.Current.CancellationToken));
     }
 
     /// <summary>
@@ -242,7 +421,8 @@ public class FileSelectorTests
         using var temp = new TempDirectory();
 
         // Act / Assert: null ignore patterns throw
-        Assert.Throws<ArgumentNullException>(() => FileSelector.Select(temp.FullPath, ["**/*.md"], null!));
+        Assert.Throws<ArgumentNullException>(
+            () => FileSelector.Select(temp.FullPath, ["**/*.md"], null!, false, TestContext.Current.CancellationToken));
     }
 
     /// <summary>
@@ -254,7 +434,8 @@ public class FileSelectorTests
         // Arrange: no setup required
 
         // Act / Assert: a null root throws
-        Assert.Throws<ArgumentNullException>(() => FileSelector.Select((string)null!, ["**/*.md"], []));
+        Assert.Throws<ArgumentNullException>(
+            () => FileSelector.Select((string)null!, ["**/*.md"], [], false, TestContext.Current.CancellationToken));
     }
 
     /// <summary>
@@ -266,7 +447,8 @@ public class FileSelectorTests
         // Arrange: no setup required
 
         // Act / Assert: an empty root throws ArgumentException (not the derived null exception)
-        var exception = Assert.ThrowsAny<ArgumentException>(() => FileSelector.Select(string.Empty, ["**/*.md"], []));
+        var exception = Assert.ThrowsAny<ArgumentException>(
+            () => FileSelector.Select(string.Empty, ["**/*.md"], [], false, TestContext.Current.CancellationToken));
         Assert.IsNotType<ArgumentNullException>(exception);
     }
 
@@ -281,7 +463,7 @@ public class FileSelectorTests
         var created = temp.CreateFile("docs/guide.md");
 
         // Act: select it
-        var file = Assert.Single(FileSelector.Select(temp.FullPath, ["**/*.md"], []));
+        var file = Assert.Single(FileSelector.Select(temp.FullPath, ["**/*.md"], [], false, TestContext.Current.CancellationToken));
 
         // Assert: the full path is the absolute operating-system path of the file
         Assert.Equal(created, file.FullPath);
@@ -562,7 +744,7 @@ public class FileSelectorTests
         temp.CreateFile("docs/sub/guide.md");
 
         // Act: select it
-        var file = Assert.Single(FileSelector.Select(temp.FullPath, ["**/*.md"], []));
+        var file = Assert.Single(FileSelector.Select(temp.FullPath, ["**/*.md"], [], false, TestContext.Current.CancellationToken));
 
         // Assert: the relative path uses forward slashes on every platform
         Assert.Equal("docs/sub/guide.md", file.RelativePath);
@@ -578,7 +760,8 @@ public class FileSelectorTests
         using var temp = new TempDirectory();
 
         // Act / Assert: selection throws an exception that names the pattern
-        var exception = Assert.Throws<InvalidGlobPatternException>(() => FileSelector.Select(temp.FullPath, ["!**/*.md"], []));
+        var exception = Assert.Throws<InvalidGlobPatternException>(
+            () => FileSelector.Select(temp.FullPath, ["!**/*.md"], [], false, TestContext.Current.CancellationToken));
         Assert.Equal("!**/*.md", exception.Pattern);
     }
 
@@ -592,8 +775,10 @@ public class FileSelectorTests
         using var temp = new TempDirectory();
 
         // Act / Assert: each is rejected as an absolute path, and the exception exposes the pattern
-        var include = Assert.Throws<InvalidGlobPatternException>(() => FileSelector.Select(temp.FullPath, ["C:/docs/**"], []));
-        var ignore = Assert.Throws<InvalidGlobPatternException>(() => FileSelector.Select(temp.FullPath, ["**/*.md"], ["//server/share/**"]));
+        var include = Assert.Throws<InvalidGlobPatternException>(
+            () => FileSelector.Select(temp.FullPath, ["C:/docs/**"], [], false, TestContext.Current.CancellationToken));
+        var ignore = Assert.Throws<InvalidGlobPatternException>(
+            () => FileSelector.Select(temp.FullPath, ["**/*.md"], ["//server/share/**"], false, TestContext.Current.CancellationToken));
         Assert.Multiple(
             () => Assert.Equal("C:/docs/**", include.Pattern),
             () => Assert.Contains("absolute paths", include.Message),
@@ -629,7 +814,8 @@ public class FileSelectorTests
         using var temp = new TempDirectory();
 
         // Act / Assert: selection throws an exception that names the pattern
-        var exception = Assert.Throws<InvalidGlobPatternException>(() => FileSelector.Select(temp.FullPath, [], ["docs\\old"]));
+        var exception = Assert.Throws<InvalidGlobPatternException>(
+            () => FileSelector.Select(temp.FullPath, [], ["docs\\old"], false, TestContext.Current.CancellationToken));
         Assert.Equal("docs\\old", exception.Pattern);
     }
 }

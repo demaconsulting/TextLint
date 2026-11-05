@@ -19,6 +19,8 @@ package TextLint {
         part configuration : ConfigurationSubsystem;
         part fileSelection : FileSelectionSubsystem;
         part dictionaries : DictionariesSubsystem;
+        part textScanning : TextScanningSubsystem;
+        part spellChecking : SpellCheckingSubsystem;
 
         // Runtime OTS dependencies: both ship as package dependencies of the library.
         part yamlDotNet : YamlDotNet;
