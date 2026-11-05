@@ -86,6 +86,11 @@ public class CspellParityTests
     private const string UnsupportedDirectivesCorpus = "unsupported-directives";
 
     /// <summary>
+    ///     The corpus of directive names that cspell's patterns end differently from its directive reader.
+    /// </summary>
+    private const string DirectiveBoundariesCorpus = "directive-boundaries";
+
+    /// <summary>
     ///     The suffix of the name of the recording that cspell made for the CRLF variant of a corpus.
     /// </summary>
     private const string CrLfRecordingSuffix = ".crlf";
@@ -307,6 +312,7 @@ public class CspellParityTests
         // Act: check them
         var divergences = await CheckCorpusAsync(DivergencesCorpus);
         var unsupported = await CheckCorpusAsync(UnsupportedDirectivesCorpus);
+        var boundaries = await CheckCorpusAsync(DirectiveBoundariesCorpus);
 
         // Assert: the differences are exactly the listed ones, every listed difference belongs to a corpus, and
         // every corpus has a settings file and recorded output
@@ -317,6 +323,7 @@ public class CspellParityTests
         Assert.Multiple(
             () => AssertMatchesRecorded(DivergencesCorpus, divergences, DivergencesCorpus),
             () => AssertMatchesRecorded(UnsupportedDirectivesCorpus, unsupported, UnsupportedDirectivesCorpus),
+            () => AssertMatchesRecorded(DirectiveBoundariesCorpus, boundaries, DirectiveBoundariesCorpus),
             () => Assert.All(listedCorpora, corpus => Assert.Contains(corpus, corpora)),
             () => Assert.All(
                 corpora,

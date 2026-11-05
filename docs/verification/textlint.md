@@ -513,7 +513,8 @@ apostrophes at the edges of words is checked; the findings equal cspell's record
 `TextLint_CspellParity_PossessiveCorpus_MatchesRecordedCspellOutput`.
 
 **TextLint_CspellParity_KnownDivergences_AreExactlyTheDocumentedOnes**: The corpora that exist only to show the
-deliberate differences are checked; the findings that only TextLint reports and the findings that only cspell reports
-are exactly the ones listed with their reasons in the divergences file, every listed difference belongs to a corpus,
-and every corpus has a settings file and recorded output. This scenario is tested by
-`TextLint_CspellParity_KnownDivergences_AreExactlyTheDocumentedOnes`.
+deliberate differences (the heuristic splitter and dictionaries, the unsupported directives, and the directive names
+that cspell's range patterns and its directive reader end differently) are checked; the findings that only TextLint
+reports and the findings that only cspell reports are exactly the ones listed with their reasons in the divergences
+file, every listed difference belongs to a corpus, and every corpus has a settings file and recorded output. This
+scenario is tested by `TextLint_CspellParity_KnownDivergences_AreExactlyTheDocumentedOnes`.

@@ -30,8 +30,6 @@ zorbW visible
 
 zorbX visible after a blank next line
 xcspell:disable zorbY visible: not a directive
-cspell:disabled zorbZ visible: not a directive
-cspell:disable-lines zorbAA visible: not a directive
 // cspell::disable
 zorbBB hidden by double colon
 // cspell::enable

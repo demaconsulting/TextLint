@@ -34,3 +34,20 @@ unsupported-directives | + | 2:11 ignoreRegExp directive | The ignoreRegExp dire
 unsupported-directives | + | 3:1 zorbre | cspell ignores the text the expression matches; TextLint reports the word
 unsupported-directives | + | 3:11 zorbre | The same for the second word
 unsupported-directives | + | 4:11 dictionary directive | The dictionary directive is reported, not applied
+
+# --- Names that begin like a directive but are not one. cspell does nothing for the disable forms and hides the rest of
+# --- the line for the ignore, word, and ignoreRegExp forms; TextLint hides nothing for any of them and reports the name.
+directive-boundaries | + | 14:11 disabled directive | A name that begins like disable is reported
+directive-boundaries | + | 15:11 disable-lines directive | The same for a longer name
+directive-boundaries | + | 16:11 disable-foo directive | The same for a hyphenated name
+directive-boundaries | + | 17:11 disable_x directive | The same for a name with an underscore
+directive-boundaries | + | 18:11 wordsmith directive | cspell hides the rest of the line; TextLint reports the name
+directive-boundaries | + | 18:21 zorb | The first word that cspell hides after the name
+directive-boundaries | + | 18:27 zorb | The second word that cspell hides after the name
+directive-boundaries | + | 20:11 ignored directive | cspell hides the rest of the line; TextLint reports the name
+directive-boundaries | + | 20:19 zorb | The word that cspell hides after the name
+directive-boundaries | + | 22:11 words-x directive | cspell hides the rest of the line; TextLint reports the name
+directive-boundaries | + | 22:19 zorb | The word that cspell hides after the name
+directive-boundaries | + | 25:11 ignoreRegExpx directive | cspell hides the rest of the line; TextLint reports the name
+directive-boundaries | + | 25:20 Expx | The name is ordinary text, so its last piece is checked as well
+directive-boundaries | + | 25:25 zorb | The word that cspell hides after the name

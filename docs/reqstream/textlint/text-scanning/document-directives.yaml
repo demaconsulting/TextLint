@@ -139,28 +139,70 @@ sections:
 
               - id: TextLint-TextScanning-DocumentDirectives-NonDirectives
                 title: >-
-                  DocumentDirectives shall ignore text that only resembles a directive (a directive name with
-                  other letters, digits, an underscore, or a hyphen after it, a prefix preceded by a word
-                  character, a prefix without a colon, and a name it does not know).
+                  DocumentDirectives shall ignore text that only resembles a directive (a prefix preceded by a
+                  word character, a prefix without a colon, a prefix without a name, and a name that does not
+                  begin with a directive keyword).
                 justification: |
-                  A word such as disabled, or a prefix inside another word, is ordinary text. Treating it as
-                  a directive would hide text the author never meant to hide.
+                  A prefix inside another word, or a prefix with nothing recognizable after it, is ordinary
+                  text. Treating it as a directive would hide text the author never meant to hide.
                 tests:
                   - DocumentDirectives_Scan_TextResemblingDirective_IsNotDirective
                   - DocumentDirectives_Scan_KeywordContinuedByLetters_AddsNoWords
+
+              - id: TextLint-TextScanning-DocumentDirectives-HyphenatedRangeForms
+                title: >-
+                  DocumentDirectives shall treat a disable-line, disable-next, or enable keyword that is
+                  continued by a hyphen (such as disable-next-foo) as that keyword, as cspell does, and shall
+                  not report it as unknown.
+                justification: |
+                  cspell hides text for these forms. If this library hid the same text but also reported the
+                  directive as unknown, or reported nothing while hiding, the report and the effect would
+                  disagree, and a migrated document would not be checked the same way.
+                tests:
+                  - DocumentDirectives_Scan_HyphenatedRangeForm_HidesLikeCspellAndIsNotReported
+                  - DocumentDirectives_Scan_EnableContinuedByHyphen_ClosesBlockAndIsNotReported
+
+              - id: TextLint-TextScanning-DocumentDirectives-NearMissNames
+                title: >-
+                  DocumentDirectives shall report, at the range of its name, a name that begins with a
+                  directive keyword but is not a directive (such as disabled, disable-foo, ignored, or
+                  wordsmith), shall exclude no text and add no word for it, and shall not report it inside a
+                  region where checking is switched off.
+                justification: |
+                  An author who writes such a name meant a directive, most likely misspelled. Hiding text for it,
+                  or accepting it without a word, would leave the author believing it is in force.
+                tests:
+                  - DocumentDirectives_Scan_NameBeginningLikeDirective_IsReportedAndHasNoEffect
+                  - DocumentDirectives_Scan_NameBeginningLikeDirectiveInsideBlock_IsNotReported
+                  - DocumentDirectives_Scan_KeywordContinuedByLetters_AddsNoWords
+
+              - id: TextLint-TextScanning-DocumentDirectives-PrefixReading
+                title: >-
+                  DocumentDirectives shall read words and unsupported directives only from the first prefix of
+                  a line and only for the prefixes that cspell's directive reader accepts, while the range
+                  directives act wherever they occur.
+                justification: |
+                  cspell reads one directive per line, and a document that mixes directives on one line must
+                  add the same words and report the same directives as it does there.
+                tests:
+                  - DocumentDirectives_Scan_SecondPrefixOnLine_IsNotReadForWords
+                  - DocumentDirectives_Scan_RangeOnlyPrefix_HidesButIsNotRead
+                  - DocumentDirectives_Scan_EnablePrecededByLetter_DoesNotCloseBlock
 
               - id: TextLint-TextScanning-DocumentDirectives-UnsupportedDirectives
                 title: >-
                   DocumentDirectives shall report, at the range of its name, each directive that cspell
                   supports and this library does not (flag and forbid, locale and language, dictionary,
                   ignoreRegExp, includeRegExp, and the compound-word and case-sensitivity switches), in the
-                  order written, without otherwise excluding text or adding words.
+                  order written, without otherwise adding words, and shall exclude the text of an ignoreRegExp
+                  directive, which is an expression and not prose.
                 justification: |
                   An author who writes a directive believes it is in force. A directive that silently does
                   nothing would hide a difference from cspell, so it is reported where it is written.
                 tests:
                   - DocumentDirectives_Scan_UnsupportedDirective_IsReportedAtItsName
                   - DocumentDirectives_Scan_UnsupportedDirective_HasNoOtherEffect
+                  - DocumentDirectives_Scan_IgnoreRegExpWithArgument_HidesItsLineAndIsReported
                   - DocumentDirectives_Scan_UnsupportedDirectiveAfterSurrogatePair_PositionCountsUtf16Units
                   - DocumentDirectives_Scan_SeveralUnsupportedDirectives_AreReportedInTextOrder
 

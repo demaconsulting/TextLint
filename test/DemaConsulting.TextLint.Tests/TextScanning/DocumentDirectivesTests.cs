@@ -20,6 +20,8 @@
 
 using DemaConsulting.TextLint.TextScanning;
 
+// cspell:ignore enablex nextline
+
 namespace DemaConsulting.TextLint.Tests.TextScanning;
 
 /// <summary>
@@ -654,11 +656,6 @@ public class DocumentDirectivesTests
     /// </summary>
     /// <param name="text">A text that is not a directive.</param>
     [Theory]
-    [InlineData(Cspell + "disabled")]
-    [InlineData(Cspell + "disable-lines")]
-    [InlineData(Cspell + "disable-next" + "line")]
-    [InlineData(Cspell + "disable-foo")]
-    [InlineData(Cspell + "disable_x")]
     [InlineData("x" + Cspell + "disable")]
     [InlineData("x" + Cspell + "disable-line")]
     [InlineData("my_" + Cspell + "disable")]
@@ -668,10 +665,6 @@ public class DocumentDirectivesTests
     [InlineData(Cspell)]
     [InlineData(Cspell + "enable")]
     [InlineData(Cspell + "mystery")]
-    [InlineData(Cspell + "locals en")]
-    [InlineData(Cspell + "locales en")]
-    [InlineData(Cspell + "locale-x en")]
-    [InlineData(Cspell + "languages en")]
     public void DocumentDirectives_Scan_TextResemblingDirective_IsNotDirective(string text)
     {
         // Arrange: the text is passed in by the theory data
@@ -681,6 +674,173 @@ public class DocumentDirectivesTests
 
         // Assert: the scan is the shared empty scan
         Assert.Same(DirectiveScan.Empty, scan);
+    }
+
+    /// <summary>
+    ///     Test that the hyphenated forms that cspell treats as a range directive hide text like it and are not reported.
+    /// </summary>
+    /// <param name="name">The directive name as written.</param>
+    /// <param name="hidden">The text that the directive hides, from its prefix to the end of the hidden text.</param>
+    [Theory]
+    [InlineData("disable-next-foo", Cspell + "disable-next-foo beta\ngamma")]
+    [InlineData("disable-next-line-foo", Cspell + "disable-next-line-foo beta\ngamma")]
+    [InlineData("disable-line-foo", "alpha " + Cspell + "disable-line-foo beta")]
+    public void DocumentDirectives_Scan_HyphenatedRangeForm_HidesLikeCspellAndIsNotReported(string name, string hidden)
+    {
+        // Arrange: a directive that continues a range keyword with a hyphen, followed by a second line
+        var text = "alpha " + Cspell + name + " beta\ngamma\ndelta";
+
+        // Act: scan the text
+        var scan = DocumentDirectives.Scan(text);
+
+        // Assert: the text is hidden as for the range keyword, and the directive is not reported as unknown
+        Assert.Equal([hidden], Excluded(text));
+        Assert.Empty(scan.UnsupportedDirectives);
+    }
+
+    /// <summary>
+    ///     Test that an enable keyword continued by a hyphen closes the block, as it does in cspell, and is not reported.
+    /// </summary>
+    [Fact]
+    public void DocumentDirectives_Scan_EnableContinuedByHyphen_ClosesBlockAndIsNotReported()
+    {
+        // Arrange: a block closed by an enable directive that continues with a hyphen
+        var text = Lines("\n", Cspell + "disable", "hidden", Cspell + "enable-foo visible");
+
+        // Act: scan the text
+        var scan = DocumentDirectives.Scan(text);
+
+        // Assert: the block ends after the enable keyword and nothing is reported
+        Assert.Equal([Between(text, Cspell + "disable", Cspell + "enable")], Excluded(text));
+        Assert.Empty(scan.UnsupportedDirectives);
+    }
+
+    /// <summary>
+    ///     Test that a name that only begins like a directive hides nothing, adds no words, and is reported at its name.
+    /// </summary>
+    /// <param name="name">The name as written.</param>
+    [Theory]
+    [InlineData("disabled")]
+    [InlineData("disable-lines")]
+    [InlineData("disable-nextline")]
+    [InlineData("disable-foo")]
+    [InlineData("disable_x")]
+    [InlineData("enablex")]
+    [InlineData("ignored")]
+    [InlineData("ignore_x")]
+    [InlineData("wordsmith")]
+    [InlineData("words-x")]
+    [InlineData("word-x")]
+    [InlineData("flagged")]
+    [InlineData("locals")]
+    [InlineData("locales")]
+    [InlineData("locale-x")]
+    [InlineData("languages")]
+    public void DocumentDirectives_Scan_NameBeginningLikeDirective_IsReportedAndHasNoEffect(string name)
+    {
+        // Arrange: a line that holds the name and a word after it, and a second line
+        var text = "alpha " + Cspell + name + " beta\ngamma";
+
+        // Act: scan the text
+        var scan = DocumentDirectives.Scan(text);
+
+        // Assert: the name is reported, no text is hidden, and no word is added
+        Assert.Equal([name], Unsupported(text));
+        Assert.Empty(scan.ExcludedRanges);
+        Assert.Empty(scan.IgnoredWords);
+        Assert.Empty(scan.Words);
+    }
+
+    /// <summary>
+    ///     Test that a name that begins like a directive is not reported inside a disabled region.
+    /// </summary>
+    [Fact]
+    public void DocumentDirectives_Scan_NameBeginningLikeDirectiveInsideBlock_IsNotReported()
+    {
+        // Arrange: such a name between a disable and an enable directive
+        var text = Lines("\n", Cspell + "disable", Cspell + "disabled", Cspell + "enable");
+
+        // Act: scan the text
+        var scan = DocumentDirectives.Scan(text);
+
+        // Assert: only the block is recorded
+        Assert.Empty(scan.UnsupportedDirectives);
+        Assert.Single(scan.ExcludedRanges);
+    }
+
+    /// <summary>
+    ///     Test that an ignoreRegExp directive hides its line, because its text is an expression and not prose, and is reported.
+    /// </summary>
+    [Fact]
+    public void DocumentDirectives_Scan_IgnoreRegExpWithArgument_HidesItsLineAndIsReported()
+    {
+        // Arrange: a directive with an expression
+        var text = "alpha " + Cspell + "ignoreRegExp /beta/\ngamma";
+
+        // Act: scan the text
+        var scan = DocumentDirectives.Scan(text);
+
+        // Assert: the directive from its prefix to its line end is hidden, and its name is reported
+        Assert.Equal([Cspell + "ignoreRegExp /beta/"], Excluded(text));
+        Assert.Equal(["ignoreRegExp"], Unsupported(text));
+        Assert.Empty(scan.Words);
+    }
+
+    /// <summary>
+    ///     Test that a prefix that cspell's range patterns accept but its directive reader does not still hides text and is not read.
+    /// </summary>
+    [Fact]
+    public void DocumentDirectives_Scan_RangeOnlyPrefix_HidesButIsNotRead()
+    {
+        // Arrange: a disable-line and a misspelled directive, both with a prefix that only the range patterns accept
+        var prefix = "cspell-" + "checker:";
+        var hiddenLine = "alpha " + prefix + "disable-line beta";
+        var notReported = "alpha " + prefix + "disabled beta";
+
+        // Act: scan both texts
+        var hiding = DocumentDirectives.Scan(hiddenLine);
+        var reading = DocumentDirectives.Scan(notReported);
+
+        // Assert: the first hides its line; the second is neither hidden nor reported
+        Assert.Equal([hiddenLine], Excluded(hiddenLine));
+        Assert.Same(DirectiveScan.Empty, reading);
+        Assert.Empty(hiding.UnsupportedDirectives);
+    }
+
+    /// <summary>
+    ///     Test that only the first prefix of a line is read for words, as in cspell, while the range directives act everywhere.
+    /// </summary>
+    [Fact]
+    public void DocumentDirectives_Scan_SecondPrefixOnLine_IsNotReadForWords()
+    {
+        // Arrange: an unknown directive followed by an ignore directive on one line, and an ignore directive followed by a words directive
+        var first = Cspell + "mystery " + Cspell + "ignore alpha";
+        var second = Cspell + "ignore alpha " + Cspell + "words beta";
+
+        // Act: scan both texts
+        var firstScan = DocumentDirectives.Scan(first);
+        var secondScan = DocumentDirectives.Scan(second);
+
+        // Assert: the line belongs to its first prefix, so the second directive adds nothing
+        Assert.Empty(firstScan.IgnoredWords);
+        Assert.Equal(["alpha", Cspell + "words", "beta"], secondScan.IgnoredWords.ToArray());
+        Assert.Empty(secondScan.Words);
+    }
+
+    /// <summary>
+    ///     Test that an enable keyword that follows a letter is not a directive and so does not close a block.
+    /// </summary>
+    [Fact]
+    public void DocumentDirectives_Scan_EnablePrecededByLetter_DoesNotCloseBlock()
+    {
+        // Arrange: a block, a prefix that follows a letter, and more text
+        var text = Lines("\n", Cspell + "disable", "x" + Cspell + "enable", "still hidden");
+
+        // Act: scan the text
+        var excluded = Excluded(text);
+
+        // Assert: the block runs to the end of the text
+        Assert.Equal([text], excluded);
     }
 
     /// <summary>

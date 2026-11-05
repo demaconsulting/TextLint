@@ -1,0 +1,26 @@
+zorbA visible line
+// cspell:disable-next-foo zorbB hidden rest of directive line
+zorbC hidden next line
+zorbD visible
+zorbE hidden // cspell:disable-line-foo
+zorbF visible
+// cspell:disable-next-line-foo zorbG hidden
+zorbH hidden next line
+zorbI visible
+// cspell:disable
+zorbJ hidden in block
+// cspell:enable-foo
+zorbK visible after the enable that has a hyphen
+// cspell:disabled zorbL visible
+// cspell:disable-lines zorbM visible
+// cspell:disable-foo zorbN visible
+// cspell:disable_x zorbO visible
+// cspell:wordsmith zorbP zorbQ
+zorbP not added as a word
+// cspell:ignored zorbR
+zorbR not ignored
+// cspell:words-x zorbS
+zorbS not added as a word
+// cspell:mystery zorbT visible
+// cspell:ignoreRegExpx zorbU
+zorbV visible

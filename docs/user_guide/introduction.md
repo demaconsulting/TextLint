@@ -334,12 +334,21 @@ letter case, and the prefix must not follow a letter, digit, or underscore. The 
   with Windows line endings a blank line after a next-line directive is the only line hidden, while with line feeds
   the blank line and the line after it are hidden, as in cspell.
 - `ignore` and `words` apply to the whole document, in any letter case, and the directive's own text is not checked.
-- `disabled`, `disable-lines`, and a prefix inside a longer word (`xcspell:disable`) are not directives.
+- A prefix inside a longer word (`xcspell:disable`), a prefix with no name, and a name that does not begin like a
+  directive (`mystery`) are not directives and are ignored.
+- The forms `disable-next-foo`, `disable-next-line-foo`, `disable-line-foo`, and `enable-foo` (a hyphen after the
+  keyword) work as the keyword, as they do in cspell.
+- A name that only begins like a directive (`disabled`, `disable-lines`, `disable-foo`, `ignored`, `wordsmith`,
+  `words-x`) hides nothing and adds no words, and is **reported**, at the position of its name, so a misspelled
+  directive does not go unnoticed. cspell does the same for the `disable` forms, but for `ignore`, `word`, and
+  `ignoreRegExp` forms it hides the rest of the line, which TextLint does not.
+- Only the first prefix of a line is read for words and unsupported directives, as in cspell.
 - A directive that cspell has and TextLint does not have is **reported**, at the position of its name, as an
   unsupported directive, so you do not believe it is in force: `flag` and `forbid`, `locale` (or its cspell alias
   `local`) and `language`,
   `dictionary` and `dictionaries`, `ignoreRegExp`, `includeRegExp`, and the switches for compound words and case
-  sensitivity. A directive inside a disabled region is not reported, and unknown directive names are ignored.
+  sensitivity. A directive inside a disabled region is not reported, and names that do not begin like a directive
+  are ignored.
 
 ## Differences from cspell
 
@@ -369,6 +378,8 @@ corpora (see the verification of TextLint). These differences are deliberate:
 - **Per-file problems are results.** A file that cannot be read, is binary, is too large, or takes too long to check
   is listed in the result and does not stop the run.
 - **`LocalWords:`** comments are not recognized.
+- **Directive names that only begin like a directive** are reported (see Directives in Comments), and an `enable`
+  keyword whose prefix directly follows a letter does not close a block.
 
 # Library Usage
 

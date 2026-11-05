@@ -112,6 +112,9 @@ sections:
               - TextLint-TextScanning-DocumentDirectives-WordDirectiveText
               - TextLint-TextScanning-DocumentDirectives-Prefixes
               - TextLint-TextScanning-DocumentDirectives-NonDirectives
+              - TextLint-TextScanning-DocumentDirectives-HyphenatedRangeForms
+              - TextLint-TextScanning-DocumentDirectives-NearMissNames
+              - TextLint-TextScanning-DocumentDirectives-PrefixReading
               - TextLint-TextScanning-DocumentDirectives-UnsupportedDirectives
               - TextLint-TextScanning-DocumentDirectives-HiddenUnsupportedDirectives
               - TextLint-TextScanning-DocumentDirectives-NoDirectives

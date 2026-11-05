@@ -24,7 +24,13 @@ N/A - standard test environment.
 - Every ignore and words form adds its words, in order and in their letter case, and the text of the directive is
   excluded.
 - Every prefix, in any letter case, with a colon, two colons, or a space after the colon, is accepted.
-- Text that resembles a directive is not a directive and returns the shared empty scan.
+- Text that resembles a directive (a prefix after a word character, a prefix with no name, a name that does not begin
+  with a directive keyword) is not a directive and returns the shared empty scan.
+- A hyphenated range form (`disable-next-foo`) acts as its keyword and is not reported; a name that only begins like a
+  directive (`disabled`, `ignored`, `wordsmith`) hides nothing, adds nothing, and is reported at its name.
+- Words and unsupported directives are read only from the first readable prefix of a line.
+- The recorded cspell output for the directive-boundaries corpus agrees with the library except for the listed
+  divergences (see the parity corpus verification in the system document).
 - Every unsupported directive family is reported at its name, and one inside a disabled region is not.
 - LF and CRLF give the same results, and positions count UTF-16 code units.
 - A text of one megabyte is scanned completely and a null text is rejected.
@@ -123,10 +129,33 @@ the colon, and with two colons, starts a disable-line directive that excludes th
 **DocumentDirectives_Scan_AnyPrefixForm_StartsWordsDirective**: Each prefix form starts a words directive.
 
 **DocumentDirectives_Scan_TextResemblingDirective_IsNotDirective**:
-Names continued by letters, digits, an underscore, or a
-hyphen, names that only start like a directive (`locals`, `locales`, `languages`), a prefix after a word
-character, a prefix without a colon, an enable alone, a prefix with no name, and an
-unknown name return the empty scan.
+A prefix after a word character, a prefix without a colon, an enable alone, a prefix with no name, and a name
+that does not begin with a directive keyword return the empty scan.
+
+**DocumentDirectives_Scan_HyphenatedRangeForm_HidesLikeCspellAndIsNotReported**: A disable-next, disable-next-line, or
+disable-line keyword continued by a hyphen hides the same text as the keyword and is not reported.
+
+**DocumentDirectives_Scan_EnableContinuedByHyphen_ClosesBlockAndIsNotReported**: An enable keyword continued by a hyphen
+closes the block and is not reported.
+
+**DocumentDirectives_Scan_NameBeginningLikeDirective_IsReportedAndHasNoEffect**: Each of sixteen names that begin like
+a directive (such as disabled, disable-foo, ignored, wordsmith, words-x, locals) is reported at its name, excludes
+nothing, and adds no word.
+
+**DocumentDirectives_Scan_NameBeginningLikeDirectiveInsideBlock_IsNotReported**: Such a name inside a disabled block is
+not reported.
+
+**DocumentDirectives_Scan_IgnoreRegExpWithArgument_HidesItsLineAndIsReported**: An ignoreRegExp directive with an
+argument excludes its text to the end of the line and is reported at its name.
+
+**DocumentDirectives_Scan_RangeOnlyPrefix_HidesButIsNotRead**: A prefix that only the range patterns accept still hides
+a line but a name after it is not reported.
+
+**DocumentDirectives_Scan_SecondPrefixOnLine_IsNotReadForWords**: A second prefix on a line adds no words of its own;
+the words of the first directive include its text.
+
+**DocumentDirectives_Scan_EnablePrecededByLetter_DoesNotCloseBlock**: An enable keyword whose prefix follows a letter
+does not close the block, which runs to the end of the text.
 
 **DocumentDirectives_Scan_UnsupportedDirective_IsReportedAtItsName**: Each unsupported family (flag, forbid, locale
 and its alias local, language, dictionary, ignoreRegExp, includeRegExp, and the compound-word and case-sensitivity

@@ -13,6 +13,8 @@ when it is not.
 
 #### Data Model
 
+<!-- cspell:ignore xcspell cspellchecker -->
+
 `DocumentDirectives` is an `internal static partial` class with no state beyond the generated regular expressions and
 the two prefix words of the search guard. Its result is the immutable `DirectiveScan` (an `internal sealed class`):
 
@@ -41,8 +43,23 @@ underscore, so a prefix glued to the end of another word is not a directive. The
   their word forms), `locale` (also written `local`) and `language`, `dictionary` and `dictionaries`, `ignoreRegExp`,
   `includeRegExp`, and the compound-word and case-sensitivity switches.
 
-Text that merely resembles a directive (`disabled`, `disable-lines`, a prefix inside another word) and unknown names are
-ignored. A directive name must match in full, so a name that only starts like one (`locals`, `locales`) is unknown.
+A name is classified exactly once, and the classification decides both what the directive hides and whether it is
+reported, so the two cannot disagree:
+
+- A name is a directive only where cspell's own patterns end it. `disable-line`, `disable-next`, and `enable` end at
+  any character other than a letter, digit, or underscore, so a hyphen may follow them: `disable-next-line` is the
+  usual form, and `disable-next-foo`, `disable-next-line-foo`, `disable-line-foo`, and `enable-foo` act as the
+  keyword, as in cspell, whose range patterns hide text for them. `disable`, `ignore`, and `words` must not be
+  followed by a hyphen either.
+- A name that begins with a directive keyword but is none of the above (`disabled`, `disable-lines`, `disable-foo`,
+  `ignored`, `wordsmith`, `words-x`, `locals`) hides nothing, adds no words, and is reported like an unsupported
+  directive at its name, because the author meant a directive that is not in force. cspell hides the rest of the
+  line for the `ignore`, `word`, and `ignoreRegExp` forms; this library deliberately does not.
+- A name that does not begin with a directive keyword (`mystery`), a prefix preceded by a word character
+  (`xcspell:disable`), and a prefix without a name are ignored.
+- Only the first prefix of a line is read for words and for unsupported directives, as in cspell; the range
+  directives (disable, enable, disable-line, disable-next) act wherever they occur. The prefixes `cspellchecker` and
+  `cspell-checker` are accepted by cspell's range patterns but not by its directive reader, and are treated the same.
 
 #### Key Methods
 
@@ -50,33 +67,41 @@ ignored. A directive name must match in full, so a name that only starts like on
 
 - _Parameters_: the text.
 - _Algorithm_: (1) rule out a text that cannot hold a directive with a cheap search for the words `spell` and
-  `textlint`; (2) collect the disabled regions of the three disable forms with their patterns; (3) add the text of the
-  `ignore` and `words` directives to the excluded ranges; (4) read every directive line with one pattern, classify its
-  name with another, and either split the listed words into the ignored or document word list, or, for an
-  unsupported directive, record the range of its name unless that position lies inside a disabled region; (5) return
-  `Empty` when nothing was found.
+  `textlint`; (2) find every prefix and classify the name after it with one pattern, which yields the kind of each
+  directive; (3) derive the disabled regions from the kinds: a block from each disable to the next enable with the
+  same prefix, the covered lines of each next-line directive, and the line of each disable-line directive;
+  (4) add the text of the `ignore`, `words`, and `ignoreRegExp` directives to the excluded ranges; (5) read the first
+  readable prefix of each line, splitting the listed words into the ignored or document word list or, for an
+  unsupported directive or a name that begins like a directive, recording the range of its name unless that position
+  lies inside a disabled region; (6) return `Empty` when nothing was found.
 - _Postconditions_: the whole text is scanned, including disabled regions, because a words directive adds its words to
   the document wherever it is, while an unsupported directive inside a disabled region is not reported, because text
   there is not read.
 
 The patterns, and why each is shaped as it is:
 
-- **Disable block**: `disable` then lazily anything up to the same prefix followed by `enable`, or the end of the text.
-  The prefix is captured and repeated with a case-insensitive backreference, which makes pairing by prefix part of the
-  pattern; a block opened with the `spell-checker` prefix is therefore not closed by an enable directive with the
-  `spell` prefix, as in cspell.
-- **Disable next line**: the directive, the rest of its line, one or two line-break characters, and the next line.
+- **Prefix**: the prefix with its colon or colons and the white space after it, not preceded by a letter, digit, or
+  underscore. It finds every prefix, including one inside another directive's line, because cspell's range patterns act
+  on those too. A second, narrower pattern says whether a prefix is one that cspell's directive reader accepts.
+- **Name**: anchored where the name starts, it holds one alternative per kind and is the only place that decides what
+  a directive is. Its alternatives are tried in a fixed order, and the last one matches a name that only begins with a
+  directive keyword.
+- **Disable block**: the block runs from a disable directive to the first later enable directive written with the same
+  prefix (compared without regard to letter case), or to the end of the text; a disable directive inside a block does
+  not start another. A block opened with the `spell-checker` prefix is therefore not closed by an enable directive
+  with the `spell` prefix, as in cspell. Unlike cspell, an enable keyword that directly follows a letter is not a
+  directive and does not close a block.
+- **Disable next line**: matched after the directive's name: the rest of its line, one or two line-break characters,
+  and the next line.
   Allowing a second line-break character lets CRLF count as one break. Because the second character is optional and
   greedy, a blank next line behaves differently for the two styles: with CRLF only the blank line is covered, and
   with LF the line after the blank line is covered too. This is exactly what cspell does (verified against cspell,
   not assumed), and the library keeps it so that migrated documents hide the same text. A directive on the last line,
   with no line break after it, matches nothing.
 - **Disable line**: from the start of the line through the directive to the end of the line, so the text before the
-  directive is hidden too.
-- **Ignore directive**: the prefix and everything to the end of the line, to exclude the listed words from checking.
-- **Directive line** and **directive kind**: the first finds every line that holds a prefix and a colon; the second
-  classifies the name at the start of what follows, requiring that a name not be continued by a letter, digit,
-  underscore, or hyphen, so `ignored` and `words-x` are not directives.
+  directive is hidden too; two such directives on one line hide it once.
+- **Ignore, words, and ignoreRegExp text**: from the prefix to the end of the line, to exclude the listed words from
+  checking.
 
 Design choices and their reasons:
 
@@ -91,6 +116,11 @@ Design choices and their reasons:
   only skip work; it never changes a result, which is why it needs no requirement of its own.
 - **Unsupported directives are reported, not ignored.** An author who writes a locale directive believes it is in force.
   A silent no-op would hide a difference from cspell, so it is reported at its name, where the author can find it.
+  The same holds for a name that only begins like a directive: it neither hides text nor goes unnoticed.
+- **One classification drives everything.** With one pattern per effect and a separate one to decide what to report,
+  a name such as `disable-next-foo` could hide text while being reported as unknown, or the other way round. The
+  effects (ranges, words, reports) are therefore derived from the kind of each classified directive, so they cannot
+  disagree.
 - **Shared match time limit.** The patterns use the time limit of `DefaultPatterns`, so one setting bounds every
   regular expression of the subsystem.
 - **Lists returned as immutable arrays.** The result is shared freely between threads and files; the lists are built
@@ -100,7 +130,8 @@ Design choices and their reasons:
 
 A null text is a programming error and throws `ArgumentNullException`. Hostile text that makes a pattern exceed its
 time limit throws `RegexMatchTimeoutException`; the caller treats the text as not checked. Nothing else can fail:
-unknown names, empty directives, and directives with no words are ignored or add no words rather than being errors.
+names that do not begin like a directive, empty directives, and directives with no words are ignored or add no words
+rather than being errors.
 The class is stateless and thread-safe; `DirectiveScan` is immutable, and the generated regular expressions are safe
 for concurrent matching.
 
