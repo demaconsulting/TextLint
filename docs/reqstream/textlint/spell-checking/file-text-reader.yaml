@@ -1,0 +1,127 @@
+---
+# Software Unit Requirements for the FileTextReader Class
+#
+# The FileTextReader class reads a file into text for checking: it chooses the encoding, removes the byte order
+# mark, and recognizes files that must not be checked because they look binary, are too large, or cannot be read.
+# The FileTextContent type that carries the outcome belongs to this unit.
+
+sections:
+  - title: TextLint Requirements
+    sections:
+      - title: SpellChecking Requirements
+        sections:
+          - title: FileTextReader Requirements
+            requirements:
+              - id: TextLint-SpellChecking-FileTextReader-Encodings
+                title: >-
+                  FileTextReader shall decode UTF-8 files with or without a byte order mark and UTF-16
+                  files with a byte order mark of either byte order, shall remove that mark, shall decode
+                  any other file as UTF-8, and shall replace bytes that are not valid in the encoding with
+                  the replacement character instead of failing.
+                justification: |
+                  Real repositories contain files in these encodings, and a finding is useful only if its
+                  position is the position a user sees in an editor, whatever the encoding or the mark.
+                  Reading must never fail on damaged text, because one bad byte must not hide a file.
+                tests:
+                  - FileTextReader_Decode_Utf8WithoutBom_ReturnsText
+                  - FileTextReader_Decode_Utf8WithBom_StripsBom
+                  - FileTextReader_Decode_Utf16LittleEndianWithBom_ReturnsText
+                  - FileTextReader_Decode_Utf16BigEndianWithBom_ReturnsText
+                  - FileTextReader_Decode_InvalidUtf8_ReplacesInvalidBytes
+                  - FileTextReader_Decode_EncodedSurrogate_ReplacesInvalidBytes
+                  - FileTextReader_Decode_MultiByteCharacters_AreDecoded
+                  - FileTextReader_Decode_EmptyBytes_ReturnsEmptyText
+                  - FileTextReader_Decode_OnlyBom_ReturnsEmptyText
+                  - FileTextReader_Decode_BomInsideText_IsKept
+                  - FileTextReader_Decode_TruncatedUtf16_ReplacesPartialUnit
+                  - FileTextReader_Decode_SameBytesTwice_ReturnsSameResultAndKeepsInput
+                  - FileTextReader_ReadAsync_Utf8File_ReturnsText
+                  - FileTextReader_ReadAsync_Utf8BomFile_StripsBom
+                  - FileTextReader_ReadAsync_Utf16File_ReturnsText
+                  - FileTextReader_ReadAsync_EmptyFile_ReturnsEmptyText
+
+              - id: TextLint-SpellChecking-FileTextReader-BinaryDetection
+                title: >-
+                  FileTextReader shall report a file as binary, without text, when a NUL character appears
+                  among the first 1,024 characters of its decoded text, shall not report decoded UTF-16
+                  text as binary, and shall treat UTF-32 as binary.
+                justification: |
+                  Images, archives, and compiled files must not be spell-checked, and the tell-tale NUL
+                  character is the cheapest reliable signal. UTF-16 text is full of NUL bytes and must not
+                  be mistaken for binary data, while UTF-32 is not a supported encoding.
+                tests:
+                  - FileTextReader_Decode_Utf16WithoutBom_IsBinary
+                  - FileTextReader_Decode_NulInsideSniffWindow_IsBinary
+                  - FileTextReader_Decode_NulJustBeyondSniffWindow_IsText
+                  - FileTextReader_Decode_NulAtStart_IsBinary
+                  - FileTextReader_Decode_Utf16AsciiText_IsNotBinary
+                  - FileTextReader_Decode_Utf16WithNulCharacter_IsBinary
+                  - FileTextReader_Decode_Utf32WithBom_IsBinary
+                  - FileTextReader_Decode_PngImageHeader_IsBinary
+                  - FileTextReader_Decode_Binary_HasMessageAndNoText
+                  - FileTextReader_ReadAsync_BinaryFile_IsBinary
+
+              - id: TextLint-SpellChecking-FileTextReader-SizeLimit
+                title: >-
+                  FileTextReader shall not read a file that is larger than the size limit it is given, nor
+                  one larger than 1 GiB whatever the limit, shall treat a limit of zero as no limit other
+                  than 1 GiB, and shall report such a file as too large with its size and the limit.
+                justification: |
+                  Generated files can be enormous and a project may choose not to check them, and a text
+                  cannot be held in memory beyond a fixed size. The skip must say why, so that it is never
+                  mistaken for a clean file.
+                tests:
+                  - FileTextReader_SizeCeiling_Constant_IsOneGiB
+                  - FileTextReader_ReadAsync_FileAtLimit_IsRead
+                  - FileTextReader_ReadAsync_FileOneByteOverLimit_IsTooLarge
+                  - FileTextReader_ReadAsync_TooLarge_MessageNamesSizeAndLimit
+                  - FileTextReader_ReadAsync_ZeroLimit_ReadsLargeFile
+                  - FileTextReader_ReadAsync_FileAboveCeilingWithNoLimit_IsTooLarge
+                  - FileTextReader_ReadAsync_LimitAboveCeiling_StillRefusesAboveCeiling
+
+              - id: TextLint-SpellChecking-FileTextReader-ReadFailures
+                title: >-
+                  FileTextReader shall report a file that is missing, is a directory, or is locked or
+                  otherwise inaccessible as unreadable, with the reason, instead of failing, and shall
+                  still read a file that another party has open for writing while allowing sharing.
+                justification: |
+                  A repository holds files that other programs have locked or removed. One such file must
+                  not fail a whole run, and the user must be told which file was not checked, while a file
+                  that is merely open elsewhere, such as a log, is perfectly checkable.
+                tests:
+                  - FileTextReader_ReadAsync_MissingFile_IsUnreadable
+                  - FileTextReader_ReadAsync_DirectoryPath_IsUnreadable
+                  - FileTextReader_ReadAsync_ExclusivelyLockedFile_IsUnreadable
+                  - FileTextReader_ReadAsync_FileOpenForWriting_IsStillReadable
+
+              - id: TextLint-SpellChecking-FileTextReader-ConcurrentUse
+                title: >-
+                  FileTextReader shall let several files be read at the same time, each read returning the
+                  content of its own file.
+                justification: |
+                  Files are checked in parallel, so reading must not depend on shared state that one read
+                  could disturb for another.
+                tests:
+                  - FileTextReader_ReadAsync_ParallelReads_ReturnEachFilesOwnText
+
+              - id: TextLint-SpellChecking-FileTextReader-Cancellation
+                title: >-
+                  FileTextReader shall signal cancellation, and not report a file as unreadable, when the
+                  caller's token is cancelled, whatever the size of the file.
+                justification: |
+                  Cancellation is the caller's decision, not a property of the file, so it must not be
+                  confused with a read failure and must not depend on whether the file has any content.
+                tests:
+                  - FileTextReader_ReadAsync_CancelledToken_ThrowsOperationCanceledException
+                  - FileTextReader_ReadAsync_CancelledTokenWithEmptyFile_ThrowsOperationCanceledException
+
+              - id: TextLint-SpellChecking-FileTextReader-InvalidArguments
+                title: >-
+                  FileTextReader shall reject a null or empty path and a negative size limit.
+                justification: |
+                  These are caller mistakes, not file problems, and must be reported as such instead of
+                  being turned into an outcome for a file that was never named.
+                tests:
+                  - FileTextReader_ReadAsync_NullPath_ThrowsArgumentNullException
+                  - FileTextReader_ReadAsync_EmptyPath_ThrowsArgumentException
+                  - FileTextReader_ReadAsync_NegativeLimit_ThrowsArgumentOutOfRangeException

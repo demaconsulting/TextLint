@@ -1,0 +1,171 @@
+---
+# Software Unit Requirements for the SpellChecker Class
+#
+# The SpellChecker class selects the files that the settings name under a root directory, checks each of them in
+# parallel, and returns one deterministic result. The SpellCheckOptions, SpellCheckResult, FileDiagnostic, and
+# FileDiagnosticKind types belong to this unit.
+
+sections:
+  - title: TextLint Requirements
+    sections:
+      - title: SpellChecking Requirements
+        sections:
+          - title: SpellChecker Requirements
+            requirements:
+              - id: TextLint-SpellChecking-SpellChecker-FileSelection
+                title: >-
+                  SpellChecker shall check the files that the file patterns of the settings select under
+                  the root directory, leaving out the files that the ignore patterns exclude and the hidden
+                  files unless hidden matching is enabled, shall name each file in its findings by its path
+                  relative to the root with forward slashes, and shall return an empty result when no file
+                  is selected.
+                justification: |
+                  The settings choose the files, and every finding must be reported where a user can find
+                  it, in a form that does not depend on the operating system. A configuration that selects
+                  nothing is not an error and must not be reported as one.
+                tests:
+                  - SpellChecker_CheckAsync_FilePatterns_ChecksOnlyMatchingFiles
+                  - SpellChecker_CheckAsync_IgnorePaths_SkipsIgnoredFiles
+                  - SpellChecker_CheckAsync_HiddenFile_IsNotCheckedByDefault
+                  - SpellChecker_CheckAsync_HiddenFileWithGlobDot_IsChecked
+                  - SpellChecker_CheckAsync_NestedFile_ReportsRelativeForwardSlashPath
+                  - SpellChecker_CheckAsync_NoFilePatterns_ReturnsEmptyResult
+                  - SpellChecker_CheckAsync_NoMatchingFiles_ReturnsEmptyResult
+
+              - id: TextLint-SpellChecking-SpellChecker-SettingsApplied
+                title: >-
+                  SpellChecker shall check the text of each file with the language, word lists, and minimum
+                  word length of the settings, and shall use default run options when none are given.
+                justification: |
+                  The same settings must give the same findings for a file as for a string, and a caller who
+                  has no preference about how to run must not have to invent options.
+                tests:
+                  - SpellChecker_CheckAsync_SpellingSettings_AreApplied
+                  - SpellChecker_CheckAsync_NullOptions_UsesDefaults
+
+              - id: TextLint-SpellChecking-SpellChecker-FileDiagnostics
+                title: >-
+                  SpellChecker shall report each selected file that was not checked completely, because it
+                  is unreadable, binary, too large, or took too long to check, as a diagnostic that names
+                  the file and the reason, shall continue with the other files, and shall classify
+                  unreadable and timed-out files as errors and binary and too-large files as information.
+                justification: |
+                  A repository holds binary files, huge generated files, and files that other programs have
+                  locked. One such file must not fail a whole run, and the user must still be told which
+                  files were not checked so that nothing is silently left out. A file that was meant to be
+                  checked and was not is a failure, while a deliberate skip is only information.
+                tests:
+                  - SpellChecker_CheckAsync_LockedFile_IsReportedUnreadableAndRunContinues
+                  - SpellChecker_CheckAsync_BinaryFile_IsSkippedAndReported
+                  - SpellChecker_CheckAsync_FileOverMaxFileSize_IsSkippedAndReported
+                  - SpellChecker_CheckFilesAsync_FileRemovedAfterSelection_IsUnreadable
+                  - SpellChecker_CheckFilesAsync_TimeoutWhileChecking_IsReportedTimedOut
+                  - SpellChecker_FileDiagnostic_UnreadableAndTimedOut_AreErrors
+                  - SpellChecker_FileDiagnostic_BinaryAndTooLarge_AreNotErrors
+                  - SpellChecker_FileDiagnostic_ErrorToString_UsesErrorSeverity
+                  - SpellChecker_FileDiagnostic_SkipToString_UsesInfoSeverity
+
+              - id: TextLint-SpellChecking-SpellChecker-Defects
+                title: >-
+                  SpellChecker shall let any failure of checking a file that is not a problem with that
+                  file reach the caller, and shall not report it as a clean file or as a diagnostic.
+                justification: |
+                  A defect in the checker must never be mistaken for a clean result: a build that passes
+                  because a bug swallowed the findings is worse than a build that fails.
+                tests:
+                  - SpellChecker_CheckFilesAsync_DefectWhileChecking_Propagates
+
+              - id: TextLint-SpellChecking-SpellChecker-Counts
+                title: >-
+                  SpellChecker shall count the files that were checked completely and the files that were
+                  skipped because they were binary or too large, and shall report that the run has
+                  problems when there is a finding or an error diagnostic but not when files were only
+                  skipped.
+                justification: |
+                  Exit codes and CI gates are based on whether the run has problems, and users need the
+                  counts to confirm that the files they expected were in fact checked.
+                tests:
+                  - SpellChecker_CheckAsync_CleanFiles_ReportsNothingAndCountsFiles
+                  - SpellChecker_CheckAsync_MixedFiles_CountsCheckedAndSkipped
+                  - SpellChecker_CheckAsync_FindingPresent_HasProblems
+                  - SpellChecker_CheckAsync_OnlySkippedFiles_HasNoProblems
+                  - SpellChecker_CheckFilesAsync_ErrorDiagnosticOnly_HasProblems
+
+              - id: TextLint-SpellChecking-SpellChecker-Ordering
+                title: >-
+                  SpellChecker shall order findings by file path using ordinal comparison, then by line,
+                  then by column, and diagnostics by file path, whatever order the files finish checking in.
+                justification: |
+                  Files are checked in parallel and finish in any order, but build output must be
+                  reproducible: a difference between two runs must mean a difference in the files.
+                tests:
+                  - SpellChecker_CheckAsync_Findings_AreOrderedByPathLineAndColumn
+                  - SpellChecker_CheckAsync_Diagnostics_AreOrderedByPath
+                  - SpellChecker_CheckFilesAsync_SlowFirstFile_KeepsFileOrder
+
+              - id: TextLint-SpellChecking-SpellChecker-Parallelism
+                title: >-
+                  SpellChecker shall check no more files at the same time than the degree of parallelism of
+                  its options, which defaults to the number of processors and which is rejected, when the
+                  options are created, if it is less than one, and shall return identical results whatever
+                  the degree.
+                justification: |
+                  A caller must be able to leave cores free for other work or to bound memory, since every
+                  file being checked is held in memory, and the choice must never change the answer.
+                tests:
+                  - SpellChecker_Options_Default_UsesProcessorCount
+                  - SpellChecker_Options_ZeroParallelism_ThrowsArgumentOutOfRangeException
+                  - SpellChecker_Options_NegativeParallelism_ThrowsArgumentOutOfRangeException
+                  - SpellChecker_Options_WithExpression_CopiesAndKeepsOriginal
+                  - SpellChecker_Options_WithExpressionInvalidValue_ThrowsArgumentOutOfRangeException
+                  - SpellChecker_CheckAsync_DifferentParallelism_ReturnsIdenticalOrderedResults
+                  - SpellChecker_CheckFilesAsync_Parallelism_NeverExceedsOption
+                  - SpellChecker_CheckFilesAsync_ParallelismOne_ChecksOneFileAtATime
+
+              - id: TextLint-SpellChecking-SpellChecker-Cancellation
+                title: >-
+                  SpellChecker shall stop checking and signal cancellation, without returning a result,
+                  when the caller's token is cancelled before or during the run.
+                justification: |
+                  A run over a large repository can take long enough that a user or a host needs to abandon
+                  it, and abandoning it must not leave work running or return a partial result that looks
+                  complete.
+                tests:
+                  - SpellChecker_CheckAsync_CancelledToken_ThrowsOperationCanceledException
+                  - SpellChecker_CheckFilesAsync_CancelledToken_ChecksNoFile
+                  - SpellChecker_CheckFilesAsync_CancelledDuringRun_ThrowsOperationCanceledException
+
+              - id: TextLint-SpellChecking-SpellChecker-InvalidArguments
+                title: >-
+                  SpellChecker shall reject null settings, a null, empty, or white-space root directory, a
+                  root directory that does not exist, a file pattern that is not valid, and settings that
+                  cannot be used, and shall reject unusable settings before it touches any file.
+                justification: |
+                  These are caller mistakes and must be reported as such, not turned into an empty result
+                  that looks like a clean run. Checking the settings first means a bad language or word
+                  entry is reported at once, whatever the directory holds.
+                tests:
+                  - SpellChecker_CheckAsync_NullSettings_ThrowsArgumentNullException
+                  - SpellChecker_CheckAsync_NullRoot_ThrowsArgumentNullException
+                  - SpellChecker_CheckAsync_EmptyRoot_ThrowsArgumentException
+                  - SpellChecker_CheckAsync_WhiteSpaceRoot_ThrowsArgumentException
+                  - SpellChecker_CheckAsync_MissingRoot_ThrowsDirectoryNotFoundException
+                  - SpellChecker_CheckAsync_InvalidPattern_ThrowsInvalidGlobPatternException
+                  - SpellChecker_CheckAsync_UnusableLanguage_ThrowsBeforeTouchingFiles
+                  - SpellChecker_CheckAsync_UnusableWordEntry_ThrowsBeforeTouchingFiles
+                  - SpellChecker_CheckFilesAsync_NullFiles_ThrowsArgumentNullException
+                  - SpellChecker_CheckFilesAsync_NullCheckFunction_ThrowsArgumentNullException
+                  - SpellChecker_CheckFilesAsync_NullOptions_ThrowsArgumentNullException
+
+              - id: TextLint-SpellChecking-SpellChecker-ImmutableResults
+                title: >-
+                  SpellChecker shall return a result whose findings and diagnostics cannot be changed by
+                  the caller, even by casting them to a mutable collection, and which does not change when
+                  the collections it was built from change.
+                justification: |
+                  A result is a record of what was checked; if a consumer could alter it, two consumers of
+                  the same result could see different answers.
+                tests:
+                  - SpellChecker_CheckAsync_Issues_AreImmutable
+                  - SpellChecker_CheckAsync_FileDiagnostics_AreImmutable
+                  - SpellChecker_Result_CallerCollections_AreCopied
