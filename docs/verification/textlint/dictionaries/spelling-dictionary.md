@@ -37,8 +37,9 @@ N/A - standard test environment.
 
 #### Test Scenarios
 
-**SpellingDictionary_Default_Selection_IsAmerican**: The default selection knows `neighbor` and not `neighbour`, and is the
-same instance as the `en-US` selection. This scenario is tested by `SpellingDictionary_Default_Selection_IsAmerican`.
+**SpellingDictionary_Default_Selection_IsAmerican**: The default selection knows `neighbor` and not `neighbour`, and
+is the same instance as the `en-US` selection. This scenario is tested by
+`SpellingDictionary_Default_Selection_IsAmerican`.
 
 **SpellingDictionary_ForLanguages_En_SameAsEnUs**: `en` and `en-US` return the same instance. This scenario is
 tested by `SpellingDictionary_ForLanguages_En_SameAsEnUs`.
