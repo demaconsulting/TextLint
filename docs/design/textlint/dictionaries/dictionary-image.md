@@ -86,6 +86,15 @@ dictionary means a defective build, and it is propagated to the caller with its 
 rebuilt can be identified. A missing resource is reported the same way as a damaged one, because no caller can
 recover from either.
 
+Load-time validation is a safety boundary, not an integrity proof. It guarantees that a damaged image is reported
+rather than accepted when its structure is inconsistent, and that no lookup ever reads outside the image, so damaged
+data can never crash a caller. It deliberately does not re-hash every word to confirm that each one sits on the probe
+path its hash selects: a structurally consistent image whose slots were reordered would load, and some of its words
+would be reported as unknown. That case can only arise from a defect in the DictionaryBuilder or from tampering with
+the shipped assembly. A builder defect is caught before release by the system test that looks up every source word
+through the public API, and tampering is outside what in-process validation can defend against (the package signature
+covers it), so the extra load-time cost is not justified.
+
 #### Dependencies
 
 - **DictionaryFormat** (a unit of the DictionaryBuilder system, compiled into the library) - the layout constants,
