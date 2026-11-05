@@ -34,6 +34,8 @@ sections:
                 tests:
                   - TextLintSettings_With_ChangedFiles_LeavesOriginalUnchanged
                   - TextLintSettings_Init_ListMutatedAfterAssignment_DoesNotAffectSettings
+                  - TextLintSettings_Init_IgnorePathsMutatedAfterAssignment_DoesNotAffectSettings
+                  - TextLintSettings_Init_ArrayMutatedAfterAssignment_DoesNotAffectSettings
                   - TextLintSettings_Init_NullFiles_ThrowsArgumentNullException
                   - TextLintSettings_Init_NullIgnorePaths_ThrowsArgumentNullException
                   - TextLintSettings_Files_ExposedList_CannotBeMutatedThroughInterface

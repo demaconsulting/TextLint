@@ -1,7 +1,7 @@
 ---
 # Software Unit Requirements for the FileSelector Class
 #
-# The FileSelector class applies settings to a root directory and returns the ordered list of
+# The FileSelector class applies include and ignore glob patterns to a root directory and returns the ordered list of
 # files to check.
 
 sections:
@@ -29,7 +29,8 @@ sections:
                   - FileSelector_Select_NamesWithSpaces_AreSelected
                   - FileSelector_Select_BareDirectoryNameIgnored_ExcludesNestedSubtree
                   - FileSelector_Select_RootDirectoryMissing_ThrowsDirectoryNotFound
-                  - FileSelector_Select_NullSettings_ThrowsArgumentNullException
+                  - FileSelector_Select_NullIncludePatterns_ThrowsArgumentNullException
+                  - FileSelector_Select_NullIgnorePatterns_ThrowsArgumentNullException
                   - FileSelector_Select_NullRoot_ThrowsArgumentNullException
                   - FileSelector_Select_EmptyRoot_ThrowsArgumentException
                   - FileSelector_Select_Result_ExposesFullPath
@@ -46,7 +47,8 @@ sections:
               - id: TextLint-FileSelection-FileSelector-HiddenFiles
                 title: >-
                   FileSelector shall not let wildcards select hidden files and directories unless
-                  EnableGlobDot is true, and shall select hidden names a pattern writes literally.
+                  hidden-file matching is enabled, and shall select hidden names a pattern writes
+                  literally.
                 justification: |
                   Matches the cspell rule: wildcards skip dot-prefixed names by default, an
                   explicit pattern such as .github/** still works, and enabling hidden matching

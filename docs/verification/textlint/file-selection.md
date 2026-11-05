@@ -5,7 +5,8 @@
 The `FileSelection` subsystem is verified by integration tests in `FileSelectionSubsystemTests.cs`. They build
 real directory trees in a per-test temporary directory and call `FileSelector.Select`, so `FileSelector`,
 `GlobPatternExpander`, and `HiddenPathPolicy` are exercised together with the real matcher (an OTS item).
-`TextLintSettings`, the subsystem's one documented dependency, is the input type and is used as is. The only
+The subsystem has no dependencies on other subsystems: its inputs are plain pattern lists and a hidden-file
+switch, so the tests need no settings object. The only
 test double is a recording directory that wraps the real directory and records which directories are
 enumerated; it proves that excluded directories are never read, deterministically, where a timing-based test
 would be flaky.

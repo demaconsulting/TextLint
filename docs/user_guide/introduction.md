@@ -251,8 +251,9 @@ if (!result.Succeeded)
     return;
 }
 
-// Select the files beneath a root directory
-foreach (var file in FileSelector.Select(result.Settings!, "."))
+// Select the files beneath a root directory, passing the settings' values to the selector
+var settings = result.Settings!;
+foreach (var file in FileSelector.Select(".", settings.Files, settings.IgnorePaths, settings.EnableGlobDot))
 {
     // RelativePath always uses forward slashes; FullPath is the operating-system path
     Console.WriteLine(file.RelativePath);
@@ -270,12 +271,20 @@ var settings = new TextLintSettings
 };
 
 var withOtherFiles = settings with { Files = ["docs/**/*.md"] };
-var files = FileSelector.Select(withOtherFiles, "/path/to/repo");
+var files = FileSelector.Select(
+    "/path/to/repo",
+    withOtherFiles.Files,
+    withOtherFiles.IgnorePaths,
+    withOtherFiles.EnableGlobDot);
 ```
 
-`TextLintSettings` is immutable: lists are copied when assigned, and `with` produces a modified copy.
-`FileSelector.Select` throws `InvalidGlobPatternException`, naming the pattern, if settings built in code
-contain an unsupported pattern, and `DirectoryNotFoundException` if the root does not exist. Selected files
+`FileSelector` does not depend on the settings type: it takes the root directory, the include patterns, the
+ignore patterns, and an optional hidden-file switch, so the lists can come from a settings file, from code, or
+from a command line. `TextLintSettings` is immutable: lists are copied when assigned (later changes to the
+list you passed do not affect the settings), and `with` produces a modified copy. `SettingsLoadResult` is also
+immutable: its list of errors cannot be changed after it is returned.
+`FileSelector.Select` throws `InvalidGlobPatternException`, naming the pattern, if a pattern is unsupported,
+and `DirectoryNotFoundException` if the root does not exist. Selected files
 are ordered by ordinal relative path, so the order is the same on every platform.
 
 # Command-Line Options

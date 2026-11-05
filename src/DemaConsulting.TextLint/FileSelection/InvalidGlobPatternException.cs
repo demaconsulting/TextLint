@@ -26,7 +26,7 @@ namespace DemaConsulting.TextLint.FileSelection;
 /// <remarks>
 ///     It derives from <see cref="ArgumentException"/> because an invalid pattern is an invalid
 ///     argument supplied by the caller, and it carries the offending pattern so a caller can report
-///     exactly which entry of the settings is wrong. Instances are immutable and thread-safe.
+///     exactly which pattern is wrong. Instances are immutable and thread-safe.
 /// </remarks>
 public sealed class InvalidGlobPatternException : ArgumentException
 {

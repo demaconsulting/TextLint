@@ -82,13 +82,15 @@ if (!result.Succeeded)
     return;
 }
 
-foreach (var file in FileSelector.Select(result.Settings!, "."))
+var settings = result.Settings!;
+foreach (var file in FileSelector.Select(".", settings.Files, settings.IgnorePaths, settings.EnableGlobDot))
 {
     Console.WriteLine(file.RelativePath);
 }
 ```
 
-Settings can also be built in code, without a file:
+Settings can also be built in code, without a file. File selection takes the patterns directly, so
+pass the values you want:
 
 ```csharp
 var settings = new TextLintSettings
@@ -96,7 +98,7 @@ var settings = new TextLintSettings
     Files = ["**/*.{md,cs}"],
     IgnorePaths = ["node_modules"],
 };
-var files = FileSelector.Select(settings, "/path/to/repo");
+var files = FileSelector.Select("/path/to/repo", settings.Files, settings.IgnorePaths, settings.EnableGlobDot);
 ```
 
 The supported `.textlint.yaml` keys are `version`, `files`, `ignorePaths`, and `enableGlobDot`; any other

@@ -181,6 +181,58 @@ public class HiddenPathPolicyTests
     }
 
     /// <summary>
+    ///     Test that a pattern with many recursive segments is decided correctly when no alignment exists.
+    /// </summary>
+    [Fact]
+    public void HiddenPathPolicy_IsPathPermitted_ManyRecursiveSegmentsAndNoAlignment_IsNotPermitted()
+    {
+        // Arrange: a pattern with forty recursive segments and a deep path whose hidden segment no pattern segment can consume
+        // (backtracking search would take exponentially many steps here; the bounded search visits each cell once)
+        var pattern = string.Join('/', Enumerable.Repeat("**/a", 40)) + "/b";
+        var path = string.Join('/', Enumerable.Repeat("a", 80)) + "/.hidden/a/b";
+
+        // Act: ask whether the path is permitted
+        var permitted = HiddenPathPolicy.IsPathPermitted(path, [pattern]);
+
+        // Assert: the hidden segment cannot be reached through a recursive segment
+        Assert.False(permitted);
+    }
+
+    /// <summary>
+    ///     Test that a pattern with many recursive segments is decided correctly when an alignment exists.
+    /// </summary>
+    [Fact]
+    public void HiddenPathPolicy_IsPathPermitted_ManyRecursiveSegmentsAndLiteralHidden_IsPermitted()
+    {
+        // Arrange: forty recursive segments followed by a literal hidden directory, and a deep path that ends in it
+        var pattern = string.Join('/', Enumerable.Repeat("**/a", 40)) + "/.hidden/**";
+        var path = string.Join('/', Enumerable.Repeat("a", 80)) + "/.hidden/file.md";
+
+        // Act: ask whether the path is permitted
+        var permitted = HiddenPathPolicy.IsPathPermitted(path, [pattern]);
+
+        // Assert: the literal hidden segment is consumed by the pattern's literal
+        Assert.True(permitted);
+    }
+
+    /// <summary>
+    ///     Test that the directory test is also decided correctly for many recursive segments.
+    /// </summary>
+    [Fact]
+    public void HiddenPathPolicy_CanContainPermittedPaths_ManyRecursiveSegmentsAndNoAlignment_IsFalse()
+    {
+        // Arrange: forty recursive segments and a deep directory path ending in a hidden directory
+        var pattern = string.Join('/', Enumerable.Repeat("**/a", 40)) + "/b";
+        var directory = string.Join('/', Enumerable.Repeat("a", 80)) + "/.hidden";
+
+        // Act: ask whether the directory may contain permitted paths
+        var canContain = HiddenPathPolicy.CanContainPermittedPaths(directory, [pattern]);
+
+        // Assert: no pattern can reach beneath the hidden directory
+        Assert.False(canContain);
+    }
+
+    /// <summary>
     ///     Test that a hidden directory no pattern can reach is not entered.
     /// </summary>
     [Fact]

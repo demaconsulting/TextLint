@@ -4,10 +4,11 @@
 
 #### Purpose
 
-`FileSelector` applies TextLint settings to a root directory and returns the files to check. It is the
-one place that turns glob settings into a file list, so every consumer selects files identically. It
-also defines the supporting type `SelectedFile` and an internal directory view,
-`HiddenFilteringDirectory`, which has no unit of its own.
+`FileSelector` applies include and ignore glob patterns to a root directory and returns the files to check. It is
+the one place that turns glob patterns into a file list, so every consumer selects files identically. It takes
+its inputs as plain parameters, so it has no dependency on the Configuration subsystem. It also defines the
+supporting type `SelectedFile` and an internal directory view, `HiddenFilteringDirectory`, which has no unit of
+its own.
 
 #### Data Model
 
@@ -27,9 +28,11 @@ directory is never read from disk.
 
 **Select (public)**: Selects files beneath a directory path.
 
-- _Parameters_: `TextLintSettings settings`; `string rootDirectory`.
+- _Parameters_: `string rootDirectory`; `IReadOnlyList<string> includePatterns`; `IReadOnlyList<string>
+  ignorePatterns`; `bool enableGlobDot` (default `false`).
 - _Returns_: a read-only list of `SelectedFile`, ordered by ordinal relative path.
-- _Preconditions_: both arguments are non-null, the directory name is not empty, and the directory exists.
+- _Preconditions_: no argument is null, the directory name is not empty, and the directory exists. The
+  pattern lists are read once during the call and are not retained, so the caller may change them afterwards.
 - _Postconditions_: the list is a snapshot; no file has been opened.
 
 **Select (internal)**: The same selection over an abstract directory. It is a test seam: tests pass a
@@ -39,8 +42,8 @@ would not be. The public method validates the path and calls it.
 Steps: (1) expand every include and ignore pattern with `GlobPatternExpander`, so an invalid pattern
 fails first, even when nothing is included; (2) return an empty list when there are no include patterns,
 without reading any directory; (3) build a matcher with ordinal comparison and add the expanded include and
-exclude patterns; (4) unless `EnableGlobDot` is set, walk through a `HiddenFilteringDirectory`; (5) run the
-matcher; (6) unless `EnableGlobDot` is set, keep only the paths `HiddenPathPolicy` permits; (7) sort the
+exclude patterns; (4) unless `enableGlobDot` is set, walk through a `HiddenFilteringDirectory`; (5) run the
+matcher; (6) unless `enableGlobDot` is set, keep only the paths `HiddenPathPolicy` permits; (7) sort the
 paths by ordinal comparison and create the `SelectedFile` entries, computing each full path from the root.
 
 The result is ordered with the ordinal comparer, not the file system's order, so it is identical on every
@@ -50,21 +53,22 @@ yields an exclude form that covers the whole subtree.
 
 #### Error Handling
 
-A null `settings` or `rootDirectory` throws `ArgumentNullException`; an empty or white-space root throws
+A null argument throws `ArgumentNullException`; an empty or white-space root throws
 `ArgumentException`; a root that does not exist throws `DirectoryNotFoundException`; an unsupported pattern
 propagates `InvalidGlobPatternException` from the expander. Input/output errors raised by the file system
 while walking, such as a permission failure, propagate unchanged. Nothing is logged.
 
 #### Dependencies
 
-- **TextLintSettings** (Configuration subsystem) - the input; this is the subsystem's documented
-  dependency on Configuration.
 - **GlobPatternExpander** and **HiddenPathPolicy** - pattern rules and the hidden-name rule.
 - **Microsoft.Extensions.FileSystemGlobbing** - the matcher and the directory abstraction. See
   _FileSystemGlobbing Integration Design_. No type from it appears in a public signature.
 - **.NET BCL** - paths and directory information.
 
+No unit in the Configuration subsystem is used.
+
 #### Callers
 
-- **Library consumers** - select the files to check from settings.
+- **Library consumers** - select the files to check, typically passing the values of a `TextLintSettings`:
+  `FileSelector.Select(root, settings.Files, settings.IgnorePaths, settings.EnableGlobDot)`.
 - **The textlint tool** - will select files in a later change.

@@ -28,7 +28,7 @@ namespace DemaConsulting.TextLint.FileSelection;
 ///     depth", and silently mishandles absolute, parent-escaping, and backslash patterns. This unit
 ///     closes those gaps with pure string logic so the behavior is exhaustively testable without a
 ///     file system, and so both the settings loader (at load time) and the file selector (for
-///     settings built in code) apply the identical rules. The class is stateless and thread-safe.
+///     patterns supplied in code) apply the identical rules. The class is stateless and thread-safe.
 /// </remarks>
 internal static class GlobPatternExpander
 {

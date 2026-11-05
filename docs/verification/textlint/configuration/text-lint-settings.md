@@ -16,7 +16,8 @@ N/A - standard test environment.
 - New settings have no version, empty lists, and hidden-file matching disabled.
 - A copy made with `with` does not change the original.
 - Changing a supplied list after assignment does not change the settings.
-- A null list is rejected, and the exposed list cannot be mutated.
+- A null list is rejected, the exposed list cannot be mutated, and changes to a supplied list or array after
+  assignment do not change the settings.
 
 #### Test Scenarios
 
@@ -31,6 +32,14 @@ patterns; the original keeps its patterns. This scenario is tested by
 **TextLintSettings_Init_ListMutatedAfterAssignment_DoesNotAffectSettings**: A mutable list is assigned and
 then changed; the settings keep the original contents. This scenario is tested by
 `TextLintSettings_Init_ListMutatedAfterAssignment_DoesNotAffectSettings`.
+
+**TextLintSettings_Init_IgnorePathsMutatedAfterAssignment_DoesNotAffectSettings**: A mutable list assigned to
+`IgnorePaths` is changed afterwards; the settings keep the original contents. This scenario is tested by
+`TextLintSettings_Init_IgnorePathsMutatedAfterAssignment_DoesNotAffectSettings`.
+
+**TextLintSettings_Init_ArrayMutatedAfterAssignment_DoesNotAffectSettings**: An array assigned to `Files` has an
+element overwritten afterwards; the settings keep the original contents. This scenario is tested by
+`TextLintSettings_Init_ArrayMutatedAfterAssignment_DoesNotAffectSettings`.
 
 **TextLintSettings_Init_NullFiles_ThrowsArgumentNullException**: Assigning null to `Files` throws. This
 scenario is tested by `TextLintSettings_Init_NullFiles_ThrowsArgumentNullException`.

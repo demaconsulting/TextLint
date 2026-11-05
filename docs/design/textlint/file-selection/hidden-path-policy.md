@@ -35,15 +35,17 @@ pattern would also suppress literal hidden includes, so the rule needs its own l
   beneath it under the same rule.
 - _Postconditions_: a hidden directory that no pattern can reach is not entered, so it is never read.
 
-Both operations use one alignment search of the path segments against the pattern segments. A
-recursive pattern segment (`**`) consumes zero segments, or one segment that is not hidden and then tries
-again; any other pattern segment consumes exactly one path segment that it matches, where a hidden name is
-matched only by a pattern segment that starts with a dot. For a file the whole pattern must be consumed
-(the rest may only be `**`); for a directory it is enough that the path is consumed, because the pattern may
+Both operations use one alignment search of the path segments against the pattern segments, written as a
+dynamic program over the cells (path segments consumed, pattern segments consumed). A recursive pattern
+segment (`**`) consumes zero segments, or one segment that is not hidden and then may consume more; any
+other pattern segment consumes exactly one path segment that it matches, where a hidden name is matched only
+by a pattern segment that starts with a dot. For a file the whole pattern must be consumed (trailing `**`
+segments consume nothing); for a directory it is enough that the path is consumed, because the pattern may
 continue beneath it. Each pattern is checked on its own: this is what prevents one pattern's literal hidden
-name from excusing another pattern's wildcard. Comparison is ordinal. Patterns are short, so plain
-backtracking is sufficient, and the common case of a path with no hidden segment returns immediately
-without any search.
+name from excusing another pattern's wildcard. Comparison is ordinal. Each cell is computed once, so the
+effort is bounded by the product of the path length and the pattern length however many recursive segments a
+pattern has, where a plain backtracking search would grow exponentially with them. The common case of a path
+with no hidden segment returns immediately without any search.
 
 The directory test is deliberately looser than the file test, because it exists only to avoid reading
 directories that can never contribute; the file test makes the exact decision afterwards.

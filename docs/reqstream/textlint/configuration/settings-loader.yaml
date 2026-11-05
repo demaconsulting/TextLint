@@ -110,13 +110,18 @@ sections:
               - id: TextLint-Configuration-SettingsLoader-Diagnostics
                 title: >-
                   SettingsLoader errors shall carry the message, the source file, and the 1-based
-                  line and column when known, and shall format as file(line,column): error: message.
+                  line and column when known, shall format as file(line,column): error: message,
+                  and shall not be changeable by the caller once returned.
                 justification: |
                   A single, compiler-style format lets editors, build servers, and CI logs
-                  recognize and link configuration errors without tool-specific integration.
+                  recognize and link configuration errors without tool-specific integration. A
+                  result whose errors could be altered afterwards could report success with
+                  errors present, or the reverse.
                 tests:
                   - SettingsLoader_Parse_ErrorDiagnostic_CarriesSourceNameLineAndColumn
                   - SettingsLoader_Parse_Diagnostic_ToString_FormatsFileLineColumn
                   - SettingsLoader_Parse_Diagnostic_ToStringWithoutSource_OmitsFileName
                   - SettingsLoader_Parse_Diagnostic_ToStringWithNothingKnown_ShowsOnlyMessage
                   - SettingsLoader_LoadAsync_MissingFile_DiagnosticHasNoPosition
+                  - SettingsLoader_Parse_Result_DiagnosticsCannotBeMutatedThroughInterface
+                  - SettingsLoader_Parse_Result_CallerListMutatedAfterCreation_DoesNotAffectResult

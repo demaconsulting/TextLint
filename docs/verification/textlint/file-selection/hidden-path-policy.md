@@ -17,6 +17,8 @@ N/A - standard test environment.
 - A pattern segment with a literal leading dot permits hidden names, case-sensitively.
 - One pattern's literal hidden name does not excuse another pattern's wildcard.
 - A hidden directory is entered only when some pattern can reach beneath it.
+- Patterns with many recursive segments are decided correctly (and, by construction of the search, in bounded
+  effort).
 
 #### Test Scenarios
 
@@ -54,6 +56,21 @@ tested by `HiddenPathPolicy_IsPathPermitted_LiteralInOtherPattern_DoesNotExcuseW
 **HiddenPathPolicy_IsPathPermitted_LiteralHiddenDifferentCase_IsNotPermitted**: `.github/**` does not permit
 `.GitHub/ci.yml`. This scenario is tested by
 `HiddenPathPolicy_IsPathPermitted_LiteralHiddenDifferentCase_IsNotPermitted`.
+
+**HiddenPathPolicy_IsPathPermitted_ManyRecursiveSegmentsAndNoAlignment_IsNotPermitted**: A pattern with forty
+recursive segments and a path eighty segments deep that contains a hidden directory no pattern segment can
+consume is decided as not permitted. The behavior asserted is the answer; the test finishes promptly because
+the search visits each (path segment, pattern segment) cell once rather than exploring every alignment. This
+scenario is tested by `HiddenPathPolicy_IsPathPermitted_ManyRecursiveSegmentsAndNoAlignment_IsNotPermitted`.
+
+**HiddenPathPolicy_IsPathPermitted_ManyRecursiveSegmentsAndLiteralHidden_IsPermitted**: The same pattern shape
+ending in a literal hidden directory permits a deep path that ends in that directory. This scenario is tested by
+`HiddenPathPolicy_IsPathPermitted_ManyRecursiveSegmentsAndLiteralHidden_IsPermitted`.
+
+**HiddenPathPolicy_CanContainPermittedPaths_ManyRecursiveSegmentsAndNoAlignment_IsFalse**: The directory test
+gives the correct answer for the same pathological pattern and a deep directory path ending in a hidden
+directory. This scenario is tested by
+`HiddenPathPolicy_CanContainPermittedPaths_ManyRecursiveSegmentsAndNoAlignment_IsFalse`.
 
 **HiddenPathPolicy_CanContainPermittedPaths_WildcardOnlyAndHiddenDirectory_IsFalse**: With only wildcard
 patterns, `.git` need not be entered. This scenario is tested by

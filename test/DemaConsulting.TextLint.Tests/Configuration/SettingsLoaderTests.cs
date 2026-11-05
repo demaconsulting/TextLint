@@ -719,6 +719,44 @@ public class SettingsLoaderTests
     }
 
     /// <summary>
+    ///     Test that the diagnostics of a result cannot be changed through their collection interface.
+    /// </summary>
+    [Fact]
+    public void SettingsLoader_Parse_Result_DiagnosticsCannotBeMutatedThroughInterface()
+    {
+        // Arrange: a result that holds one error
+        var result = SettingsLoader.Parse("enableGlobDot: oops\n", Source);
+        var exposed = (IList<SettingsDiagnostic>)result.Diagnostics;
+
+        // Act / Assert: adding or clearing through the mutable interface is refused and the error remains
+        Assert.Multiple(
+            () => Assert.Throws<NotSupportedException>(() => exposed.Clear()),
+            () => Assert.Throws<NotSupportedException>(() => exposed.Add(exposed[0])),
+            () => Assert.Single(result.Diagnostics),
+            () => Assert.Null(result.Settings));
+    }
+
+    /// <summary>
+    ///     Test that changing the caller's list after a result is created does not break the result.
+    /// </summary>
+    [Fact]
+    public void SettingsLoader_Parse_Result_CallerListMutatedAfterCreation_DoesNotAffectResult()
+    {
+        // Arrange: a successful result created from an empty diagnostics list
+        var diagnostics = new List<SettingsDiagnostic>();
+        var result = new SettingsLoadResult(new TextLintSettings(), diagnostics);
+
+        // Act: the caller adds a diagnostic to its own list afterwards
+        diagnostics.Add(new SettingsDiagnostic("late", null, null, null));
+
+        // Assert: the result is unchanged, so settings are still present with no diagnostics
+        Assert.Multiple(
+            () => Assert.True(result.Succeeded),
+            () => Assert.NotNull(result.Settings),
+            () => Assert.Empty(result.Diagnostics));
+    }
+
+    /// <summary>
     ///     Test that a diagnostic is formatted in the compiler style.
     /// </summary>
     [Fact]

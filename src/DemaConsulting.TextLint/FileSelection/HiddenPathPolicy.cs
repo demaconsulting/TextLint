@@ -31,7 +31,8 @@ namespace DemaConsulting.TextLint.FileSelection;
 ///     does. Excluding hidden paths with an exclude pattern cannot express this, because such an
 ///     exclusion would also suppress literal hidden includes. Instead the policy aligns the path
 ///     segment by segment with each include pattern and requires every hidden segment to be
-///     consumed by a literal-dot pattern segment. Only the <c>*</c> wildcard exists in a segment,
+///     consumed by a literal-dot pattern segment (a dynamic program whose cost is bounded by the
+///     product of the path and pattern lengths). Only the <c>*</c> wildcard exists in a segment,
 ///     matching what the matcher supports. The class is stateless and thread-safe.
 /// </remarks>
 internal static class HiddenPathPolicy
@@ -121,47 +122,67 @@ internal static class HiddenPathPolicy
         }
 
         // A hidden path is permitted when any one pattern can consume it legitimately
-        return includePatterns.Any(pattern => Align(segments, 0, pattern.Split(Separator), 0, complete));
+        return includePatterns.Any(pattern => CanAlign(segments, pattern.Split(Separator), complete));
     }
 
     /// <summary>
-    ///     Aligns path segments with pattern segments so that hidden segments meet literal-dot pattern segments.
+    ///     Determines whether path segments can be aligned with pattern segments so that hidden
+    ///     segments meet only literal-dot pattern segments.
     /// </summary>
     /// <remarks>
-    ///     A recursive pattern segment consumes zero segments, or one non-hidden segment and then
-    ///     tries again. Any other pattern segment consumes exactly one path segment it matches.
-    ///     Stateless and thread-safe; patterns are short, so plain backtracking is sufficient.
+    ///     The search is a dynamic program over the cells (path segments consumed, pattern
+    ///     segments consumed), so its cost is bounded by the product of the two lengths however
+    ///     many recursive segments the pattern has; plain backtracking would be exponential in
+    ///     that case. A cell is reachable from the start cell by consuming: nothing for a
+    ///     recursive pattern segment, one non-hidden path segment for a recursive pattern segment,
+    ///     or one path segment that an ordinary pattern segment matches. Cells are filled in an
+    ///     order in which every cell is visited after all the cells that lead to it. Stateless and
+    ///     thread-safe; allocates one table per call.
     /// </remarks>
     /// <param name="path">The path segments. Must not be null.</param>
-    /// <param name="pathIndex">The index of the next path segment.</param>
     /// <param name="pattern">The pattern segments. Must not be null.</param>
-    /// <param name="patternIndex">The index of the next pattern segment.</param>
-    /// <param name="complete">Whether the pattern must also be fully consumed when the path ends.</param>
+    /// <param name="complete">
+    ///     <see langword="true"/> when the whole pattern must be consumed as well as the whole path;
+    ///     <see langword="false"/> when consuming the whole path is enough.
+    /// </param>
     /// <returns><see langword="true"/> when a valid alignment exists.</returns>
-    private static bool Align(string[] path, int pathIndex, string[] pattern, int patternIndex, bool complete)
+    private static bool CanAlign(string[] path, string[] pattern, bool complete)
     {
-        // When the path is used up, a prefix test succeeds; a full test needs only recursive segments left
-        if (pathIndex == path.Length)
+        // reachable[i, j] is true when the first i path segments can be consumed by the first j pattern segments
+        var reachable = new bool[path.Length + 1, pattern.Length + 1];
+        reachable[0, 0] = true;
+
+        for (var pathIndex = 0; pathIndex <= path.Length; pathIndex++)
         {
-            return !complete || pattern.Skip(patternIndex).All(segment => segment == RecursiveSegment);
+            for (var patternIndex = 0; patternIndex < pattern.Length; patternIndex++)
+            {
+                if (!reachable[pathIndex, patternIndex])
+                {
+                    continue;
+                }
+
+                // A recursive segment spans zero levels, or one visible level and then may span more
+                if (pattern[patternIndex] == RecursiveSegment)
+                {
+                    reachable[pathIndex, patternIndex + 1] = true;
+                    if (pathIndex < path.Length && !IsHidden(path[pathIndex]))
+                    {
+                        reachable[pathIndex + 1, patternIndex] = true;
+                    }
+                }
+                else if (pathIndex < path.Length && SegmentMatches(path[pathIndex], pattern[patternIndex]))
+                {
+                    // Any other segment consumes exactly one matching path segment
+                    reachable[pathIndex + 1, patternIndex + 1] = true;
+                }
+            }
         }
 
-        // When the pattern is used up first, the path is longer than the pattern can match
-        if (patternIndex == pattern.Length)
-        {
-            return false;
-        }
-
-        // A recursive segment spans zero levels, or one visible level and then continues
-        if (pattern[patternIndex] == RecursiveSegment)
-        {
-            return Align(path, pathIndex, pattern, patternIndex + 1, complete) ||
-                (!IsHidden(path[pathIndex]) && Align(path, pathIndex + 1, pattern, patternIndex, complete));
-        }
-
-        // Any other segment must match this path segment and the rest must align
-        return SegmentMatches(path[pathIndex], pattern[patternIndex]) &&
-            Align(path, pathIndex + 1, pattern, patternIndex + 1, complete);
+        // A prefix test succeeds once the path is consumed under any pattern segment; a full test
+        // needs the pattern consumed too (trailing recursive segments consume nothing)
+        return complete
+            ? reachable[path.Length, pattern.Length]
+            : Enumerable.Range(0, pattern.Length + 1).Any(patternIndex => reachable[path.Length, patternIndex]);
     }
 
     /// <summary>

@@ -18,6 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+using System.Collections.Immutable;
+
 namespace DemaConsulting.TextLint.Configuration;
 
 /// <summary>
@@ -27,7 +29,10 @@ namespace DemaConsulting.TextLint.Configuration;
 ///     Returning a result instead of throwing lets a caller report every configuration problem at
 ///     once. The invariant is that <see cref="Settings"/> is non-null exactly when
 ///     <see cref="Diagnostics"/> is empty, so a caller never acts on settings that were only
-///     partially understood. Instances are immutable and thread-safe.
+///     partially understood. The diagnostics are copied into an immutable array when the result is
+///     created, so no caller can change them afterwards, even by casting the exposed list to a
+///     mutable collection interface, and the invariant cannot be broken. Instances are immutable
+///     and thread-safe.
 /// </remarks>
 public sealed class SettingsLoadResult
 {
@@ -35,15 +40,18 @@ public sealed class SettingsLoadResult
     ///     Initializes a new instance of the <see cref="SettingsLoadResult"/> class.
     /// </summary>
     /// <remarks>
-    ///     Internal because only the loader creates results. The settings are discarded when there
-    ///     are diagnostics, which enforces the class invariant in one place.
+    ///     Internal because only the loader creates results. The diagnostics are copied into an
+    ///     immutable array, and the settings are discarded when there are diagnostics, which
+    ///     enforces the class invariant in one place.
     /// </remarks>
     /// <param name="settings">The mapped settings. Must not be null when there are no diagnostics.</param>
     /// <param name="diagnostics">The errors found, in source order. Must not be null.</param>
     internal SettingsLoadResult(TextLintSettings settings, IReadOnlyList<SettingsDiagnostic> diagnostics)
     {
-        Diagnostics = diagnostics;
-        Settings = diagnostics.Count == 0 ? settings : null;
+        // Snapshot the diagnostics so neither the caller's list nor a cast of the exposed list can change them
+        var snapshot = diagnostics.ToImmutableArray();
+        Diagnostics = snapshot;
+        Settings = snapshot.IsEmpty ? settings : null;
     }
 
     /// <summary>

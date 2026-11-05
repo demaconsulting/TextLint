@@ -16,11 +16,13 @@ sections:
                 title: >-
                   HiddenPathPolicy shall not permit a hidden file or directory to be reached
                   through a wildcard, including through a wildcard that follows a literal hidden
-                  segment, and shall permit paths without hidden segments.
+                  segment and for patterns with many recursive segments, and shall permit paths
+                  without hidden segments.
                 justification: |
                   Wildcards must not select content such as .git or .cache by default, matching
                   cspell, and one pattern's literal hidden name must not excuse another pattern's
-                  wildcard.
+                  wildcard. The answer must be reached in bounded effort however many recursive
+                  segments a pattern has, so an unusual pattern cannot stall a run.
                 tests:
                   - HiddenPathPolicy_IsPathPermitted_NoHiddenSegment_IsPermitted
                   - HiddenPathPolicy_IsPathPermitted_WildcardAndHiddenFile_IsNotPermitted
@@ -28,6 +30,7 @@ sections:
                   - HiddenPathPolicy_IsPathPermitted_WildcardAndHiddenDirectory_IsNotPermitted
                   - HiddenPathPolicy_IsPathPermitted_WildcardBeneathLiteralHidden_SkipsNestedHidden
                   - HiddenPathPolicy_IsPathPermitted_LiteralInOtherPattern_DoesNotExcuseWildcard
+                  - HiddenPathPolicy_IsPathPermitted_ManyRecursiveSegmentsAndNoAlignment_IsNotPermitted
                   - HiddenPathPolicy_IsHidden_DotPrefixedName_IsTrueOtherwiseFalse
 
               - id: TextLint-FileSelection-HiddenPathPolicy-LiteralSegmentsMatchHidden
@@ -42,6 +45,7 @@ sections:
                   - HiddenPathPolicy_IsPathPermitted_LiteralHiddenFileName_IsPermitted
                   - HiddenPathPolicy_IsPathPermitted_DotPrefixedWildcardSegment_IsPermitted
                   - HiddenPathPolicy_IsPathPermitted_LiteralHiddenDifferentCase_IsNotPermitted
+                  - HiddenPathPolicy_IsPathPermitted_ManyRecursiveSegmentsAndLiteralHidden_IsPermitted
 
               - id: TextLint-FileSelection-HiddenPathPolicy-DirectoryTraversal
                 title: >-
@@ -57,3 +61,4 @@ sections:
                   - HiddenPathPolicy_CanContainPermittedPaths_LiteralHiddenDirectory_IsTrue
                   - HiddenPathPolicy_CanContainPermittedPaths_NonHiddenDirectory_IsTrue
                   - HiddenPathPolicy_CanContainPermittedPaths_HiddenBeneathLiteralPrefix_FollowsPattern
+                  - HiddenPathPolicy_CanContainPermittedPaths_ManyRecursiveSegmentsAndNoAlignment_IsFalse

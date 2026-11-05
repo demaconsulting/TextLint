@@ -5,6 +5,8 @@
 `FileSelector` is verified with unit tests in `FileSelectorTests.cs`. Tests build real directory trees in a
 per-test temporary directory and select from them, so the selector runs with the real matcher (an OTS item with
 its own requirements) and its documented dependencies, `GlobPatternExpander` and `HiddenPathPolicy`, real. The
+patterns and the hidden-file switch are passed as plain parameters, since the unit does not depend on any
+configuration type. The
 internal `Select` overload that accepts an abstract directory is tested with a recording directory, the only
 test double: it wraps the real directory and records which directories are enumerated, which proves pruning
 deterministically where a timing test would be flaky. Case sensitivity is tested with files whose names differ
@@ -35,7 +37,7 @@ markdown and C# files. This scenario is tested by `FileSelector_Select_IncludePa
 **FileSelector_Select_IgnorePatterns_ExcludesMatches**: An ignored file name is removed from the selection.
 This scenario is tested by `FileSelector_Select_IgnorePatterns_ExcludesMatches`.
 
-**FileSelector_Select_NoIncludePatterns_ReturnsEmpty**: Default settings select nothing. This scenario is
+**FileSelector_Select_NoIncludePatterns_ReturnsEmpty**: An empty include list selects nothing. This scenario is
 tested by `FileSelector_Select_NoIncludePatterns_ReturnsEmpty`.
 
 **FileSelector_Select_IgnoreAndIncludeOverlap_IgnoreWins**: A file matched by both an include and an ignore
@@ -54,8 +56,11 @@ removes a nested `node_modules` subtree. This scenario is tested by
 **FileSelector_Select_RootDirectoryMissing_ThrowsDirectoryNotFound**: A root that does not exist throws. This
 scenario is tested by `FileSelector_Select_RootDirectoryMissing_ThrowsDirectoryNotFound`.
 
-**FileSelector_Select_NullSettings_ThrowsArgumentNullException**: Null settings throw. This scenario is tested
-by `FileSelector_Select_NullSettings_ThrowsArgumentNullException`.
+**FileSelector_Select_NullIncludePatterns_ThrowsArgumentNullException**: Null include patterns throw. This
+scenario is tested by `FileSelector_Select_NullIncludePatterns_ThrowsArgumentNullException`.
+
+**FileSelector_Select_NullIgnorePatterns_ThrowsArgumentNullException**: Null ignore patterns throw. This
+scenario is tested by `FileSelector_Select_NullIgnorePatterns_ThrowsArgumentNullException`.
 
 **FileSelector_Select_NullRoot_ThrowsArgumentNullException**: A null root throws. This scenario is tested by
 `FileSelector_Select_NullRoot_ThrowsArgumentNullException`.

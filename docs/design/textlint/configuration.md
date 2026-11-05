@@ -33,8 +33,9 @@ file; the caller supplies the path. Choosing which files to check from the setti
 **TextLintSettings**: The immutable settings value.
 
 - _Type_: .NET record with `init` properties.
-- _Role_: Provider and consumer: applications and the `FileSelection` subsystem read it, and
-  applications may construct it directly.
+- _Role_: Provider: applications read it, and may construct it directly. The `FileSelection`
+  subsystem does not consume it; an application passes the `Files`, `IgnorePaths`, and
+  `EnableGlobDot` values to `FileSelector`.
 - _Contract_: Exposes `Version`, `Files`, `IgnorePaths`, and `EnableGlobDot` with documented
   defaults, and supports `with` expressions for deriving modified copies.
 - _Constraints_: Immutable; list properties are copied on assignment.
@@ -47,14 +48,16 @@ result, on YamlDotNet to parse the file (see _YamlDotNet Integration Design_), a
 dependency is deliberate and documented here because it crosses a subsystem boundary: validating
 patterns while the file is loaded lets the error carry the line and column of the offending list
 item, and using the very expander that file selection uses guarantees that a pattern accepted at
-load time is never rejected later. `FileSelection` in turn depends on `TextLintSettings`, but no
-two units depend on each other in a cycle.
+load time is never rejected later. It is the only dependency between the two subsystems and runs
+one way: `FileSelection` depends on nothing in this subsystem, so there is no cycle. The subsystem's
+tests use `GlobPatternExpander` for real.
 
 Problems are returned as diagnostics rather than thrown for two reasons. First, a user fixing a
 configuration wants to see every problem in one run, which an exception at the first problem
 prevents. Second, the command-line tool can then print all problems in a uniform compiler-style
-format. A single settings value serves both the file route and the code route, so every consumer
-passes the same type onward.
+format. The result type snapshots its diagnostics into an immutable array when it is created, so
+the invariant that settings are present exactly when there are no errors cannot be broken by a
+caller. A single settings value serves both the file route and the code route.
 
 The supported key set is deliberately small: the keys that file selection consumes, plus `version`,
 which is carried but not validated so that migrated cspell configurations, which almost always

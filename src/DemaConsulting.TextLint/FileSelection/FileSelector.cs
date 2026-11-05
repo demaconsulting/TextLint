@@ -18,48 +18,61 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-using DemaConsulting.TextLint.Configuration;
 using Microsoft.Extensions.FileSystemGlobbing;
 using Microsoft.Extensions.FileSystemGlobbing.Abstractions;
 
 namespace DemaConsulting.TextLint.FileSelection;
 
 /// <summary>
-///     Selects the files to check by applying TextLint settings to a root directory.
+///     Selects the files to check by applying glob patterns to a root directory.
 /// </summary>
 /// <remarks>
-///     This is the single place that turns the glob settings into a list of files, so every
-///     consumer selects files identically. Patterns are matched case-sensitively on every operating
+///     This is the single place that turns glob patterns into a list of files, so every consumer
+///     selects files identically. It takes the patterns and the hidden-file switch as plain
+///     parameters rather than any configuration type, so the file selection subsystem does not
+///     depend on the configuration subsystem; a caller that holds settings passes their values
+///     (for example <c>settings.Files</c>, <c>settings.IgnorePaths</c>, and
+///     <c>settings.EnableGlobDot</c>). Patterns are matched case-sensitively on every operating
 ///     system, so a configuration selects the same files on Windows, Linux, and macOS. Directories
 ///     excluded by an ignore pattern, and hidden directories no pattern names literally, are never
 ///     enumerated, because scanning trees such as <c>node_modules</c> or <c>.git</c> would
 ///     otherwise dominate the run time on large repositories. The class is stateless and
-///     thread-safe; each call builds its own matcher.
+///     thread-safe; each call builds its own matcher and reads the supplied lists once.
 /// </remarks>
 public static class FileSelector
 {
     /// <summary>
-    ///     Selects the files under a directory that match the settings.
+    ///     Selects the files under a directory that match the patterns.
     /// </summary>
     /// <remarks>
     ///     The directory walk is synchronous because the underlying matcher is, and wrapping it in a
     ///     background task would only hide the blocking. Side effects: reads directory listings
     ///     beneath <paramref name="rootDirectory"/>; no file is opened. The result is a snapshot.
+    ///     The pattern lists are only read during the call and must not be changed by another
+    ///     thread while it runs.
     /// </remarks>
-    /// <param name="settings">The settings whose <c>Files</c>, <c>IgnorePaths</c>, and <c>EnableGlobDot</c> are applied. Must not be null.</param>
     /// <param name="rootDirectory">The directory that patterns are relative to. Must name an existing directory.</param>
+    /// <param name="includePatterns">The include glob patterns. Must not be null; an empty list selects nothing.</param>
+    /// <param name="ignorePatterns">The exclude glob patterns, which win over include patterns. Must not be null.</param>
+    /// <param name="enableGlobDot">
+    ///     <see langword="true"/> to let wildcards match hidden (dot-prefixed) names; otherwise only
+    ///     hidden names written literally in a pattern match.
+    /// </param>
     /// <returns>
     ///     The selected files ordered by ordinal relative path, using forward slashes. Empty when
-    ///     <c>Files</c> is empty.
+    ///     <paramref name="includePatterns"/> is empty.
     /// </returns>
-    /// <exception cref="ArgumentNullException">Thrown when <paramref name="settings"/> or <paramref name="rootDirectory"/> is null.</exception>
+    /// <exception cref="ArgumentNullException">Thrown when an argument is null.</exception>
     /// <exception cref="ArgumentException">Thrown when <paramref name="rootDirectory"/> is empty or white space.</exception>
     /// <exception cref="DirectoryNotFoundException">Thrown when <paramref name="rootDirectory"/> does not exist.</exception>
-    /// <exception cref="InvalidGlobPatternException">Thrown when a pattern in the settings is unsupported or malformed.</exception>
-    public static IReadOnlyList<SelectedFile> Select(TextLintSettings settings, string rootDirectory)
+    /// <exception cref="InvalidGlobPatternException">Thrown when a pattern is unsupported or malformed.</exception>
+    public static IReadOnlyList<SelectedFile> Select(
+        string rootDirectory,
+        IReadOnlyList<string> includePatterns,
+        IReadOnlyList<string> ignorePatterns,
+        bool enableGlobDot = false)
     {
         // Validate the arguments and the directory before any pattern work
-        ArgumentNullException.ThrowIfNull(settings);
         ArgumentException.ThrowIfNullOrWhiteSpace(rootDirectory);
         var root = new DirectoryInfo(rootDirectory);
         if (!root.Exists)
@@ -67,29 +80,36 @@ public static class FileSelector
             throw new DirectoryNotFoundException($"The selection root directory '{rootDirectory}' does not exist.");
         }
 
-        return Select(settings, new DirectoryInfoWrapper(root));
+        return Select(new DirectoryInfoWrapper(root), includePatterns, ignorePatterns, enableGlobDot);
     }
 
     /// <summary>
-    ///     Selects the files under an abstract directory that match the settings.
+    ///     Selects the files under an abstract directory that match the patterns.
     /// </summary>
     /// <remarks>
     ///     Internal test seam: it lets tests supply a directory that records which directories are
     ///     enumerated, which proves pruning deterministically instead of by timing. Stateless and thread-safe.
     /// </remarks>
-    /// <param name="settings">The settings to apply. Must not be null.</param>
     /// <param name="root">The directory that patterns are relative to. Must not be null.</param>
+    /// <param name="includePatterns">The include glob patterns. Must not be null.</param>
+    /// <param name="ignorePatterns">The exclude glob patterns. Must not be null.</param>
+    /// <param name="enableGlobDot">Whether wildcards may match hidden (dot-prefixed) names.</param>
     /// <returns>The selected files ordered by ordinal relative path, using forward slashes.</returns>
-    /// <exception cref="ArgumentNullException">Thrown when <paramref name="settings"/> or <paramref name="root"/> is null.</exception>
-    /// <exception cref="InvalidGlobPatternException">Thrown when a pattern in the settings is unsupported or malformed.</exception>
-    internal static IReadOnlyList<SelectedFile> Select(TextLintSettings settings, DirectoryInfoBase root)
+    /// <exception cref="ArgumentNullException">Thrown when an argument is null.</exception>
+    /// <exception cref="InvalidGlobPatternException">Thrown when a pattern is unsupported or malformed.</exception>
+    internal static IReadOnlyList<SelectedFile> Select(
+        DirectoryInfoBase root,
+        IReadOnlyList<string> includePatterns,
+        IReadOnlyList<string> ignorePatterns,
+        bool enableGlobDot)
     {
-        ArgumentNullException.ThrowIfNull(settings);
         ArgumentNullException.ThrowIfNull(root);
+        ArgumentNullException.ThrowIfNull(includePatterns);
+        ArgumentNullException.ThrowIfNull(ignorePatterns);
 
         // Validate and expand every pattern first so a bad pattern fails even when nothing is selected
-        var includes = ExpandAll(settings.Files);
-        var excludes = ExpandAll(settings.IgnorePaths);
+        var includes = ExpandAll(includePatterns);
+        var excludes = ExpandAll(ignorePatterns);
         if (includes.Count == 0)
         {
             return [];
@@ -97,11 +117,11 @@ public static class FileSelector
 
         // Walk through a hidden-directory filter unless wildcards may match hidden names
         var matcher = BuildMatcher(includes, excludes);
-        DirectoryInfoBase walked = settings.EnableGlobDot ? root : new HiddenFilteringDirectory(root, includes);
+        DirectoryInfoBase walked = enableGlobDot ? root : new HiddenFilteringDirectory(root, includes);
         IEnumerable<string> paths = matcher.Execute(walked).Files.Select(match => match.Path);
 
         // Decide hidden files exactly, now that the matcher has found every candidate
-        if (!settings.EnableGlobDot)
+        if (!enableGlobDot)
         {
             paths = paths.Where(path => HiddenPathPolicy.IsPathPermitted(path, includes));
         }

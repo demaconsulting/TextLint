@@ -82,6 +82,40 @@ public class TextLintSettingsTests
     }
 
     /// <summary>
+    ///     Test that changing the ignore list after assigning it does not change the settings.
+    /// </summary>
+    [Fact]
+    public void TextLintSettings_Init_IgnorePathsMutatedAfterAssignment_DoesNotAffectSettings()
+    {
+        // Arrange: a mutable list assigned to IgnorePaths
+        var ignored = new List<string> { "node_modules" };
+        var settings = new TextLintSettings { IgnorePaths = ignored };
+
+        // Act: change the caller's list after assignment
+        ignored.Add("bin");
+
+        // Assert: the settings still hold only the original pattern
+        Assert.Equal(["node_modules"], settings.IgnorePaths);
+    }
+
+    /// <summary>
+    ///     Test that changing an assigned array in place does not change the settings.
+    /// </summary>
+    [Fact]
+    public void TextLintSettings_Init_ArrayMutatedAfterAssignment_DoesNotAffectSettings()
+    {
+        // Arrange: an array assigned to Files (arrays are mutable in place)
+        var files = new[] { "**/*.md" };
+        var settings = new TextLintSettings { Files = files };
+
+        // Act: overwrite the array element after assignment
+        files[0] = "**/*.cs";
+
+        // Assert: the settings still hold the original pattern
+        Assert.Equal(["**/*.md"], settings.Files);
+    }
+
+    /// <summary>
     ///     Test that assigning a null include list is rejected.
     /// </summary>
     [Fact]

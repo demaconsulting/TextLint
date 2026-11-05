@@ -17,7 +17,9 @@ supporting result types it returns, which have no unit of their own: `SettingsLo
 **SettingsLoadResult** is the outcome of a load. `Settings` is non-null exactly when `Diagnostics`
 is empty (the constructor discards the settings when there are errors, which enforces the invariant
 in one place); `Succeeded` reports whether settings are present. `Diagnostics` lists the errors in
-source order. Instances are immutable.
+source order and is a snapshot: the constructor copies the supplied list into an immutable array, so
+neither the producer's list nor a cast of the exposed list to a mutable interface can change it.
+Instances are immutable.
 
 **SettingsDiagnostic** is one error. It carries `Message`, `FilePath` (the path supplied to the
 loader, or null), and `Line` and `Column` (1-based, null when the problem has no position, such

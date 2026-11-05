@@ -27,7 +27,8 @@ test environment.
 - Every unsupported key is reported by name at its position, case-sensitively, and no settings are returned.
 - Invalid patterns in `files` and `ignorePaths` are reported at the item, naming the pattern and the reason;
   valid brace and bare-name patterns are accepted.
-- Diagnostics carry the source, line, and column and format as `file(line,column): error: message`.
+- Diagnostics carry the source, line, and column, format as `file(line,column): error: message`, and cannot be
+  changed by the caller once returned.
 
 #### Test Scenarios
 
@@ -164,6 +165,14 @@ name, line 2, and column 16. This scenario is tested by
 **SettingsLoader_Parse_Diagnostic_ToStringWithoutSource_OmitsFileName**: With no source name, only the
 position, the severity word, and the message appear. This scenario is tested by
 `SettingsLoader_Parse_Diagnostic_ToStringWithoutSource_OmitsFileName`.
+
+**SettingsLoader_Parse_Result_DiagnosticsCannotBeMutatedThroughInterface**: The diagnostics of a failed result
+are cast to the mutable collection interface; clearing and adding are refused and the error and the absence of
+settings remain. This scenario is tested by `SettingsLoader_Parse_Result_DiagnosticsCannotBeMutatedThroughInterface`.
+
+**SettingsLoader_Parse_Result_CallerListMutatedAfterCreation_DoesNotAffectResult**: A result is created from an
+empty list that the caller then adds to; the result still has settings and no diagnostics. This scenario is
+tested by `SettingsLoader_Parse_Result_CallerListMutatedAfterCreation_DoesNotAffectResult`.
 
 **SettingsLoader_Parse_Diagnostic_ToStringWithNothingKnown_ShowsOnlyMessage**: With neither source nor
 position, only the severity word and the message appear. This scenario is tested by

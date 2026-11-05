@@ -18,7 +18,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-using DemaConsulting.TextLint.Configuration;
 using DemaConsulting.TextLint.FileSelection;
 using DemaConsulting.TextLint.Tests.TestSupport;
 using Microsoft.Extensions.FileSystemGlobbing.Abstractions;
@@ -30,8 +29,9 @@ namespace DemaConsulting.TextLint.Tests.FileSelection;
 /// </summary>
 /// <remarks>
 ///     The selector is tested against real temporary directory trees with the real matcher (an OTS
-///     item) and the real pattern expander and hidden-path policy it depends on. The only test
-///     double is the recording directory, which proves that excluded directories are never
+///     item) and the real pattern expander and hidden-path policy it depends on. The patterns are
+///     passed directly, because the selector does not depend on any configuration type. The only
+///     test double is the recording directory, which proves that excluded directories are never
 ///     enumerated without relying on timing.
 /// </remarks>
 public class FileSelectorTests
@@ -40,22 +40,29 @@ public class FileSelectorTests
     ///     Selects files from a temporary tree and returns their relative paths.
     /// </summary>
     /// <param name="temp">The temporary tree.</param>
-    /// <param name="settings">The settings to apply.</param>
+    /// <param name="files">The include patterns.</param>
+    /// <param name="ignorePaths">The ignore patterns, or null for none.</param>
+    /// <param name="enableGlobDot">Whether wildcards may match hidden names.</param>
     /// <returns>The relative paths of the selected files.</returns>
-    private static string[] SelectPaths(TempDirectory temp, TextLintSettings settings) =>
-        [.. FileSelector.Select(settings, temp.FullPath).Select(file => file.RelativePath)];
+    private static string[] SelectPaths(
+        TempDirectory temp,
+        string[] files,
+        string[]? ignorePaths = null,
+        bool enableGlobDot = false) =>
+        [.. FileSelector.Select(temp.FullPath, files, ignorePaths ?? [], enableGlobDot).Select(file => file.RelativePath)];
 
     /// <summary>
     ///     Selects files from a temporary tree through a recording directory.
     /// </summary>
     /// <param name="temp">The temporary tree.</param>
-    /// <param name="settings">The settings to apply.</param>
+    /// <param name="files">The include patterns.</param>
+    /// <param name="ignorePaths">The ignore patterns, or null for none.</param>
     /// <returns>The root-relative paths of the directories that were enumerated.</returns>
-    private static IReadOnlyList<string> SelectAndRecord(TempDirectory temp, TextLintSettings settings)
+    private static IReadOnlyList<string> SelectAndRecord(TempDirectory temp, string[] files, string[]? ignorePaths = null)
     {
         // Wrap the real directory so every enumeration is observed
         var recording = new RecordingDirectoryInfo(new DirectoryInfoWrapper(new DirectoryInfo(temp.FullPath)));
-        _ = FileSelector.Select(settings, recording);
+        _ = FileSelector.Select(recording, files, ignorePaths ?? [], enableGlobDot: false);
         return recording.EnumeratedDirectories;
     }
 
@@ -72,7 +79,7 @@ public class FileSelectorTests
         temp.CreateFile("src/Program.cs");
 
         // Act: select the markdown files
-        var paths = SelectPaths(temp, new TextLintSettings { Files = ["**/*.md"] });
+        var paths = SelectPaths(temp, ["**/*.md"]);
 
         // Assert: only the markdown files are selected
         Assert.Equal(["README.md", "docs/guide.md"], paths);
@@ -90,7 +97,7 @@ public class FileSelectorTests
         temp.CreateFile("CHANGELOG.md");
 
         // Act: select markdown files while ignoring one by name
-        var paths = SelectPaths(temp, new TextLintSettings { Files = ["**/*.md"], IgnorePaths = ["CHANGELOG.md"] });
+        var paths = SelectPaths(temp, ["**/*.md"], ["CHANGELOG.md"]);
 
         // Assert: the ignored file is not selected
         Assert.Equal(["README.md"], paths);
@@ -106,8 +113,8 @@ public class FileSelectorTests
         using var temp = new TempDirectory();
         temp.CreateFile("README.md");
 
-        // Act: select with default settings
-        var paths = SelectPaths(temp, new TextLintSettings());
+        // Act: select with no include patterns
+        var paths = SelectPaths(temp, []);
 
         // Assert: nothing is selected
         Assert.Empty(paths);
@@ -124,7 +131,7 @@ public class FileSelectorTests
         temp.CreateFile("docs/guide.md");
 
         // Act: select with overlapping patterns
-        var paths = SelectPaths(temp, new TextLintSettings { Files = ["docs/**"], IgnorePaths = ["docs/**"] });
+        var paths = SelectPaths(temp, ["docs/**"], ["docs/**"]);
 
         // Assert: the ignore pattern wins
         Assert.Empty(paths);
@@ -141,7 +148,7 @@ public class FileSelectorTests
         temp.CreateFile("a/b/c/d/deep.md");
 
         // Act: select with a recursive pattern
-        var paths = SelectPaths(temp, new TextLintSettings { Files = ["**/*.md"] });
+        var paths = SelectPaths(temp, ["**/*.md"]);
 
         // Assert: the nested file is selected
         Assert.Equal(["a/b/c/d/deep.md"], paths);
@@ -158,7 +165,7 @@ public class FileSelectorTests
         temp.CreateFile("my docs/read me.md");
 
         // Act: select markdown files
-        var paths = SelectPaths(temp, new TextLintSettings { Files = ["**/*.md"] });
+        var paths = SelectPaths(temp, ["**/*.md"]);
 
         // Assert: the file is selected
         Assert.Equal(["my docs/read me.md"], paths);
@@ -176,7 +183,7 @@ public class FileSelectorTests
         temp.CreateFile("packages/app/node_modules/dep/readme.md");
 
         // Act: select markdown files, ignoring node_modules by bare name
-        var paths = SelectPaths(temp, new TextLintSettings { Files = ["**/*.md"], IgnorePaths = ["node_modules"] });
+        var paths = SelectPaths(temp, ["**/*.md"], ["node_modules"]);
 
         // Assert: the nested subtree is excluded
         Assert.Equal(["README.md"], paths);
@@ -193,20 +200,33 @@ public class FileSelectorTests
         var missing = Path.Combine(temp.FullPath, "missing");
 
         // Act / Assert: selecting from it throws
-        Assert.Throws<DirectoryNotFoundException>(() => FileSelector.Select(new TextLintSettings(), missing));
+        Assert.Throws<DirectoryNotFoundException>(() => FileSelector.Select(missing, ["**/*.md"], []));
     }
 
     /// <summary>
-    ///     Test that null settings are rejected.
+    ///     Test that null include patterns are rejected.
     /// </summary>
     [Fact]
-    public void FileSelector_Select_NullSettings_ThrowsArgumentNullException()
+    public void FileSelector_Select_NullIncludePatterns_ThrowsArgumentNullException()
     {
         // Arrange: a valid root
         using var temp = new TempDirectory();
 
-        // Act / Assert: null settings throw
-        Assert.Throws<ArgumentNullException>(() => FileSelector.Select(null!, temp.FullPath));
+        // Act / Assert: null include patterns throw
+        Assert.Throws<ArgumentNullException>(() => FileSelector.Select(temp.FullPath, null!, []));
+    }
+
+    /// <summary>
+    ///     Test that null ignore patterns are rejected.
+    /// </summary>
+    [Fact]
+    public void FileSelector_Select_NullIgnorePatterns_ThrowsArgumentNullException()
+    {
+        // Arrange: a valid root
+        using var temp = new TempDirectory();
+
+        // Act / Assert: null ignore patterns throw
+        Assert.Throws<ArgumentNullException>(() => FileSelector.Select(temp.FullPath, ["**/*.md"], null!));
     }
 
     /// <summary>
@@ -218,7 +238,7 @@ public class FileSelectorTests
         // Arrange: no setup required
 
         // Act / Assert: a null root throws
-        Assert.Throws<ArgumentNullException>(() => FileSelector.Select(new TextLintSettings(), (string)null!));
+        Assert.Throws<ArgumentNullException>(() => FileSelector.Select((string)null!, ["**/*.md"], []));
     }
 
     /// <summary>
@@ -230,7 +250,7 @@ public class FileSelectorTests
         // Arrange: no setup required
 
         // Act / Assert: an empty root throws ArgumentException (not the derived null exception)
-        var exception = Assert.ThrowsAny<ArgumentException>(() => FileSelector.Select(new TextLintSettings(), string.Empty));
+        var exception = Assert.ThrowsAny<ArgumentException>(() => FileSelector.Select(string.Empty, ["**/*.md"], []));
         Assert.IsNotType<ArgumentNullException>(exception);
     }
 
@@ -245,7 +265,7 @@ public class FileSelectorTests
         var created = temp.CreateFile("docs/guide.md");
 
         // Act: select it
-        var file = Assert.Single(FileSelector.Select(new TextLintSettings { Files = ["**/*.md"] }, temp.FullPath));
+        var file = Assert.Single(FileSelector.Select(temp.FullPath, ["**/*.md"], []));
 
         // Assert: the full path is the absolute operating-system path of the file
         Assert.Equal(created, file.FullPath);
@@ -262,7 +282,7 @@ public class FileSelectorTests
         temp.CreateFile("README.MD");
 
         // Act: select with a lower-case extension pattern
-        var paths = SelectPaths(temp, new TextLintSettings { Files = ["**/*.md"] });
+        var paths = SelectPaths(temp, ["**/*.md"]);
 
         // Assert: matching is case-sensitive on every platform
         Assert.Empty(paths);
@@ -279,7 +299,7 @@ public class FileSelectorTests
         temp.CreateFile("Docs/guide.md");
 
         // Act: select with a lower-case directory pattern
-        var paths = SelectPaths(temp, new TextLintSettings { Files = ["docs/*.md"] });
+        var paths = SelectPaths(temp, ["docs/*.md"]);
 
         // Assert: matching is case-sensitive on every platform
         Assert.Empty(paths);
@@ -297,7 +317,7 @@ public class FileSelectorTests
         temp.CreateFile(".hidden.md");
 
         // Act: select with a wildcard pattern
-        var paths = SelectPaths(temp, new TextLintSettings { Files = ["*.md"] });
+        var paths = SelectPaths(temp, ["*.md"]);
 
         // Assert: the hidden file is skipped
         Assert.Equal(["visible.md"], paths);
@@ -315,7 +335,7 @@ public class FileSelectorTests
         temp.CreateFile(".git/notes.md");
 
         // Act: select with a recursive wildcard pattern
-        var paths = SelectPaths(temp, new TextLintSettings { Files = ["**/*.md"] });
+        var paths = SelectPaths(temp, ["**/*.md"]);
 
         // Assert: the hidden directory's file is skipped
         Assert.Equal(["docs/guide.md"], paths);
@@ -334,7 +354,7 @@ public class FileSelectorTests
         temp.CreateFile(".git/notes.md");
 
         // Act: select with hidden-file matching enabled
-        var paths = SelectPaths(temp, new TextLintSettings { Files = ["**/*.md"], EnableGlobDot = true });
+        var paths = SelectPaths(temp, ["**/*.md"], enableGlobDot: true);
 
         // Assert: wildcards now match the hidden entries
         Assert.Equal([".git/notes.md", ".hidden.md", "visible.md"], paths);
@@ -352,7 +372,7 @@ public class FileSelectorTests
         temp.CreateFile(".cache/other.yml");
 
         // Act: select with a pattern that names .github literally
-        var paths = SelectPaths(temp, new TextLintSettings { Files = [".github/**/*.yml"] });
+        var paths = SelectPaths(temp, [".github/**/*.yml"]);
 
         // Assert: only the literally named hidden directory is searched
         Assert.Equal([".github/workflows/ci.yml"], paths);
@@ -371,7 +391,7 @@ public class FileSelectorTests
         temp.CreateFile(".other");
 
         // Act: select with a bare hidden name
-        var paths = SelectPaths(temp, new TextLintSettings { Files = [".editorconfig"] });
+        var paths = SelectPaths(temp, [".editorconfig"]);
 
         // Assert: both named files are selected and the other hidden file is not
         Assert.Equal([".editorconfig", "src/.editorconfig"], paths);
@@ -389,7 +409,7 @@ public class FileSelectorTests
         temp.CreateFile(".github/.cache/stale.yml");
 
         // Act: select with a pattern that names .github literally and then uses a wildcard
-        var paths = SelectPaths(temp, new TextLintSettings { Files = [".github/**/*.yml"] });
+        var paths = SelectPaths(temp, [".github/**/*.yml"]);
 
         // Assert: the nested hidden directory is not searched
         Assert.Equal([".github/workflows/ci.yml"], paths);
@@ -407,7 +427,7 @@ public class FileSelectorTests
         temp.CreateFile(".github/ci.yml");
 
         // Act: select markdown by wildcard and yaml by a literal .github pattern
-        var paths = SelectPaths(temp, new TextLintSettings { Files = ["**/*.md", ".github/*.yml"] });
+        var paths = SelectPaths(temp, ["**/*.md", ".github/*.yml"]);
 
         // Assert: the yaml file is selected but the wildcard does not reach the markdown file
         Assert.Equal([".github/ci.yml"], paths);
@@ -425,7 +445,7 @@ public class FileSelectorTests
         temp.CreateFile("node_modules/pkg/readme.md");
 
         // Act: select while ignoring node_modules and record the enumerations
-        var enumerated = SelectAndRecord(temp, new TextLintSettings { Files = ["**/*.md"], IgnorePaths = ["node_modules"] });
+        var enumerated = SelectAndRecord(temp, ["**/*.md"], ["node_modules"]);
 
         // Assert: neither node_modules nor anything beneath it was enumerated
         Assert.Multiple(
@@ -446,7 +466,7 @@ public class FileSelectorTests
         temp.CreateFile("docs/guide.md");
 
         // Act: select with a wildcard pattern and record the enumerations
-        var enumerated = SelectAndRecord(temp, new TextLintSettings { Files = ["**/*.md"] });
+        var enumerated = SelectAndRecord(temp, ["**/*.md"]);
 
         // Assert: the hidden directory was skipped and the visible one was read
         Assert.Multiple(
@@ -467,7 +487,7 @@ public class FileSelectorTests
         temp.CreateFile("src/lib/docs.md");
 
         // Act: select while ignoring the directory name and record the enumerations
-        var enumerated = SelectAndRecord(temp, new TextLintSettings { Files = ["**/*.md"], IgnorePaths = ["build/"] });
+        var enumerated = SelectAndRecord(temp, ["**/*.md"], ["build/"]);
 
         // Assert: the nested directory was not enumerated but its parent was
         Assert.Multiple(
@@ -487,7 +507,7 @@ public class FileSelectorTests
         temp.CreateFile(".cache/x.yml");
 
         // Act: select with a pattern that names .github and record the enumerations
-        var enumerated = SelectAndRecord(temp, new TextLintSettings { Files = [".github/*.yml"] });
+        var enumerated = SelectAndRecord(temp, [".github/*.yml"]);
 
         // Assert: the named hidden directory was read and the other was not
         Assert.Multiple(
@@ -509,7 +529,7 @@ public class FileSelectorTests
         temp.CreateFile("a.md");
 
         // Act: select all markdown files
-        var paths = SelectPaths(temp, new TextLintSettings { Files = ["**/*.md"] });
+        var paths = SelectPaths(temp, ["**/*.md"]);
 
         // Assert: the order is ordinal (upper case before lower case)
         Assert.Equal(["B.md", "a.md", "a/z.md", "c.md"], paths);
@@ -526,7 +546,7 @@ public class FileSelectorTests
         temp.CreateFile("docs/sub/guide.md");
 
         // Act: select it
-        var file = Assert.Single(FileSelector.Select(new TextLintSettings { Files = ["**/*.md"] }, temp.FullPath));
+        var file = Assert.Single(FileSelector.Select(temp.FullPath, ["**/*.md"], []));
 
         // Assert: the relative path uses forward slashes on every platform
         Assert.Equal("docs/sub/guide.md", file.RelativePath);
@@ -538,12 +558,11 @@ public class FileSelectorTests
     [Fact]
     public void FileSelector_Select_InvalidIncludePattern_ThrowsInvalidGlobPattern()
     {
-        // Arrange: a root and settings with a negated include pattern
+        // Arrange: a root and a negated include pattern
         using var temp = new TempDirectory();
-        var settings = new TextLintSettings { Files = ["!**/*.md"] };
 
         // Act / Assert: selection throws an exception that names the pattern
-        var exception = Assert.Throws<InvalidGlobPatternException>(() => FileSelector.Select(settings, temp.FullPath));
+        var exception = Assert.Throws<InvalidGlobPatternException>(() => FileSelector.Select(temp.FullPath, ["!**/*.md"], []));
         Assert.Equal("!**/*.md", exception.Pattern);
     }
 
@@ -553,12 +572,11 @@ public class FileSelectorTests
     [Fact]
     public void FileSelector_Select_InvalidIgnorePattern_ThrowsInvalidGlobPattern()
     {
-        // Arrange: a root and settings with no includes and a backslash ignore pattern
+        // Arrange: a root, no include patterns, and a backslash ignore pattern
         using var temp = new TempDirectory();
-        var settings = new TextLintSettings { IgnorePaths = ["docs\\old"] };
 
         // Act / Assert: selection throws an exception that names the pattern
-        var exception = Assert.Throws<InvalidGlobPatternException>(() => FileSelector.Select(settings, temp.FullPath));
+        var exception = Assert.Throws<InvalidGlobPatternException>(() => FileSelector.Select(temp.FullPath, [], ["docs\\old"]));
         Assert.Equal("docs\\old", exception.Pattern);
     }
 }

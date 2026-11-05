@@ -13,19 +13,20 @@ The library is composed of two subsystems and consumes two OTS items:
 - **Configuration** turns a `.textlint.yaml` file, or values built in code, into one immutable
   settings value, and reports every configuration problem as a positioned error. It contains the
   `TextLintSettings` and `SettingsLoader` units. See _Configuration Design_.
-- **FileSelection** applies settings to a root directory and returns the ordered list of files to
+- **FileSelection** applies include and ignore glob patterns to a root directory and returns the ordered list of files to
   check. It contains the `GlobPatternExpander`, `HiddenPathPolicy`, and `FileSelector` units.
   See _FileSelection Design_.
 - **YamlDotNet** (OTS) parses the settings file and **Microsoft.Extensions.FileSystemGlobbing**
   (OTS) matches glob patterns against the file system. See _OTS Software Integration Design_.
 
-The two subsystems depend on each other, though no two units form a cycle. `FileSelector` takes
-`TextLintSettings` as its input (FileSelection depends on Configuration), and `SettingsLoader`
-validates glob patterns with `GlobPatternExpander` so that a bad pattern is reported at load time
-with its line and column (Configuration depends on FileSelection). `TextLintSettings` and
-`GlobPatternExpander` depend on neither, which keeps the unit graph acyclic. Sharing the one expander
-guarantees that a pattern accepted when the file is loaded is never rejected when files are
-selected. Each dependency is documented in the design of the subsystem that uses it.
+The dependency between the two subsystems runs in one direction only, so there is no cycle at
+any level. `SettingsLoader` (Configuration) validates glob patterns with `GlobPatternExpander`
+(FileSelection) so that a bad pattern is reported at load time with its line and column, and
+sharing the one expander guarantees that a pattern accepted when the file is loaded is never
+rejected when files are selected. FileSelection depends on nothing in Configuration: `FileSelector`
+takes the include patterns, the ignore patterns, and the hidden-file switch as plain parameters,
+and a caller that holds `TextLintSettings` passes its `Files`, `IgnorePaths`, and `EnableGlobDot`
+values. The dependency is documented in the design of the Configuration subsystem.
 
 **Layering.** The library owns **all linting logic**: settings and configuration loading, file
 discovery and globbing, dictionaries, tokenization, spell checking, and results. The settings and
@@ -96,10 +97,12 @@ Settings reach the rest of the library by one of two routes, and from there a si
 2. **Code route**: the caller builds a `TextLintSettings` directly, optionally deriving it from
    loaded settings with a `with` expression, for example to replace the include patterns with
    patterns given on a command line.
-3. **Selection**: the caller passes the settings and a root directory to `FileSelector`, which
+3. **Selection**: the caller passes the root directory and the patterns and hidden-file switch (the
+   `Files`, `IgnorePaths`, and `EnableGlobDot` values of the settings, or values obtained any other
+   way) to `FileSelector`, which
    expands the patterns, walks the root directory with the matcher while skipping excluded and
    hidden directories, and returns the matching files ordered by ordinal relative path using
-   forward slashes. An invalid pattern in settings built in code is reported here as an exception.
+   forward slashes. An invalid pattern passed to selection is reported there as an exception.
 
 ## Design Constraints
 

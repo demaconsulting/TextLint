@@ -36,8 +36,9 @@ The type has no methods of its own beyond the property accessors.
 - _Parameters_: the sequence of patterns to store.
 - _Returns_: nothing; the getter returns the stored list.
 - _Preconditions_: the sequence is not null.
-- _Postconditions_: later changes to the caller's sequence do not affect the settings, and the
-  exposed list cannot be mutated, even through a cast to a mutable collection interface.
+- _Postconditions_: later changes to the caller's sequence, including an array changed in place, do not
+  affect the settings, and the exposed list cannot be mutated, even through a cast to a mutable
+  collection interface.
 
 Patterns are not validated here. Validation needs the glob rules that belong to the `FileSelection`
 subsystem and is applied where patterns are consumed (file selection) and where they are read from a
@@ -57,5 +58,5 @@ nothing is logged.
 #### Callers
 
 - **SettingsLoader** - creates settings from a settings file.
-- **FileSelector** - reads the patterns and the hidden-file switch to select files.
-- **Library consumers** - construct settings in code and derive modified copies with `with`.
+- **Library consumers** - construct settings in code, derive modified copies with `with`, and pass the
+  pattern lists and hidden-file switch on to `FileSelector`.
