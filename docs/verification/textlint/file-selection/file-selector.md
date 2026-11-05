@@ -56,6 +56,10 @@ removes a nested `node_modules` subtree. This scenario is tested by
 **FileSelector_Select_RootDirectoryMissing_ThrowsDirectoryNotFound**: A root that does not exist throws. This
 scenario is tested by `FileSelector_Select_RootDirectoryMissing_ThrowsDirectoryNotFound`.
 
+**FileSelector_Select_InvalidPatternAndMissingRoot_ThrowsInvalidGlobPattern**: An invalid pattern is reported
+even when the root directory is also missing, because patterns are validated before any directory is read. This
+scenario is tested by `FileSelector_Select_InvalidPatternAndMissingRoot_ThrowsInvalidGlobPattern`.
+
 **FileSelector_Select_NullIncludePatterns_ThrowsArgumentNullException**: Null include patterns throw. This
 scenario is tested by `FileSelector_Select_NullIncludePatterns_ThrowsArgumentNullException`.
 

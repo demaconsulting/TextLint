@@ -204,6 +204,22 @@ public class FileSelectorTests
     }
 
     /// <summary>
+    ///     Test that an invalid pattern is reported even when the root directory is also missing.
+    /// </summary>
+    [Fact]
+    public void FileSelector_Select_InvalidPatternAndMissingRoot_ThrowsInvalidGlobPattern()
+    {
+        // Arrange: a root that does not exist and an ignore pattern using the unsupported '?' wildcard
+        using var temp = new TempDirectory();
+        var missing = Path.Combine(temp.FullPath, "missing");
+
+        // Act / Assert: the pattern error wins because patterns are validated before the directory is read
+        var exception = Assert.Throws<InvalidGlobPatternException>(
+            () => FileSelector.Select(missing, ["**/*.md"], ["file?.md"]));
+        Assert.Equal("file?.md", exception.Pattern);
+    }
+
+    /// <summary>
     ///     Test that null include patterns are rejected.
     /// </summary>
     [Fact]

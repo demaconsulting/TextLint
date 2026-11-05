@@ -72,15 +72,22 @@ public static class FileSelector
         IReadOnlyList<string> ignorePatterns,
         bool enableGlobDot = false)
     {
-        // Validate the arguments and the directory before any pattern work
+        // Validate the arguments and every pattern before touching the file system, so an invalid
+        // pattern is always reported, even when the root directory is also missing
         ArgumentException.ThrowIfNullOrWhiteSpace(rootDirectory);
+        ArgumentNullException.ThrowIfNull(includePatterns);
+        ArgumentNullException.ThrowIfNull(ignorePatterns);
+        var includes = ExpandAll(includePatterns);
+        var excludes = ExpandAll(ignorePatterns);
+
+        // Only then probe the root directory
         var root = new DirectoryInfo(rootDirectory);
         if (!root.Exists)
         {
             throw new DirectoryNotFoundException($"The selection root directory '{rootDirectory}' does not exist.");
         }
 
-        return Select(new DirectoryInfoWrapper(root), includePatterns, ignorePatterns, enableGlobDot);
+        return SelectExpanded(new DirectoryInfoWrapper(root), includes, excludes, enableGlobDot);
     }
 
     /// <summary>
@@ -108,8 +115,27 @@ public static class FileSelector
         ArgumentNullException.ThrowIfNull(ignorePatterns);
 
         // Validate and expand every pattern first so a bad pattern fails even when nothing is selected
-        var includes = ExpandAll(includePatterns);
-        var excludes = ExpandAll(ignorePatterns);
+        return SelectExpanded(root, ExpandAll(includePatterns), ExpandAll(ignorePatterns), enableGlobDot);
+    }
+
+    /// <summary>
+    ///     Selects the files under a directory that match already-validated, expanded patterns.
+    /// </summary>
+    /// <remarks>
+    ///     Shared core of both selection entry points: each validates and expands its patterns first,
+    ///     so pattern errors are reported before any directory is read. Stateless and thread-safe.
+    /// </remarks>
+    /// <param name="root">The directory that patterns are relative to. Must not be null.</param>
+    /// <param name="includes">The expanded include patterns. Must not be null.</param>
+    /// <param name="excludes">The expanded exclude patterns. Must not be null.</param>
+    /// <param name="enableGlobDot">Whether wildcards may match hidden (dot-prefixed) names.</param>
+    /// <returns>The selected files ordered by ordinal relative path, using forward slashes.</returns>
+    private static IReadOnlyList<SelectedFile> SelectExpanded(
+        DirectoryInfoBase root,
+        List<string> includes,
+        List<string> excludes,
+        bool enableGlobDot)
+    {
         if (includes.Count == 0)
         {
             return [];
