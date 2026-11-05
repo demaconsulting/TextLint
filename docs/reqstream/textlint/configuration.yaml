@@ -30,32 +30,78 @@ sections:
           - id: TextLint-Configuration-KeyMapping
             title: >-
               The Configuration subsystem shall map the supported cspell-named keys (version,
-              files, ignorePaths, and enableGlobDot) onto settings, using defaults for absent keys.
+              files, ignorePaths, enableGlobDot, language, words, ignoreWords, flagWords,
+              minWordLength, and maxFileSize) onto settings, using defaults for absent keys.
             justification: |
-              These keys are the cspell keys needed to select files, and a user migrating from
-              cspell expects them to keep their meaning. An empty file must be valid so a project
-              can start without configuration.
+              These keys are the cspell keys needed to select files and to tune the spell check,
+              and a user migrating from cspell expects them to keep their meaning. An empty file
+              must be valid so a project can start without configuration.
             children:
               - TextLint-Configuration-SettingsLoader-MapKeys
+              - TextLint-Configuration-SettingsLoader-MapSpellingKeys
               - TextLint-Configuration-TextLintSettings-Defaults
+              - TextLint-Configuration-TextLintSettings-SpellingDefaults
             tests:
               - ConfigurationSubsystem_LoadAsync_AllSupportedKeys_PopulatesSettings
               - ConfigurationSubsystem_LoadAsync_EmptyFile_ReturnsDefaults
 
+          - id: TextLint-Configuration-SpellingSettings
+            title: >-
+              The Configuration subsystem shall map the language, words, ignoreWords, flagWords,
+              minWordLength, and maxFileSize keys onto settings, using the cspell defaults for
+              absent keys (language en, minimum word length 4, empty word lists, and no file size
+              limit), and shall keep the word lists unchangeable once settings are created.
+            justification: |
+              The spell check is tuned with these settings, so they must reach it with the meaning
+              they have in cspell, and a project that sets none of them must get cspell's behavior.
+              Word lists that could be changed after the settings were handed over would let one
+              part of a run alter what another part checks.
+            children:
+              - TextLint-Configuration-SettingsLoader-MapSpellingKeys
+              - TextLint-Configuration-TextLintSettings-SpellingDefaults
+              - TextLint-Configuration-TextLintSettings-ListsImmutable
+            tests:
+              - ConfigurationSubsystem_LoadAsync_SpellingKeys_PopulatesSettings
+              - ConfigurationSubsystem_LoadAsync_SpellingKeysAbsent_UsesCspellDefaults
+              - ConfigurationSubsystem_Settings_WordListsConstructedInCode_AreImmutable
+
+          - id: TextLint-Configuration-InvalidSpellingValues
+            title: >-
+              The Configuration subsystem shall report an unsupported language, an unusable
+              word-list entry, an invalid minimum word length, and an invalid maximum file size
+              as errors at the value's position, naming the problem, and shall not return settings.
+            justification: |
+              A value that cannot work would otherwise have no effect: an entry that can never
+              match a word, a language without dictionaries, or a size that means no limit by
+              accident. Reporting it when the file is loaded, at its line and column and with the
+              reason, lets the user fix it at once instead of wondering why a setting is ignored.
+            children:
+              - TextLint-Configuration-SettingsLoader-ValidateSpellingValues
+            tests:
+              - ConfigurationSubsystem_LoadAsync_UnsupportedLanguage_ReportsErrorWithPosition
+              - ConfigurationSubsystem_LoadAsync_UnusableWordEntry_ReportsErrorWithPosition
+              - ConfigurationSubsystem_LoadAsync_InvalidMinWordLength_ReportsErrorWithPosition
+              - ConfigurationSubsystem_LoadAsync_InvalidMaxFileSize_ReportsErrorWithPosition
+              - ConfigurationSubsystem_LoadAsync_MultipleSpellingErrors_ReportsAll
+
           - id: TextLint-Configuration-ProgrammaticSettings
             title: >-
               The Configuration subsystem shall provide immutable settings that applications
-              construct and copy in code.
+              construct and copy in code, and shall reject an out-of-range spelling value when
+              the settings are constructed.
             justification: |
               Embedding applications, and a command line that overrides the configuration file,
               build settings without a file. Settings that could change after they were handed
-              over would make a lint run depend on hidden shared state.
+              over would make a lint run depend on hidden shared state, and a value that is
+              out of range is a programming error that must surface where it is made.
             children:
               - TextLint-Configuration-TextLintSettings-Immutable
               - TextLint-Configuration-TextLintSettings-Defaults
+              - TextLint-Configuration-TextLintSettings-ValueValidation
             tests:
               - ConfigurationSubsystem_Settings_ConstructedInCode_IsImmutable
               - ConfigurationSubsystem_Settings_LoadedThenCopied_LeavesLoadedUnchanged
+              - ConfigurationSubsystem_Settings_SpellingValuesOutOfRange_AreRejected
 
           - id: TextLint-Configuration-ErrorReporting
             title: >-

@@ -2,7 +2,8 @@
 # Software Unit Requirements for the SettingsLoader Class
 #
 # The SettingsLoader class reads a .textlint.yaml file and maps it onto settings, returning every
-# configuration problem as a positioned error instead of throwing.
+# configuration problem as a positioned error instead of throwing. It reuses the glob rules, the
+# language selection, and the word-list entry rules of other units to validate values at load time.
 
 sections:
   - title: TextLint Requirements
@@ -29,8 +30,9 @@ sections:
 
               - id: TextLint-Configuration-SettingsLoader-MapKeys
                 title: >-
-                  SettingsLoader shall map version, files, ignorePaths, and enableGlobDot to
-                  settings, treating an empty document or a null value as absent.
+                  SettingsLoader shall map version, files, ignorePaths, enableGlobDot, language,
+                  words, ignoreWords, flagWords, minWordLength, and maxFileSize to settings,
+                  treating an empty document or a null value as absent.
                 justification: |
                   These are the supported cspell-named keys. Configurations written by hand are
                   often empty or have commented-out lists, and neither may be an error.
@@ -42,6 +44,74 @@ sections:
                   - SettingsLoader_Parse_NumericVersion_MapsToText
                   - SettingsLoader_Parse_FlowAndBlockLists_BothMap
                   - SettingsLoader_Parse_AnchorsAndAliases_AreResolved
+
+              - id: TextLint-Configuration-SettingsLoader-MapSpellingKeys
+                title: >-
+                  SettingsLoader shall map the language, words, ignoreWords, flagWords,
+                  minWordLength, and maxFileSize keys to settings as cspell reads them, accepting
+                  a language name or list of names in any letter case, word lists in flow, block,
+                  and quoted forms (with suggestions for flagged words), and a size as a number
+                  with an optional unit (B, K, KB, M, MB, G, or GB, in binary multiples) that may
+                  have a fraction and is rounded down to whole bytes, where 0 means no limit, and
+                  shall leave the cspell defaults in force for absent or null values.
+                justification: |
+                  Users migrating from cspell expect the same spellings of these settings to work,
+                  and a commented-out list or empty value must not break the file. A size is
+                  written in units such as 500K or 1.5MB, and a file has a whole number of bytes,
+                  so rounding down selects the same files.
+                tests:
+                  - SettingsLoader_Parse_SpellingKeys_MapsEveryValue
+                  - SettingsLoader_Parse_SpellingKeysAbsent_UsesCspellDefaults
+                  - SettingsLoader_Parse_NullSpellingValues_TreatedAsAbsent
+                  - SettingsLoader_Parse_WordListFlowBlockAndQuotedForms_AllMap
+                  - SettingsLoader_Parse_WordEntriesWithDigitsAndPunctuation_AreKeptAsWritten
+                  - SettingsLoader_Parse_FlagWordsSuggestionForms_AreAccepted
+                  - SettingsLoader_Parse_LanguageCaseAndListForms_AreAccepted
+                  - SettingsLoader_Parse_MaxFileSizeWholeNumber_MapsToBytes
+                  - SettingsLoader_Parse_MaxFileSizeUnits_MapToBinaryMultiples
+                  - SettingsLoader_Parse_MaxFileSizeFractions_MapToBytes
+                  - SettingsLoader_Parse_MaxFileSizeFractionalBytes_RoundsDown
+                  - SettingsLoader_Parse_MaxFileSizeZero_MeansNoLimit
+                  - SettingsLoader_Parse_MaxFileSizeQuotedText_IsAccepted
+                  - SettingsLoader_Parse_MaxFileSizeLargestRepresentable_IsAccepted
+                  - SettingsLoader_Parse_MinWordLengthOne_IsAccepted
+
+              - id: TextLint-Configuration-SettingsLoader-ValidateSpellingValues
+                title: >-
+                  SettingsLoader shall report an unsupported language, a word-list entry that can
+                  never match, a minWordLength that is not a whole number of at least 1, and a
+                  maxFileSize that is not a valid size as an error at that value, naming the
+                  problem, collecting every such error and returning no settings.
+                justification: |
+                  A value that cannot work would silently have no effect, or, for a size below one
+                  byte, silently mean no limit. Naming the value and the reason at its line and
+                  column lets the user fix it in one pass. An entry is judged by the same rules the
+                  spell check applies, so an entry accepted at load is never rejected later.
+                tests:
+                  - SettingsLoader_Parse_UnsupportedLanguage_ReportsErrorAtValue
+                  - SettingsLoader_Parse_LanguageListWithUnsupportedName_NamesTheUnsupportedName
+                  - SettingsLoader_Parse_LanguageListWithEmptyName_ReportsError
+                  - SettingsLoader_Parse_EmptyQuotedLanguage_ReportsError
+                  - SettingsLoader_Parse_WordsBlankEntry_ReportsErrorAtItem
+                  - SettingsLoader_Parse_WordsEntryWithWhiteSpace_ReportsError
+                  - SettingsLoader_Parse_WordsEntryWithDisallowedCharacter_ReportsError
+                  - SettingsLoader_Parse_WordsForbiddenMarkerEntry_ReportsError
+                  - SettingsLoader_Parse_WordsEntryWithoutLetterOrDigit_ReportsError
+                  - SettingsLoader_Parse_WordsSuggestionForm_ReportsError
+                  - SettingsLoader_Parse_IgnoreWordsBadEntry_NamesIgnoreWordsKey
+                  - SettingsLoader_Parse_FlagWordsBadEntry_NamesFlagWordsKey
+                  - SettingsLoader_Parse_FlagWordsEntryWithoutWord_ReportsError
+                  - SettingsLoader_Parse_WordListWithGoodAndBadEntries_ReportsOnlyTheBadEntry
+                  - SettingsLoader_Parse_MinWordLengthZero_ReportsErrorAtValue
+                  - SettingsLoader_Parse_MinWordLengthNegative_ReportsError
+                  - SettingsLoader_Parse_MinWordLengthFraction_ReportsError
+                  - SettingsLoader_Parse_MinWordLengthQuoted_ReportsError
+                  - SettingsLoader_Parse_MinWordLengthOverflow_ReportsError
+                  - SettingsLoader_Parse_MinWordLengthNotANumber_ReportsError
+                  - SettingsLoader_Parse_MaxFileSizeInvalidForms_ReportEachAtValue
+                  - SettingsLoader_Parse_MaxFileSizeBelowOneByte_ReportsError
+                  - SettingsLoader_Parse_MaxFileSizeOverflow_ReportsError
+                  - SettingsLoader_Parse_MultipleSpellingErrors_ReportsEveryError
 
               - id: TextLint-Configuration-SettingsLoader-TypeErrors
                 title: >-
@@ -63,6 +133,11 @@ sections:
                   - SettingsLoader_Parse_MultipleDocuments_ReportsError
                   - SettingsLoader_Parse_MultipleTypeErrors_ReportsEveryError
                   - SettingsLoader_Parse_AnyError_ReturnsNoSettings
+                  - SettingsLoader_Parse_LanguageNotText_ReportsErrorAtValue
+                  - SettingsLoader_Parse_WordsNotAList_ReportsErrorAtValue
+                  - SettingsLoader_Parse_WordsItemNotText_ReportsErrorAtItem
+                  - SettingsLoader_Parse_WordsNullItem_ReportsErrorAtItem
+                  - SettingsLoader_Parse_MaxFileSizeNotText_ReportsErrorAtValue
 
               - id: TextLint-Configuration-SettingsLoader-SyntaxErrors
                 title: >-

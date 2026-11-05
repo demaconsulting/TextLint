@@ -18,6 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+// cspell:ignore colour kubectl nuget
+
 using DemaConsulting.TextLint.Configuration;
 using DemaConsulting.TextLint.Tests.TestSupport;
 
@@ -28,8 +30,9 @@ namespace DemaConsulting.TextLint.Tests.Configuration;
 /// </summary>
 /// <remarks>
 ///     These tests exercise <see cref="SettingsLoader"/> and <see cref="TextLintSettings"/> together
-///     through real settings files. The subsystem's one documented dependency outside itself, the
-///     glob pattern expander used to validate patterns at load time, is used for real.
+///     through real settings files. The subsystem's documented dependencies outside itself, the
+///     glob pattern expander, the spelling dictionary selection, and the word tokenizer used to
+///     validate values at load time, are used for real.
 /// </remarks>
 public class ConfigurationSubsystemTests
 {
@@ -90,7 +93,9 @@ public class ConfigurationSubsystemTests
     {
         // Arrange: a file that sets every supported key
         using var temp = new TempDirectory();
-        const string yaml = "version: \"0.2\"\nfiles: [\"**/*.md\"]\nignorePaths: [node_modules]\nenableGlobDot: true\n";
+        const string yaml =
+            "version: \"0.2\"\nfiles: [\"**/*.md\"]\nignorePaths: [node_modules]\nenableGlobDot: true\n" +
+            "language: en-GB\nwords: [kubectl]\nignoreWords: [nuget]\nflagWords: [colour]\nminWordLength: 3\nmaxFileSize: 2K\n";
 
         // Act: load it
         var result = await LoadAsync(temp, yaml);
@@ -101,7 +106,13 @@ public class ConfigurationSubsystemTests
             () => Assert.Equal("0.2", settings.Version),
             () => Assert.Equal(["**/*.md"], settings.Files),
             () => Assert.Equal(["node_modules"], settings.IgnorePaths),
-            () => Assert.True(settings.EnableGlobDot));
+            () => Assert.True(settings.EnableGlobDot),
+            () => Assert.Equal("en-GB", settings.Language),
+            () => Assert.Equal(["kubectl"], settings.Words),
+            () => Assert.Equal(["nuget"], settings.IgnoreWords),
+            () => Assert.Equal(["colour"], settings.FlagWords),
+            () => Assert.Equal(3, settings.MinWordLength),
+            () => Assert.Equal(2048L, settings.MaxFileSize));
     }
 
     /// <summary>
@@ -116,12 +127,15 @@ public class ConfigurationSubsystemTests
         // Act: load it
         var result = await LoadAsync(temp, string.Empty);
 
-        // Assert: the settings are the defaults
+        // Assert: the settings are the defaults, including the cspell defaults of the spelling settings
         Assert.Multiple(
             () => Assert.True(result.Succeeded),
             () => Assert.Null(result.Settings!.Version),
             () => Assert.Empty(result.Settings!.Files),
-            () => Assert.False(result.Settings!.EnableGlobDot));
+            () => Assert.False(result.Settings!.EnableGlobDot),
+            () => Assert.Equal("en", result.Settings!.Language),
+            () => Assert.Equal(4, result.Settings!.MinWordLength),
+            () => Assert.Equal(0L, result.Settings!.MaxFileSize));
     }
 
     /// <summary>
@@ -208,13 +222,13 @@ public class ConfigurationSubsystemTests
         using var temp = new TempDirectory();
 
         // Act: load it
-        var result = await LoadAsync(temp, "version: 0.2\nwords: [foo]\n");
+        var result = await LoadAsync(temp, "version: 0.2\ncaseSensitive: true\n");
 
         // Assert: loading fails with an error that names the key and its position
         var diagnostic = Assert.Single(result.Diagnostics);
         Assert.Multiple(
             () => Assert.Null(result.Settings),
-            () => Assert.Contains("'words' is not a supported setting", diagnostic.Message),
+            () => Assert.Contains("'caseSensitive' is not a supported setting", diagnostic.Message),
             () => Assert.Equal(2, diagnostic.Line),
             () => Assert.Equal(1, diagnostic.Column));
     }
@@ -259,5 +273,201 @@ public class ConfigurationSubsystemTests
             () => Assert.Null(result.Settings),
             () => Assert.Equal(2, diagnostic.Line),
             () => Assert.Contains("!**/*.md", diagnostic.Message));
+    }
+
+    /// <summary>
+    ///     Test that every spelling key in a file populates the settings.
+    /// </summary>
+    [Fact]
+    public async Task ConfigurationSubsystem_LoadAsync_SpellingKeys_PopulatesSettings()
+    {
+        // Arrange: a file that sets the six spelling keys, with a size that has a unit
+        using var temp = new TempDirectory();
+        const string yaml =
+            "language: en-GB\nwords: [kubectl, k8s]\nignoreWords: [nuget]\nflagWords: [\"colour->color\"]\n" +
+            "minWordLength: 7\nmaxFileSize: 1.5MB\n";
+
+        // Act: load it
+        var result = await LoadAsync(temp, yaml);
+
+        // Assert: every value is in the settings, with the size converted to bytes
+        var settings = result.Settings!;
+        Assert.Multiple(
+            () => Assert.Equal("en-GB", settings.Language),
+            () => Assert.Equal(["kubectl", "k8s"], settings.Words),
+            () => Assert.Equal(["nuget"], settings.IgnoreWords),
+            () => Assert.Equal(["colour->color"], settings.FlagWords),
+            () => Assert.Equal(7, settings.MinWordLength),
+            () => Assert.Equal(1572864L, settings.MaxFileSize));
+    }
+
+    /// <summary>
+    ///     Test that spelling keys that are absent leave the cspell defaults in force.
+    /// </summary>
+    [Fact]
+    public async Task ConfigurationSubsystem_LoadAsync_SpellingKeysAbsent_UsesCspellDefaults()
+    {
+        // Arrange: a file that sets no spelling key
+        using var temp = new TempDirectory();
+
+        // Act: load it
+        var result = await LoadAsync(temp, "files: [\"**/*.md\"]\n");
+
+        // Assert: American English, a minimum word length of 4, empty lists, and no size limit
+        var settings = result.Settings!;
+        Assert.Multiple(
+            () => Assert.Equal("en", settings.Language),
+            () => Assert.Equal(4, settings.MinWordLength),
+            () => Assert.Equal(0L, settings.MaxFileSize),
+            () => Assert.Empty(settings.Words),
+            () => Assert.Empty(settings.IgnoreWords),
+            () => Assert.Empty(settings.FlagWords));
+    }
+
+    /// <summary>
+    ///     Test that word lists supplied in code are copied and cannot be changed afterwards.
+    /// </summary>
+    [Fact]
+    public void ConfigurationSubsystem_Settings_WordListsConstructedInCode_AreImmutable()
+    {
+        // Arrange: mutable lists used to build settings in code
+        var words = new List<string> { "apple" };
+        var ignoreWords = new List<string> { "banana" };
+        var flagWords = new List<string> { "cherry" };
+        var settings = new TextLintSettings { Words = words, IgnoreWords = ignoreWords, FlagWords = flagWords };
+
+        // Act: change the callers' lists, and try to change an exposed list through its mutable interface
+        words.Clear();
+        ignoreWords.Add("grape");
+        flagWords[0] = "melon";
+        var exposed = (IList<string>)settings.Words;
+
+        // Assert: the settings keep their values and refuse the change
+        Assert.Multiple(
+            () => Assert.Equal(["apple"], settings.Words),
+            () => Assert.Equal(["banana"], settings.IgnoreWords),
+            () => Assert.Equal(["cherry"], settings.FlagWords),
+            () => Assert.Throws<NotSupportedException>(() => exposed.Add("lemon")));
+    }
+
+    /// <summary>
+    ///     Test that spelling values that are out of range are rejected when settings are built in code.
+    /// </summary>
+    [Fact]
+    public void ConfigurationSubsystem_Settings_SpellingValuesOutOfRange_AreRejected()
+    {
+        // Arrange: no setup required
+
+        // Act / Assert: a zero minimum word length, a negative size, and a missing language are each refused
+        Assert.Multiple(
+            () => Assert.Throws<ArgumentOutOfRangeException>(() => new TextLintSettings { MinWordLength = 0 }),
+            () => Assert.Throws<ArgumentOutOfRangeException>(() => new TextLintSettings { MaxFileSize = -1 }),
+            () => Assert.Throws<ArgumentNullException>(() => new TextLintSettings { Language = null! }));
+    }
+
+    /// <summary>
+    ///     Test that an unsupported language is reported with its file, line, and column.
+    /// </summary>
+    [Fact]
+    public async Task ConfigurationSubsystem_LoadAsync_UnsupportedLanguage_ReportsErrorWithPosition()
+    {
+        // Arrange: a file whose language has no dictionaries
+        using var temp = new TempDirectory();
+
+        // Act: load it
+        var result = await LoadAsync(temp, "version: 0.2\nlanguage: fr\n");
+
+        // Assert: loading fails with an error at the value that names the language
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Multiple(
+            () => Assert.Null(result.Settings),
+            () => Assert.EndsWith(".textlint.yaml", diagnostic.FilePath),
+            () => Assert.Equal(2, diagnostic.Line),
+            () => Assert.Equal(11, diagnostic.Column),
+            () => Assert.Contains("'fr' is not supported", diagnostic.Message));
+    }
+
+    /// <summary>
+    ///     Test that an unusable word-list entry is reported with its file, line, and column.
+    /// </summary>
+    [Fact]
+    public async Task ConfigurationSubsystem_LoadAsync_UnusableWordEntry_ReportsErrorWithPosition()
+    {
+        // Arrange: a file whose word list holds an entry with white space
+        using var temp = new TempDirectory();
+
+        // Act: load it
+        var result = await LoadAsync(temp, "words:\n  - apple\n  - \"foo bar\"\n");
+
+        // Assert: loading fails with an error at the entry that names the list, the entry, and the problem
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Multiple(
+            () => Assert.Null(result.Settings),
+            () => Assert.EndsWith(".textlint.yaml", diagnostic.FilePath),
+            () => Assert.Equal(3, diagnostic.Line),
+            () => Assert.Equal(5, diagnostic.Column),
+            () => Assert.StartsWith("Cannot use the 'words' entry 'foo bar': it contains white space", diagnostic.Message));
+    }
+
+    /// <summary>
+    ///     Test that an invalid minimum word length is reported with its file, line, and column.
+    /// </summary>
+    [Fact]
+    public async Task ConfigurationSubsystem_LoadAsync_InvalidMinWordLength_ReportsErrorWithPosition()
+    {
+        // Arrange: a file whose minimum word length is zero
+        using var temp = new TempDirectory();
+
+        // Act: load it
+        var result = await LoadAsync(temp, "minWordLength: 0\n");
+
+        // Assert: loading fails with an error at the value that names the key
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Multiple(
+            () => Assert.Null(result.Settings),
+            () => Assert.EndsWith(".textlint.yaml", diagnostic.FilePath),
+            () => Assert.Equal(1, diagnostic.Line),
+            () => Assert.Equal(16, diagnostic.Column),
+            () => Assert.Contains("'minWordLength'", diagnostic.Message));
+    }
+
+    /// <summary>
+    ///     Test that an invalid maximum file size is reported with its file, line, and column.
+    /// </summary>
+    [Fact]
+    public async Task ConfigurationSubsystem_LoadAsync_InvalidMaxFileSize_ReportsErrorWithPosition()
+    {
+        // Arrange: a file whose maximum file size has an unknown unit
+        using var temp = new TempDirectory();
+
+        // Act: load it
+        var result = await LoadAsync(temp, "maxFileSize: 5TB\n");
+
+        // Assert: loading fails with an error at the value that names the key
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Multiple(
+            () => Assert.Null(result.Settings),
+            () => Assert.EndsWith(".textlint.yaml", diagnostic.FilePath),
+            () => Assert.Equal(1, diagnostic.Line),
+            () => Assert.Equal(14, diagnostic.Column),
+            () => Assert.Contains("'maxFileSize'", diagnostic.Message));
+    }
+
+    /// <summary>
+    ///     Test that several invalid spelling values in one file are all reported.
+    /// </summary>
+    [Fact]
+    public async Task ConfigurationSubsystem_LoadAsync_MultipleSpellingErrors_ReportsAll()
+    {
+        // Arrange: a file with an unsupported language, an unusable word, and two bad numbers
+        using var temp = new TempDirectory();
+
+        // Act: load it
+        var result = await LoadAsync(temp, "language: fr\nflagWords:\n  - \"a b\"\nminWordLength: 0\nmaxFileSize: -1\n");
+
+        // Assert: every error is reported at its own line and no settings are returned
+        Assert.Multiple(
+            () => Assert.Equal([1, 3, 4, 5], result.Diagnostics.Select(diagnostic => diagnostic.Line)),
+            () => Assert.Null(result.Settings));
     }
 }

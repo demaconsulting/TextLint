@@ -2,7 +2,8 @@
 # Software Unit Requirements for the TextLintSettings Class
 #
 # The TextLintSettings class is the immutable settings value that carries the version, include
-# patterns, ignore patterns, and hidden-file switch, whether loaded from a file or built in code.
+# patterns, ignore patterns, hidden-file switch, and the spelling settings (language, word lists,
+# minimum word length, and maximum file size), whether loaded from a file or built in code.
 
 sections:
   - title: TextLint Requirements
@@ -21,6 +22,54 @@ sections:
                   wildcards, matching cspell.
                 tests:
                   - TextLintSettings_New_NoValues_HasDocumentedDefaults
+
+              - id: TextLint-Configuration-TextLintSettings-SpellingDefaults
+                title: >-
+                  TextLintSettings shall default the language to en, the minimum word length to
+                  4, the word lists to empty, and the maximum file size to no limit.
+                justification: |
+                  These are cspell's defaults, so a project that configures no spelling setting
+                  behaves as a cspell user expects: American English, short words left alone, no
+                  words of its own, and every file checked whatever its size.
+                tests:
+                  - TextLintSettings_New_NoValues_HasSpellingDefaults
+
+              - id: TextLint-Configuration-TextLintSettings-ListsImmutable
+                title: >-
+                  TextLintSettings shall hold copies of the words, ignored words, and flagged words
+                  lists, so that neither a later change to a supplied list nor a change through the
+                  exposed list alters the settings, and shall reject a missing list.
+                justification: |
+                  Settings are shared across the whole run, including concurrent work, so no holder
+                  may be able to alter the words another holder sees. A null list is a programming
+                  error that must surface where it is made.
+                tests:
+                  - TextLintSettings_With_ChangedSpellingValues_LeavesOriginalUnchanged
+                  - TextLintSettings_Init_WordsMutatedAfterAssignment_DoesNotAffectSettings
+                  - TextLintSettings_Init_IgnoreWordsMutatedAfterAssignment_DoesNotAffectSettings
+                  - TextLintSettings_Init_FlagWordsArrayMutatedAfterAssignment_DoesNotAffectSettings
+                  - TextLintSettings_Init_NullWords_ThrowsArgumentNullException
+                  - TextLintSettings_Init_NullIgnoreWords_ThrowsArgumentNullException
+                  - TextLintSettings_Init_NullFlagWords_ThrowsArgumentNullException
+                  - TextLintSettings_WordLists_ExposedLists_CannotBeMutatedThroughInterface
+
+              - id: TextLint-Configuration-TextLintSettings-ValueValidation
+                title: >-
+                  TextLintSettings shall reject a missing language, a minimum word length below 1,
+                  and a negative maximum file size when they are assigned, and shall accept a
+                  minimum word length of 1 and a maximum file size of 0.
+                justification: |
+                  A value outside these ranges can never be meaningful: no word is shorter than one
+                  character, and a size cannot be negative. Refusing it where it is assigned names
+                  the cause at once, while the boundary values stay valid, 0 meaning no size limit.
+                tests:
+                  - TextLintSettings_Init_NullLanguage_ThrowsArgumentNullException
+                  - TextLintSettings_Init_UnsupportedLanguage_IsAcceptedWithoutValidation
+                  - TextLintSettings_Init_MinWordLengthZero_ThrowsArgumentOutOfRangeException
+                  - TextLintSettings_Init_MinWordLengthNegative_ThrowsArgumentOutOfRangeException
+                  - TextLintSettings_Init_MinWordLengthOne_IsAccepted
+                  - TextLintSettings_Init_MaxFileSizeNegative_ThrowsArgumentOutOfRangeException
+                  - TextLintSettings_Init_MaxFileSizeZeroAndLargest_AreAccepted
 
               - id: TextLint-Configuration-TextLintSettings-Immutable
                 title: >-

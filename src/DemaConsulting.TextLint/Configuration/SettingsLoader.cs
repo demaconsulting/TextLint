@@ -18,7 +18,10 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+using System.Globalization;
+using DemaConsulting.TextLint.Dictionaries;
 using DemaConsulting.TextLint.FileSelection;
+using DemaConsulting.TextLint.TextScanning;
 using YamlDotNet.Core;
 using YamlDotNet.RepresentationModel;
 
@@ -31,14 +34,18 @@ namespace DemaConsulting.TextLint.Configuration;
 ///     Settings are read through YamlDotNet's node model and mapped by hand rather than
 ///     deserialized by reflection, which keeps the library trim and Native AOT safe and gives every
 ///     node a source position for error messages. Content problems (an unreadable file, malformed
-///     YAML, a value of the wrong type, an unsupported key, an invalid glob pattern) are returned as
+///     YAML, a value of the wrong type, an unsupported key, an invalid glob pattern, an unsupported
+///     language, an unusable word-list entry, an invalid number or size) are returned as
 ///     diagnostics, not thrown, so a caller can print all of them uniformly; every error found is
 ///     collected rather than stopping at the first, except that a YAML syntax error stops parsing at
 ///     the point of failure. Invalid glob patterns are detected at load time by applying the same
-///     rules as <see cref="FileSelector"/>, so a bad pattern is reported with the line and column
-///     of the offending list item. Only the keys <c>version</c>, <c>files</c>, <c>ignorePaths</c>,
-///     and <c>enableGlobDot</c> are supported; any other key is an error until the feature that
-///     needs it exists. The class is stateless and thread-safe.
+///     rules as <see cref="FileSelector"/>, an unsupported language by asking
+///     <see cref="SpellingDictionary"/>, and word-list entries by interpreting them as the spell
+///     checker does (see <see cref="WordTokenizer"/>), so a bad value is reported with the line and
+///     column of the offending node. Only the keys <c>version</c>, <c>files</c>, <c>ignorePaths</c>,
+///     <c>enableGlobDot</c>, <c>language</c>, <c>words</c>, <c>ignoreWords</c>, <c>flagWords</c>,
+///     <c>minWordLength</c>, and <c>maxFileSize</c> are supported; any other key is an error until the
+///     feature that needs it exists. The class is stateless and thread-safe.
 /// </remarks>
 public static class SettingsLoader
 {
@@ -61,6 +68,62 @@ public static class SettingsLoader
     ///     The key that carries the hidden-file matching switch.
     /// </summary>
     private const string EnableGlobDotKey = "enableGlobDot";
+
+    /// <summary>
+    ///     The key that carries the language selection.
+    /// </summary>
+    private const string LanguageKey = "language";
+
+    /// <summary>
+    ///     The key that carries the accepted words.
+    /// </summary>
+    private const string WordsKey = "words";
+
+    /// <summary>
+    ///     The key that carries the ignored words.
+    /// </summary>
+    private const string IgnoreWordsKey = "ignoreWords";
+
+    /// <summary>
+    ///     The key that carries the flagged words.
+    /// </summary>
+    private const string FlagWordsKey = "flagWords";
+
+    /// <summary>
+    ///     The key that carries the minimum word length.
+    /// </summary>
+    private const string MinWordLengthKey = "minWordLength";
+
+    /// <summary>
+    ///     The key that carries the maximum file size.
+    /// </summary>
+    private const string MaxFileSizeKey = "maxFileSize";
+
+    /// <summary>
+    ///     The number of bytes in a kilobyte, as cspell counts them (binary multiples).
+    /// </summary>
+    private const double BytesPerKilobyte = 1024.0;
+
+    /// <summary>
+    ///     The text that cuts the parameter name that <see cref="ArgumentException"/> appends to its message.
+    /// </summary>
+    private const string ParameterSuffixMarker = " (Parameter '";
+
+    /// <summary>
+    ///     The size units of the <c>maxFileSize</c> setting and the number of bytes each stands for; the
+    ///     comparison ignores letter case.
+    /// </summary>
+    private static readonly Dictionary<string, double> SizeUnits = new(StringComparer.OrdinalIgnoreCase)
+    {
+        [string.Empty] = 1.0,
+        ["b"] = 1.0,
+        ["k"] = BytesPerKilobyte,
+        ["kb"] = BytesPerKilobyte,
+        ["m"] = BytesPerKilobyte * BytesPerKilobyte,
+        ["mb"] = BytesPerKilobyte * BytesPerKilobyte,
+        ["g"] = BytesPerKilobyte * BytesPerKilobyte * BytesPerKilobyte,
+        ["gb"] = BytesPerKilobyte * BytesPerKilobyte * BytesPerKilobyte,
+    };
 
     /// <summary>
     ///     The plain-scalar spellings of YAML null.
@@ -244,6 +307,12 @@ public static class SettingsLoader
             FilesKey => settings with { Files = ReadPatterns(value, sourceName, diagnostics) },
             IgnorePathsKey => settings with { IgnorePaths = ReadPatterns(value, sourceName, diagnostics) },
             EnableGlobDotKey => MapEnableGlobDot(settings, value, sourceName, diagnostics),
+            LanguageKey => MapLanguage(settings, value, sourceName, diagnostics),
+            WordsKey => settings with { Words = ReadWords(WordsKey, false, value, sourceName, diagnostics) },
+            IgnoreWordsKey => settings with { IgnoreWords = ReadWords(IgnoreWordsKey, false, value, sourceName, diagnostics) },
+            FlagWordsKey => settings with { FlagWords = ReadWords(FlagWordsKey, true, value, sourceName, diagnostics) },
+            MinWordLengthKey => MapMinWordLength(settings, value, sourceName, diagnostics),
+            MaxFileSizeKey => MapMaxFileSize(settings, value, sourceName, diagnostics),
             _ => Reject(settings, $"'{keyScalar.Value}' is not a supported setting.", key, sourceName, diagnostics),
         };
     }
@@ -318,31 +387,265 @@ public static class SettingsLoader
     }
 
     /// <summary>
+    ///     Applies the <c>language</c> value, which must name supported languages.
+    /// </summary>
+    /// <remarks>
+    ///     The value is validated by asking <see cref="SpellingDictionary.ForLanguages"/>, so the loader
+    ///     and the spell checker can never disagree about which languages exist, and the message names the
+    ///     offending value and lists the supported ones. The text is stored as written. Side effects:
+    ///     appends to <paramref name="diagnostics"/>. Thread-safe.
+    /// </remarks>
+    /// <param name="settings">The settings so far. Must not be null.</param>
+    /// <param name="value">The value node. Must not be null.</param>
+    /// <param name="sourceName">The name to report in diagnostics; may be null.</param>
+    /// <param name="diagnostics">The list that receives any errors. Must not be null.</param>
+    /// <returns>The settings with the language applied, or unchanged when the value is null or in error.</returns>
+    private static TextLintSettings MapLanguage(
+        TextLintSettings settings,
+        YamlNode value,
+        string? sourceName,
+        List<SettingsDiagnostic> diagnostics)
+    {
+        if (IsNull(value))
+        {
+            return settings;
+        }
+
+        if (value is not YamlScalarNode { Value: { } text })
+        {
+            return Reject(settings, $"Expected a text value for '{LanguageKey}'.", value, sourceName, diagnostics);
+        }
+
+        try
+        {
+            _ = SpellingDictionary.ForLanguages(text);
+            return settings with { Language = text };
+        }
+        catch (ArgumentException exception)
+        {
+            // The framework appends the parameter name to the message, which means nothing in a settings file
+            var message = exception.Message;
+            var cut = message.IndexOf(ParameterSuffixMarker, StringComparison.Ordinal);
+            return Reject(settings, cut >= 0 ? message[..cut] : message, value, sourceName, diagnostics);
+        }
+    }
+
+    /// <summary>
+    ///     Reads a list of words, validating each entry.
+    /// </summary>
+    /// <remarks>
+    ///     A null value is treated as an empty list so a commented-out list does not break the file.
+    ///     Every entry is interpreted exactly as the spell checker will interpret it, so an entry that
+    ///     could never match (blank, containing white space or a character that cannot be part of a word,
+    ///     without a letter or digit, or the unsupported forbidden-word marker) is reported at load time
+    ///     with the position of its list item. The entries are kept as written. Side effects: appends to
+    ///     <paramref name="diagnostics"/>. Thread-safe.
+    /// </remarks>
+    /// <param name="key">The name of the setting, used in messages. Must not be null.</param>
+    /// <param name="allowSuggestions"><see langword="true"/> to accept the suggestion forms of flagged words.</param>
+    /// <param name="value">The value node. Must not be null.</param>
+    /// <param name="sourceName">The name to report in diagnostics; may be null.</param>
+    /// <param name="diagnostics">The list that receives any errors. Must not be null.</param>
+    /// <returns>The valid entries found, in order; meaningful only when no diagnostics were added.</returns>
+    private static List<string> ReadWords(
+        string key,
+        bool allowSuggestions,
+        YamlNode value,
+        string? sourceName,
+        List<SettingsDiagnostic> diagnostics) =>
+        ReadList(value, sourceName, diagnostics, entry => TryValidateWord(key, allowSuggestions, entry, sourceName, diagnostics));
+
+    /// <summary>
+    ///     Checks that a word-list entry can match something.
+    /// </summary>
+    /// <remarks>
+    ///     Reuses <see cref="WordTokenizer.TryParseListEntry"/>, so load-time and check-time validation can
+    ///     never disagree. Side effects: appends to <paramref name="diagnostics"/> on failure. Thread-safe.
+    /// </remarks>
+    /// <param name="key">The name of the setting, used in the message. Must not be null.</param>
+    /// <param name="allowSuggestions"><see langword="true"/> to accept the suggestion forms of flagged words.</param>
+    /// <param name="entry">The scalar node holding the entry. Must not be null.</param>
+    /// <param name="sourceName">The name to report in diagnostics; may be null.</param>
+    /// <param name="diagnostics">The list that receives the error. Must not be null.</param>
+    /// <returns><see langword="true"/> when the entry is usable.</returns>
+    private static bool TryValidateWord(
+        string key,
+        bool allowSuggestions,
+        YamlScalarNode entry,
+        string? sourceName,
+        List<SettingsDiagnostic> diagnostics)
+    {
+        if (WordTokenizer.TryParseListEntry(entry.Value, allowSuggestions, out _, out var problem))
+        {
+            return true;
+        }
+
+        diagnostics.Add(At($"Cannot use the '{key}' entry '{entry.Value}': {problem}", entry.Start, sourceName));
+        return false;
+    }
+
+    /// <summary>
+    ///     Applies the <c>minWordLength</c> value, which must be a plain whole number of at least 1.
+    /// </summary>
+    /// <remarks>
+    ///     Quoted values, signs, and fractions are rejected rather than guessed at, as for
+    ///     <c>enableGlobDot</c>. Side effects: appends to <paramref name="diagnostics"/>. Thread-safe.
+    /// </remarks>
+    /// <param name="settings">The settings so far. Must not be null.</param>
+    /// <param name="value">The value node. Must not be null.</param>
+    /// <param name="sourceName">The name to report in diagnostics; may be null.</param>
+    /// <param name="diagnostics">The list that receives any errors. Must not be null.</param>
+    /// <returns>The settings with the length applied, or unchanged when the value is null or in error.</returns>
+    private static TextLintSettings MapMinWordLength(
+        TextLintSettings settings,
+        YamlNode value,
+        string? sourceName,
+        List<SettingsDiagnostic> diagnostics)
+    {
+        if (IsNull(value))
+        {
+            return settings;
+        }
+
+        // Accept only an unquoted run of digits that is at least 1 and fits an integer
+        if (value is YamlScalarNode { Style: ScalarStyle.Plain, Value: { } text } &&
+            int.TryParse(text, NumberStyles.None, CultureInfo.InvariantCulture, out var length) &&
+            length >= 1)
+        {
+            return settings with { MinWordLength = length };
+        }
+
+        return Reject(settings, $"Expected a whole number of at least 1 for '{MinWordLengthKey}'.", value, sourceName, diagnostics);
+    }
+
+    /// <summary>
+    ///     Applies the <c>maxFileSize</c> value, which must be a size.
+    /// </summary>
+    /// <remarks>
+    ///     The size is a number optionally followed by a unit (<c>K</c>, <c>KB</c>, <c>M</c>, <c>MB</c>,
+    ///     <c>G</c>, <c>GB</c>, or <c>B</c>, in any letter case), counted in binary multiples as cspell does;
+    ///     the number may have a fraction (<c>0.5M</c>). Zero means no limit. A fractional number of bytes
+    ///     is rounded down, which selects the same files because a file has a whole number of bytes. Side
+    ///     effects: appends to <paramref name="diagnostics"/>. Thread-safe.
+    /// </remarks>
+    /// <param name="settings">The settings so far. Must not be null.</param>
+    /// <param name="value">The value node. Must not be null.</param>
+    /// <param name="sourceName">The name to report in diagnostics; may be null.</param>
+    /// <param name="diagnostics">The list that receives any errors. Must not be null.</param>
+    /// <returns>The settings with the size applied, or unchanged when the value is null or in error.</returns>
+    private static TextLintSettings MapMaxFileSize(
+        TextLintSettings settings,
+        YamlNode value,
+        string? sourceName,
+        List<SettingsDiagnostic> diagnostics)
+    {
+        if (IsNull(value))
+        {
+            return settings;
+        }
+
+        if (value is YamlScalarNode { Value: { } text } && TryParseSize(text, out var bytes))
+        {
+            return settings with { MaxFileSize = bytes };
+        }
+
+        return Reject(
+            settings,
+            $"Expected a size such as 100000, 500K, or 1.5MB (units B, K, KB, M, MB, G, GB) or 0 for no limit, for '{MaxFileSizeKey}'.",
+            value,
+            sourceName,
+            diagnostics);
+    }
+
+    /// <summary>
+    ///     Parses a size text such as <c>500K</c> or <c>1.5MB</c> into a number of bytes.
+    /// </summary>
+    /// <remarks>
+    ///     Follows cspell's grammar: digits with an optional fraction (a lone fraction such as <c>.5</c> is
+    ///     allowed), then an optional unit made of letters. A positive size below one byte is rejected,
+    ///     because it would silently mean no limit. Stateless and thread-safe.
+    /// </remarks>
+    /// <param name="text">The size text. Must not be null.</param>
+    /// <param name="bytes">Receives the size in bytes when the method returns true; otherwise 0.</param>
+    /// <returns><see langword="true"/> when the text is a valid size that fits in a 64-bit integer.</returns>
+    private static bool TryParseSize(string text, out long bytes)
+    {
+        bytes = 0;
+
+        // Split the number from the unit: the number is the leading run of digits and dots
+        var numberLength = 0;
+        while (numberLength < text.Length && (char.IsAsciiDigit(text[numberLength]) || text[numberLength] == '.'))
+        {
+            numberLength++;
+        }
+
+        // The number must parse as a plain decimal, and the unit must be a known one
+        if (!double.TryParse(text.AsSpan(0, numberLength), NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out var number) ||
+            !SizeUnits.TryGetValue(text[numberLength..], out var multiplier))
+        {
+            return false;
+        }
+
+        // Round down to whole bytes, and refuse a size that is not representable or that would mean no limit by accident
+        var size = Math.Floor(number * multiplier);
+        if (size >= long.MaxValue || (number > 0 && size < 1))
+        {
+            return false;
+        }
+
+        bytes = (long)size;
+        return true;
+    }
+
+    /// <summary>
     ///     Reads a list of glob patterns, validating each pattern.
     /// </summary>
     /// <remarks>
-    ///     A null value is treated as an empty list so a commented-out list does not break the
-    ///     file. Every item is validated with the same rules the file selector applies, so an
-    ///     invalid pattern is reported at load time with the position of its list item. Side
-    ///     effects: appends to <paramref name="diagnostics"/>. Thread-safe.
+    ///     Every item is validated with the same rules the file selector applies, so an invalid pattern
+    ///     is reported at load time with the position of its list item. See <see cref="ReadList"/> for the
+    ///     handling of a null value and of items that are not text. Side effects: appends to
+    ///     <paramref name="diagnostics"/>. Thread-safe.
     /// </remarks>
     /// <param name="value">The value node. Must not be null.</param>
     /// <param name="sourceName">The name to report in diagnostics; may be null.</param>
     /// <param name="diagnostics">The list that receives any errors. Must not be null.</param>
     /// <returns>The valid patterns found, in order; meaningful only when no diagnostics were added.</returns>
-    private static List<string> ReadPatterns(YamlNode value, string? sourceName, List<SettingsDiagnostic> diagnostics)
+    private static List<string> ReadPatterns(YamlNode value, string? sourceName, List<SettingsDiagnostic> diagnostics) =>
+        ReadList(value, sourceName, diagnostics, pattern => TryValidatePattern(pattern, sourceName, diagnostics));
+
+    /// <summary>
+    ///     Reads a list of text values, keeping each item that the validator accepts.
+    /// </summary>
+    /// <remarks>
+    ///     A null value is treated as an empty list so a commented-out list does not break the
+    ///     file. A value that is not a list is reported once at the value, and every item that is not
+    ///     text is reported at the item, rather than stopping at the first problem. Side effects:
+    ///     appends to <paramref name="diagnostics"/>, and the validator may too. Thread-safe.
+    /// </remarks>
+    /// <param name="value">The value node. Must not be null.</param>
+    /// <param name="sourceName">The name to report in diagnostics; may be null.</param>
+    /// <param name="diagnostics">The list that receives any errors. Must not be null.</param>
+    /// <param name="accept">
+    ///     Validates one text item, reporting its own diagnostic when it is not acceptable. Must not be null.
+    /// </param>
+    /// <returns>The accepted items in order; meaningful only when no diagnostics were added.</returns>
+    private static List<string> ReadList(
+        YamlNode value,
+        string? sourceName,
+        List<SettingsDiagnostic> diagnostics,
+        Func<YamlScalarNode, bool> accept)
     {
-        var patterns = new List<string>();
+        var items = new List<string>();
         if (IsNull(value))
         {
-            return patterns;
+            return items;
         }
 
         // The value must be a sequence; a scalar or mapping is reported once at the value
         if (value is not YamlSequenceNode sequence)
         {
             diagnostics.Add(At("Expected a list of text values.", value.Start, sourceName));
-            return patterns;
+            return items;
         }
 
         // Check each item, reporting every bad item rather than stopping at the first
@@ -352,13 +655,13 @@ public static class SettingsLoader
             {
                 diagnostics.Add(At("Expected a text value in the list.", item.Start, sourceName));
             }
-            else if (TryValidatePattern(scalar, sourceName, diagnostics))
+            else if (accept(scalar))
             {
-                patterns.Add(scalar.Value!);
+                items.Add(scalar.Value!);
             }
         }
 
-        return patterns;
+        return items;
     }
 
     /// <summary>

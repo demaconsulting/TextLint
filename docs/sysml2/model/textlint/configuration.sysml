@@ -1,6 +1,6 @@
 package TextLint {
     part def ConfigurationSubsystem {
-        doc /* Turns a .textlint.yaml file, or values built in code, into one immutable settings value and reports configuration errors with their positions. */
+        doc /* Turns a .textlint.yaml file, or values built in code, into one immutable settings value, including the spelling settings, and reports configuration errors with their positions. */
 
         comment testRef /* Test: test/DemaConsulting.TextLint.Tests/Configuration/ConfigurationSubsystemTests.cs */
         comment designRef /* Design: docs/design/textlint/configuration.md */
