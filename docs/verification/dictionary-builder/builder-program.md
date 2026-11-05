@@ -28,7 +28,8 @@ N/A - standard test environment. Each test creates and removes its own temporary
   be deleted, exit code 3 is returned, every affected file and its backup are named, and the backups that hold
   previous content are kept.
 - Names that differ only in letter case are one name: duplicates are rejected, references find the declared name,
-  and folder and list names match ignoring case.
+  folders and lists are found under their on-disk spelling, and a match that is ambiguous on a case-sensitive file
+  system is reported naming every candidate rather than chosen.
 - An unchanged file keeps its timestamp and a changed one is rewritten.
 
 ### Test Scenarios
@@ -65,9 +66,24 @@ declared names. This scenario is tested by `BuilderProgram_Run_TechnicalReferenc
 lower-case layout, on every operating system. This scenario is tested by
 `BuilderProgram_Run_TechnicalPartsInDifferentCase_AreFoundAndBuilt`.
 
-**BuilderProgram_Run_UndeclaredFolderCheck_MatchesDeclaredNamesIgnoringCase**: the input folder listing reports the
-declared dictionary's folder as `ALPHA`; it is recognized as the declared `alpha` and not reported as undeclared.
-This scenario is tested by `BuilderProgram_Run_UndeclaredFolderCheck_MatchesDeclaredNamesIgnoringCase`.
+**BuilderProgram_Run_DeclaredNameDifferingInCaseFromFolder_ReadsFolderOnDisk**: a dictionary declared as `alpha`
+whose folder is spelled `ALPHA` on disk is found and read, with nothing reported as missing or undeclared. This
+test discriminates on case-sensitive file systems (Linux); on Windows and macOS it passes either way. This scenario
+is tested by `BuilderProgram_Run_DeclaredNameDifferingInCaseFromFolder_ReadsFolderOnDisk`.
+
+**BuilderProgram_Run_TechnicalFolderDifferingInCase_ReadsFolderOnDisk**: the same for the technical dictionary,
+whose folder is spelled `Technical` on disk. This test also discriminates on case-sensitive file systems. This
+scenario is tested by `BuilderProgram_Run_TechnicalFolderDifferingInCase_ReadsFolderOnDisk`.
+
+**BuilderProgram_Run_FoldersDifferingOnlyInCase_ReportsAmbiguityNamingBoth**: the input folder lists both `alpha`
+and `Alpha`; the run returns 1 with one problem that names both folders, calls neither missing nor undeclared, and
+writes nothing. The listing is substituted so the test runs on every operating system. This scenario is tested by
+`BuilderProgram_Run_FoldersDifferingOnlyInCase_ReportsAmbiguityNamingBoth`.
+
+**BuilderProgram_Run_TechnicalPartsDifferingOnlyInCase_ReportsAmbiguityNamingBoth**: the technical folder lists two
+spellings of `general`, `language`, and `variant-keep.txt`; the run returns 1 and each problem names both
+spellings. The listing is substituted so the test runs on every operating system. This scenario is tested by
+`BuilderProgram_Run_TechnicalPartsDifferingOnlyInCase_ReportsAmbiguityNamingBoth`.
 
 **BuilderProgram_Run_KeepListCannotBeRead_ReturnsOneNamingFile**: an injected access-denied failure when reading the
 existing keep list returns exit code 1, names the keep list, and creates no output, so approved words are never

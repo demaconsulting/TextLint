@@ -187,10 +187,13 @@ internal static class BuilderProgram
 
         var options = operations is null ? parsed : parsed with { Operations = operations };
 
-        // Read and validate every declared dictionary, collecting every problem before deciding
+        // List the input folder once; declared names are resolved against this listing and undeclared folders are found in it, so the two can never disagree
         var problems = new List<WordListDiagnostic>();
-        var dictionaries = ReadDictionaries(options, problems);
-        ReportUndeclaredFolders(options, problems);
+        var listing = ListInputFolders(options, problems);
+
+        // Read and validate every declared dictionary, collecting every problem before deciding
+        var dictionaries = ReadDictionaries(options, listing, problems);
+        ReportUndeclaredFolders(options, listing, problems);
 
         // Serialize in memory so that a failure can never leave a half-updated set of files
         var files = new List<OutputFile>();
@@ -204,7 +207,7 @@ internal static class BuilderProgram
                 }
                 catch (InvalidOperationException exception)
                 {
-                    problems.Add(new WordListDiagnostic(Path.Combine(options.InputFolder, dictionary.Name), WordListDiagnostic.NoLine, $"dictionary '{dictionary.Name}' is too large: {exception.Message}"));
+                    problems.Add(new WordListDiagnostic(dictionary.Folder, WordListDiagnostic.NoLine, $"dictionary '{dictionary.Name}' is too large: {exception.Message}"));
                 }
             }
         }
@@ -400,25 +403,108 @@ internal static class BuilderProgram
         name.Length > 0 && name.All(character => char.IsAsciiLetterOrDigit(character) || character is '-' or '_');
 
     /// <summary>
+    ///     Lists the folders directly beneath the input folder, once, for the whole run.
+    /// </summary>
+    /// <remarks>
+    ///     Both the resolution of declared names to folders and the search for undeclared folders work
+    ///     from this one listing, so they can never disagree about which folder a name means. There is
+    ///     no existence check on the input folder: only a genuine "directory not found" yields an empty
+    ///     listing (each declared dictionary then reports its own missing folder); any other failure
+    ///     is reported here, once, and marks the listing as failed so that no declared name is
+    ///     wrongly called missing. Reads the file system.
+    /// </remarks>
+    /// <param name="options">The parsed options. Must not be null.</param>
+    /// <param name="problems">The list that receives the problem when the listing fails. Must not be null.</param>
+    /// <returns>The folders in ordinal order, and whether the listing failed.</returns>
+    private static InputListing ListInputFolders(BuildOptions options, List<WordListDiagnostic> problems)
+    {
+        try
+        {
+            var folders = options.Operations.EnumerateDirectories(options.InputFolder).ToList();
+            folders.Sort(StringComparer.Ordinal);
+            return new InputListing(folders, Failed: false);
+        }
+        catch (DirectoryNotFoundException)
+        {
+            // A missing input folder has no sub-folders; every declared dictionary reports its own missing folder
+            return new InputListing([], Failed: false);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            problems.Add(new WordListDiagnostic(options.InputFolder, WordListDiagnostic.NoLine, $"the input folder cannot be listed: {exception.Message}"));
+            return new InputListing([], Failed: true);
+        }
+    }
+
+    /// <summary>
+    ///     Resolves a declared dictionary name to the folder that actually exists in the input folder.
+    /// </summary>
+    /// <remarks>
+    ///     The name is matched against the listing with <see cref="NameComparer"/> and the folder's
+    ///     real on-disk spelling is returned, so a declared <c>alpha</c> finds <c>ALPHA</c> on a
+    ///     case-sensitive file system exactly as it does on a case-insensitive one. When more than one
+    ///     folder matches (possible on a case-sensitive file system, for example <c>alpha</c> and
+    ///     <c>Alpha</c>) none is chosen: the ambiguity is reported naming every candidate. A name with
+    ///     no matching folder is reported as missing. When the listing itself failed the problem was
+    ///     already reported and nothing more is said. Pure function over the listing, apart from adding to
+    ///     the list.
+    /// </remarks>
+    /// <param name="options">The parsed options. Must not be null.</param>
+    /// <param name="listing">The listing of the input folder. Must not be null.</param>
+    /// <param name="name">The declared dictionary name. Must not be null.</param>
+    /// <param name="problems">The list that receives a missing or ambiguous problem. Must not be null.</param>
+    /// <returns>The full path of the folder, or <see langword="null"/> when it is missing, ambiguous, or the listing failed.</returns>
+    private static string? ResolveFolder(BuildOptions options, InputListing listing, string name, List<WordListDiagnostic> problems)
+    {
+        if (listing.Failed)
+        {
+            return null;
+        }
+
+        var matches = listing.Folders.Where(folder => NameComparer.Equals(Path.GetFileName(folder), name)).ToList();
+        if (matches.Count == 1)
+        {
+            return matches[0];
+        }
+
+        if (matches.Count == 0)
+        {
+            problems.Add(new WordListDiagnostic(Path.Combine(options.InputFolder, name), WordListDiagnostic.NoLine, $"the word-list folder of dictionary '{name}' does not exist"));
+            return null;
+        }
+
+        var candidates = string.Join(" and ", matches.Select(folder => $"'{Path.GetFileName(folder)}'"));
+        problems.Add(new WordListDiagnostic(options.InputFolder, WordListDiagnostic.NoLine, $"dictionary '{name}' is ambiguous: the folders {candidates} differ only in letter case; keep one"));
+        return null;
+    }
+
+    /// <summary>
     ///     Reads the word lists of every declared dictionary and records the problems found.
     /// </summary>
     /// <remarks>
-    ///     A declared dictionary whose folder is missing, or whose lists contain no words, is a
-    ///     misconfiguration and is reported like an invalid entry. The technical dictionary is read
+    ///     A declared dictionary whose folder is missing or ambiguous, or whose lists contain no words,
+    ///     is a misconfiguration and is reported like an invalid entry. The technical dictionary is read
     ///     last because the variant rule needs the words of the variant dictionaries. Reads the file
     ///     system.
     /// </remarks>
     /// <param name="options">The parsed options. Must not be null.</param>
+    /// <param name="listing">The listing of the input folder that names are resolved against. Must not be null.</param>
     /// <param name="problems">The list that receives every problem. Must not be null.</param>
     /// <returns>The successfully read dictionaries in declaration order (only meaningful when no problem was recorded).</returns>
-    private static List<BuiltDictionary> ReadDictionaries(BuildOptions options, List<WordListDiagnostic> problems)
+    private static List<BuiltDictionary> ReadDictionaries(BuildOptions options, InputListing listing, List<WordListDiagnostic> problems)
     {
         // Read every ordinary dictionary first
         var read = new Dictionary<string, BuiltDictionary>(NameComparer);
         foreach (var name in options.Names.Where(name => !IsTechnical(options, name)))
         {
-            // A declared dictionary must have a folder; only a genuinely absent folder says so, a failed search is its own problem
-            var folder = Path.Combine(options.InputFolder, name);
+            // A declared dictionary must have exactly one folder, found by its on-disk spelling
+            var folder = ResolveFolder(options, listing, name, problems);
+            if (folder is null)
+            {
+                continue;
+            }
+
+            // Only a genuinely absent folder (it vanished since the listing) says so, a failed search is its own problem
             var files = WordListReader.FindWordListFiles(folder, out var searchProblem, out var folderMissing, options.Operations);
             if (folderMissing)
             {
@@ -430,21 +516,24 @@ internal static class BuilderProgram
             var result = WordListReader.ReadFiles(files, folder, searchProblem, options.Operations);
             problems.AddRange(result.Diagnostics);
             ReportMissingWords(result, folder, $"dictionary '{name}'", problems);
-            read[name] = new BuiltDictionary(name, result.Words, string.Empty);
+            read[name] = new BuiltDictionary(name, folder, result.Words, string.Empty);
         }
 
         // Then combine the technical dictionary, which depends on the variant dictionaries' words
         if (options.TechnicalName is not null)
         {
-            var folder = Path.Combine(options.InputFolder, options.TechnicalName);
-            var variantWords = options.VariantNames
-                .Where(read.ContainsKey)
-                .SelectMany(variant => read[variant].Words.Keys)
-                .ToHashSet(StringComparer.Ordinal);
-            var technical = ReadTechnicalDictionary(options.TechnicalName, folder, variantWords, options.Operations, problems);
-            if (technical is not null)
+            var folder = ResolveFolder(options, listing, options.TechnicalName, problems);
+            if (folder is not null)
             {
-                read[options.TechnicalName] = technical;
+                var variantWords = options.VariantNames
+                    .Where(read.ContainsKey)
+                    .SelectMany(variant => read[variant].Words.Keys)
+                    .ToHashSet(StringComparer.Ordinal);
+                var technical = ReadTechnicalDictionary(options.TechnicalName, folder, variantWords, options.Operations, problems);
+                if (technical is not null)
+                {
+                    read[options.TechnicalName] = technical;
+                }
             }
         }
 
@@ -519,35 +608,50 @@ internal static class BuilderProgram
             return null;
         }
 
-        var generalFolder = Path.Combine(folder, GeneralFolderName);
-        var languageFolder = Path.Combine(folder, LanguageFolderName);
-        var keepFile = Path.Combine(folder, KeepListFileName);
         var problemsBefore = problems.Count;
 
-        // Sort every list into the one place the rule knows for it, so that no list can be found yet never read
+        // Sort every list into the one place the rule knows for it, so that no list can be found yet never read,
+        // remembering the spelling each place actually has on disk
         var generalFiles = new List<string>();
         var languageFiles = new List<string>();
         var keepFiles = new List<string>();
+        var generalSpellings = new SortedSet<string>(StringComparer.Ordinal);
+        var languageSpellings = new SortedSet<string>(StringComparer.Ordinal);
+        var keepSpellings = new SortedSet<string>(StringComparer.Ordinal);
         foreach (var file in allFiles)
         {
             var segments = Path.GetRelativePath(folder, file).Split(Path.DirectorySeparatorChar);
             if (segments.Length > 1 && NameComparer.Equals(segments[0], GeneralFolderName))
             {
                 generalFiles.Add(file);
+                generalSpellings.Add(segments[0]);
             }
             else if (segments.Length > 1 && NameComparer.Equals(segments[0], LanguageFolderName))
             {
                 languageFiles.Add(file);
+                languageSpellings.Add(segments[0]);
             }
             else if (segments.Length == 1 && NameComparer.Equals(segments[0], KeepListFileName))
             {
                 keepFiles.Add(file);
+                keepSpellings.Add(segments[0]);
             }
             else
             {
                 problems.Add(new WordListDiagnostic(file, WordListDiagnostic.NoLine, $"the word list is not in the '{GeneralFolderName}' or '{LanguageFolderName}' folder and is not {KeepListFileName}"));
             }
         }
+
+        // More than one on-disk spelling of the same place (possible on a case-sensitive file system) is ambiguous: report it instead of merging them
+        foreach (var spellings in new[] { generalSpellings, languageSpellings, keepSpellings }.Where(spellings => spellings.Count > 1))
+        {
+            problems.Add(new WordListDiagnostic(folder, WordListDiagnostic.NoLine, $"the technical dictionary is ambiguous: {string.Join(" and ", spellings.Select(spelling => $"'{spelling}'"))} differ only in letter case; keep one"));
+        }
+
+        // The paths named by diagnostics use the spelling found on disk, or the standard one when the place has no lists
+        var generalFolder = Path.Combine(folder, generalSpellings.FirstOrDefault() ?? GeneralFolderName);
+        var languageFolder = Path.Combine(folder, languageSpellings.FirstOrDefault() ?? LanguageFolderName);
+        var keepFile = Path.Combine(folder, keepSpellings.FirstOrDefault() ?? KeepListFileName);
 
         // Read the three sources; the general and language lists must each hold words. The keep list is
         // optional only in the sense that it may be absent from the listing: one that is listed but cannot be read is a problem
@@ -572,7 +676,7 @@ internal static class BuilderProgram
         }
 
         var detail = $" ({filtered.KeptViaLanguage} variants kept via language lists, {filtered.KeptViaKeepList} via {KeepListFileName}, {filtered.Stripped} stripped)";
-        return problems.Count > problemsBefore ? null : new BuiltDictionary(name, filtered.Words, detail);
+        return problems.Count > problemsBefore ? null : new BuiltDictionary(name, folder, filtered.Words, detail);
     }
 
     /// <summary>
@@ -580,35 +684,18 @@ internal static class BuilderProgram
     /// </summary>
     /// <remarks>
     ///     A mistyped or forgotten dictionary name would otherwise silently drop a whole list from
-    ///     the product, which no later check could notice. Folder names are matched against the
-    ///     declared names with <see cref="NameComparer"/>. There is no existence check on the input
-    ///     folder: only a genuine "directory not found" means there is nothing to inspect (the
-    ///     declared dictionaries report that themselves); any other listing failure is a problem.
-    ///     Reads the file system.
+    ///     the product, which no later check could notice. It works from the same listing of the input
+    ///     folder that the declared names are resolved against, and matches folder names to declared
+    ///     names with the same comparer, so a folder is undeclared exactly when no declared name resolves
+    ///     to it. A failed listing was already reported and leaves nothing to inspect. Reads the file
+    ///     system.
     /// </remarks>
     /// <param name="options">The parsed options. Must not be null.</param>
+    /// <param name="listing">The listing of the input folder. Must not be null.</param>
     /// <param name="problems">The list that receives every problem. Must not be null.</param>
-    private static void ReportUndeclaredFolders(BuildOptions options, List<WordListDiagnostic> problems)
+    private static void ReportUndeclaredFolders(BuildOptions options, InputListing listing, List<WordListDiagnostic> problems)
     {
-        // List the folders; a listing failure is a problem, not a crash and not an empty input
-        List<string> folders;
-        try
-        {
-            folders = [.. options.Operations.EnumerateDirectories(options.InputFolder)];
-        }
-        catch (DirectoryNotFoundException)
-        {
-            // A missing input folder has no sub-folders to inspect; the declared dictionaries already reported it
-            return;
-        }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
-        {
-            problems.Add(new WordListDiagnostic(options.InputFolder, WordListDiagnostic.NoLine, $"the input folder cannot be listed: {exception.Message}"));
-            return;
-        }
-
-        folders.Sort(StringComparer.Ordinal);
-        foreach (var folder in folders)
+        foreach (var folder in listing.Folders)
         {
             var name = Path.GetFileName(folder);
             if (options.Names.Contains(name, NameComparer))
@@ -877,9 +964,17 @@ internal static class BuilderProgram
     ///     A dictionary that has been read and combined, ready to be serialized.
     /// </summary>
     /// <param name="Name">The dictionary name.</param>
+    /// <param name="Folder">The full path of the input folder the dictionary was read from, as spelled on disk.</param>
     /// <param name="Words">The distinct folded words with their capitalization-form flags.</param>
     /// <param name="Detail">Extra text for the summary line (the variant counts of the technical dictionary), or empty.</param>
-    private sealed record BuiltDictionary(string Name, IReadOnlyDictionary<string, uint> Words, string Detail);
+    private sealed record BuiltDictionary(string Name, string Folder, IReadOnlyDictionary<string, uint> Words, string Detail);
+
+    /// <summary>
+    ///     The folders directly beneath the input folder, listed once for the whole run.
+    /// </summary>
+    /// <param name="Folders">The full paths of the folders in ordinal order; empty when the input folder does not exist or the listing failed.</param>
+    /// <param name="Failed">Whether the listing failed (the problem has already been reported), so that nothing is wrongly called missing.</param>
+    private sealed record InputListing(IReadOnlyList<string> Folders, bool Failed);
 
     /// <summary>
     ///     A serialized dictionary file waiting to be written.

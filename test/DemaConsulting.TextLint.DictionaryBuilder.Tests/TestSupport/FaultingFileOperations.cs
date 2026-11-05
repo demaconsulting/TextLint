@@ -63,13 +63,19 @@ internal sealed class FaultingFileOperations : FileOperations
     /// </summary>
     public Func<string, IEnumerable<string>?> ListDirectories { get; init; } = _ => null;
 
+    /// <summary>
+    ///     Gets or sets a replacement for the real recursive listing of files; it receives the folder and
+    ///     returns the files to report, or null to use the real listing.
+    /// </summary>
+    public Func<string, IEnumerable<string>?> ListFiles { get; init; } = _ => null;
+
     /// <inheritdoc/>
     internal override byte[] ReadAllBytes(string path) =>
         FailRead(path) ? throw new UnauthorizedAccessException("injected access denied") : base.ReadAllBytes(path);
 
     /// <inheritdoc/>
     internal override IEnumerable<string> EnumerateFiles(string folder) =>
-        FailEnumerateFiles(folder) ? FailPartWay(base.EnumerateFiles(folder)) : base.EnumerateFiles(folder);
+        FailEnumerateFiles(folder) ? FailPartWay(base.EnumerateFiles(folder)) : ListFiles(folder) ?? base.EnumerateFiles(folder);
 
     /// <inheritdoc/>
     internal override IEnumerable<string> EnumerateDirectories(string folder) =>

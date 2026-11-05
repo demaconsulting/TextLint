@@ -41,17 +41,25 @@ sections:
           - id: DictionaryBuilder-BuilderProgram-NameMatching
             title: >-
               BuilderProgram shall compare dictionary names, the references to the technical and variant
-              dictionaries, folder names, and list-file names ignoring letter case, and shall use the
-              declared spelling of a name to locate its folder and file.
+              dictionaries, folder names, and list-file names ignoring letter case, shall find each
+              declared dictionary's folder, and the technical dictionary's sub-folders and reviewed list,
+              under the spelling they have on disk, and shall report, naming every candidate, a name that
+              matches more than one folder or list place that differs only in letter case instead of
+              choosing one.
             justification: |
               On a case-insensitive file system "alpha" and "ALPHA" are the same folder, and on a
-              case-sensitive one they are not. Using one comparison everywhere makes the builder produce
-              the same result on every operating system, and a reference written in another case still
-              finds the dictionary it means instead of failing on one platform only.
+              case-sensitive one they are not. Using one comparison everywhere, resolved against what is
+              really on disk, makes the builder produce the same result on every operating system: a
+              dictionary declared as "alpha" finds its folder "ALPHA" instead of being called missing while
+              the same folder is accepted as declared. Where a case-sensitive file system holds two
+              spellings, silently choosing one could read the wrong lists, so the builder refuses.
             tests:
               - BuilderProgram_Run_TechnicalReferencesDifferingInCase_UseDeclaredSpelling
               - BuilderProgram_Run_TechnicalPartsInDifferentCase_AreFoundAndBuilt
-              - BuilderProgram_Run_UndeclaredFolderCheck_MatchesDeclaredNamesIgnoringCase
+              - BuilderProgram_Run_DeclaredNameDifferingInCaseFromFolder_ReadsFolderOnDisk
+              - BuilderProgram_Run_TechnicalFolderDifferingInCase_ReadsFolderOnDisk
+              - BuilderProgram_Run_FoldersDifferingOnlyInCase_ReportsAmbiguityNamingBoth
+              - BuilderProgram_Run_TechnicalPartsDifferingOnlyInCase_ReportsAmbiguityNamingBoth
 
           - id: DictionaryBuilder-BuilderProgram-Dictionaries
             title: >-

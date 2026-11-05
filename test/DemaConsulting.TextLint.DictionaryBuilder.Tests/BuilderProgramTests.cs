@@ -866,23 +866,114 @@ public class BuilderProgramTests
     }
 
     /// <summary>
-    ///     Test that a folder is matched against the declared names ignoring case when looking for undeclared folders.
+    ///     Test that a declared name finds the input folder whose on-disk name differs only in letter case, and that folder is not reported as undeclared.
     /// </summary>
+    /// <remarks>
+    ///     Discriminating on case-sensitive file systems (Linux): there <c>alpha</c> and <c>ALPHA</c> are
+    ///     different folders, and only a name resolved against the real listing finds it. On Windows and
+    ///     macOS the test passes for either implementation.
+    /// </remarks>
     [Fact]
-    public void BuilderProgram_Run_UndeclaredFolderCheck_MatchesDeclaredNamesIgnoringCase()
+    public void BuilderProgram_Run_DeclaredNameDifferingInCaseFromFolder_ReadsFolderOnDisk()
     {
-        // Arrange: a declared dictionary whose folder is listed with different capitalization, as a case-insensitive file system may report it
+        // Arrange: a declared dictionary "alpha" whose folder on disk is spelled "ALPHA"
+        using var temp = new TempDirectory();
+        temp.CreateFile("input/ALPHA/words.txt", "apple\nbanana\n");
+
+        // Act: build the declared dictionary
+        var (exitCode, _, error) = Execute("--input", temp.PathOf("input"), "--output", temp.PathOf("out"), "alpha");
+
+        // Assert: the folder was found and read, and it is not reported as missing or undeclared
+        Assert.Equal(BuilderProgram.ExitSuccess, exitCode);
+        Assert.Equal(string.Empty, error);
+        Assert.Equal(["apple", "banana"], new TldReader(File.ReadAllBytes(temp.PathOf("out/alpha.tld"))).Words);
+    }
+
+    /// <summary>
+    ///     Test that the technical dictionary finds its input folder when the on-disk name differs only in letter case.
+    /// </summary>
+    /// <remarks>
+    ///     Discriminating on case-sensitive file systems (Linux), like
+    ///     <see cref="BuilderProgram_Run_DeclaredNameDifferingInCaseFromFolder_ReadsFolderOnDisk"/>.
+    /// </remarks>
+    [Fact]
+    public void BuilderProgram_Run_TechnicalFolderDifferingInCase_ReadsFolderOnDisk()
+    {
+        // Arrange: the shared fixture with the technical folder spelled "Technical" on disk
+        using var temp = new TempDirectory();
+        VariantFixture.Create(temp);
+        Directory.Move(temp.PathOf("input/technical"), temp.PathOf("input/Technical-moved"));
+        Directory.Move(temp.PathOf("input/Technical-moved"), temp.PathOf("input/Technical"));
+
+        // Act: build with the variant rule, declaring the lower-case name
+        var (exitCode, _, error) = Execute(VariantFixture.Arguments(temp));
+
+        // Assert: the folder was found and read, and the result equals the one for the lower-case layout
+        Assert.Equal(BuilderProgram.ExitSuccess, exitCode);
+        Assert.Equal(string.Empty, error);
+        Assert.Equal(["color", "grey", "kubernetes", "tokenizer", "void"], new TldReader(File.ReadAllBytes(temp.PathOf("out/technical.tld"))).Words);
+    }
+
+    /// <summary>
+    ///     Test that two input folders matching a declared name ignoring case are reported as an ambiguity and neither is chosen.
+    /// </summary>
+    /// <remarks>
+    ///     Portable: the folder listing is substituted, because a case-insensitive file system cannot
+    ///     hold both folders. The same condition arises for real on Linux.
+    /// </remarks>
+    [Fact]
+    public void BuilderProgram_Run_FoldersDifferingOnlyInCase_ReportsAmbiguityNamingBoth()
+    {
+        // Arrange: an input folder that lists both "Alpha" and "alpha"
         using var temp = new TempDirectory();
         var input = CreateValidInput(temp);
-        var listed = Path.Combine(input, "ALPHA");
-        var operations = new FaultingFileOperations { ListDirectories = _ => [listed] };
+        var operations = new FaultingFileOperations { ListDirectories = _ => [Path.Combine(input, "alpha"), Path.Combine(input, "Alpha")] };
 
-        // Act: build only the declared dictionary
+        // Act: build the declared dictionary
         var (exitCode, _, error) = ExecuteWith(operations, "--input", input, "--output", temp.PathOf("out"), "alpha");
 
-        // Assert: the listed folder is recognized as the declared dictionary, not reported as undeclared
-        Assert.Equal(BuilderProgram.ExitSuccess, exitCode);
+        // Assert: exit code 1, both folders are named in one ambiguity problem, nothing is called missing or undeclared, and nothing is written
+        Assert.Equal(BuilderProgram.ExitInvalidWordLists, exitCode);
+        Assert.Contains("dictionary 'alpha' is ambiguous: the folders 'Alpha' and 'alpha' differ only in letter case", error);
+        Assert.DoesNotContain("does not exist", error);
         Assert.DoesNotContain("not a declared dictionary", error);
+        Assert.False(Directory.Exists(temp.PathOf("out")));
+    }
+
+    /// <summary>
+    ///     Test that technical sub-folders and keep lists whose on-disk names differ only in letter case are reported as an ambiguity.
+    /// </summary>
+    /// <remarks>
+    ///     Portable: the file listing of the technical folder is substituted, because a case-insensitive
+    ///     file system cannot hold both spellings. The same condition arises for real on Linux.
+    /// </remarks>
+    [Fact]
+    public void BuilderProgram_Run_TechnicalPartsDifferingOnlyInCase_ReportsAmbiguityNamingBoth()
+    {
+        // Arrange: the fixture, with a technical listing that has two spellings of each place
+        using var temp = new TempDirectory();
+        VariantFixture.Create(temp);
+        var technical = temp.PathOf("input/technical");
+        var operations = new FaultingFileOperations
+        {
+            ListFiles = folder => string.Equals(folder, technical, StringComparison.Ordinal)
+                ? [
+                    Path.Combine(technical, "general", "a.txt"), Path.Combine(technical, "General", "b.txt"),
+                    Path.Combine(technical, "language", "a.txt"), Path.Combine(technical, "Language", "b.txt"),
+                    Path.Combine(technical, "variant-keep.txt"), Path.Combine(technical, "Variant-Keep.txt")
+                ]
+                : null
+        };
+
+        // Act: build with the variant rule
+        var (exitCode, _, error) = ExecuteWith(operations, VariantFixture.Arguments(temp));
+
+        // Assert: exit code 1, each ambiguous place names both spellings, and nothing is written
+        Assert.Equal(BuilderProgram.ExitInvalidWordLists, exitCode);
+        Assert.Contains("'General' and 'general' differ only in letter case", error);
+        Assert.Contains("'Language' and 'language' differ only in letter case", error);
+        Assert.Contains("'Variant-Keep.txt' and 'variant-keep.txt' differ only in letter case", error);
+        Assert.False(Directory.Exists(temp.PathOf("out")));
     }
 
     /// <summary>

@@ -27,8 +27,9 @@ absolute input folder, the absolute output folder, the list of dictionary names 
 of the technical dictionary (or none), the names of the variant dictionaries, and the file operations to use. The
 names and the technical and variant references are stored in immutable collections, in the spelling in which the
 dictionaries were declared. A
-dictionary that has been read is held in a private record of its name, its words, and an optional detail text
-for the summary line.
+dictionary that has been read is held in a private record of its name, the on-disk folder it was read from, its words,
+and an optional detail text for the summary line. The listing of the input folder, made once per run, is held in a
+private record of the folders and whether the listing failed.
 
 A private nested class, `StagedFile`, keeps the three paths of one file replacement together (the target, a
 staged file beside it, and a backup of the original) and remembers how far the installation got, so that a
@@ -55,8 +56,9 @@ instance, which calls the file system directly; tests pass a subclass that throw
   changed and no temporary file remains; with exit code 3 the error stream names every file that may be
   inconsistent or was left behind.
 
-`Run` first parses the arguments. It then reads every declared dictionary, collecting every problem into one
-list; it reports each folder under the input folder that holds word lists but was not declared; and when the
+`Run` first parses the arguments. It then lists the input folder once, reads every declared dictionary (resolving
+each name against that listing), collecting every problem into one
+list; it reports each folder in the same listing that holds word lists but was not declared; and when the
 list of problems is still empty it serializes every dictionary through `DictionaryWriter` in memory. Only after
 all of that does it either print the problems and return 1, or write the files.
 
@@ -74,17 +76,32 @@ dictionary, with no variant repeated. A reference that matched in another case i
 spelling, which is then the folder and file name used. The input and output
 paths are made absolute here, once.
 
-**ReadDictionaries**: reads the word lists of each declared dictionary. A dictionary folder that does not exist
-is a problem ("does not exist"), a folder that exists but cannot be searched is a different problem, and so is a
-dictionary whose lists were readable but contain no words. The two are told apart by the search itself, not by a
-preliminary existence check. The ordinary dictionaries are
+**ReadDictionaries**: reads the word lists of each declared dictionary. The folder of each declared name is found
+by `ResolveFolder` (below), never by joining the name onto the input path. A dictionary folder that does not exist
+is a problem ("does not exist"), an ambiguous one is a different problem, a folder that exists but cannot be
+searched is another, and so is a dictionary whose lists were readable but contain no words. The ordinary
+dictionaries are
 read first, in declaration order, because the variant rule needs the words of the variant dictionaries; the
 technical dictionary is then combined, and the results are returned in declaration order.
+
+**ListInputFolders**: lists the folders directly beneath the input folder, once per run, in ordinal order. Only a
+genuine "directory not found" gives an empty listing (every declared dictionary then reports its own missing
+folder); any other failure is reported once, as "the input folder cannot be listed", and marks the listing as
+failed so that no declared name is wrongly called missing.
+
+**ResolveFolder**: resolves a declared name against that listing, ignoring letter case, and returns the folder's
+real on-disk path, so a dictionary declared as `alpha` finds `ALPHA` on a case-sensitive file system just as it does
+on a case-insensitive one. No match is a "does not exist" problem. More than one match (possible on a
+case-sensitive file system, for example `alpha` and `Alpha`) is an ambiguity problem that names every candidate;
+none is chosen, because reading the wrong folder would be a silent error.
 
 **ReadTechnicalDictionary**: combines the technical dictionary. It searches the technical folder once and sorts
 every list that was found into exactly one place by its first path segment, compared ignoring case: under
 `general`, under `language`, or `variant-keep.txt` at the top. A list anywhere else is reported, so a list that
-was found is always either read or reported and cannot be dropped. It has `WordListReader` read the general lists,
+was found is always either read or reported and cannot be dropped. The on-disk spelling of each place is taken from
+the listing, and when one place has more than one spelling (`general` and `General`) the technical dictionary is
+reported as ambiguous, naming both, instead of merging them; diagnostics name the paths as spelled on disk. It has
+`WordListReader` read the general lists,
 the language lists, and the keep list; an empty general or language set is a problem. The keep list is optional
 only in the sense that it may be absent from the listing: whether it exists is decided by that same listing and
 never by a separate existence check, so a keep list that exists but cannot be read is a problem and can never
@@ -93,11 +110,11 @@ that the filter reports as not being a spelling variant becomes a problem naming
 summary text for the technical dictionary states how many variants were kept through language lists, kept
 through the keep list, and stripped.
 
-**ReportUndeclaredFolders**: looks at every direct sub-folder of the input folder, in ordinal order, and
-reports one that contains word-list files but is not declared (matched ignoring case), or that cannot be searched
-to find out, which catches a mistyped or forgotten name that would otherwise silently drop a whole dictionary from
-the product. Only a genuine "directory not found" on the input folder means there is nothing to inspect; any other
-listing failure is a problem.
+**ReportUndeclaredFolders**: looks at every folder of the same listing, in ordinal order, and reports one that
+contains word-list files but is not declared (matched ignoring case), or that cannot be searched to find out, which
+catches a mistyped or forgotten name that would otherwise silently drop a whole dictionary from the product.
+Because it uses the same listing and the same comparison as `ResolveFolder`, a folder is undeclared exactly when no
+declared name resolves to it, so the two can never disagree.
 
 **WriteFiles**: writes the files all-or-nothing and reports every file it cannot clean up. It runs
 **StageAndInstall**, then, whatever the outcome, deletes every staged file; a staged file that cannot be deleted is

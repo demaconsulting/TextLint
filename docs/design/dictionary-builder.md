@@ -127,8 +127,10 @@ change any output when a problem exists protect the data quality of the product,
 1. The build starts the builder with the folder of word lists, the output folder, the dictionary names, and
    the declaration of the technical and variant dictionaries.
 2. `BuilderProgram` validates the command line. A problem ends the run with exit code 2.
-3. For each declared ordinary name, `BuilderProgram` asks `WordListReader` to find the files of the folder; a
-   folder that does not exist is a problem, and so is one that exists but cannot be searched, and the
+3. `BuilderProgram` lists the input folder once and resolves each declared ordinary name to the folder of that name
+   as spelled on disk (ignoring letter case; a name that matches two folders is an ambiguity problem, and no match
+   is a missing folder), then asks `WordListReader` to find the files of the folder; a folder that exists but cannot
+   be searched is a problem, and the
    reader then reads the files. The reader reads the files in ordinal path order, decodes them strictly as UTF-8, validates
    each entry, folds it with `DictionaryFormat`, and merges it into one set of distinct words with the
    capitalization forms each word had. Every problem is collected, not just the first.
