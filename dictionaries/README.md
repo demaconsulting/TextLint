@@ -2,8 +2,9 @@
 
 This folder holds the plain-text word lists from which the TextLint dictionaries are built. The lists are
 data, not code: they are reviewed as text, edited by hand where noted below, and converted into compact binary
-dictionary files at build time by the dictionary builder (`src/DemaConsulting.TextLint.DictionaryBuilder`). No
-binary dictionary is ever committed.
+dictionary files at build time by the dictionary builder (`src/DemaConsulting.TextLint.DictionaryBuilder`), which the
+build of the `DemaConsulting.TextLint` library runs; the library embeds the results. Editing a list is enough: the
+next build converts it again. No binary dictionary is ever committed.
 
 ## Layout
 

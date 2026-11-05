@@ -1,0 +1,93 @@
+---
+# Software Unit Requirements for the SpellingDictionary Class
+#
+# The SpellingDictionary class is the public face of the Dictionaries subsystem: it selects the
+# embedded dictionaries for a language and answers whether a word is known to them.
+
+sections:
+  - title: TextLint Requirements
+    sections:
+      - title: Dictionaries Requirements
+        sections:
+          - title: SpellingDictionary Requirements
+            requirements:
+              - id: TextLint-Dictionaries-SpellingDictionary-LanguageSelection
+                title: >-
+                  SpellingDictionary shall accept the language names en, en-US, and en-GB (in any
+                  letter case, separated by commas, with optional spaces), treat en as en-US,
+                  default to en-US, and reject an empty, missing, or unsupported name with an error
+                  that names the value.
+                justification: |
+                  The names follow cspell so that a configuration carries over, and a list lets a
+                  project that mixes dialects select both. An error that names the offending value
+                  tells the user exactly what to correct.
+                tests:
+                  - SpellingDictionary_Default_Selection_IsAmerican
+                  - SpellingDictionary_ForLanguages_En_SameAsEnUs
+                  - SpellingDictionary_ForLanguages_LowerCaseAndSpaces_Accepted
+                  - SpellingDictionary_ForLanguages_UnsupportedLanguage_ThrowsNamingLanguage
+                  - SpellingDictionary_ForLanguages_Empty_Throws
+                  - SpellingDictionary_ForLanguages_EmptyNameInList_Throws
+                  - SpellingDictionary_ForLanguages_Null_Throws
+                  - SpellingDictionary_SupportedLanguages_ListsNames_CannotBeModified
+
+              - id: TextLint-Dictionaries-SpellingDictionary-Composition
+                title: >-
+                  SpellingDictionary shall report a word as known when it belongs to the English
+                  words that all dialects share, to the spellings of a selected language, or to the
+                  technical terms, and shall not report the spellings of a language that is not
+                  selected as known.
+                justification: |
+                  A selection must know exactly the vocabulary of its languages: the words every
+                  dialect shares, the spellings of the chosen dialects, and the technical terms.
+                  Spellings of a dialect that was not chosen must stay unknown, or the language
+                  setting would have no effect.
+                tests:
+                  - SpellingDictionary_IsKnown_WordOnlyInOneDictionary_IsKnownWhenSelected
+                  - SpellingDictionary_IsKnown_GbOnlyWordWithAmerican_IsUnknown
+                  - SpellingDictionary_IsKnown_CommonWord_KnownInEverySelection
+                  - SpellingDictionary_IsKnown_UnknownWord_IsFalse
+                  - SpellingDictionary_IsKnown_VariantSpellingInGeneralList_FollowsLanguage
+
+              - id: TextLint-Dictionaries-SpellingDictionary-TechnicalTerms
+                title: SpellingDictionary shall treat the technical terms as known in every selection.
+                justification: |
+                  Software terms are correct whatever the dialect, so no selection may omit them,
+                  including the programming terms whose spelling also appears as a regional variant.
+                tests:
+                  - SpellingDictionary_IsKnown_TechnicalWord_KnownForEveryLanguage
+                  - SpellingDictionary_IsKnown_ProgrammingTermInVariantSpelling_KnownForEveryLanguage
+
+              - id: TextLint-Dictionaries-SpellingDictionary-WordMatching
+                title: >-
+                  SpellingDictionary shall ignore letter case, treat the typographic apostrophe as
+                  the straight apostrophe, keep accents significant, look other punctuation up as
+                  written, and report empty text, text longer than 64 characters, and text with
+                  characters outside Latin-1 as not known without failing.
+                justification: |
+                  These are the matching rules of the lookup: forgiving about capitalization and the
+                  apostrophe form, strict about accents, and never an error for text that cannot be
+                  a dictionary word. Deciding what a word is, including its punctuation, belongs to
+                  the tokenizer, so punctuation is not stripped here.
+                tests:
+                  - SpellingDictionary_IsKnown_UpperCase_IsKnown
+                  - SpellingDictionary_IsKnown_WordListedWithCapital_KnownInAnyCase
+                  - SpellingDictionary_IsKnown_TypographicApostrophe_IsKnown
+                  - SpellingDictionary_IsKnown_PunctuationAroundWord_IsLookedUpAsWritten
+                  - SpellingDictionary_IsKnown_Accented_IsKnown
+                  - SpellingDictionary_IsKnown_OtherScript_IsUnknown
+                  - SpellingDictionary_IsKnown_VeryLongWord_IsUnknown
+                  - SpellingDictionary_IsKnown_DigitsSpacesAndEmpty_AreUnknown
+                  - SpellingDictionary_IsKnown_SpanOfLargerText_ChecksOnlyTheSpan
+
+              - id: TextLint-Dictionaries-SpellingDictionary-SharedInstances
+                title: >-
+                  SpellingDictionary shall return the same instance for equivalent language
+                  selections and shall answer lookups correctly from many threads at once.
+                justification: |
+                  One shared instance per selection means the dictionaries are loaded once for the
+                  whole process, and correct answers under concurrent use remove any need for
+                  callers to lock.
+                tests:
+                  - SpellingDictionary_ForLanguages_EquivalentSelections_ReturnSameInstance
+                  - SpellingDictionary_IsKnown_ParallelLookups_AllCorrect

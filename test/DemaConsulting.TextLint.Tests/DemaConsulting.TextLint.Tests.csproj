@@ -67,4 +67,16 @@
     <ProjectReference Include="..\..\src\DemaConsulting.TextLint\DemaConsulting.TextLint.csproj" />
   </ItemGroup>
 
+  <!-- Test Data -->
+  <ItemGroup>
+    <!-- The word lists the embedded dictionaries are built from, copied beside the test assembly so the
+         tests can check that every listed word is known (the repository layout is preserved under
+         'dictionaries'). -->
+    <Content Include="..\..\dictionaries\**\*.txt" Link="dictionaries\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+
+    <!-- A resource that is not a valid dictionary, used to prove that a damaged embedded dictionary is
+         reported by name. -->
+    <EmbeddedResource Include="TestSupport\Resources\corrupt-dictionary.tld" LogicalName="DemaConsulting.TextLint.Tests.corrupt-dictionary.tld" />
+  </ItemGroup>
+
 </Project>

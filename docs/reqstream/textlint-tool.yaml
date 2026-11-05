@@ -162,3 +162,17 @@ sections:
           - TextLintTool-Cli-ResultAlias
         tests:
           - TextLintTool_ResultAlias_LegacyFlag_WritesResultsFile
+
+      - id: TextLintTool-System-ThirdPartyNotices
+        title: >-
+          The tool package shall carry the license notices for the third-party data it bundles
+          with the library.
+        tags: [system]
+        justification: |
+          The tool package contains the library assembly, and with it the English and technical
+          word lists whose licenses require their copyright and permission notices to accompany
+          every copy of the data. Users install the tool package, not the library package, so the
+          notices must be in the tool package too. The evidence is the produced package itself,
+          inspected by FileAssert.
+        tests:
+          - TextLintTool_Package_Packed_ContainsThirdPartyNotices

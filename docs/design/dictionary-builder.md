@@ -7,7 +7,7 @@
 The DictionaryBuilder is a **build-time system**: a small console program that is run by the build of
 the `DemaConsulting.TextLint` library and is never packaged, published, or run by a user. Its single
 job is to turn the plain-text word lists kept under `dictionaries/` into the binary dictionary files
-that the library will embed. It is modeled as its own system, rather than as untracked build script,
+that the library embeds. It is modeled as its own system, rather than as untracked build script,
 because it produces data that ships inside the library: its quality is therefore part of the quality of
 the product, and it has its own requirements, design, verification, and tests.
 
@@ -32,12 +32,12 @@ validate the word lists of each declared dictionary, asks `VariantFilter` to com
 under the spelling-variant rule, asks `DictionaryWriter` to serialize the result, writes the files
 all-or-nothing, and reports every problem in the compiler's error format. `WordListReader` and
 `DictionaryWriter` both rely on `DictionaryFormat`, which holds the definitions that the writer and the
-library's future reader must agree on bit for bit: the case fold, the hash, the capitalization
+library's dictionary reader must agree on bit for bit: the case fold, the hash, the capitalization
 classification, and the layout constants. `VariantFilter` is a pure function over sets of folded words and
-needs none of them. `DictionaryFormat` is the one unit whose source file is shared: the library project will
-compile the same file, so the builder that writes a dictionary and the library that reads it can never
+needs none of them. `DictionaryFormat` is the one unit whose source file is shared: the library project
+compiles the same file, so the builder that writes a dictionary and the library that reads it can never
 disagree. For that reason the file lives in the builder's project folder, belongs to this system, and
-declares the namespace `DemaConsulting.TextLint.Dictionaries`, which is the namespace the library will use
+declares the namespace `DemaConsulting.TextLint.Dictionaries`, which is the namespace the library uses
 for the code that reads the files.
 
 The builder produces four dictionaries from the word lists under `dictionaries/`: the English words common
@@ -114,8 +114,8 @@ apply the variant rule; the rule is applied here, when the technical dictionary 
 
 The system uses only the .NET base class library. It has no OTS items, no shared packages, and no
 dependency on the TextLint library or the TextLint tool; the dependency runs the other way, because the
-library's build will run the builder. The source file of `DictionaryFormat` is linked into the library
-by that later change.
+library's build runs the builder. The source file of `DictionaryFormat` is linked into the library
+project. See the _TextLint_ design for how the build uses the builder.
 
 ## Risk Control Measures
 

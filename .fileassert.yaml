@@ -2,7 +2,7 @@
 # FileAssert document validation tests for TextLint.
 # Tests are tagged by document group to allow per-group execution during the build pipeline.
 # Tags: build-notes, code-quality, code-review, design, verification, user-guide, requirements,
-# packages, library-project.
+# packages, tool-package, library-project.
 #
 # NOTE: build-notes through user-guide tests provide OTS evidence for Pandoc and WeasyPrint
 # and run before ReqStream. The requirements tests run after ReqStream and validate the
@@ -191,6 +191,12 @@ tests:
           - query: "//*[local-name()='svg']"
             count: 1
       - pattern: "docs/design/generated/FileSelectionView.svg"
+        count: 1
+        min-size: 100
+        xml:
+          - query: "//*[local-name()='svg']"
+            count: 1
+      - pattern: "docs/design/generated/DictionariesView.svg"
         count: 1
         min-size: 100
         xml:
@@ -430,6 +436,69 @@ tests:
             - pattern: "Icon.png"
               min: 1
               max: 1
+
+  # The library carries third-party word lists whose licenses require their notices to
+  # accompany the data, so the notice file is at the package root. The assertion texts are
+  # the author of the English word lists, the permission sentence of their license
+  # (verbatim, on one line of the file), and the publisher of the technical word lists.
+  - name: TextLint_Package_Packed_ContainsThirdPartyNotices
+    description: "The library package carries the license notices of the embedded word lists"
+    tags: [packages]
+    files:
+      - pattern: "packages/DemaConsulting.TextLint.*.nupkg"
+        count: 1
+        zip:
+          files:
+            - pattern: "THIRD-PARTY-NOTICES.txt"
+              min: 1
+              max: 1
+              text:
+                - contains: "Kevin Atkinson"
+                - contains: "Permission to use, copy, modify, distribute, and sell any part of SCOWLv2"
+                - contains: "Street Side Software"
+
+  # The dictionaries are embedded in the library assembly, and the package is packed from the
+  # build output without building again, so the packed assembly itself is inspected: the
+  # manifest of an assembly lists each resource name as text.
+  - name: TextLint_Package_Packed_ContainsEmbeddedDictionaries
+    description: "The packed library assembly contains the four embedded dictionaries"
+    tags: [packages]
+    files:
+      - pattern: "packages/DemaConsulting.TextLint.*.nupkg"
+        count: 1
+        zip:
+          files:
+            - pattern: "lib/net10.0/DemaConsulting.TextLint.dll"
+              min: 1
+              max: 1
+              text:
+                - contains: "DemaConsulting.TextLint.Dictionaries.en-common.tld"
+                - contains: "DemaConsulting.TextLint.Dictionaries.en-US.tld"
+                - contains: "DemaConsulting.TextLint.Dictionaries.en-GB.tld"
+                - contains: "DemaConsulting.TextLint.Dictionaries.technical.tld"
+
+  # --- TOOL PACKAGE ---
+  #
+  # These tests assert the shape of the DemaConsulting.TextLint.Tool package, which bundles
+  # the library assembly and therefore the embedded word lists, so the license notices must
+  # travel with it too. The tool package id is not a prefix of any other package id, so the
+  # tests can run after both packages are packed; build.yaml runs them in their own step.
+
+  - name: TextLintTool_Package_Packed_ContainsThirdPartyNotices
+    description: "The tool package carries the license notices of the word lists in the bundled library"
+    tags: [tool-package]
+    files:
+      - pattern: "packages/DemaConsulting.TextLint.Tool.*.nupkg"
+        count: 1
+        zip:
+          files:
+            - pattern: "THIRD-PARTY-NOTICES.txt"
+              min: 1
+              max: 1
+              text:
+                - contains: "Kevin Atkinson"
+                - contains: "Permission to use, copy, modify, distribute, and sell any part of SCOWLv2"
+                - contains: "Street Side Software"
 
   # --- LIBRARY PROJECT ---
   #

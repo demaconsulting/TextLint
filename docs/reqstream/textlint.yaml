@@ -1,14 +1,17 @@
 ---
 # TextLint System-Level Requirements
 #
+# cspell:ignore favourite
+#
 # PURPOSE:
 # - Define system-level requirements describing what consumers of the DemaConsulting.TextLint
 #   library package need from it
 # - The library owns ALL linting logic (settings, file discovery, dictionaries, tokenization,
 #   spell checking, results); the tool is a thin front-end that depends on it, never the reverse
-# - The library exposes settings loading and file selection; the remaining linting capabilities
-#   (dictionaries, tokenization, spell checking, results) are added, top-down, as later subsystems
-#   with their own requirements, design, and verification
+# - The library exposes settings loading, file selection, and word lookup over embedded English
+#   and technical dictionaries; the remaining linting capabilities (tokenization, spell
+#   checking, results) are added, top-down, as later subsystems with their own requirements,
+#   design, and verification
 # - Package requirements are validated by FileAssert checks of the produced NuGet package
 #   (.fileassert.yaml, run by build.yaml) and by assembly-level tests in TextLintTests.cs;
 #   functional requirements are validated by system-level tests in TextLintTests.cs that drive
@@ -215,3 +218,121 @@ sections:
           - TextLint_Settings_InvalidPattern_ReportsFileLineAndColumn
           - TextLint_Settings_AbsolutePathPattern_ReportsFileLineAndColumn
           - TextLint_Settings_QuestionMarkPattern_ReportsErrorSuggestingStar
+
+      - id: TextLint-System-WordLookup
+        title: >-
+          The library shall report whether a word is known to the selected language, ignoring
+          letter case and treating the typographic apostrophe as the straight apostrophe, and
+          shall report text that cannot be a word as not known.
+        tags: [system]
+        justification: |
+          Spell checking asks one question of every word it meets: is this a known word? Source
+          text is written in any capitalization, with straight or typographic apostrophes (word
+          processors and web pages produce the curly one), and contains tokens that are not words
+          at all. cspell ignores case by default and treats the two apostrophes alike, so
+          matching that behavior keeps migrated projects quiet where they were quiet. A lookup
+          that threw for odd text, instead of answering "not known", would make a spell checker
+          crash on real files.
+        children:
+          - TextLint-Dictionaries-WordLookup
+          - TextLint-Dictionaries-WordMatching
+        tests:
+          - TextLint_Dictionary_KnownWord_IsKnown
+          - TextLint_Dictionary_UnknownWord_IsNotKnown
+          - TextLint_Dictionary_DifferentCase_IsKnown
+          - TextLint_Dictionary_TypographicApostrophe_IsKnown
+          - TextLint_Dictionary_UnusualText_IsHandledWithoutError
+
+      - id: TextLint-System-EnglishLanguages
+        title: >-
+          The library shall provide American English (the default) and British English, selectable
+          by the language names en, en-US, and en-GB alone or together, and shall reject any other
+          language with an error that names it.
+        tags: [system]
+        justification: |
+          Users write in different dialects, and a word that is correct in one (favorite) is a
+          mistake in the other (favourite) unless the checker knows which dialect is intended. The
+          names and the American default follow cspell so that configurations carry over, and a
+          project that mixes dialects can select both. An unsupported language must fail loudly
+          rather than silently fall back to another dialect, which would hide the mistake.
+        children:
+          - TextLint-Dictionaries-LanguageSelection
+        tests:
+          - TextLint_Dictionary_DefaultLanguage_AcceptsAmericanNotBritishSpelling
+          - TextLint_Dictionary_BritishLanguage_AcceptsBritishNotAmericanSpelling
+          - TextLint_Dictionary_BothLanguages_AcceptBothSpellings
+          - TextLint_Dictionary_UnsupportedLanguage_ThrowsNamingLanguage
+
+      - id: TextLint-System-TechnicalTerms
+        title: >-
+          The library shall treat common software terms (programming languages, tools, companies,
+          file types, and licenses) as known words in every language selection.
+        tags: [system]
+        justification: |
+          Source code and documentation are full of terms that no general English word list
+          contains (kubernetes, github, powershell). Reporting each as a spelling mistake would
+          make the linter unusable on software projects, and these terms do not depend on the
+          dialect of the prose around them.
+        children:
+          - TextLint-Dictionaries-TechnicalTerms
+        tests:
+          - TextLint_Dictionary_TechnicalTerm_IsKnownInEveryLanguage
+
+      - id: TextLint-System-SelfContainedLookup
+        title: >-
+          The library shall look words up without requiring any dictionary files, configuration,
+          or network access at run time.
+        tags: [system]
+        justification: |
+          The library is distributed as a single NuGet package and used from a command-line tool
+          that runs in build pipelines and containers. A lookup that depended on data files being
+          found beside the program, or on a network, would be a source of installation and path
+          failures; vocabulary that ships with the library works wherever the library does. The
+          evidence is a lookup from a copy of the library with nothing beside it, an inspection of
+          the loaded assembly, and an inspection of the produced package.
+        children:
+          - TextLint-Dictionaries-ShippedData
+        tests:
+          - TextLint_Dictionary_LibraryAssemblyAlone_LooksUpWords
+          - TextLint_Assembly_Loaded_EmbedsDictionaries
+          - TextLint_Package_Packed_ContainsEmbeddedDictionaries
+
+      - id: TextLint-System-DictionaryContent
+        title: >-
+          The library shall know every word of the repository word lists for the language
+          selection that includes the list.
+        tags: [system]
+        justification: |
+          The word lists in the repository are the maintained definition of what the library
+          considers a correct word. A word that is on a list but is not known to the library
+          would be a silent failure of the build that turns the lists into dictionaries, so the
+          whole vocabulary is checked, in every capitalization, against the public behavior.
+        children:
+          - TextLint-Dictionaries-ShippedData
+        tests:
+          - TextLint_Dictionary_EveryListedWord_IsKnown
+
+      - id: TextLint-System-ConcurrentLookup
+        title: The library shall allow word lookups from many threads at the same time.
+        tags: [system]
+        justification: |
+          TextLint checks files in parallel across all processor cores, so every thread asks the
+          same dictionaries at once. Lookups that needed external locking, or that gave wrong
+          answers under contention, would make parallel checking slow or incorrect.
+        children:
+          - TextLint-Dictionaries-SharedUse
+        tests:
+          - TextLint_Dictionary_ParallelLookups_ReturnCorrectAnswers
+
+      - id: TextLint-System-ThirdPartyNotices
+        title: >-
+          The library package shall carry the license notices for the third-party data embedded in
+          the library.
+        tags: [system]
+        justification: |
+          The English word lists and the technical term lists come from third parties whose
+          licenses require their copyright and permission notices to accompany every copy of the
+          data. The package is the copy that reaches users, so the notices must be in it. The
+          evidence is the produced package itself, inspected by FileAssert.
+        tests:
+          - TextLint_Package_Packed_ContainsThirdPartyNotices

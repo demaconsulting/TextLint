@@ -28,7 +28,7 @@ package TextLintTool {
 }
 
 // The repository holds three systems: the TextLint library below, the TextLintTool
-// command-line tool above, and the DictionaryBuilder at the end. The TextLint library has two
+// command-line tool above, and the DictionaryBuilder at the end. The TextLint library has three
 // subsystems, each with its own view; units are shown by their subsystem's view.
 package TextLint {
     view TextLintView {
@@ -41,6 +41,10 @@ package TextLint {
 
     view FileSelectionView {
         expose FileSelectionSubsystem;
+    }
+
+    view DictionariesView {
+        expose DictionariesSubsystem;
     }
 }
 
