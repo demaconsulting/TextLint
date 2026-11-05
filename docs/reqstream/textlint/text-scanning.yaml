@@ -1,0 +1,127 @@
+---
+# TextScanning Subsystem Requirements
+#
+# PURPOSE:
+# - Define requirements for the TextLint TextScanning subsystem
+# - The TextScanning subsystem decides what the checkable parts of a text are: the words and tokens, the
+#   text that is never spell-checked because it is not prose, the in-document directives that switch checking
+#   off or add words, and the way the entries of word lists are interpreted
+# - Subsystem requirements decompose the system requirements for word splitting, ignored text, directives, and
+#   word lists; they are validated by TextScanningSubsystemTests.cs
+
+sections:
+  - title: TextLint Requirements
+    sections:
+      - title: TextScanning Requirements
+        requirements:
+          - id: TextLint-TextScanning-WordExtraction
+            title: >-
+              The TextScanning subsystem shall split text into words at case changes, digits, underscores,
+              hyphens, and other punctuation, keeping apostrophes inside words and leaving out Han, Hiragana,
+              Katakana, and Hangul characters, and shall report each word as a range of the original text in
+              UTF-16 code units, for any text however malformed or large.
+            justification: |
+              Source code and documentation are full of identifiers, and a user expects fooBar_baz to be
+              checked as the words foo, Bar, and baz. Column positions must be right after any character, and
+              damaged or enormous files must not stop a run.
+            children:
+              - TextLint-TextScanning-WordTokenizer-Words
+              - TextLint-TextScanning-WordTokenizer-Apostrophes
+              - TextLint-TextScanning-WordTokenizer-Scripts
+              - TextLint-TextScanning-WordTokenizer-CaseSplitting
+              - TextLint-TextScanning-WordTokenizer-Positions
+              - TextLint-TextScanning-WordTokenizer-CharacterCount
+              - TextLint-TextScanning-WordTokenizer-AppendedResults
+              - TextLint-TextScanning-WordTokenizer-MalformedText
+              - TextLint-TextScanning-WordTokenizer-LargeText
+              - TextLint-TextScanning-WordTokenizer-ArgumentValidation
+            tests:
+              - TextScanningSubsystem_ExtractWords_IdentifiersAndProse_YieldsCheckedPieces
+              - TextScanningSubsystem_ExtractWords_AfterEmoji_PositionsAreUtf16
+              - TextScanningSubsystem_ExtractWords_MalformedText_CompletesWithoutError
+
+          - id: TextLint-TextScanning-WordListEntries
+            title: >-
+              The TextScanning subsystem shall interpret each word-list entry as a single word or as a token
+              with digits or punctuation, in the same form in which the text is searched, and shall reject an
+              entry that could never match, stating the reason.
+            justification: |
+              An entry such as k8s must match the whole token wherever it appears, and an entry written as a
+              word must match that word in any letter case. An entry that could never match would silently
+              have no effect, so it must be reported when it is read.
+            children:
+              - TextLint-TextScanning-WordTokenizer-Tokens
+              - TextLint-TextScanning-WordTokenizer-TokenTrimming
+              - TextLint-TextScanning-WordTokenizer-ListEntries
+              - TextLint-TextScanning-WordTokenizer-ListEntrySuggestions
+              - TextLint-TextScanning-WordTokenizer-InvalidListEntries
+            tests:
+              - TextScanningSubsystem_MatchListEntry_TokenEntry_MatchesTrimmedToken
+              - TextScanningSubsystem_MatchListEntry_WordEntry_MatchesWordInAnyCase
+              - TextScanningSubsystem_MatchListEntry_EntryThatCannotMatch_IsRejectedWithReason
+              - TextScanningSubsystem_MatchListEntry_FlaggedEntryWithSuggestions_CarriesSuggestions
+
+          - id: TextLint-TextScanning-IgnoredPatterns
+            title: >-
+              The TextScanning subsystem shall find the URLs, email addresses, certificates and keys, encoded
+              data, hashes, hexadecimal values, Unicode references, and UUIDs in a text, so that they are not
+              checked, and shall find nothing in ordinary prose.
+            justification: |
+              These strings are never prose, and their fragments would bury real findings. cspell ignores
+              them by default, so a migrated project must find them ignored here too, while every ordinary
+              word must stay checked.
+            children:
+              - TextLint-TextScanning-DefaultPatterns-Urls
+              - TextLint-TextScanning-DefaultPatterns-Emails
+              - TextLint-TextScanning-DefaultPatterns-KeysAndCertificates
+              - TextLint-TextScanning-DefaultPatterns-Base64Data
+              - TextLint-TextScanning-DefaultPatterns-CommitHashes
+              - TextLint-TextScanning-DefaultPatterns-HexValues
+              - TextLint-TextScanning-DefaultPatterns-Digests
+              - TextLint-TextScanning-DefaultPatterns-UnicodeReferences
+              - TextLint-TextScanning-DefaultPatterns-Uuids
+              - TextLint-TextScanning-DefaultPatterns-OrdinaryText
+              - TextLint-TextScanning-DefaultPatterns-AsciiWordBoundaries
+              - TextLint-TextScanning-DefaultPatterns-BoundedMatching
+              - TextLint-TextScanning-DefaultPatterns-AppendedRanges
+              - TextLint-TextScanning-DefaultPatterns-ArgumentValidation
+            tests:
+              - TextScanningSubsystem_FindExcludedRanges_UrlAndEmail_AreExcludedFromWords
+              - TextScanningSubsystem_FindExcludedRanges_HexUuidAndEncodedData_AreExcludedFromWords
+              - TextScanningSubsystem_FindExcludedRanges_OrdinaryProse_ExcludesNothing
+              - TextScanningSubsystem_ScanDocument_DisabledBlockUrlAndIgnoreDirective_LeavesOnlyCheckedWords
+
+          - id: TextLint-TextScanning-Directives
+            title: >-
+              The TextScanning subsystem shall find where directives in a text, written with any of the
+              accepted prefixes, switch checking off for a block, a line, or the next line, which words they
+              add to the document, and which directives are recognized but not supported, reporting each
+              unsupported directive at its name unless checking is switched off there.
+            justification: |
+              Directives in comments are how cspell users silence deliberate exceptions next to the text that
+              needs them, and a directive that silently does nothing would hide a difference from cspell.
+              A project migrated from cspell relies on all of this.
+            children:
+              - TextLint-TextScanning-DocumentDirectives-DisableBlocks
+              - TextLint-TextScanning-DocumentDirectives-BlockPrefixPairing
+              - TextLint-TextScanning-DocumentDirectives-UnterminatedBlocks
+              - TextLint-TextScanning-DocumentDirectives-DisableLine
+              - TextLint-TextScanning-DocumentDirectives-DisableNextLine
+              - TextLint-TextScanning-DocumentDirectives-BlankNextLine
+              - TextLint-TextScanning-DocumentDirectives-WordDirectives
+              - TextLint-TextScanning-DocumentDirectives-WordDirectiveText
+              - TextLint-TextScanning-DocumentDirectives-Prefixes
+              - TextLint-TextScanning-DocumentDirectives-NonDirectives
+              - TextLint-TextScanning-DocumentDirectives-UnsupportedDirectives
+              - TextLint-TextScanning-DocumentDirectives-HiddenUnsupportedDirectives
+              - TextLint-TextScanning-DocumentDirectives-NoDirectives
+              - TextLint-TextScanning-DocumentDirectives-LineTerminators
+              - TextLint-TextScanning-DocumentDirectives-Positions
+              - TextLint-TextScanning-DocumentDirectives-LargeText
+              - TextLint-TextScanning-DocumentDirectives-ArgumentValidation
+            tests:
+              - TextScanningSubsystem_Scan_DisabledBlock_ExcludesWordsInside
+              - TextScanningSubsystem_Scan_IgnoreDirective_AddsWordsAndExcludesDirectiveText
+              - TextScanningSubsystem_Scan_UnsupportedDirective_IsReportedAtItsName
+              - TextScanningSubsystem_Scan_EveryPrefix_SwitchesOffCheckingAlike
+              - TextScanningSubsystem_ScanDocument_DisabledBlockUrlAndIgnoreDirective_LeavesOnlyCheckedWords

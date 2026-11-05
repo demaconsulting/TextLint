@@ -1,0 +1,257 @@
+---
+# Software Unit Requirements for the WordTokenizer Class
+#
+# The WordTokenizer class decides what a word is: it finds the words, tokens, and case-change pieces of a text as
+# ranges of the original text, and it interprets the entries of word lists so that an entry is matched the same
+# way when settings are loaded and when text is checked. The ListEntry and TextRange values it produces are part of
+# the unit.
+
+sections:
+  - title: TextLint Requirements
+    sections:
+      - title: TextScanning Requirements
+        sections:
+          - title: WordTokenizer Requirements
+            requirements:
+              - id: TextLint-TextScanning-WordTokenizer-Words
+                title: >-
+                  WordTokenizer shall report each run of letters as a word, ending a word at a digit, an
+                  underscore, a hyphen, a dot, a backslash, or any other character that is not a letter, and
+                  shall report the range of the word in the original text, within the requested range only.
+                justification: |
+                  Source code and documentation are full of identifiers such as alpha_beta and alpha1beta. A
+                  user expects the words in them to be checked separately, and expects the words of the part
+                  of the text that is being checked, not of the text around it.
+                tests:
+                  - WordTokenizer_FindWords_SpaceSeparatedLetters_ReturnsEachWord
+                  - WordTokenizer_FindWords_NonLetterCharacters_EndWords
+                  - WordTokenizer_FindWords_OnlyDigitsAndPunctuation_ReturnsNoWords
+                  - WordTokenizer_FindWords_ReportedRange_IsOriginalText
+                  - WordTokenizer_FindWords_RangeInsideText_ReportsOnlyWordsInRange
+                  - WordTokenizer_FindWords_RangeEndsInsideWord_CutsWordAtRangeEnd
+
+              - id: TextLint-TextScanning-WordTokenizer-Apostrophes
+                title: >-
+                  WordTokenizer shall keep a straight, typographic, or backslash-escaped apostrophe that sits
+                  between two letters inside a word, shall leave an apostrophe at the start or end of a word
+                  out of it, and shall end a word at a second apostrophe in a row.
+                justification: |
+                  Contractions and possessives such as don't are single words, and a quote mark around a word
+                  is not part of it. The typographic apostrophe and the escape used in quoted strings must
+                  behave like the plain one, so the word is checked the way the author wrote it.
+                tests:
+                  - WordTokenizer_FindWords_ApostropheBetweenLetters_StaysInsideWord
+                  - WordTokenizer_FindWords_LeadingAndTrailingApostrophe_AreNotPartOfWord
+                  - WordTokenizer_FindWords_DoubleApostrophe_EndsWord
+
+              - id: TextLint-TextScanning-WordTokenizer-Scripts
+                title: >-
+                  WordTokenizer shall never report Han, Hiragana, Katakana, or Hangul characters as words,
+                  shall report accented letters and letters of other scripts as words, and shall keep a
+                  combining mark with the letter before it.
+                justification: |
+                  Text in those four scripts is written without spaces and cannot be checked against a
+                  Latin-script dictionary, so reporting it would flood a mixed-language file with false
+                  findings. Accented and other letters are ordinary words, and an accent written as a
+                  separate combining character must not split the word.
+                tests:
+                  - WordTokenizer_FindWords_HanKanaAndHangul_AreNotWords
+                  - WordTokenizer_FindWords_HanBetweenLatinWords_SeparatesWords
+                  - WordTokenizer_FindWords_AccentedAndOtherScripts_AreWords
+                  - WordTokenizer_FindWords_CombiningMarkAfterLetter_StaysInsideWord
+                  - WordTokenizer_FindWords_CombiningMarkAlone_IsNotWord
+                  - WordTokenizer_IsWordLetter_LettersAndOtherCodePoints_AreClassified
+
+              - id: TextLint-TextScanning-WordTokenizer-CaseSplitting
+                title: >-
+                  WordTokenizer shall split a word into pieces that cover it completely and in order, at a
+                  lower-case letter followed by a capital and before the last capital of a run of capitals
+                  that is followed by a lower-case letter, except that an acronym followed by an English
+                  suffix (such as APIs) stays whole, treating accented capitals, including those written
+                  with a combining mark, like plain capitals.
+                justification: |
+                  Identifiers are written in camelCase and PascalCase, and a user expects fooBar to be
+                  checked as foo and Bar and getHTTPResponse as get, HTTP, and Response, while the plural of
+                  an acronym, APIs, is one word. Accented capitals must follow the same rules or identifiers
+                  in other languages would be split differently.
+                tests:
+                  - WordTokenizer_SplitCase_CaseChanges_SplitIntoPieces
+                  - WordTokenizer_SplitCase_NoCaseChange_ReturnsWholeWord
+                  - WordTokenizer_SplitCase_AcronymWithEnglishSuffix_StaysWhole
+                  - WordTokenizer_SplitCase_AcronymSuffixThenWord_SplitsAtNextWord
+                  - WordTokenizer_SplitCase_AccentedCapitals_SplitLikePlainCapitals
+                  - WordTokenizer_SplitCase_WordInsideText_PiecesCoverWordInOrder
+                  - WordTokenizer_SplitCase_AstralCapital_SplitsBeforeBothCodeUnits
+
+              - id: TextLint-TextScanning-WordTokenizer-Positions
+                title: >-
+                  WordTokenizer shall report every range as an offset and a length in UTF-16 code units of
+                  the original text, counting a character outside the basic multilingual plane as two units,
+                  also when the range does not start at the beginning of the text.
+                justification: |
+                  Users find a finding by line and column, and editors and cspell count columns in UTF-16
+                  code units. A character such as an emoji earlier in the line must not shift the position
+                  reported for a later word.
+                tests:
+                  - WordTokenizer_FindWords_AfterSurrogatePair_OffsetsCountUtf16Units
+                  - WordTokenizer_FindTokens_AfterSurrogatePair_OffsetsCountUtf16Units
+                  - WordTokenizer_FindWords_AstralLetters_FormOneWord
+                  - WordTokenizer_FindWords_RangeNotAtStart_ReportsOffsetsIntoWholeText
+                  - WordTokenizer_FindWords_ReportedRange_EndAndIsEmptyFollowFromStartAndLength
+                  - WordTokenizer_SplitCase_AstralCapital_SplitsBeforeBothCodeUnits
+                  - WordTokenizer_TrimToken_SurrogatePairAtEdges_AreTrimmed
+
+              - id: TextLint-TextScanning-WordTokenizer-CharacterCount
+                title: >-
+                  WordTokenizer shall count the characters of a text with a character outside the basic
+                  multilingual plane counted once and a lone surrogate counted as one character.
+                justification: |
+                  The minimum word length is measured in characters, as cspell measures it, and a word with
+                  an emoji or other astral character must not be counted as longer than it looks.
+                tests:
+                  - WordTokenizer_CountCharacters_Text_CountsSurrogatePairsOnce
+                  - WordTokenizer_CountCharacters_LoneSurrogates_CountAsOneEach
+
+              - id: TextLint-TextScanning-WordTokenizer-AppendedResults
+                title: >-
+                  WordTokenizer shall add the ranges it finds to the list it is given without removing or
+                  changing the items the list already holds.
+                justification: |
+                  A caller that scans a text in several parts, or that collects the results of several
+                  scans, must be able to reuse one list and must not lose what it already collected.
+                tests:
+                  - WordTokenizer_FindWords_ExistingListContent_IsKeptAndAppendedTo
+                  - WordTokenizer_FindTokens_ExistingListContent_IsKeptAndAppendedTo
+                  - WordTokenizer_SplitCase_ExistingListContent_IsKeptAndAppendedTo
+
+              - id: TextLint-TextScanning-WordTokenizer-MalformedText
+                title: >-
+                  WordTokenizer shall process empty text, lone surrogates, and a character pair cut by the
+                  end of the requested range without failing, treating a lone surrogate as a character that
+                  is not a letter.
+                justification: |
+                  Files in the wild contain damaged text, and a checker that throws or hangs on one bad
+                  character would stop a whole run instead of reporting the file.
+                tests:
+                  - WordTokenizer_FindWords_EmptyText_ReturnsNothing
+                  - WordTokenizer_FindWords_LoneSurrogates_AreSkipped
+                  - WordTokenizer_FindTokens_LoneSurrogates_AreSkipped
+                  - WordTokenizer_FindWords_PairCutByRangeEnd_IsNotPartOfWord
+                  - WordTokenizer_SplitCase_LoneSurrogateInWord_CoversWholeWord
+                  - WordTokenizer_TrimToken_LoneSurrogatesAtEdges_AreTrimmed
+                  - WordTokenizer_TrimToken_EmptyToken_ReturnsEmptyRange
+
+              - id: TextLint-TextScanning-WordTokenizer-LargeText
+                title: >-
+                  WordTokenizer shall process a text, a word, a token, and a list entry of one megabyte on a
+                  single line completely.
+                justification: |
+                  Minified and generated files have enormous single lines. They must be checked completely
+                  and promptly, not abandoned or allowed to stall the run.
+                tests:
+                  - WordTokenizer_FindWords_OneMegabyteOfText_ReturnsEveryWord
+                  - WordTokenizer_FindWords_OneMegabyteWord_ReturnsOneWord
+                  - WordTokenizer_FindTokens_OneMegabyteToken_ReturnsOneToken
+                  - WordTokenizer_SplitCase_OneMegabyteWord_SplitsEveryCaseChange
+                  - WordTokenizer_TryParseListEntry_OneMegabyteEntry_IsOneWord
+
+              - id: TextLint-TextScanning-WordTokenizer-ArgumentValidation
+                title: >-
+                  WordTokenizer shall reject a missing text or list with a null-argument error and a range
+                  that is not inside the text with an out-of-range error.
+                justification: |
+                  A caller that passes a bad range has a defect. Failing at once with a precise error is
+                  safer than reading outside the text or silently returning a wrong result.
+                tests:
+                  - WordTokenizer_FindWords_NullArguments_ThrowArgumentNullException
+                  - WordTokenizer_FindWords_RangeOutsideText_ThrowsArgumentOutOfRangeException
+                  - WordTokenizer_FindTokens_NullArguments_ThrowArgumentNullException
+                  - WordTokenizer_FindTokens_PartOutsideText_ThrowsArgumentOutOfRangeException
+                  - WordTokenizer_SplitCase_NullArguments_ThrowArgumentNullException
+                  - WordTokenizer_SplitCase_RangeOutsideText_ThrowsArgumentOutOfRangeException
+                  - WordTokenizer_TrimToken_NullText_ThrowsArgumentNullException
+                  - WordTokenizer_TrimToken_RangeOutsideText_ThrowsArgumentOutOfRangeException
+
+              - id: TextLint-TextScanning-WordTokenizer-Tokens
+                title: >-
+                  WordTokenizer shall report each maximal run of letters, digits, underscores, apostrophes,
+                  backticks, dots, plus signs, and hyphens as a token, keeping a backslash only when it
+                  escapes an apostrophe, within the requested part of the text only.
+                justification: |
+                  A word-list entry such as k8s or foo-bar contains digits or punctuation, so it can only be
+                  matched against the whole run it appears in, not against the words inside it.
+                tests:
+                  - WordTokenizer_FindTokens_DigitsAndPunctuation_StayInsideToken
+                  - WordTokenizer_FindTokens_Backslash_IsPartOfTokenOnlyBeforeApostrophe
+                  - WordTokenizer_FindTokens_SpacesAndOtherPunctuation_SeparateTokens
+                  - WordTokenizer_FindTokens_TrailingPeriod_IsPartOfToken
+                  - WordTokenizer_FindTokens_CombiningMark_ContinuesButDoesNotStartToken
+                  - WordTokenizer_FindTokens_PartOfText_ReportsOnlyTokensInPart
+
+              - id: TextLint-TextScanning-WordTokenizer-TokenTrimming
+                title: >-
+                  WordTokenizer shall remove the characters that are not letters or digits from the start and
+                  the end of a token, and shall report a token that has no letter or digit as empty.
+                justification: |
+                  A token in a sentence carries the punctuation around it, as in (k8s) or v1.2., yet it must
+                  still match the list entries k8s and v1.2.
+                tests:
+                  - WordTokenizer_TrimToken_EdgePunctuation_IsRemoved
+                  - WordTokenizer_TrimToken_NoLetterOrDigit_ReturnsEmptyRange
+                  - WordTokenizer_TrimToken_TokenInsideText_ReturnsRangeInWholeText
+                  - WordTokenizer_TrimToken_SurrogatePairAtEdges_AreTrimmed
+                  - WordTokenizer_TrimToken_EmptyToken_ReturnsEmptyRange
+
+              - id: TextLint-TextScanning-WordTokenizer-ListEntries
+                title: >-
+                  WordTokenizer shall interpret a word-list entry by removing white space and edge
+                  punctuation around it, keeping its letter case, and classifying it as a single word when it
+                  is exactly one word and as a token entry when it contains digits or punctuation.
+                justification: |
+                  An entry written as alpha must match the word wherever it appears, while an entry written as
+                  k8s must match only that whole token. Loading a setting and checking text must agree on
+                  that, so the decision is made in one place.
+                tests:
+                  - WordTokenizer_TryParseListEntry_SingleWord_IsClassifiedAsWord
+                  - WordTokenizer_TryParseListEntry_DigitsOrPunctuation_IsClassifiedAsToken
+                  - WordTokenizer_TryParseListEntry_EdgePunctuationAndWhiteSpace_AreRemoved
+                  - WordTokenizer_TryParseListEntry_Outcome_FillsExactlyOneOfResultAndProblem
+
+              - id: TextLint-TextScanning-WordTokenizer-ListEntrySuggestions
+                title: >-
+                  When suggestions are allowed, WordTokenizer shall accept the forms word->one, two and
+                  word: one, return the word and its trimmed suggestions, and accept a separator with no
+                  suggestions after it; when they are not allowed, it shall treat the separator as part of
+                  the entry.
+                justification: |
+                  cspell users write flagged words with suggestions in these two forms, and migrated
+                  settings must keep working. Where suggestions make no sense, the separator must not be
+                  accepted silently.
+                tests:
+                  - WordTokenizer_TryParseListEntry_ArrowForm_SeparatesWordFromSuggestions
+                  - WordTokenizer_TryParseListEntry_ColonForm_SeparatesWordFromSuggestion
+                  - WordTokenizer_TryParseListEntry_SeparatorWithoutSuggestions_ReturnsWordOnly
+                  - WordTokenizer_TryParseListEntry_NoSeparatorWithSuggestionsAllowed_ReturnsPlainWord
+                  - WordTokenizer_TryParseListEntry_SuggestionFormNotAllowed_IsRejected
+
+              - id: TextLint-TextScanning-WordTokenizer-InvalidListEntries
+                title: >-
+                  WordTokenizer shall reject a word-list entry that is blank, contains white space, starts
+                  with the forbidden-word marker, contains a character that cannot be part of a word, has no
+                  letter or digit, or has no word before its suggestions, and shall state the reason in
+                  words, naming the offending character where there is one.
+                justification: |
+                  An entry that could never match would silently have no effect, while its author believes
+                  the setting is in force. The forbidden-word marker would otherwise be mistaken for an
+                  accepted word. A precise reason lets the author fix the entry.
+                tests:
+                  - WordTokenizer_TryParseListEntry_BlankOrNull_IsRejectedAsBlank
+                  - WordTokenizer_TryParseListEntry_InnerWhiteSpace_IsRejectedWithReason
+                  - WordTokenizer_TryParseListEntry_ForbiddenMarker_IsRejectedWithReason
+                  - WordTokenizer_TryParseListEntry_DisallowedCharacter_IsRejectedNamingCharacter
+                  - WordTokenizer_TryParseListEntry_NoLetterOrDigit_IsRejectedWithReason
+                  - WordTokenizer_TryParseListEntry_SuggestionsWithoutWord_IsRejectedWithReason
+                  - WordTokenizer_TryParseListEntry_InvalidWordWithSuggestions_IsRejectedWithReason
+                  - WordTokenizer_TryParseListEntry_NullWithSuggestionsAllowed_IsRejectedAsBlank
+                  - WordTokenizer_TryParseListEntry_SuggestionFormNotAllowed_IsRejected
+                  - WordTokenizer_TryParseListEntry_Outcome_FillsExactlyOneOfResultAndProblem

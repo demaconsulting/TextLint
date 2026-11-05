@@ -1,0 +1,242 @@
+---
+# Software Unit Requirements for the DocumentDirectives Class
+#
+# The DocumentDirectives class interprets the directives that comments in a text use to control spell checking:
+# the disable and enable block, the disable-line and disable-next-line directives, the ignore and words
+# directives, and the directives that cspell supports and this library does not. The DirectiveScan value it
+# produces is part of the unit.
+
+sections:
+  - title: TextLint Requirements
+    sections:
+      - title: TextScanning Requirements
+        sections:
+          - title: DocumentDirectives Requirements
+            requirements:
+              - id: TextLint-TextScanning-DocumentDirectives-DisableBlocks
+                title: >-
+                  DocumentDirectives shall report as excluded the text from a disable directive to the end of
+                  the matching enable directive, leaving the text before the disable directive on its line and
+                  the text after the enable keyword on its line checked, and shall exclude nothing for an
+                  enable directive that has no disable directive before it.
+                justification: |
+                  Users switch checking off around deliberate exceptions such as test data, and expect the
+                  text around the exception on the same line to stay checked, as in cspell.
+                tests:
+                  - DocumentDirectives_Scan_DisableEnableBlock_ExcludesFromDisableToEnable
+                  - DocumentDirectives_Scan_DisableAndEnableOnOneLine_ExcludesOnlyBetweenThem
+                  - DocumentDirectives_Scan_SeveralBlocks_AreEachExcluded
+                  - DocumentDirectives_Scan_EnableWithoutDisable_ExcludesNothing
+                  - DocumentDirectives_Scan_EnableInDifferentLetterCase_ClosesBlock
+
+              - id: TextLint-TextScanning-DocumentDirectives-BlockPrefixPairing
+                title: >-
+                  DocumentDirectives shall close a disable block only with an enable directive written with
+                  the same prefix as the disable directive, so that a block opened with one prefix is not
+                  closed by an enable directive with another.
+                justification: |
+                  cspell pairs the two directives by prefix. A document that mixes prefixes must be hidden
+                  and shown exactly as it is in cspell, or migrating would change what is checked.
+                tests:
+                  - DocumentDirectives_Scan_EnableWithOtherPrefix_DoesNotCloseBlock
+                  - DocumentDirectives_Scan_EnableWithShorterPrefix_DoesNotCloseBlock
+                  - DocumentDirectives_Scan_AnyPrefixForm_StartsAndEndsBlock
+
+              - id: TextLint-TextScanning-DocumentDirectives-UnterminatedBlocks
+                title: >-
+                  DocumentDirectives shall report as excluded the text from a disable directive that has no
+                  matching enable directive to the end of the text.
+                justification: |
+                  A disable directive with no enable is how users hide the rest of a file, and cspell treats
+                  it that way.
+                tests:
+                  - DocumentDirectives_Scan_DisableWithoutEnable_ExcludesToEndOfText
+
+              - id: TextLint-TextScanning-DocumentDirectives-DisableLine
+                title: >-
+                  DocumentDirectives shall report as excluded the whole line that holds a disable-line
+                  directive, including the text before the directive and excluding the line terminator.
+                justification: |
+                  Users append the directive to the line that needs it, so the text before the directive is
+                  what they want hidden.
+                tests:
+                  - DocumentDirectives_Scan_DisableLine_ExcludesWholeLine
+                  - DocumentDirectives_Scan_DisableLineOnLastLineWithoutTerminator_ExcludesLine
+                  - DocumentDirectives_Scan_DisableLineBeforeLineSeparator_EndsAtSeparator
+
+              - id: TextLint-TextScanning-DocumentDirectives-DisableNextLine
+                title: >-
+                  DocumentDirectives shall report as excluded, for a disable-next-line or disable-next
+                  directive, the text from the directive to the end of its line and the whole next line, and
+                  nothing when the directive is on the last line and no line terminator follows it.
+                justification: |
+                  Users put the directive on the line above the text that needs it, often after other text
+                  such as a comment marker. With no next line there is nothing to hide.
+                tests:
+                  - DocumentDirectives_Scan_DisableNextLine_ExcludesRestOfLineAndNextLine
+                  - DocumentDirectives_Scan_DisableNextShortForm_ExcludesNextLine
+                  - DocumentDirectives_Scan_DisableNextLineOnLastLineWithoutTerminator_ExcludesNothing
+
+              - id: TextLint-TextScanning-DocumentDirectives-BlankNextLine
+                title: >-
+                  When the line after a disable-next-line directive is blank, DocumentDirectives shall report
+                  the blank line as excluded, and with line feed line breaks shall exclude the line after the
+                  blank line as well, as cspell does.
+                justification: |
+                  A migrated project must find the same text hidden as in cspell, including this edge case
+                  where the two line break styles differ.
+                tests:
+                  - DocumentDirectives_Scan_BlankNextLineWithLf_ExcludesBlankAndFollowingLine
+                  - DocumentDirectives_Scan_BlankNextLineWithCrLf_ExcludesOnlyBlankLine
+
+              - id: TextLint-TextScanning-DocumentDirectives-WordDirectives
+                title: >-
+                  DocumentDirectives shall report the words listed by an ignore directive (ignore, ignoreWord,
+                  ignoreWords, ignore-word, ignore-words) and by a words directive (words, word), separated
+                  by commas, semicolons, or white space, in the order written and keeping their letter case,
+                  and shall add no word for a directive keyword that is continued by other letters or has no
+                  words.
+                justification: |
+                  Users add the words of a document next to the text that needs them. The two kinds are kept
+                  apart because they have different effects on checking, and a longer word such as
+                  wordsmith must not be mistaken for the keyword.
+                tests:
+                  - DocumentDirectives_Scan_IgnoreDirectiveForms_AddIgnoredWords
+                  - DocumentDirectives_Scan_WordsDirectiveForms_AddWords
+                  - DocumentDirectives_Scan_WordSeparators_AreCommaSemicolonAndWhiteSpace
+                  - DocumentDirectives_Scan_WordDirectiveLetterCase_IsInsensitiveForKeywordsOnly
+                  - DocumentDirectives_Scan_SeveralWordDirectives_AppendWordsInOrder
+                  - DocumentDirectives_Scan_WordsDirectiveAtLineEnd_EndsAtLineTerminator
+                  - DocumentDirectives_Scan_WordDirectiveWithoutWords_AddsNoWords
+                  - DocumentDirectives_Scan_WordsDirectiveInsideDisabledBlock_StillAddsWords
+                  - DocumentDirectives_Scan_KeywordContinuedByLetters_AddsNoWords
+
+              - id: TextLint-TextScanning-DocumentDirectives-WordDirectiveText
+                title: >-
+                  DocumentDirectives shall report as excluded the text of an ignore or words directive from
+                  its prefix to the end of its line, and not the text before it.
+                justification: |
+                  The words listed in a directive are data, not prose, and would be reported as unknown words
+                  if they were checked.
+                tests:
+                  - DocumentDirectives_Scan_WordDirectiveText_IsExcluded
+
+              - id: TextLint-TextScanning-DocumentDirectives-Prefixes
+                title: >-
+                  DocumentDirectives shall accept the directive prefixes cspell, spell, spellchecker,
+                  spell-checker, and textlint in any letter case, followed by a colon or two and optional
+                  white space, for every directive, and shall accept a prefix only where no letter, digit, or
+                  underscore precedes it.
+                justification: |
+                  The cspell prefixes keep existing comments working during a migration, and the textlint
+                  prefix lets a project use the name of the tool it now runs.
+                tests:
+                  - DocumentDirectives_Scan_AnyPrefixForm_StartsDisableLine
+                  - DocumentDirectives_Scan_AnyPrefixForm_StartsAndEndsBlock
+                  - DocumentDirectives_Scan_AnyPrefixForm_StartsWordsDirective
+                  - DocumentDirectives_Scan_WordDirectiveLetterCase_IsInsensitiveForKeywordsOnly
+                  - DocumentDirectives_Scan_EnableInDifferentLetterCase_ClosesBlock
+
+              - id: TextLint-TextScanning-DocumentDirectives-NonDirectives
+                title: >-
+                  DocumentDirectives shall ignore text that only resembles a directive (a directive name with
+                  other letters, digits, an underscore, or a hyphen after it, a prefix preceded by a word
+                  character, a prefix without a colon, and a name it does not know).
+                justification: |
+                  A word such as disabled, or a prefix inside another word, is ordinary text. Treating it as
+                  a directive would hide text the author never meant to hide.
+                tests:
+                  - DocumentDirectives_Scan_TextResemblingDirective_IsNotDirective
+                  - DocumentDirectives_Scan_KeywordContinuedByLetters_AddsNoWords
+
+              - id: TextLint-TextScanning-DocumentDirectives-UnsupportedDirectives
+                title: >-
+                  DocumentDirectives shall report, at the range of its name, each directive that cspell
+                  supports and this library does not (flag and forbid, locale and language, dictionary,
+                  ignoreRegExp, includeRegExp, and the compound-word and case-sensitivity switches), in the
+                  order written, without otherwise excluding text or adding words.
+                justification: |
+                  An author who writes a directive believes it is in force. A directive that silently does
+                  nothing would hide a difference from cspell, so it is reported where it is written.
+                tests:
+                  - DocumentDirectives_Scan_UnsupportedDirective_IsReportedAtItsName
+                  - DocumentDirectives_Scan_UnsupportedDirective_HasNoOtherEffect
+                  - DocumentDirectives_Scan_UnsupportedDirectiveAfterSurrogatePair_PositionCountsUtf16Units
+                  - DocumentDirectives_Scan_SeveralUnsupportedDirectives_AreReportedInTextOrder
+
+              - id: TextLint-TextScanning-DocumentDirectives-HiddenUnsupportedDirectives
+                title: >-
+                  DocumentDirectives shall not report an unsupported directive that lies inside a region
+                  where checking is switched off, and shall report those before and after the region.
+                justification: |
+                  Text inside a disabled region is not checked, so a directive written there is not read;
+                  reporting it would be noise, and the directives outside the region are still in force.
+                tests:
+                  - DocumentDirectives_Scan_UnsupportedDirectiveInsideDisabledBlock_IsNotReported
+                  - DocumentDirectives_Scan_UnsupportedDirectiveOnHiddenNextLine_IsNotReported
+                  - DocumentDirectives_Scan_UnsupportedDirectivesAroundDisabledBlock_AreReported
+
+              - id: TextLint-TextScanning-DocumentDirectives-NoDirectives
+                title: >-
+                  DocumentDirectives shall return the shared empty result, with no ranges, words, or
+                  unsupported directives, for a text that holds no directive, including an empty text and
+                  a text that mentions the prefix words without a directive.
+                justification: |
+                  Most files hold no directive, and the caller must be able to recognize that case cheaply
+                  and without allocating a result for every file.
+                tests:
+                  - DocumentDirectives_Scan_TextWithoutDirectives_ReturnsEmptyScan
+                  - DocumentDirectives_Scan_EmptyScan_HoldsNothing
+                  - DocumentDirectives_Scan_EnableWithoutDisable_ExcludesNothing
+                  - DocumentDirectives_Scan_DisableNextLineOnLastLineWithoutTerminator_ExcludesNothing
+                  - DocumentDirectives_Scan_TextResemblingDirective_IsNotDirective
+
+              - id: TextLint-TextScanning-DocumentDirectives-LineTerminators
+                title: >-
+                  DocumentDirectives shall end the line of a directive at a line feed, a carriage return, a
+                  line separator, or a paragraph separator, so that a line terminator is never part of a
+                  hidden line or of a listed word and text written with line feeds and with carriage return
+                  and line feed gives the same ranges and words (the line after a disable-next-line directive
+                  that is followed by a blank line is the one exception, see the blank next line requirement).
+                justification: |
+                  Files are written on all platforms. A directive must behave the same in a file with Windows
+                  line endings as in one with Unix line endings.
+                tests:
+                  - DocumentDirectives_Scan_DisableEnableBlock_ExcludesFromDisableToEnable
+                  - DocumentDirectives_Scan_DisableWithoutEnable_ExcludesToEndOfText
+                  - DocumentDirectives_Scan_DisableLine_ExcludesWholeLine
+                  - DocumentDirectives_Scan_DisableLineBeforeLineSeparator_EndsAtSeparator
+                  - DocumentDirectives_Scan_DisableNextLine_ExcludesRestOfLineAndNextLine
+                  - DocumentDirectives_Scan_WordsDirectiveAtLineEnd_EndsAtLineTerminator
+                  - DocumentDirectives_Scan_WordDirectiveText_IsExcluded
+
+              - id: TextLint-TextScanning-DocumentDirectives-Positions
+                title: >-
+                  DocumentDirectives shall report every range as an offset and a length in UTF-16 code units
+                  of the original text, also after a character outside the basic multilingual plane.
+                justification: |
+                  Findings are located by line and column in UTF-16 code units. An emoji earlier in the text
+                  must not shift where a hidden region or an unsupported directive is reported.
+                tests:
+                  - DocumentDirectives_Scan_BlockAfterSurrogatePair_RangeCountsUtf16Units
+                  - DocumentDirectives_Scan_UnsupportedDirectiveAfterSurrogatePair_PositionCountsUtf16Units
+
+              - id: TextLint-TextScanning-DocumentDirectives-LargeText
+                title: >-
+                  DocumentDirectives shall scan a text of one megabyte on a single line, and a text of one
+                  megabyte with a directive at its end, completely.
+                justification: |
+                  Minified and generated files have enormous lines. They must be scanned promptly and
+                  completely, and a directive at the end of such a file must still be found.
+                tests:
+                  - DocumentDirectives_Scan_OneMegabyteWithoutDirective_ReturnsEmptyScan
+                  - DocumentDirectives_Scan_OneMegabyteWithDirectiveAtEnd_FindsDirective
+
+              - id: TextLint-TextScanning-DocumentDirectives-ArgumentValidation
+                title: >-
+                  DocumentDirectives shall reject a missing text with a null-argument error.
+                justification: |
+                  A caller that passes nothing has a defect, and it is better found at once than as a
+                  failure deep inside a scan.
+                tests:
+                  - DocumentDirectives_Scan_NullText_ThrowsArgumentNullException
