@@ -164,16 +164,17 @@ sections:
 
       - id: DictionaryBuilder-System-NameMatching
         title: >-
-          The builder shall treat dictionary names, folder names, and list-file names that differ only in
-          letter case as the same name, finding folders under their on-disk spelling and refusing an
-          ambiguous match, so that it gives the same result on case-sensitive and case-insensitive file
-          systems.
+          The builder shall treat dictionary names, folder names, list-file names, and output-file names that
+          differ only in letter case as the same name, finding folders and existing output files under their
+          on-disk spelling and refusing an ambiguous match, so that it gives the same result on
+          case-sensitive and case-insensitive file systems.
         tags: [system]
         justification: |
           The library is built on Windows, Linux, and macOS, whose file systems disagree about whether
           "alpha" and "ALPHA" are one folder. A build that silently let one dictionary overwrite another
-          on one platform only, found a list on one platform and skipped it on another, or read one of two
-          folders that differ only in case, would produce different products from the same repository.
+          on one platform only, found a list on one platform and skipped it on another, read one of two
+          folders that differ only in case, or left a stale "ALPHA.tld" beside a new "alpha.tld", would
+          produce different products from the same repository.
         children:
           - DictionaryBuilder-BuilderProgram-NameMatching
           - DictionaryBuilder-WordListReader-EntryParsing

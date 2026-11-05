@@ -28,8 +28,9 @@ N/A - standard test environment. Each test creates and removes its own temporary
   be deleted, exit code 3 is returned, every affected file and its backup are named, and the backups that hold
   previous content are kept.
 - Names that differ only in letter case are one name: duplicates are rejected, references find the declared name,
-  folders and lists are found under their on-disk spelling, and a match that is ambiguous on a case-sensitive file
-  system is reported naming every candidate rather than chosen.
+  folders, lists, and existing output files are found under their on-disk spelling (an output file with another
+  spelling is replaced by the declared one), and a match that is ambiguous on a case-sensitive file system is
+  reported naming every candidate rather than chosen.
 - An unchanged file keeps its timestamp and a changed one is rewritten.
 
 ### Test Scenarios
@@ -84,6 +85,23 @@ writes nothing. The listing is substituted so the test runs on every operating s
 spellings of `general`, `language`, and `variant-keep.txt`; the run returns 1 and each problem names both
 spellings. The listing is substituted so the test runs on every operating system. This scenario is tested by
 `BuilderProgram_Run_TechnicalPartsDifferingOnlyInCase_ReportsAmbiguityNamingBoth`.
+
+**BuilderProgram_Run_ExistingOutputUnderOtherSpelling_IsReplacedByDeclaredSpelling**: an earlier run declared the
+dictionary as `ALPHA` and left `ALPHA.tld`; a run that declares it as `alpha` replaces that file, the summary says
+"written", and the output folder holds only `alpha.tld`, with no backup or temporary file. This test discriminates
+on every operating system: on a case-sensitive file system the earlier behavior left both files, and on a
+case-insensitive one it judged the file unchanged and kept the old spelling. This scenario is tested by
+`BuilderProgram_Run_ExistingOutputUnderOtherSpelling_IsReplacedByDeclaredSpelling`.
+
+**BuilderProgram_Run_InstallFailsWithOutputUnderOtherSpelling_RestoresOriginalSpelling**: as above, but the
+installation of a second file fails; the run returns 1 and the output folder holds only `ALPHA.tld` with its
+original content, under its original spelling. This scenario is tested by
+`BuilderProgram_Run_InstallFailsWithOutputUnderOtherSpelling_RestoresOriginalSpelling`.
+
+**BuilderProgram_Run_OutputFilesDifferingOnlyInCase_ReportsAmbiguityAndWritesNothing**: the output folder lists
+both `ALPHA.tld` and `alpha.tld`; the run returns 1 with one problem that names both files, and creates nothing. The
+listing is substituted so the test runs on every operating system. This scenario is tested by
+`BuilderProgram_Run_OutputFilesDifferingOnlyInCase_ReportsAmbiguityAndWritesNothing`.
 
 **BuilderProgram_Run_KeepListCannotBeRead_ReturnsOneNamingFile**: an injected access-denied failure when reading the
 existing keep list returns exit code 1, names the keep list, and creates no output, so approved words are never

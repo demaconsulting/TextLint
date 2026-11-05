@@ -729,8 +729,13 @@ internal static class BuilderProgram
     ///     own exit code, names every file left inconsistent and every backup that was kept, and
     ///     deletes none of those backups. Not
     ///     rewriting an identical file keeps its timestamp, so an incremental build that uses the
-    ///     files as outputs does not see a change. Whether a target already exists is decided by
-    ///     reading it, never by a separate existence check, so an existing target that cannot be read
+    ///     files as outputs does not see a change. What the output folder already holds is learned from
+    ///     one listing of it, and each output file is resolved against that listing ignoring letter
+    ///     case: a file left by an earlier run under another spelling is the existing output, it is
+    ///     replaced (never left beside the new one) so only the declared spelling remains, and two
+    ///     spellings of one output name are reported as an ambiguity before anything is written.
+    ///     Whether an existing file has the same content is decided by reading it, never by a separate
+    ///     existence check, so an existing target that cannot be read
     ///     is a reported failure rather than being treated as absent. Every temporary file the run
     ///     created (staged files and backups) is deleted at the end, and one that cannot be deleted is
     ///     named in a fatal report with the same exit code as a failed restoration, so no leftover is
@@ -802,13 +807,39 @@ internal static class BuilderProgram
     {
         try
         {
+            // List what the output folder already holds, once, and resolve each output file against that listing
+            // under its on-disk spelling; two spellings of one name are ambiguous and nothing is written
+            var entries = ListOutputEntries(options);
+            var existingPaths = new Dictionary<string, string?>(NameComparer);
+            var ambiguities = new List<string>();
+            foreach (var file in files)
+            {
+                var fileName = Path.GetFileName(TargetPath(options, file));
+                var matches = entries.Where(entry => NameComparer.Equals(Path.GetFileName(entry), fileName)).ToList();
+                existingPaths[file.Name] = matches.Count == 1 ? matches[0] : null;
+                if (matches.Count > 1)
+                {
+                    ambiguities.Add($"{options.OutputFolder}: error: the output file '{fileName}' is ambiguous: {string.Join(" and ", matches.Select(match => $"'{Path.GetFileName(match)}'"))} differ only in letter case; keep only one");
+                }
+            }
+
+            if (ambiguities.Count > 0)
+            {
+                foreach (var ambiguity in ambiguities)
+                {
+                    error.WriteLine(ambiguity);
+                }
+
+                return ExitInvalidWordLists;
+            }
+
             Directory.CreateDirectory(options.OutputFolder);
 
             // Refuse up front when a target path is occupied by a folder, which no replacement could fix
-            var occupied = files.FirstOrDefault(file => Directory.Exists(TargetPath(options, file)));
+            var occupied = files.FirstOrDefault(file => existingPaths[file.Name] is { } present && Directory.Exists(present));
             if (occupied is not null)
             {
-                throw new IOException($"'{TargetPath(options, occupied)}' is a folder");
+                throw new IOException($"'{existingPaths[occupied.Name]}' is a folder");
             }
 
             // Stage every changed file beside its target; nothing is installed until all are written
@@ -816,14 +847,18 @@ internal static class BuilderProgram
             foreach (var file in files)
             {
                 var path = TargetPath(options, file);
-                var existing = ReadExisting(path, options.Operations);
-                if (existing is not null && existing.AsSpan().SequenceEqual(file.Content))
+                var existingPath = existingPaths[file.Name];
+                var existing = existingPath is null ? null : ReadExisting(existingPath, options.Operations);
+
+                // An existing file is left alone only when its content is identical and it already has the declared spelling
+                var hasDeclaredSpelling = existingPath is not null && string.Equals(Path.GetFileName(existingPath), Path.GetFileName(path), StringComparison.Ordinal);
+                if (existing is not null && hasDeclaredSpelling && existing.AsSpan().SequenceEqual(file.Content))
                 {
                     unchanged.Add(path);
                     continue;
                 }
 
-                var stagedFile = new StagedFile(path, options.Operations);
+                var stagedFile = new StagedFile(path, existingPath ?? path, options.Operations);
                 staged.Add(stagedFile);
                 File.WriteAllBytes(stagedFile.StagedPath, file.Content);
             }
@@ -860,6 +895,33 @@ internal static class BuilderProgram
         {
             error.WriteLine($"{options.OutputFolder}: error: the dictionary files cannot be written: {exception.Message}");
             return ExitInvalidWordLists;
+        }
+    }
+
+    /// <summary>
+    ///     Lists what the output folder already holds, once for the whole write.
+    /// </summary>
+    /// <remarks>
+    ///     The output files are resolved against this listing, so a file left by an earlier run under
+    ///     another spelling (for example <c>ALPHA.tld</c> for the declared <c>alpha</c>) is found as the
+    ///     existing output instead of being left beside a new one. Only a genuine "directory not
+    ///     found" yields an empty listing; any other failure propagates and is reported by the caller.
+    ///     Reads the file system.
+    /// </remarks>
+    /// <param name="options">The parsed options. Must not be null.</param>
+    /// <returns>The full paths of the files and folders directly inside the output folder.</returns>
+    /// <exception cref="IOException">Thrown when the output folder exists but cannot be listed.</exception>
+    /// <exception cref="UnauthorizedAccessException">Thrown when access to the output folder is denied.</exception>
+    private static List<string> ListOutputEntries(BuildOptions options)
+    {
+        try
+        {
+            return [.. options.Operations.EnumerateEntries(options.OutputFolder).Order(StringComparer.Ordinal)];
+        }
+        catch (DirectoryNotFoundException)
+        {
+            // A folder that does not exist yet holds nothing; it is created when the write starts
+            return [];
         }
     }
 
@@ -1006,9 +1068,12 @@ internal static class BuilderProgram
     ///     An output file that is written beside its target and then installed in place of it.
     /// </summary>
     /// <remarks>
-    ///     Keeps the three paths of one replacement together (target, staged file, backup) and
-    ///     remembers how far the installation got, so a rollback can undo exactly what was done. Not
-    ///     thread-safe; one instance belongs to one write.
+    ///     Keeps the paths of one replacement together (target, original, staged file, backup) and
+    ///     remembers how far the installation got, so a rollback can undo exactly what was done. The
+    ///     original is the existing file that is being replaced; it differs from the target when an
+    ///     earlier run left the file under another spelling (<c>ALPHA.tld</c> for <c>alpha.tld</c>),
+    ///     in which case it is moved aside and restored under its own spelling. Not thread-safe; one
+    ///     instance belongs to one write.
     /// </remarks>
     private sealed class StagedFile
     {
@@ -1023,7 +1088,12 @@ internal static class BuilderProgram
         private readonly FileOperations _operations;
 
         /// <summary>
-        ///     The path of the target file.
+        ///     The path of the existing file that is replaced, as spelled on disk (the target path when none was found).
+        /// </summary>
+        private readonly string _originalPath;
+
+        /// <summary>
+        ///     The path of the target file, with the declared spelling.
         /// </summary>
         private readonly string _targetPath;
 
@@ -1044,15 +1114,17 @@ internal static class BuilderProgram
         ///     A random token in the staged and backup names keeps concurrent builds and stale
         ///     leftovers from colliding.
         /// </remarks>
-        /// <param name="targetPath">The full path of the file to replace. Must not be null.</param>
+        /// <param name="targetPath">The full path of the file to write, with the declared spelling. Must not be null.</param>
+        /// <param name="originalPath">The full path of the existing file it replaces as spelled on disk, or the target path when none exists. Must not be null.</param>
         /// <param name="operations">The file system operations to use. Must not be null.</param>
-        public StagedFile(string targetPath, FileOperations operations)
+        public StagedFile(string targetPath, string originalPath, FileOperations operations)
         {
             var token = Guid.NewGuid().ToString("N");
             _targetPath = targetPath;
+            _originalPath = originalPath;
             _operations = operations;
             StagedPath = $"{targetPath}.{token}{StagedExtension}";
-            _backupPath = $"{targetPath}.{token}{BackupExtension}";
+            _backupPath = $"{originalPath}.{token}{BackupExtension}";
         }
 
         /// <summary>
@@ -1066,13 +1138,14 @@ internal static class BuilderProgram
         /// <remarks>
         ///     Whether an original exists is learned from the move itself (a missing source is a
         ///     <see cref="FileNotFoundException"/>), not from a separate existence check that could
-        ///     mistake an inaccessible original for an absent one.
+        ///     mistake an inaccessible original for an absent one. Moving the original aside first
+        ///     also removes the old spelling, so only the declared spelling remains afterwards.
         /// </remarks>
         public void MoveIntoPlace()
         {
             try
             {
-                _operations.Move(_targetPath, _backupPath);
+                _operations.Move(_originalPath, _backupPath);
                 _backedUp = true;
             }
             catch (FileNotFoundException)
@@ -1091,6 +1164,7 @@ internal static class BuilderProgram
         ///     Never throws. When the new file cannot be deleted the original cannot be put back
         ///     either, so it stays in its backup; when the original cannot be moved back it also stays
         ///     in its backup. In both cases the backup is kept and named in the returned description.
+        ///     The original is restored under its own on-disk spelling.
         /// </remarks>
         /// <returns>A description of the file's inconsistent state in the compiler's error format, or <see langword="null"/> when the previous state was restored.</returns>
         public string? Rollback()
@@ -1117,13 +1191,13 @@ internal static class BuilderProgram
 
             try
             {
-                _operations.Move(_backupPath, _targetPath);
+                _operations.Move(_backupPath, _originalPath);
                 _backedUp = false;
                 return null;
             }
             catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
             {
-                return $"{_targetPath}: error: the previous content could not be restored ({exception.Message}); it is kept in the backup '{_backupPath}'";
+                return $"{_originalPath}: error: the previous content could not be restored ({exception.Message}); it is kept in the backup '{_backupPath}'";
             }
         }
 

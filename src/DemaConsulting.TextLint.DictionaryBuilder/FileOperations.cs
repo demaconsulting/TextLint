@@ -67,6 +67,22 @@ internal class FileOperations
         Directory.EnumerateDirectories(folder);
 
     /// <summary>
+    ///     Enumerates the files and folders directly inside a folder, without descending.
+    /// </summary>
+    /// <remarks>
+    ///     Used to find out what an output folder already holds under the real on-disk spelling of
+    ///     each name. Lazy in the same way as <see cref="EnumerateFiles"/>. A missing folder is
+    ///     reported as <see cref="DirectoryNotFoundException"/>. Reads the file system.
+    /// </remarks>
+    /// <param name="folder">The folder to list. Must not be null.</param>
+    /// <returns>The full paths of the entries.</returns>
+    /// <exception cref="DirectoryNotFoundException">Thrown when the folder does not exist.</exception>
+    /// <exception cref="IOException">Thrown when the folder cannot be read.</exception>
+    /// <exception cref="UnauthorizedAccessException">Thrown when access to the folder is denied.</exception>
+    internal virtual IEnumerable<string> EnumerateEntries(string folder) =>
+        Directory.EnumerateFileSystemEntries(folder);
+
+    /// <summary>
     ///     Reads the whole content of a file.
     /// </summary>
     /// <remarks>

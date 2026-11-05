@@ -1069,4 +1069,84 @@ public class BuilderProgramTests
         Assert.NotEqual(original, File.ReadAllBytes(alphaFile));
         Assert.True(File.Exists(temp.PathOf("out/beta.tld")));
     }
+
+    /// <summary>
+    ///     Test that an output file left under another spelling is replaced by the declared spelling, so only that spelling remains.
+    /// </summary>
+    /// <remarks>
+    ///     Discriminating on every operating system: on a case-sensitive file system the old code left
+    ///     both <c>ALPHA.tld</c> and <c>alpha.tld</c>; on a case-insensitive one it judged the file
+    ///     unchanged and kept the old spelling.
+    /// </remarks>
+    [Fact]
+    public void BuilderProgram_Run_ExistingOutputUnderOtherSpelling_IsReplacedByDeclaredSpelling()
+    {
+        // Arrange: an earlier run declared the dictionary as "ALPHA" and left ALPHA.tld
+        using var temp = new TempDirectory();
+        temp.CreateFile("input/ALPHA/words.txt", "apple\n");
+        var input = temp.PathOf("input");
+        Execute("--input", input, "--output", temp.PathOf("out"), "ALPHA");
+        Assert.Equal(["ALPHA.tld"], Directory.GetFileSystemEntries(temp.PathOf("out")).Select(Path.GetFileName));
+
+        // Act: build the same lists, now declared as "alpha"
+        var (exitCode, output, error) = Execute("--input", input, "--output", temp.PathOf("out"), "alpha");
+
+        // Assert: success, the file was written, and only the declared spelling remains, with no backup or temporary file
+        Assert.Equal(BuilderProgram.ExitSuccess, exitCode);
+        Assert.Equal(string.Empty, error);
+        Assert.Contains("(written)", output);
+        Assert.Equal(["alpha.tld"], Directory.GetFileSystemEntries(temp.PathOf("out")).Select(Path.GetFileName));
+        Assert.Equal(["apple"], new TldReader(File.ReadAllBytes(temp.PathOf("out/alpha.tld"))).Words);
+    }
+
+    /// <summary>
+    ///     Test that a failed installation restores a file that had another spelling under that original spelling.
+    /// </summary>
+    [Fact]
+    public void BuilderProgram_Run_InstallFailsWithOutputUnderOtherSpelling_RestoresOriginalSpelling()
+    {
+        // Arrange: ALPHA.tld from an earlier run, a changed list, a new second dictionary whose installation fails
+        using var temp = new TempDirectory();
+        temp.CreateFile("input/ALPHA/words.txt", "apple\n");
+        var input = temp.PathOf("input");
+        Execute("--input", input, "--output", temp.PathOf("out"), "ALPHA");
+        var original = File.ReadAllBytes(temp.PathOf("out/ALPHA.tld"));
+        temp.CreateFile("input/ALPHA/words.txt", "apple\nbanana\n");
+        temp.CreateFile("input/beta/words.txt", "cherry\n");
+        var operations = new FaultingFileOperations { FailMove = (source, destination) => source.EndsWith(".tmp", StringComparison.Ordinal) && destination.EndsWith("beta.tld", StringComparison.Ordinal) };
+
+        // Act: build both, declaring the first as "alpha"
+        var (exitCode, _, error) = ExecuteWith(operations, "--input", input, "--output", temp.PathOf("out"), "alpha", "beta");
+
+        // Assert: an ordinary failure, and the folder holds only the original spelling with its original content
+        Assert.Equal(BuilderProgram.ExitInvalidWordLists, exitCode);
+        Assert.DoesNotContain("inconsistent", error);
+        Assert.Equal(["ALPHA.tld"], Directory.GetFileSystemEntries(temp.PathOf("out")).Select(Path.GetFileName));
+        Assert.Equal(original, File.ReadAllBytes(temp.PathOf("out/ALPHA.tld")));
+    }
+
+    /// <summary>
+    ///     Test that two output files whose names differ only in letter case are reported as an ambiguity and nothing is written.
+    /// </summary>
+    /// <remarks>
+    ///     Portable: the listing of the output folder is substituted, because a case-insensitive file
+    ///     system cannot hold both files. The same condition arises for real on Linux.
+    /// </remarks>
+    [Fact]
+    public void BuilderProgram_Run_OutputFilesDifferingOnlyInCase_ReportsAmbiguityAndWritesNothing()
+    {
+        // Arrange: valid lists and an output folder that lists both ALPHA.tld and alpha.tld
+        using var temp = new TempDirectory();
+        var input = CreateValidInput(temp);
+        var output = temp.PathOf("out");
+        var operations = new FaultingFileOperations { ListEntries = _ => [Path.Combine(output, "alpha.tld"), Path.Combine(output, "ALPHA.tld")] };
+
+        // Act: build the declared dictionary
+        var (exitCode, _, error) = ExecuteWith(operations, "--input", input, "--output", output, "alpha");
+
+        // Assert: exit code 1, both files are named in one ambiguity problem, and nothing was created
+        Assert.Equal(BuilderProgram.ExitInvalidWordLists, exitCode);
+        Assert.Contains("the output file 'alpha.tld' is ambiguous: 'ALPHA.tld' and 'alpha.tld' differ only in letter case", error);
+        Assert.False(Directory.Exists(output));
+    }
 }

@@ -165,7 +165,8 @@ change any output when a problem exists protect the data quality of the product,
   names every file left inconsistent and the backup that holds its previous version, so the build fails
   loudly and the maintainer can restore by hand.
 - File system seam: the few file system calls whose failures cannot be provoked portably in tests (searching
-  folders, reading files, moving files, and deleting files) go through one small class, `FileOperations`, which
+  folders, listing output entries, reading files, moving files, and deleting files) go through one small class,
+  `FileOperations`, which
   production code uses in its real form and tests replace with a version that fails on demand. It is part of the
   `BuilderProgram` unit.
 - Failures are never mistaken for absence: a folder or file that exists but cannot be read is a reported problem,

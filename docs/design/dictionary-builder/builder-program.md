@@ -31,13 +31,15 @@ dictionary that has been read is held in a private record of its name, the on-di
 and an optional detail text for the summary line. The listing of the input folder, made once per run, is held in a
 private record of the folders and whether the listing failed.
 
-A private nested class, `StagedFile`, keeps the three paths of one file replacement together (the target, a
-staged file beside it, and a backup of the original) and remembers how far the installation got, so that a
+A private nested class, `StagedFile`, keeps the paths of one file replacement together (the declared target, the
+existing original as spelled on disk, a staged file beside the target, and a backup of the original) and remembers
+how far the installation got, so that a
 rollback can undo exactly what was done, or say precisely what it could not undo.
 
 `FileOperations` (its own source file, part of this unit) is a small class with virtual methods for the file
 system calls that tests cannot portably make fail: enumerating the files of a folder, enumerating the
-sub-folders of a folder, reading a file, moving a file, and deleting a file. Production code uses its default
+sub-folders of a folder, enumerating the entries of the output folder, reading a file, moving a file, and deleting a
+file. Production code uses its default
 instance, which calls the file system directly; tests pass a subclass that throws on chosen paths.
 `BuilderProgram.Run` and `WordListReader` accept it as an optional parameter.
 
@@ -119,17 +121,24 @@ declared name resolves to it, so the two can never disagree.
 **WriteFiles**: writes the files all-or-nothing and reports every file it cannot clean up. It runs
 **StageAndInstall**, then, whatever the outcome, deletes every staged file; a staged file that cannot be deleted is
 not swallowed but reported by path in a fatal report, and the run returns exit code 3 whatever the earlier result
-was. **StageAndInstall** creates the output folder; refuses, before writing anything, a target path that is
-occupied by a folder (only to give a clear message; every other failure is reported by the operation that meets
-it); learns whether a target exists, and whether its content is identical, by reading it, never by a separate
-existence check, so a target that exists but cannot be read is a reported failure rather than an absent file; writes
-each changed file to a staged file beside its target (a file whose content is already identical is left alone, so
-its timestamp is preserved for incremental builds); installs all staged files; and prints one summary line per
-file.
+was. **StageAndInstall** lists the output folder once and resolves each output file against that listing, ignoring
+letter case, exactly as input folders are resolved: one match is the existing output (under its on-disk spelling),
+no match means a new file, and more than one match (possible on a case-sensitive file system, for example
+`ALPHA.tld` and `alpha.tld`) is an ambiguity problem that names the candidates, reported with exit code 1 before
+anything is written or even created. It then creates the output folder; refuses, before writing anything, an
+existing path that is a folder (only to give a clear message; every other failure is reported by the operation that
+meets it); learns whether the existing file has identical content by reading it, never by a separate
+existence check, so a file that exists but cannot be read is a reported failure rather than an absent file; writes
+each changed file to a staged file beside its target (a file whose content is already identical and that already has
+the declared spelling is left alone, so its timestamp is preserved for incremental builds, while an identical file
+under another spelling is replaced so that only the declared spelling remains); installs all staged files; and prints
+one summary line per file.
 
-**Install**: moves each existing target aside to a backup and the staged file into its place; whether a target
-exists is learned from the move itself (a missing source is the "no original" case). If any step
-throws, the files touched so far are put back in reverse order (the new file deleted, the backup restored) and the
+**Install**: moves each existing original (the file found by the listing, whatever its spelling) aside to a backup
+and the staged file into the declared target path; whether an original exists is learned from the move itself (a
+missing source is the "no original" case). If any step
+throws, the files touched so far are put back in reverse order (the new file deleted, the backup restored under the
+original's own spelling) and the
 failure is returned for reporting. Restoring a file can itself fail: the new file may not be deletable, or the
 backup may not be movable back. Each such file is described in the compiler's error format, with the backup that
 still holds its previous content, and the backup is never deleted. When any file could not be restored, `WriteFiles`
