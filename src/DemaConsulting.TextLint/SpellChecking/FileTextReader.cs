@@ -142,8 +142,9 @@ internal static class FileTextReader
                         $"The file is {size:N0} bytes, which is larger than the limit of {limit:N0} bytes.");
                 }
 
-                // Read the whole file; it is shorter than the size if it was truncated meanwhile
-                var bytes = new byte[size];
+                // Read the whole file; it is shorter than the size if it was truncated meanwhile. The size is at
+                // most the ceiling, which fits an int, so the checked conversion documents the intent and cannot overflow
+                var bytes = new byte[checked((int)size)];
                 var count = await stream.ReadAtLeastAsync(bytes, bytes.Length, false, cancellationToken).ConfigureAwait(false);
                 return Decode(bytes.AsSpan(0, count));
             }
