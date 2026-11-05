@@ -18,9 +18,14 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+// cspell:ignore favourite neighbour organise tokenizer kubernetes powershell textlint xyzzyq cafè tabel
+
+using System.Collections.Concurrent;
 using System.Reflection;
 using System.Runtime.Versioning;
+using System.Text;
 using DemaConsulting.TextLint.Configuration;
+using DemaConsulting.TextLint.Dictionaries;
 using DemaConsulting.TextLint.FileSelection;
 using DemaConsulting.TextLint.Tests.TestSupport;
 using Microsoft.Extensions.FileSystemGlobbing.Abstractions;
@@ -35,8 +40,9 @@ namespace DemaConsulting.TextLint.Tests;
 ///     every release of the library must retain: its identity, its metadata, its target framework,
 ///     its trim compatibility, its independence from the tool, and that its public API exposes no
 ///     third-party types. The functional tests drive the public API end to end, combining the
-///     Configuration and FileSelection subsystems against real temporary files, exactly as a
-///     consuming application would.
+///     Configuration and FileSelection subsystems against real temporary files, and the
+///     Dictionaries subsystem against the real embedded dictionaries, exactly as a consuming
+///     application would.
 /// </remarks>
 public class TextLintTests
 {
@@ -44,6 +50,41 @@ public class TextLintTests
     ///     The simple name of the TextLint library assembly, which is also its NuGet package ID.
     /// </summary>
     private const string LibraryAssemblyName = "DemaConsulting.TextLint";
+
+    /// <summary>
+    ///     The start of the logical name of every dictionary embedded in the library assembly.
+    /// </summary>
+    private const string DictionaryResourcePrefix = "DemaConsulting.TextLint.Dictionaries.";
+
+    /// <summary>
+    ///     The text at the start of every dictionary file.
+    /// </summary>
+    private const string DictionaryIdentifier = "TLD1";
+
+    /// <summary>
+    ///     The number of characters in a text that is far longer than any word.
+    /// </summary>
+    private const int VeryLongTextLength = 10_000;
+
+    /// <summary>
+    ///     The number of lookups the parallel test performs.
+    /// </summary>
+    private const int ParallelLookups = 20_000;
+
+    /// <summary>
+    ///     The most failures a data test reports, so a systematic failure stays readable.
+    /// </summary>
+    private const int MaxReportedFailures = 20;
+
+    /// <summary>
+    ///     The number of words below which the word lists are considered not to have been found.
+    /// </summary>
+    private const int MinimumCheckedWords = 100_000;
+
+    /// <summary>
+    ///     The distance from a lower-case ASCII or Latin-1 letter to its upper-case partner.
+    /// </summary>
+    private const int UpperCaseOffset = 32;
 
     /// <summary>
     ///     The namespace prefixes of the third-party packages the library depends on.
@@ -662,4 +703,338 @@ public class TextLintTests
         var exception = Assert.Throws<InvalidGlobPatternException>(() => SelectFiles(temp.FullPath, settings));
         Assert.Contains("'docs\\*.md'", exception.Message);
     }
+
+    /// <summary>
+    ///     Test that a word in the dictionaries is reported as known.
+    /// </summary>
+    [Fact]
+    public void TextLint_Dictionary_KnownWord_IsKnown()
+    {
+        // Arrange: the default dictionary selection
+        var dictionary = SpellingDictionary.Default;
+
+        // Act: ask about an ordinary English word
+        var known = dictionary.IsKnown("table");
+
+        // Assert: the word is known
+        Assert.True(known);
+    }
+
+    /// <summary>
+    ///     Test that a word that is in no dictionary is reported as not known.
+    /// </summary>
+    [Fact]
+    public void TextLint_Dictionary_UnknownWord_IsNotKnown()
+    {
+        // Arrange: the default dictionary selection
+        var dictionary = SpellingDictionary.Default;
+
+        // Act: ask about a misspelling and a nonsense word
+        var misspelling = dictionary.IsKnown("tabel");
+        var nonsense = dictionary.IsKnown("xyzzyq");
+
+        // Assert: neither is known
+        Assert.Multiple(
+            () => Assert.False(misspelling),
+            () => Assert.False(nonsense));
+    }
+
+    /// <summary>
+    ///     Test that letter case does not change whether a word is known.
+    /// </summary>
+    [Fact]
+    public void TextLint_Dictionary_DifferentCase_IsKnown()
+    {
+        // Arrange: the default dictionary selection
+        var dictionary = SpellingDictionary.Default;
+
+        // Act / Assert: lower, capitalized, upper, and mixed case are all known, including a name
+        // that the word lists write with a capital
+        Assert.Multiple(
+            () => Assert.True(dictionary.IsKnown("table")),
+            () => Assert.True(dictionary.IsKnown("Table")),
+            () => Assert.True(dictionary.IsKnown("TABLE")),
+            () => Assert.True(dictionary.IsKnown("tABLe")),
+            () => Assert.True(dictionary.IsKnown("Paris")),
+            () => Assert.True(dictionary.IsKnown("paris")),
+            () => Assert.True(dictionary.IsKnown("PARIS")));
+    }
+
+    /// <summary>
+    ///     Test that the typographic apostrophe, contractions, and possessives are known.
+    /// </summary>
+    [Fact]
+    public void TextLint_Dictionary_TypographicApostrophe_IsKnown()
+    {
+        // Arrange: the default dictionary selection
+        var dictionary = SpellingDictionary.Default;
+
+        // Act / Assert: contractions and possessives are known with the straight and the curly apostrophe
+        Assert.Multiple(
+            () => Assert.True(dictionary.IsKnown("don't")),
+            () => Assert.True(dictionary.IsKnown("don\u2019t")),
+            () => Assert.True(dictionary.IsKnown("dog's")),
+            () => Assert.True(dictionary.IsKnown("dog\u2019s")));
+    }
+
+    /// <summary>
+    ///     Test that accented words, text in other scripts, empty text, and very long text are handled without error.
+    /// </summary>
+    [Fact]
+    public void TextLint_Dictionary_UnusualText_IsHandledWithoutError()
+    {
+        // Arrange: the default dictionary selection and unusual text
+        var dictionary = SpellingDictionary.Default;
+        var veryLong = new string('a', VeryLongTextLength);
+
+        // Act / Assert: accented words are known in either case and with either spelling, while a wrong
+        // accent, another script, empty text, blank text, and very long text are not known and never throw
+        Assert.Multiple(
+            () => Assert.True(dictionary.IsKnown("café")),
+            () => Assert.True(dictionary.IsKnown("CAFÉ")),
+            () => Assert.True(dictionary.IsKnown("cafe")),
+            () => Assert.False(dictionary.IsKnown("cafè")),
+            () => Assert.False(dictionary.IsKnown("日本語")),
+            () => Assert.False(dictionary.IsKnown(string.Empty)),
+            () => Assert.False(dictionary.IsKnown("   ")),
+            () => Assert.False(dictionary.IsKnown(veryLong)));
+    }
+
+    /// <summary>
+    ///     Test that the default language is American English and that <c>en</c> means the same.
+    /// </summary>
+    [Fact]
+    public void TextLint_Dictionary_DefaultLanguage_AcceptsAmericanNotBritishSpelling()
+    {
+        // Arrange: the default selection and the one named en
+        var dictionary = SpellingDictionary.Default;
+        var english = SpellingDictionary.ForLanguages("en");
+
+        // Act / Assert: American spellings are known and British ones are not, whichever way it is chosen
+        Assert.Multiple(
+            () => Assert.True(dictionary.IsKnown("favorite")),
+            () => Assert.True(dictionary.IsKnown("neighbor")),
+            () => Assert.False(dictionary.IsKnown("favourite")),
+            () => Assert.False(dictionary.IsKnown("neighbour")),
+            () => Assert.False(dictionary.IsKnown("organise")),
+            () => Assert.Same(dictionary, english));
+    }
+
+    /// <summary>
+    ///     Test that British English accepts British spellings and not American ones.
+    /// </summary>
+    [Fact]
+    public void TextLint_Dictionary_BritishLanguage_AcceptsBritishNotAmericanSpelling()
+    {
+        // Arrange: the British selection
+        var dictionary = SpellingDictionary.ForLanguages("en-GB");
+
+        // Act / Assert: British spellings are known and American ones are not
+        Assert.Multiple(
+            () => Assert.True(dictionary.IsKnown("favourite")),
+            () => Assert.True(dictionary.IsKnown("neighbour")),
+            () => Assert.True(dictionary.IsKnown("organise")),
+            () => Assert.False(dictionary.IsKnown("favorite")),
+            () => Assert.False(dictionary.IsKnown("neighbor")));
+    }
+
+    /// <summary>
+    ///     Test that selecting both languages accepts both spellings.
+    /// </summary>
+    [Fact]
+    public void TextLint_Dictionary_BothLanguages_AcceptBothSpellings()
+    {
+        // Arrange: the selection of both languages, written with spaces
+        var dictionary = SpellingDictionary.ForLanguages("en-US, en-GB");
+
+        // Act / Assert: American and British spellings are both known
+        Assert.Multiple(
+            () => Assert.True(dictionary.IsKnown("favorite")),
+            () => Assert.True(dictionary.IsKnown("favourite")),
+            () => Assert.True(dictionary.IsKnown("neighbor")),
+            () => Assert.True(dictionary.IsKnown("neighbour")));
+    }
+
+    /// <summary>
+    ///     Test that an unsupported language is rejected with an error that names it.
+    /// </summary>
+    [Fact]
+    public void TextLint_Dictionary_UnsupportedLanguage_ThrowsNamingLanguage()
+    {
+        // Arrange: no setup required
+
+        // Act: ask for a language the library does not provide
+        var exception = Assert.Throws<ArgumentException>(() => SpellingDictionary.ForLanguages("en-AU"));
+
+        // Assert: the error names the language and lists the supported ones
+        Assert.Multiple(
+            () => Assert.Contains("en-AU", exception.Message),
+            () => Assert.Contains("en-GB", exception.Message),
+            () => Assert.Contains("en-US", exception.Message));
+    }
+
+    /// <summary>
+    ///     Test that technical terms are known in every language selection.
+    /// </summary>
+    [Fact]
+    public void TextLint_Dictionary_TechnicalTerm_IsKnownInEveryLanguage()
+    {
+        // Arrange: every language selection and technical terms of several kinds, including a
+        // programming term in an American spelling that the word lists keep for every language
+        string[] terms = ["kubernetes", "initialize", "github", "powershell", "microsoft", "textlint", "tokenizer"];
+        var selections = new[] { "en-US", "en-GB", "en-US,en-GB" }.Select(SpellingDictionary.ForLanguages).ToArray();
+
+        // Act: find the terms each selection does not know
+        var unknown = selections.SelectMany(dictionary => terms.Where(term => !dictionary.IsKnown(term))).ToArray();
+
+        // Assert: every selection knows every term
+        Assert.Empty(unknown);
+    }
+
+    /// <summary>
+    ///     Test that the library assembly carries the four dictionaries as embedded resources.
+    /// </summary>
+    [Fact]
+    public void TextLint_Assembly_Loaded_EmbedsDictionaries()
+    {
+        // Arrange: load the library assembly and the names the dictionaries must have
+        var assembly = LoadLibrary();
+        string[] expected =
+        [
+            $"{DictionaryResourcePrefix}en-GB.tld",
+            $"{DictionaryResourcePrefix}en-US.tld",
+            $"{DictionaryResourcePrefix}en-common.tld",
+            $"{DictionaryResourcePrefix}technical.tld",
+        ];
+
+        // Act: list the dictionary resources and read the start of each
+        var names = assembly.GetManifestResourceNames()
+            .Where(name => name.StartsWith(DictionaryResourcePrefix, StringComparison.Ordinal))
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+        var identifiers = names.Select(name =>
+        {
+            using var stream = assembly.GetManifestResourceStream(name)!;
+            var start = new byte[DictionaryIdentifier.Length];
+            stream.ReadExactly(start);
+            return Encoding.ASCII.GetString(start);
+        }).ToArray();
+
+        // Assert: exactly the four dictionaries are embedded and each is a dictionary file
+        Assert.Multiple(
+            () => Assert.Equal(expected, names),
+            () => Assert.All(identifiers, identifier => Assert.Equal(DictionaryIdentifier, identifier)));
+    }
+
+    /// <summary>
+    ///     Test that every word of every word list is known for the language selection that includes its list.
+    /// </summary>
+    [Fact]
+    public void TextLint_Dictionary_EveryListedWord_IsKnown()
+    {
+        // Arrange: every word list under the word-list folder copied beside the tests
+        var root = Path.Combine(AppContext.BaseDirectory, "dictionaries");
+        var files = Directory.GetFiles(root, "*.txt", SearchOption.AllDirectories).Order(StringComparer.Ordinal).ToArray();
+        var failures = new List<string>();
+        var checkedWords = 0;
+
+        // Act: look up each entry as written, in lower case, and in upper case, in each selection that includes its list
+        foreach (var file in files)
+        {
+            var relative = Path.GetRelativePath(root, file).Replace('\\', '/');
+            var dictionaries = SelectionsFor(relative).Select(SpellingDictionary.ForLanguages).ToArray();
+            foreach (var entry in File.ReadLines(file).Select(line => line.Trim()).Where(line => line.Length > 0 && line[0] != '#'))
+            {
+                foreach (var form in new[] { entry, entry.ToLowerInvariant(), UpperCaseLatin1(entry) })
+                {
+                    checkedWords++;
+                    if (!dictionaries.All(dictionary => dictionary.IsKnown(form)))
+                    {
+                        failures.Add($"{relative}: {form}");
+                    }
+                }
+            }
+        }
+
+        // Assert: the lists held a substantial vocabulary and every word was known
+        Assert.Multiple(
+            () => Assert.Empty(failures.Take(MaxReportedFailures)),
+            () => Assert.True(checkedWords > MinimumCheckedWords, $"Only {checkedWords} words were checked."));
+    }
+
+    /// <summary>
+    ///     Test that lookups from many threads at once all return the correct answers.
+    /// </summary>
+    [Fact]
+    public void TextLint_Dictionary_ParallelLookups_ReturnCorrectAnswers()
+    {
+        // Arrange: the three selections and the answers each must give for a few words
+        var selections = new (SpellingDictionary Dictionary, bool Favorite, bool Favourite)[]
+        {
+            (SpellingDictionary.ForLanguages("en-US"), true, false),
+            (SpellingDictionary.ForLanguages("en-GB"), false, true),
+            (SpellingDictionary.ForLanguages("en-US,en-GB"), true, true),
+        };
+        var failures = new ConcurrentBag<string>();
+
+        // Act: query all the selections from many threads at once
+        Parallel.For(0, ParallelLookups, i =>
+        {
+            var (dictionary, favorite, favourite) = selections[i % selections.Length];
+            if (dictionary.IsKnown("favorite") != favorite ||
+                dictionary.IsKnown("favourite") != favourite ||
+                !dictionary.IsKnown("table") ||
+                !dictionary.IsKnown("kubernetes") ||
+                dictionary.IsKnown("xyzzyq"))
+            {
+                failures.Add($"selection {i % selections.Length}");
+            }
+        });
+
+        // Assert: every answer was right
+        Assert.Empty(failures);
+    }
+
+    /// <summary>
+    ///     Gets the language selections that must know every word of a word list.
+    /// </summary>
+    /// <param name="relativePath">The path of the word list relative to the word-list folder, with forward slashes.</param>
+    /// <returns>
+    ///     The selections: the common words must be known in each single-language selection, a regional
+    ///     list only in its own language, the programming-language lists and the reviewed list in each
+    ///     language, and the general technical lists in the combined selection (a spelling variant the
+    ///     builder removes from them is still known where its language is selected).
+    /// </returns>
+    /// <exception cref="InvalidOperationException">Thrown for a list in a folder this test does not know, so a new list cannot be left unchecked.</exception>
+    private static string[] SelectionsFor(string relativePath) => relativePath switch
+    {
+        _ when relativePath.StartsWith("en-common/", StringComparison.Ordinal) => ["en-US", "en-GB"],
+        _ when relativePath.StartsWith("en-US/", StringComparison.Ordinal) => ["en-US"],
+        _ when relativePath.StartsWith("en-GB/", StringComparison.Ordinal) => ["en-GB"],
+        _ when relativePath.StartsWith("technical/language/", StringComparison.Ordinal) => ["en-US", "en-GB"],
+        "technical/variant-keep.txt" => ["en-US", "en-GB"],
+        _ when relativePath.StartsWith("technical/general/", StringComparison.Ordinal) => ["en-US,en-GB"],
+        _ => throw new InvalidOperationException($"The word list '{relativePath}' is not covered by this test."),
+    };
+
+    /// <summary>
+    ///     Converts the ASCII and Latin-1 letters of a word to upper case without changing any other character.
+    /// </summary>
+    /// <remarks>
+    ///     Culture-aware upper-casing would turn the sharp s into two letters and the letter y with
+    ///     diaeresis into a character outside Latin-1, which no dictionary word contains, so the
+    ///     conversion is done letter by letter for the letters that have an upper-case partner in Latin-1.
+    /// </remarks>
+    /// <param name="word">The word to convert.</param>
+    /// <returns>The word in upper case.</returns>
+    private static string UpperCaseLatin1(string word) =>
+        string.Create(word.Length, word, (span, source) =>
+        {
+            for (var i = 0; i < source.Length; i++)
+            {
+                var character = source[i];
+                var lowerLatin1 = character is >= '\u00E0' and <= '\u00FE' && character != '\u00F7';
+                span[i] = character is >= 'a' and <= 'z' || lowerLatin1 ? (char)(character - UpperCaseOffset) : character;
+            }
+        });
 }

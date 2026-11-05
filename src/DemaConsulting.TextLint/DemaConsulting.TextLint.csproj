@@ -88,6 +88,79 @@
   <ItemGroup>
     <None Include="..\..\README.md" Pack="true" PackagePath="\" />
     <None Include="..\..\Icon.png" Pack="true" PackagePath="\" />
+    <!-- The word lists embedded in the assembly carry third-party license terms that require the
+         notices to accompany every copy of the data, so the notices travel in the package. -->
+    <None Include="..\..\third-party\THIRD-PARTY-NOTICES.txt" Pack="true" PackagePath="\" />
   </ItemGroup>
+
+  <!-- Embedded Dictionaries
+       The English and technical dictionaries are stored in the assembly as four binary files that the
+       build produces from the plain-text word lists under dictionaries/. Nothing binary is committed:
+       the DictionaryBuilder program converts the lists on every build in which they (or the program)
+       changed, and the results are embedded with stable logical names that the code loads by name.
+       The unsafe-code option stays off: the library reads each resource into a managed array. -->
+  <PropertyGroup>
+    <!-- The folder that holds one sub-folder of word lists per dictionary. Folder paths are kept without a
+         trailing separator because the builder is started through a command line, where a backslash before
+         a closing quote would escape the quote. -->
+    <DictionaryWordListRoot>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)../../dictionaries'))</DictionaryWordListRoot>
+
+    <!-- Where the converted files go. BaseIntermediateOutputPath is used because IntermediateOutputPath is
+         not yet set while the project body is evaluated; the configuration and target framework keep
+         concurrent builds of different flavors from writing the same files. -->
+    <DictionaryOutputDir>$(MSBuildProjectDirectory)/$(BaseIntermediateOutputPath)dictionaries/$(Configuration)/$(TargetFramework)</DictionaryOutputDir>
+
+    <!-- Run the builder with the same dotnet host that runs MSBuild (set by the SDK); fall back to the
+         dotnet on the path for hosts that do not set it. -->
+    <DictionaryDotNet>$(DOTNET_HOST_PATH)</DictionaryDotNet>
+    <DictionaryDotNet Condition="'$(DictionaryDotNet)' == ''">dotnet</DictionaryDotNet>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- The dictionary names are the single source of truth: the folder name under dictionaries/, the
+         file name of the converted file, and the last part of the embedded resource name. The technical
+         dictionary is combined from several kinds of list, and the two regional dictionaries supply the
+         spelling variants that the combination removes from the general technical lists (see the
+         DictionaryBuilder design for the variant rule). -->
+    <Dictionary Include="en-common;en-US;en-GB;technical" />
+    <DictionaryVariant Include="en-US;en-GB" />
+
+    <!-- Every word list is an input, so editing any list triggers a conversion. -->
+    <DictionaryWordList Include="$(DictionaryWordListRoot)/**/*.txt" />
+    <DictionaryBinary Include="@(Dictionary->'$(DictionaryOutputDir)/%(Identity).tld')" />
+
+    <!-- The converted files are embedded under stable logical names, independent of folder and namespace. -->
+    <EmbeddedResource Include="@(DictionaryBinary)" LogicalName="DemaConsulting.TextLint.Dictionaries.%(Filename)%(Extension)" Visible="false" />
+
+    <!-- The builder is built first, but its assembly is not referenced by the library: the output item
+         gives the path of its built assembly without guessing where the build put it. -->
+    <ProjectReference Include="..\DemaConsulting.TextLint.DictionaryBuilder\DemaConsulting.TextLint.DictionaryBuilder.csproj"
+                      ReferenceOutputAssembly="false"
+                      OutputItemType="DictionaryBuilderAssembly" />
+
+    <!-- The dictionary format source is owned by the builder and compiled into the library too, so the
+         program that writes the files and the code that reads them can never disagree on the hash or
+         the case fold. -->
+    <Compile Include="..\DemaConsulting.TextLint.DictionaryBuilder\DictionaryFormat.cs" Link="Dictionaries\DictionaryFormat.cs" />
+  </ItemGroup>
+
+  <!-- Incremental: the target is skipped when every converted file is newer than every word list and the
+       builder. A builder error fails the build: its messages are in the compiler error format, so MSBuild
+       reports each problem with its file and line, and the non-zero exit code fails the Exec task.
+       Design-time builds (an editor or dotnet format loading the project to analyze it) only need the
+       source to be analyzed, never the compiled output, and the builder may not have been built yet in
+       that configuration, so they skip the conversion. -->
+  <Target Name="BuildDictionaries"
+          BeforeTargets="CoreCompile;GenerateAssemblyInfo"
+          DependsOnTargets="ResolveProjectReferences"
+          Condition="'$(DesignTimeBuild)' != 'true'"
+          Inputs="@(DictionaryWordList);@(DictionaryBuilderAssembly)"
+          Outputs="@(DictionaryBinary)">
+    <MakeDir Directories="$(DictionaryOutputDir)" />
+    <Exec Command="&quot;$(DictionaryDotNet)&quot; &quot;@(DictionaryBuilderAssembly)&quot; --input &quot;$(DictionaryWordListRoot)&quot; --output &quot;$(DictionaryOutputDir)&quot; @(Dictionary, ' ') --technical technical @(DictionaryVariant->'--variants %(Identity)', ' ')" />
+    <!-- The builder leaves a file whose content did not change untouched, so mark every output as up to date
+         to let the next build skip this target. -->
+    <Touch Files="@(DictionaryBinary)" />
+  </Target>
 
 </Project>
