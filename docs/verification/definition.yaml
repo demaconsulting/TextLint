@@ -5,6 +5,8 @@ resource-path:
   - docs/verification/textlint/configuration
   - docs/verification/textlint/file-selection
   - docs/verification/textlint/dictionaries
+  - docs/verification/textlint/text-scanning
+  - docs/verification/textlint/spell-checking
   - docs/verification/textlint-tool
   - docs/verification/textlint-tool/cli
   - docs/verification/textlint-tool/self-test
@@ -27,6 +29,14 @@ input-files:
   - docs/verification/textlint/dictionaries.md
   - docs/verification/textlint/dictionaries/spelling-dictionary.md
   - docs/verification/textlint/dictionaries/dictionary-image.md
+  - docs/verification/textlint/text-scanning.md
+  - docs/verification/textlint/text-scanning/word-tokenizer.md
+  - docs/verification/textlint/text-scanning/default-patterns.md
+  - docs/verification/textlint/text-scanning/document-directives.md
+  - docs/verification/textlint/spell-checking.md
+  - docs/verification/textlint/spell-checking/text-checker.md
+  - docs/verification/textlint/spell-checking/file-text-reader.md
+  - docs/verification/textlint/spell-checking/spell-checker.md
   - docs/verification/textlint-tool.md
   - docs/verification/textlint-tool/program.md
   - docs/verification/textlint-tool/cli.md

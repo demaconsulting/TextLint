@@ -15,21 +15,28 @@ TextLint is a fast text linter for source code and documentation, delivered as t
 
 **Status**: under active development. TextLint is being developed to provide cspell-compatible
 spell-checking, configured by a `.textlint.yaml` file, using embedded English and technical-term
-dictionaries, and to check files in parallel across all processor cores. Spell-checking is not yet
-implemented. The library can already load a `.textlint.yaml` settings file, select the files to
-check, and look words up in its embedded dictionaries; the tool does not read the settings file or
-use the dictionaries yet and provides only the command-line scaffolding described below.
+dictionaries, and to check files in parallel across all processor cores. The library can already do
+this: it loads a `.textlint.yaml` settings file, selects the files to check, checks their spelling in
+parallel with cspell's word-splitting, ignore, directive, and word-list rules, and looks words up in its
+embedded dictionaries. The tool does not read the settings file or call the spell checker yet and provides
+only the command-line scaffolding described below. Custom ignore patterns and the remaining cspell settings
+are not supported yet.
 
 ## Features
 
 The project currently provides:
 
 - **Settings File**: The library loads a cspell-compatible `.textlint.yaml` (keys `version`, `files`,
-  `ignorePaths`, and `enableGlobDot`), reporting every problem with its file, line, and column; unsupported
-  keys are errors
+  `ignorePaths`, `enableGlobDot`, `language`, `words`, `ignoreWords`, `flagWords`, `minWordLength`, and
+  `maxFileSize`), reporting every problem with its file, line, and column; unsupported keys are errors
 - **File Selection**: The library selects files from glob patterns (brace alternatives, bare names at any
   depth, case-sensitive matching, cspell-style hidden-file rules), skipping excluded directories without
   scanning them
+- **Spell Checking**: The library checks the spelling of a string or of every selected file, in parallel, and
+  returns deterministic findings with file, line, column, and word. It splits camelCase and snake_case
+  identifiers, ignores URLs, email addresses, hashes, and encoded data, honors `cspell:disable`-style comments
+  (also with the prefix `textlint:`), and reads UTF-8 and UTF-16 files. A parity test compares it with the real
+  cspell, and the differences are documented
 - **Word Lookup**: The library reports whether a word is known to American English (the default), British
   English, or both, plus a dictionary of technical terms (programming languages, tools, companies, file
   types, and licenses). The dictionaries are embedded in the assembly, so no data files are needed, and
@@ -58,8 +65,8 @@ dotnet tool install -g DemaConsulting.TextLint.Tool
 ```
 
 The reusable library is published separately as the `DemaConsulting.TextLint` NuGet package for
-applications that want to embed TextLint (it currently loads settings, selects files, and looks words up;
-its API will grow as the spell-checking capabilities are added):
+applications that want to embed TextLint (it loads settings, selects files, checks spelling, and looks words
+up; its API will grow as further capabilities are added):
 
 ```bash
 dotnet add package DemaConsulting.TextLint
@@ -67,11 +74,13 @@ dotnet add package DemaConsulting.TextLint
 
 ## Library Usage
 
-Load a `.textlint.yaml` settings file and select the files it describes:
+Load a `.textlint.yaml` settings file, check the spelling of the files it selects, and print every finding:
+
+<!-- cspell:ignore wrold -->
 
 ```csharp
 using DemaConsulting.TextLint.Configuration;
-using DemaConsulting.TextLint.FileSelection;
+using DemaConsulting.TextLint.SpellChecking;
 
 // Problems in the file are returned, not thrown
 var result = await SettingsLoader.LoadAsync(".textlint.yaml");
@@ -79,24 +88,56 @@ if (!result.Succeeded)
 {
     foreach (var diagnostic in result.Diagnostics)
     {
-        // For example: .textlint.yaml(3,1): error: 'words' is not a supported setting.
+        // For example: .textlint.yaml(3,1): error: 'caseSensitive' is not a supported setting.
         Console.Error.WriteLine(diagnostic);
     }
 
     return;
 }
 
-var settings = result.Settings!;
-foreach (var file in FileSelector.Select(".", settings.Files, settings.IgnorePaths, settings.EnableGlobDot))
+// Check every selected file under the current directory on all processor cores
+var check = await SpellChecker.CheckAsync(result.Settings!, Directory.GetCurrentDirectory());
+foreach (var issue in check.Issues)
 {
-    Console.WriteLine(file.RelativePath);
+    // For example: docs/guide.md(12,5): error: Unknown word 'wrold'
+    Console.WriteLine(issue);
+}
+
+// Files that were skipped or could not be read are reported separately
+foreach (var problem in check.FileDiagnostics)
+{
+    Console.WriteLine(problem);
+}
+
+Console.WriteLine($"{check.FilesChecked} files checked, {check.Issues.Count} findings");
+```
+
+The findings are ordered by file path, then line, then column, whatever the number of files checked at the same
+time (`SpellCheckOptions.MaxDegreeOfParallelism` limits it). A file that is locked, binary, or too large is a
+`FileDiagnostic` in the result and never stops the run; `check.HasProblems` is the value to base an exit code on.
+
+Check a string of text without any file, with settings built in code:
+
+```csharp
+var settings = new TextLintSettings
+{
+    Language = "en-GB",
+    Words = ["TextLint"],
+    MinWordLength = 4,
+};
+var checker = new TextChecker(settings);
+
+foreach (var issue in checker.Check("The wrold of TextLint", "greeting.txt"))
+{
+    Console.WriteLine(issue); // greeting.txt(1,5): error: Unknown word 'wrold'
 }
 ```
 
-Settings can also be built in code, without a file. File selection takes the patterns directly, so
-pass the values you want:
+File selection is also available on its own. It takes the patterns directly, so pass the values you want:
 
 ```csharp
+using DemaConsulting.TextLint.FileSelection;
+
 var settings = new TextLintSettings
 {
     Files = ["**/*.{md,cs}"],
@@ -105,8 +146,10 @@ var settings = new TextLintSettings
 var files = FileSelector.Select("/path/to/repo", settings.Files, settings.IgnorePaths, settings.EnableGlobDot);
 ```
 
-The supported `.textlint.yaml` keys are `version`, `files`, `ignorePaths`, and `enableGlobDot`; any other
-key is an error. See the [User Guide][link-guide] for the glob pattern rules.
+The supported `.textlint.yaml` keys are `version`, `files`, `ignorePaths`, `enableGlobDot`, `language`,
+`words`, `ignoreWords`, `flagWords`, `minWordLength`, and `maxFileSize`; any other key is an error. See the
+[User Guide][link-guide] for the settings reference, the glob pattern rules, the comment directives, and the
+differences from cspell.
 
 Look words up in the embedded dictionaries. The default is American English; pass a language name, or a
 comma-separated list, to choose another (`en` is the same as `en-US`, the others are `en-GB` and
@@ -247,7 +290,8 @@ guidelines on reporting bugs, suggesting features, and submitting pull requests.
 
 The library embeds English and technical-term dictionaries built from third-party data: SCOWL (a
 permissive license by Kevin Atkinson) for English, and the MIT-licensed cspell-dicts packages by Street
-Side Software for technical terms. The required license notices are in
+Side Software for technical terms. The default list of text that is never spell-checked, and the patterns
+that recognize comment directives, are ported from cspell-lib (MIT license). The required license notices are in
 [THIRD-PARTY-NOTICES.txt](https://github.com/demaconsulting/TextLint/blob/main/third-party/THIRD-PARTY-NOTICES.txt),
 which is also included at the root of both NuGet packages, and the provenance of every list is described in
 the [dictionaries README](https://github.com/demaconsulting/TextLint/blob/main/dictionaries/README.md). The

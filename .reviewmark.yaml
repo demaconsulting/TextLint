@@ -18,6 +18,7 @@ needs-review:
   - "dictionaries/README.md"      # Word list documentation: provenance, format rules, and refresh procedure
   - "dictionaries/technical/variant-keep.txt"   # Curated list of reviewed spelling variants (human-reviewed data)
   - "dictionaries/technical/general/additions.txt"   # Curated project-owned technical terms (human-reviewed data)
+  - "test/DemaConsulting.TextLint.Tests/SpellChecking/Parity/**"   # cspell parity corpora and output (reviewed data)
   - "third-party/THIRD-PARTY-NOTICES.txt"   # Legal notices for the third-party word list data
   - "!**/obj/**"                  # Exclude build output
   - "!**/bin/**"                  # Exclude build output
@@ -73,6 +74,8 @@ reviews:
       - "docs/verification/introduction.md"
       - "docs/verification/textlint.md"
       - "test/**/TextLintTests.cs"
+      - "test/**/TextLintSpellCheckTests.cs"
+      - "test/**/CspellParityTests.cs"
 
   - id: TextLint-Design
     title: Review that TextLint Design is Consistent and Complete
@@ -241,6 +244,136 @@ reviews:
       - "docs/verification/textlint/dictionaries/dictionary-image.md"
       - "src/DemaConsulting.TextLint/Dictionaries/DictionaryImage.cs"
       - "test/**/Dictionaries/DictionaryImageTests.cs"
+
+  # TextLint - TextScanning
+  - id: TextLint-TextScanning
+    title: Review that TextLint TextScanning Satisfies Subsystem Requirements
+    context:
+      - docs/design/textlint.md
+      - docs/reqstream/textlint.yaml
+    paths:
+      - "docs/reqstream/textlint/text-scanning.yaml"
+      - "docs/design/textlint/text-scanning.md"
+      - "docs/verification/textlint/text-scanning.md"
+      - "test/**/TextScanning/TextScanningSubsystemTests.cs"
+
+  - id: TextLint-TextScanning-WordTokenizer
+    title: Review that TextLint TextScanning WordTokenizer Implementation is Correct
+    context:
+      - docs/design/textlint.md
+      - docs/reqstream/textlint.yaml
+      - docs/design/textlint/text-scanning.md
+      - docs/reqstream/textlint/text-scanning.yaml
+    paths:
+      - "docs/reqstream/textlint/text-scanning/word-tokenizer.yaml"
+      - "docs/design/textlint/text-scanning/word-tokenizer.md"
+      - "docs/verification/textlint/text-scanning/word-tokenizer.md"
+      - "src/DemaConsulting.TextLint/TextScanning/WordTokenizer.cs"
+      - "src/DemaConsulting.TextLint/TextScanning/ListEntry.cs"
+      - "src/DemaConsulting.TextLint/TextScanning/TextRange.cs"
+      - "test/**/TextScanning/WordTokenizerTests.cs"
+
+  - id: TextLint-TextScanning-DefaultPatterns
+    title: Review that TextLint TextScanning DefaultPatterns Implementation is Correct
+    context:
+      - docs/design/textlint.md
+      - docs/reqstream/textlint.yaml
+      - docs/design/textlint/text-scanning.md
+      - docs/reqstream/textlint/text-scanning.yaml
+    paths:
+      - "docs/reqstream/textlint/text-scanning/default-patterns.yaml"
+      - "docs/design/textlint/text-scanning/default-patterns.md"
+      - "docs/verification/textlint/text-scanning/default-patterns.md"
+      - "src/DemaConsulting.TextLint/TextScanning/DefaultPatterns.cs"
+      - "test/**/TextScanning/DefaultPatternsTests.cs"
+
+  - id: TextLint-TextScanning-DocumentDirectives
+    title: Review that TextLint TextScanning DocumentDirectives Implementation is Correct
+    context:
+      - docs/design/textlint.md
+      - docs/reqstream/textlint.yaml
+      - docs/design/textlint/text-scanning.md
+      - docs/reqstream/textlint/text-scanning.yaml
+    paths:
+      - "docs/reqstream/textlint/text-scanning/document-directives.yaml"
+      - "docs/design/textlint/text-scanning/document-directives.md"
+      - "docs/verification/textlint/text-scanning/document-directives.md"
+      - "src/DemaConsulting.TextLint/TextScanning/DocumentDirectives.cs"
+      - "src/DemaConsulting.TextLint/TextScanning/DirectiveScan.cs"
+      - "test/**/TextScanning/DocumentDirectivesTests.cs"
+
+  # TextLint - SpellChecking
+  - id: TextLint-SpellChecking
+    title: Review that TextLint SpellChecking Satisfies Subsystem Requirements
+    context:
+      - docs/design/textlint.md
+      - docs/reqstream/textlint.yaml
+    paths:
+      - "docs/reqstream/textlint/spell-checking.yaml"
+      - "docs/design/textlint/spell-checking.md"
+      - "docs/verification/textlint/spell-checking.md"
+      - "test/**/SpellChecking/SpellCheckingSubsystemTests.cs"
+
+  - id: TextLint-SpellChecking-TextChecker
+    title: Review that TextLint SpellChecking TextChecker Implementation is Correct
+    context:
+      - docs/design/textlint.md
+      - docs/reqstream/textlint.yaml
+      - docs/design/textlint/spell-checking.md
+      - docs/reqstream/textlint/spell-checking.yaml
+    paths:
+      - "docs/reqstream/textlint/spell-checking/text-checker.yaml"
+      - "docs/design/textlint/spell-checking/text-checker.md"
+      - "docs/verification/textlint/spell-checking/text-checker.md"
+      - "src/DemaConsulting.TextLint/SpellChecking/TextChecker.cs"
+      - "src/DemaConsulting.TextLint/SpellChecking/SpellingIssue.cs"
+      - "src/DemaConsulting.TextLint/SpellChecking/SpellingIssueKind.cs"
+      - "src/DemaConsulting.TextLint/SpellChecking/WordRules.cs"
+      - "src/DemaConsulting.TextLint/SpellChecking/WordSet.cs"
+      - "src/DemaConsulting.TextLint/SpellChecking/FlagSet.cs"
+      - "test/**/SpellChecking/TextCheckerTests.cs"
+
+  - id: TextLint-SpellChecking-FileTextReader
+    title: Review that TextLint SpellChecking FileTextReader Implementation is Correct
+    context:
+      - docs/design/textlint.md
+      - docs/reqstream/textlint.yaml
+      - docs/design/textlint/spell-checking.md
+      - docs/reqstream/textlint/spell-checking.yaml
+    paths:
+      - "docs/reqstream/textlint/spell-checking/file-text-reader.yaml"
+      - "docs/design/textlint/spell-checking/file-text-reader.md"
+      - "docs/verification/textlint/spell-checking/file-text-reader.md"
+      - "src/DemaConsulting.TextLint/SpellChecking/FileTextReader.cs"
+      - "src/DemaConsulting.TextLint/SpellChecking/FileTextContent.cs"
+      - "test/**/SpellChecking/FileTextReaderTests.cs"
+
+  - id: TextLint-SpellChecking-SpellChecker
+    title: Review that TextLint SpellChecking SpellChecker Implementation is Correct
+    context:
+      - docs/design/textlint.md
+      - docs/reqstream/textlint.yaml
+      - docs/design/textlint/spell-checking.md
+      - docs/reqstream/textlint/spell-checking.yaml
+    paths:
+      - "docs/reqstream/textlint/spell-checking/spell-checker.yaml"
+      - "docs/design/textlint/spell-checking/spell-checker.md"
+      - "docs/verification/textlint/spell-checking/spell-checker.md"
+      - "src/DemaConsulting.TextLint/SpellChecking/SpellChecker.cs"
+      - "src/DemaConsulting.TextLint/SpellChecking/SpellCheckOptions.cs"
+      - "src/DemaConsulting.TextLint/SpellChecking/SpellCheckResult.cs"
+      - "src/DemaConsulting.TextLint/SpellChecking/FileDiagnostic.cs"
+      - "src/DemaConsulting.TextLint/SpellChecking/FileDiagnosticKind.cs"
+      - "test/**/SpellChecking/SpellCheckerTests.cs"
+
+  # TextLint - cspell parity corpora (human-reviewed inputs and the recorded output of the real cspell)
+  - id: TextLint-SpellingParityCorpus
+    title: Review that the cspell Parity Corpora and Their Recorded Output are Correct
+    context:
+      - docs/verification/textlint.md
+      - docs/reqstream/textlint.yaml
+    paths:
+      - "test/DemaConsulting.TextLint.Tests/SpellChecking/Parity/**"
 
   # TextLint - Test Support (shared helpers used by the library tests; not a software item)
   - id: TextLint-TestSupport

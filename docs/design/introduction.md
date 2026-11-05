@@ -26,6 +26,12 @@ Local items:
     result and exception types)
   - **Dictionaries** subsystem: **SpellingDictionary** (the public word lookup and language
     selection) and **DictionaryImage** (loads, validates, and probes one embedded binary dictionary)
+  - **TextScanning** subsystem: **WordTokenizer** (what a word is: words, tokens, case-change pieces, and
+    word-list entries), **DefaultPatterns** (the text that is never checked), and **DocumentDirectives** (the
+    directives that comments use to control checking, with its result type)
+  - **SpellChecking** subsystem: **TextChecker** (checks a string against the dictionary and the word lists, with
+    its finding types and word rules), **FileTextReader** (reads a file into text), and **SpellChecker** (checks the
+    files of a directory in parallel, with its options and result types)
 - **TextLintTool**: system, subsystem, and unit design for all local components of the
   command-line tool.
 - **DictionaryBuilder**: system and unit design for the build-time program that converts the word
@@ -98,13 +104,16 @@ on nothing but the .NET base class library.
 - **dictionaries/** - plain-text word lists, one sub-folder per dictionary (the technical dictionary's
   folder is split into `language/` and `general/` lists plus a reviewed `variant-keep.txt`), and the script
   that regenerates the imported lists (data, not a software item)
-- **third-party/** - license notices for the third-party data in the word lists, packed into both NuGet packages
+- **third-party/** - license notices for the third-party data in the word lists and the rules ported from cspell,
+  packed into both NuGet packages
 - **src/** - source files and projects
   - **DemaConsulting.TextLint/** - library source
     - **Configuration/** - settings and settings-file loading subsystem
     - **FileSelection/** - glob pattern and file selection subsystem
     - **Dictionaries/** - word lookup subsystem (the dictionary format source is linked from the
       DictionaryBuilder project)
+    - **TextScanning/** - word, ignored-text, and directive subsystem (pure text logic; no file or setting access)
+    - **SpellChecking/** - text checking, file reading, and parallel file checking subsystem
   - **DemaConsulting.TextLint.DictionaryBuilder/** - build-time dictionary builder source (five units)
   - **DemaConsulting.TextLint.Tool/** - main application source
     - **Cli/** - command-line interface subsystem
