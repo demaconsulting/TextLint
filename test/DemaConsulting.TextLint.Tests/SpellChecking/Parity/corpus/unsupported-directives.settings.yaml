@@ -1,0 +1,5 @@
+---
+# cspell:disable
+# Settings of the unsupported-directives parity corpus: the cspell defaults.
+version: "0.2"
+language: en

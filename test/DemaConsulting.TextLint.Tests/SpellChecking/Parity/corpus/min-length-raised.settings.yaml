@@ -1,0 +1,6 @@
+---
+# cspell:disable
+# Settings of the raised-minimum parity corpus: words shorter than 6 are not checked.
+version: "0.2"
+language: en
+minWordLength: 6

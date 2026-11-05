@@ -1,0 +1,8 @@
+---
+# cspell:disable
+# Settings of the tokenization parity corpus: the cspell defaults.
+#
+# The same file configures TextLint (the parity test loads it) and cspell (record-cspell.ps1 passes it
+# with --config), so both tools check the corpus with identical settings.
+version: "0.2"
+language: en

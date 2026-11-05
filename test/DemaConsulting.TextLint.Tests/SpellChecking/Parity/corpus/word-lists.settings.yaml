@@ -1,0 +1,28 @@
+---
+# cspell:disable
+# Settings of the word-lists parity corpus: accepted, ignored, and flagged words.
+version: "0.2"
+language: en
+words:
+  - zorbwordsa
+  - Zorbwordsb
+  - ZORBWORDSC
+  - zork8s
+  - zorfoo-bar
+  - zorv1.2
+  - zormy_var
+  - zorbboth
+ignoreWords:
+  - zorbignore
+  - Zorbignoreb
+  - zorbboth2
+flagWords:
+  - zorbflag
+  - ZorbFlagCap
+  - "zorbsuggest->zorbgood, zorbbetter"
+  - "zorbcolon: zorbfixed"
+  - zorbboth
+  - zorbboth2
+  - zorbflag8
+  - zorflag-dash
+  - zbf

@@ -1,0 +1,5 @@
+# Recorded with cspell 10.1.1 by record-cspell.ps1 from corpus/divergences.input (line feed line endings) and corpus/divergences.settings.yaml. # One finding per line: LINE:COLUMN WORD [flagged]. Do not edit by hand; run the script again.
+2:1 zorb
+2:5 QUIXF
+3:1 quix中文zorb
+4:2 nbsp

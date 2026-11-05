@@ -395,13 +395,13 @@ public class TextLintTests
         using var temp = new TempDirectory();
 
         // Act: load it
-        var result = await LoadConfigAsync(temp, "version: 0.2\nwords:\n  - foo\n");
+        var result = await LoadConfigAsync(temp, "version: 0.2\ncaseSensitive: true\n");
 
         // Assert: loading fails and the error names the key, file, and position
         var diagnostic = Assert.Single(result.Diagnostics);
         Assert.Multiple(
             () => Assert.Null(result.Settings),
-            () => Assert.Contains("'words' is not a supported setting", diagnostic.Message),
+            () => Assert.Contains("'caseSensitive' is not a supported setting", diagnostic.Message),
             () => Assert.EndsWith(".textlint.yaml", diagnostic.FilePath),
             () => Assert.Equal(2, diagnostic.Line),
             () => Assert.Equal(1, diagnostic.Column));
