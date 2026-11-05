@@ -1,0 +1,56 @@
+---
+# Software Unit Requirements for the VariantFilter Class
+#
+# The VariantFilter unit applies the spelling-variant rule when the technical word lists are combined:
+# a US-only or GB-only variant spelling stays known only when a programming-language list or the
+# reviewed list has it.
+
+sections:
+  - title: DictionaryBuilder Requirements
+    sections:
+      - title: VariantFilter Requirements
+        requirements:
+          - id: DictionaryBuilder-VariantFilter-StripGeneralVariants
+            title: >-
+              VariantFilter shall omit from the technical words each general-list word that is a spelling
+              variant and is in neither a programming-language list nor the reviewed list, and shall keep
+              every other general-list word.
+            justification: |
+              Ordinary variant spellings such as "favorite" must be decided by the language selection, so
+              the general lists must not make them known everywhere; every other general term, including
+              exempt variants, must survive untouched.
+            tests:
+              - VariantFilter_Apply_GeneralVariant_IsStripped
+              - VariantFilter_Apply_NonVariantGeneralWord_IsKept
+              - VariantFilter_Apply_MixedInput_CountsKeptAndStripped
+
+          - id: DictionaryBuilder-VariantFilter-KeepLanguageAndAllowed
+            title: >-
+              VariantFilter shall keep every programming-language-list word and every reviewed-list word,
+              whether or not it is a spelling variant, and shall merge the capitalization forms a word has
+              across the lists that contain it.
+            justification: |
+              Programming keywords and API names are fixed by their language, and the reviewed list holds
+              terms a person has approved, so neither may be removed by the rule; the capitalization
+              forms must not be lost when a word appears in several lists.
+            tests:
+              - VariantFilter_Apply_GeneralVariantInLanguageList_IsKept
+              - VariantFilter_Apply_GeneralVariantInKeepList_IsKept
+              - VariantFilter_Apply_LanguageVariantOnly_IsKept
+              - VariantFilter_Apply_WordInSeveralLists_MergesFlags
+
+          - id: DictionaryBuilder-VariantFilter-KeepListReport
+            title: >-
+              VariantFilter shall report the reviewed-list words that are not spelling variants, in order,
+              and the number of variants kept through programming-language lists, kept through the reviewed
+              list, and removed, as a result that later changes to the collections it was built from
+              cannot alter.
+            justification: |
+              A reviewed-list word that is not a variant is a stale entry, and the counts let a person
+              reviewing a refresh of the lists see what the rule did without comparing dictionaries. A
+              result that claims to be fixed must not change when a caller later reuses or edits the
+              collections it passed in, or the report and the dictionary built from it could disagree.
+            tests:
+              - VariantFilter_Apply_KeepWordNotVariant_IsReported
+              - VariantFilter_Apply_MixedInput_CountsKeptAndStripped
+              - VariantFilter_Result_SourceMutatedAfterConstruction_ResultUnchanged

@@ -26,6 +26,13 @@ includes:
   - docs/reqstream/textlint-tool/utilities.yaml
   - docs/reqstream/textlint-tool/utilities/path-helpers.yaml
   - docs/reqstream/textlint-tool/platform-requirements.yaml
+  - docs/reqstream/dictionary-builder.yaml
+  - docs/reqstream/dictionary-builder/platform-requirements.yaml
+  - docs/reqstream/dictionary-builder/builder-program.yaml
+  - docs/reqstream/dictionary-builder/word-list-reader.yaml
+  - docs/reqstream/dictionary-builder/dictionary-writer.yaml
+  - docs/reqstream/dictionary-builder/dictionary-format.yaml
+  - docs/reqstream/dictionary-builder/variant-filter.yaml
   - docs/reqstream/ots/xunit.yaml
   - docs/reqstream/ots/reqstream.yaml
   - docs/reqstream/ots/buildmark.yaml

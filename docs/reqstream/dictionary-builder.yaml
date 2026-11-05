@@ -1,0 +1,242 @@
+---
+# DictionaryBuilder System-Level Requirements
+#
+# PURPOSE:
+# - Define system-level requirements describing what the build needs from the dictionary builder
+# - The builder is a build-time system (not packaged or shipped) that converts the plain-text word
+#   lists under dictionaries/ into the binary dictionary files that the TextLint library embeds
+# - Its users are the library's build and the people who maintain the word lists, so the
+#   requirements cover correct conversion, precise error reporting, and reproducible output
+# - System requirements are validated by system-level tests (DictionaryBuilderTests.cs) that run the
+#   compiled builder as a separate process, plus one test that runs it over the repository's real lists
+
+sections:
+  - title: DictionaryBuilder Requirements
+    requirements:
+      - id: DictionaryBuilder-System-CommandLine
+        title: >-
+          The builder shall accept the word-list folder, the output folder, and the dictionary names on
+          the command line, and shall reject an invalid command line with a usage message and a distinct
+          exit code.
+        tags: [system]
+        justification: |
+          The library's build starts the builder with exactly these inputs. A malformed command line
+          (a missing part, an unknown option, an unsafe name) is a mistake in the build definition,
+          which must be distinguishable from a mistake in a word list so that the right person fixes
+          the right thing, and it must never cause files to be read or written outside the intended
+          folders.
+        children:
+          - DictionaryBuilder-BuilderProgram-Arguments
+        tests:
+          - DictionaryBuilder_Build_InvalidCommandLine_ReportsUsage
+
+      - id: DictionaryBuilder-System-ConvertWordLists
+        title: >-
+          The builder shall convert each named dictionary's folder of plain-text word lists into one
+          binary dictionary file.
+        tags: [system]
+        justification: |
+          The library embeds binary dictionaries so that lookups need no parsing at run time, while the
+          word lists stay plain text so that people can review and edit them. The conversion is the
+          bridge between the two, and the real repository lists must convert, which is verified by
+          building every committed list.
+        children:
+          - DictionaryBuilder-BuilderProgram-Dictionaries
+          - DictionaryBuilder-WordListReader-EntryParsing
+          - DictionaryBuilder-DictionaryWriter-Layout
+        tests:
+          - DictionaryBuilder_Build_WordListFolders_WritesOneDictionaryPerFolder
+          - DictionaryBuilder_Build_RepositoryWordLists_BuildsAllDictionaries
+
+      - id: DictionaryBuilder-System-NormalizedContent
+        title: >-
+          The builder shall store each distinct word once, in lower case, regardless of the letter case,
+          order, and repetition of the entries in the lists.
+        tags: [system]
+        justification: |
+          Spell checking ignores letter case, and the lists come from several sources that repeat each
+          other and use different capitalization. Normalizing once at build time keeps the data small
+          and makes every lookup answer independent of how a word happened to be written in a list.
+        children:
+          - DictionaryBuilder-WordListReader-Normalization
+          - DictionaryBuilder-DictionaryFormat-Folding
+        tests:
+          - DictionaryBuilder_Build_CaseVariantsAndDuplicates_StoresEachWordOnce
+          - DictionaryBuilder_Build_UnsortedLists_StoresSortedWords
+
+      - id: DictionaryBuilder-System-CaseForms
+        title: >-
+          The builder shall record which capitalization forms (lower case, capitalized, upper case, or
+          mixed) each word had in the lists.
+        tags: [system]
+        justification: |
+          Lookups are case-insensitive today, but a later case-sensitive check must be able to tell
+          that "Paris" is a name and "paris" is not, without changing or re-importing the lists.
+          Recording the forms now keeps that option open at no cost in size.
+        children:
+          - DictionaryBuilder-DictionaryFormat-CaseForms
+          - DictionaryBuilder-DictionaryWriter-CaseForms
+        tests:
+          - DictionaryBuilder_Build_CapitalizationForms_AreRecorded
+
+      - id: DictionaryBuilder-System-InvalidEntries
+        title: >-
+          The builder shall reject an invalid list entry by naming its file and line, and shall write no
+          dictionary file when any entry is invalid.
+        tags: [system]
+        justification: |
+          Word lists are edited by hand and imported from third-party sources, so a stray digit, curly
+          apostrophe, or wrongly encoded file is certain to occur. A silent skip would produce a wrong
+          dictionary; a precise error lets the author fix the exact line, and writing nothing keeps a
+          half-updated set of dictionaries from ever reaching the product.
+        children:
+          - DictionaryBuilder-WordListReader-Validation
+          - DictionaryBuilder-BuilderProgram-ErrorReporting
+        tests:
+          - DictionaryBuilder_Build_InvalidEntry_ReportsFileAndLineAndWritesNothing
+
+      - id: DictionaryBuilder-System-Misconfiguration
+        title: >-
+          The builder shall fail when a declared dictionary has no words or when a word-list folder that
+          holds lists is not declared.
+        tags: [system]
+        justification: |
+          A mistyped or forgotten dictionary name would otherwise silently drop a whole list from the
+          product, or ship an empty dictionary, and no later check could notice. Failing the build names
+          the dictionary or folder at fault.
+        children:
+          - DictionaryBuilder-BuilderProgram-Misconfiguration
+        tests:
+          - DictionaryBuilder_Build_EmptyDictionary_FailsNamingDictionary
+          - DictionaryBuilder_Build_UndeclaredFolder_FailsNamingFolder
+
+      - id: DictionaryBuilder-System-Reproducible
+        title: >-
+          The builder shall produce byte-identical dictionary files from identical word lists, on every
+          supported platform and whatever line endings the lists use.
+        tags: [system]
+        justification: |
+          The library is built on Windows, Linux, and macOS and the lists are checked out with different
+          line endings. Identical output means a rebuild never causes a spurious change, the package
+          contents do not depend on which machine built them, and the build can be verified by comparing
+          hashes.
+        children:
+          - DictionaryBuilder-DictionaryWriter-Determinism
+          - DictionaryBuilder-DictionaryFormat-Hash
+        tests:
+          - DictionaryBuilder_Build_SameListsTwice_ProducesIdenticalFiles
+          - DictionaryBuilder_Build_CrLfLists_ProduceSameFilesAsLf
+
+      - id: DictionaryBuilder-System-StableOutput
+        title: >-
+          The builder shall leave an existing dictionary file untouched when the lists would produce
+          identical content.
+        tags: [system]
+        justification: |
+          Incremental builds decide what to rebuild from file timestamps. Rewriting an identical file
+          would make every later step believe the dictionaries changed and redo its work on every build.
+        children:
+          - DictionaryBuilder-BuilderProgram-UnchangedOutput
+        tests:
+          - DictionaryBuilder_Build_UnchangedLists_LeavesFilesUntouched
+
+      - id: DictionaryBuilder-System-AllOrNothing
+        title: >-
+          The builder shall change no dictionary file when any dictionary cannot be produced or any
+          dictionary file cannot be written, and when the file system also prevents restoring the previous
+          files or deleting a temporary file it shall report that fatal condition with a distinct exit
+          code, naming the affected files and the backups that hold their previous content.
+        tags: [system]
+        justification: |
+          The dictionaries ship together and a lookup that is correct for one dictionary but stale for
+          another is a wrong result nobody can notice. A build that fails must therefore leave every
+          dictionary file as it was, so that a later successful build starts from a consistent state.
+          A file system cannot be forced to undo a change, so when restoration or cleanup itself fails
+          the build must say so plainly and preserve the previous content, instead of hiding an
+          inconsistent output behind an ordinary failure. The system-level test covers the failed-write
+          guarantee; the fatal reports are verified by the unit tests of the child requirement, because
+          they need a file system failure that cannot be provoked portably from outside the process.
+        children:
+          - DictionaryBuilder-BuilderProgram-AllOrNothing
+        tests:
+          - DictionaryBuilder_Build_LaterOutputBlocked_LeavesEarlierOutputUntouched
+          - DictionaryBuilder_Build_InvalidEntry_ReportsFileAndLineAndWritesNothing
+
+      - id: DictionaryBuilder-System-NameMatching
+        title: >-
+          The builder shall treat dictionary names, folder names, list-file names, and output-file names that
+          differ only in letter case as the same name, finding folders and existing output files under their
+          on-disk spelling and refusing an ambiguous match, so that it gives the same result on
+          case-sensitive and case-insensitive file systems.
+        tags: [system]
+        justification: |
+          The library is built on Windows, Linux, and macOS, whose file systems disagree about whether
+          "alpha" and "ALPHA" are one folder. A build that silently let one dictionary overwrite another
+          on one platform only, found a list on one platform and skipped it on another, read one of two
+          folders that differ only in case, or left a stale "ALPHA.tld" beside a new "alpha.tld", would
+          produce different products from the same repository.
+        children:
+          - DictionaryBuilder-BuilderProgram-NameMatching
+          - DictionaryBuilder-WordListReader-EntryParsing
+        tests:
+          - DictionaryBuilder_Build_NamesDifferingOnlyInCase_RejectedAsDuplicate
+
+      - id: DictionaryBuilder-System-UnreadableInput
+        title: >-
+          The builder shall fail, naming the folder or file at fault, when a word-list folder or file
+          cannot be read, and shall treat only a folder that does not exist as absent.
+        tags: [system]
+        justification: |
+          A folder or list that is present but unreadable (access denied, an I/O error) looks exactly like
+          an empty or missing one to a careless check, and the words it holds would silently vanish from
+          the product, for example an unreadable reviewed list would silently strip the words it approves.
+          Reporting the real cause lets the maintainer fix the permission instead of chasing a missing
+          word. The system-level test covers the missing folder; the unreadable cases are verified by the
+          unit tests of the child requirements, because they need a file system failure that cannot be
+          provoked portably from outside the process.
+        children:
+          - DictionaryBuilder-BuilderProgram-ErrorReporting
+          - DictionaryBuilder-WordListReader-Validation
+        tests:
+          - DictionaryBuilder_Build_MissingDictionaryFolder_FailsNamingFolder
+
+      - id: DictionaryBuilder-System-VariantSpellings
+        title: >-
+          The builder shall not let a general technical term make a US-only or GB-only spelling variant
+          known in the technical dictionary, unless the word is a programming-language keyword or API name
+          or is explicitly allowed by a reviewed list.
+        tags: [system]
+        justification: |
+          The language setting (en-US or en-GB) must decide ordinary spelling variants such as "favorite"
+          or "flavors", yet the imported general technical lists contain many of them and would make them
+          known in every language. Programming keywords and API names (for example the CSS "color" and
+          "grey") are fixed by the language and must stay known whatever dialect the user writes, and a
+          short human-reviewed list covers the remaining genuine programming terms such as "tokenizer".
+          The imported lists stay faithful to their upstream source, so the rule is applied when the
+          dictionaries are combined.
+        children:
+          - DictionaryBuilder-BuilderProgram-TechnicalDictionary
+          - DictionaryBuilder-VariantFilter-StripGeneralVariants
+          - DictionaryBuilder-VariantFilter-KeepLanguageAndAllowed
+        tests:
+          - DictionaryBuilder_Build_GeneralListVariantSpelling_IsStripped
+          - DictionaryBuilder_Build_LanguageListVariantSpelling_IsKept
+          - DictionaryBuilder_Build_KeepListVariantSpelling_IsKept
+          - DictionaryBuilder_Build_RepositoryWordLists_BuildsAllDictionaries
+
+      - id: DictionaryBuilder-System-TechnicalLists
+        title: >-
+          The builder shall fail when a technical word list is not in the place that classifies it as
+          general or programming-language, or when a word of the reviewed list is not a spelling variant.
+        tags: [system]
+        justification: |
+          The folder of a technical list decides whether its variant spellings are exempt from the rule, so
+          a misplaced list would silently change the product. A reviewed-list word that is not a variant is
+          a stale entry that would hide the rule's real effect; failing the build keeps the reviewed list
+          honest and short.
+        children:
+          - DictionaryBuilder-BuilderProgram-TechnicalLists
+          - DictionaryBuilder-VariantFilter-KeepListReport
+        tests:
+          - DictionaryBuilder_Build_TechnicalListOutsideKnownPlaces_FailsNamingFile
+          - DictionaryBuilder_Build_KeepListWordNotVariant_FailsNamingWord

@@ -14,6 +14,11 @@ needs-review:
   - "docs/verification/**/*.md"   # Verification documentation files
   - "docs/user_guide/**/*.md"     # User guide documentation
   - "docs/sysml2/**/*.sysml"      # SysML2 architecture model
+  - "dictionaries/refresh.py"     # Word list import script (code that produces the builder's input data)
+  - "dictionaries/README.md"      # Word list documentation: provenance, format rules, and refresh procedure
+  - "dictionaries/technical/variant-keep.txt"   # Curated list of reviewed spelling variants (human-reviewed data)
+  - "dictionaries/technical/general/additions.txt"   # Curated project-owned technical terms (human-reviewed data)
+  - "third-party/THIRD-PARTY-NOTICES.txt"   # Legal notices for the third-party word list data
   - "!**/obj/**"                  # Exclude build output
   - "!**/bin/**"                  # Exclude build output
   - "!node_modules/**"            # Exclude npm dependencies
@@ -204,7 +209,7 @@ reviews:
       - docs/verification/textlint.md
       - docs/verification/textlint/file-selection/file-selector.md
     paths:
-      - "test/**/TestSupport/*.cs"
+      - "test/DemaConsulting.TextLint.Tests/TestSupport/*.cs"
 
   # TextLintTool - Specials
   - id: TextLintTool-Architecture
@@ -341,6 +346,154 @@ reviews:
       - "docs/verification/textlint-tool/utilities/path-helpers.md"
       - "src/**/Utilities/PathHelpers.cs"
       - "test/**/Utilities/PathHelpersTests.cs"
+
+  # DictionaryBuilder - Specials
+  - id: DictionaryBuilder-Architecture
+    title: Review that DictionaryBuilder Architecture Satisfies Requirements
+    context:
+      - README.md
+      - "docs/user_guide/**/*.md"
+    paths:
+      - "docs/reqstream/dictionary-builder.yaml"
+      - "docs/design/introduction.md"
+      - "docs/design/dictionary-builder.md"
+      - "docs/verification/introduction.md"
+      - "docs/verification/dictionary-builder.md"
+      - "test/**/DictionaryBuilderTests.cs"
+
+  - id: DictionaryBuilder-Design
+    title: Review that DictionaryBuilder Design is Consistent and Complete
+    context:
+      - docs/reqstream/dictionary-builder.yaml
+    paths:
+      - "docs/reqstream/dictionary-builder/platform-requirements.yaml"
+      - "docs/design/introduction.md"
+      - "docs/design/dictionary-builder.md"
+      - "docs/design/dictionary-builder/**/*.md"
+
+  - id: DictionaryBuilder-Verification
+    title: Review that DictionaryBuilder Verification is Consistent and Complete
+    context:
+      - docs/reqstream/dictionary-builder.yaml
+    paths:
+      - "docs/verification/introduction.md"
+      - "docs/verification/dictionary-builder.md"
+      - "docs/verification/dictionary-builder/**/*.md"
+
+  - id: DictionaryBuilder-AllRequirements
+    title: Review that All DictionaryBuilder Requirements are Complete
+    context:
+      - docs/design/dictionary-builder.md
+      - docs/reqstream/dictionary-builder.yaml
+    paths:
+      - "docs/reqstream/dictionary-builder/**/*.yaml"
+
+  # DictionaryBuilder - BuilderProgram
+  - id: DictionaryBuilder-BuilderProgram
+    title: Review that DictionaryBuilder BuilderProgram Implementation is Correct
+    context:
+      - docs/design/dictionary-builder.md
+      - docs/reqstream/dictionary-builder.yaml
+    paths:
+      - "docs/reqstream/dictionary-builder/builder-program.yaml"
+      - "docs/design/dictionary-builder/builder-program.md"
+      - "docs/verification/dictionary-builder/builder-program.md"
+      - "src/**/BuilderProgram.cs"
+      - "src/**/FileOperations.cs"
+      - "test/**/BuilderProgramTests.cs"
+
+  # DictionaryBuilder - WordListReader
+  - id: DictionaryBuilder-WordListReader
+    title: Review that DictionaryBuilder WordListReader Implementation is Correct
+    context:
+      - docs/design/dictionary-builder.md
+      - docs/reqstream/dictionary-builder.yaml
+    paths:
+      - "docs/reqstream/dictionary-builder/word-list-reader.yaml"
+      - "docs/design/dictionary-builder/word-list-reader.md"
+      - "docs/verification/dictionary-builder/word-list-reader.md"
+      - "src/**/WordListReader.cs"
+      - "src/**/WordListReadResult.cs"
+      - "src/**/WordListDiagnostic.cs"
+      - "test/**/WordListReaderTests.cs"
+
+  # DictionaryBuilder - DictionaryWriter
+  - id: DictionaryBuilder-DictionaryWriter
+    title: Review that DictionaryBuilder DictionaryWriter Implementation is Correct
+    context:
+      - docs/design/dictionary-builder.md
+      - docs/reqstream/dictionary-builder.yaml
+    paths:
+      - "docs/reqstream/dictionary-builder/dictionary-writer.yaml"
+      - "docs/design/dictionary-builder/dictionary-writer.md"
+      - "docs/verification/dictionary-builder/dictionary-writer.md"
+      - "src/**/DictionaryWriter.cs"
+      - "test/**/DictionaryWriterTests.cs"
+
+  # DictionaryBuilder - DictionaryFormat
+  - id: DictionaryBuilder-DictionaryFormat
+    title: Review that DictionaryBuilder DictionaryFormat Implementation is Correct
+    context:
+      - docs/design/dictionary-builder.md
+      - docs/reqstream/dictionary-builder.yaml
+    paths:
+      - "docs/reqstream/dictionary-builder/dictionary-format.yaml"
+      - "docs/design/dictionary-builder/dictionary-format.md"
+      - "docs/verification/dictionary-builder/dictionary-format.md"
+      - "src/**/DictionaryFormat.cs"
+      - "test/**/DictionaryFormatTests.cs"
+
+  # DictionaryBuilder - VariantFilter
+  - id: DictionaryBuilder-VariantFilter
+    title: Review that DictionaryBuilder VariantFilter Implementation is Correct
+    context:
+      - docs/design/dictionary-builder.md
+      - docs/reqstream/dictionary-builder.yaml
+    paths:
+      - "docs/reqstream/dictionary-builder/variant-filter.yaml"
+      - "docs/design/dictionary-builder/variant-filter.md"
+      - "docs/verification/dictionary-builder/variant-filter.md"
+      - "src/**/VariantFilter.cs"
+      - "src/**/VariantFilterResult.cs"
+      - "test/**/VariantFilterTests.cs"
+
+  # DictionaryBuilder - Word List Import (the script that produces the builder's input data)
+  - id: DictionaryBuilder-WordListImport
+    title: Review that DictionaryBuilder Word List Import Script is Correct
+    context:
+      - docs/design/dictionary-builder.md
+      - docs/design/dictionary-builder/word-list-reader.md
+    paths:
+      - "dictionaries/refresh.py"
+      - "dictionaries/README.md"
+
+  # DictionaryBuilder - Curated Lists (human-reviewed data that the variant rule depends on)
+  - id: DictionaryBuilder-CuratedLists
+    title: Review that DictionaryBuilder Curated Word Lists are Justified
+    context:
+      - docs/design/dictionary-builder/variant-filter.md
+      - dictionaries/README.md
+    paths:
+      - "dictionaries/technical/variant-keep.txt"
+      - "dictionaries/technical/general/additions.txt"
+
+  # DictionaryBuilder - Third-Party Notices (legal notices for the imported data)
+  - id: DictionaryBuilder-ThirdPartyNotices
+    title: Review that Third-Party Notices are Complete and Accurate
+    context:
+      - dictionaries/README.md
+      - dictionaries/refresh.py
+    paths:
+      - "third-party/THIRD-PARTY-NOTICES.txt"
+
+  # DictionaryBuilder - Test Support (shared helpers used by the builder tests; not a software item)
+  - id: DictionaryBuilder-TestSupport
+    title: Review that DictionaryBuilder Test Support Helpers are Correct
+    context:
+      - docs/verification/dictionary-builder.md
+      - docs/verification/dictionary-builder/dictionary-writer.md
+    paths:
+      - "test/DemaConsulting.TextLint.DictionaryBuilder.Tests/TestSupport/*.cs"
 
   # OTS Items
   - id: OTS-BuildMark

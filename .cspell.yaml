@@ -28,6 +28,7 @@ words:
   - docversion
   - errorlevel
   - fileassert
+  - finalizer
   - xunit
   - nameof
   - pagetitle
@@ -64,3 +65,6 @@ ignorePaths:
   - "**/bin/**"
   - "**/obj/**"
   - package-lock.json
+  # Word lists: hundreds of thousands of generated entries (the technical lists include
+  # intentionally non-English terms), checked by the dictionary builder instead of spell-checking.
+  - "dictionaries/**/*.txt"

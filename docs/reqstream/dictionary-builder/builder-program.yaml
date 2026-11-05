@@ -1,0 +1,185 @@
+---
+# Software Unit Requirements for the BuilderProgram Class
+#
+# The BuilderProgram unit is the entry point of the dictionary builder: it parses the command line,
+# drives the reader and the writer, and reports problems in the compiler's error format.
+
+sections:
+  - title: DictionaryBuilder Requirements
+    sections:
+      - title: BuilderProgram Requirements
+        requirements:
+          - id: DictionaryBuilder-BuilderProgram-Arguments
+            title: >-
+              BuilderProgram shall require an input folder, an output folder, and at least one dictionary
+              name, and shall reject a missing part, an unknown option, an option without a value or with
+              an empty or blank value, a repeated option, a dictionary name that is not a plain folder
+              name or that repeats an earlier name ignoring letter case, and a technical-dictionary
+              declaration that is incomplete or names an undeclared dictionary, with a usage message, the
+              usage exit code, and no file read or written.
+            justification: |
+              The build supplies these inputs, so a malformed command line is a mistake in the build
+              definition. Names become folder and file names, so a name that could climb out of the
+              input or output folder must be refused before anything is touched, and two names that
+              differ only in case are one folder and one output file on some file systems, so one
+              dictionary would silently overwrite the other. The variant rule needs both the technical
+              dictionary and the dictionaries that define the variants. An empty value must never be
+              accepted as the working folder, where a build would silently read or write the wrong place.
+            tests:
+              - BuilderProgram_Run_MissingInput_ReturnsUsageError
+              - BuilderProgram_Run_MissingOutput_ReturnsUsageError
+              - BuilderProgram_Run_NoDictionaryNames_ReturnsUsageError
+              - BuilderProgram_Run_UnknownOption_ReturnsUsageError
+              - BuilderProgram_Run_OptionWithoutValue_ReturnsUsageError
+              - BuilderProgram_Run_EmptyOptionValue_ReturnsUsageError
+              - BuilderProgram_Run_DuplicateOption_ReturnsUsageError
+              - BuilderProgram_Run_NameWithPathSeparator_ReturnsUsageError
+              - BuilderProgram_Run_DuplicateName_ReturnsUsageError
+              - BuilderProgram_Run_DuplicateNameDifferingInCase_ReturnsUsageError
+              - BuilderProgram_Run_InconsistentTechnicalDeclaration_ReturnsUsageError
+
+          - id: DictionaryBuilder-BuilderProgram-NameMatching
+            title: >-
+              BuilderProgram shall compare dictionary names, the references to the technical and variant
+              dictionaries, folder names, and list-file names ignoring letter case, shall find each
+              declared dictionary's folder, and the technical dictionary's sub-folders and reviewed list,
+              under the spelling they have on disk, shall treat an existing output file whose name differs
+              from the declared one only in letter case as the existing output and replace it so that only
+              the declared spelling remains, and shall report, naming every candidate, a name that matches
+              more than one folder, list place, or output file that differs only in letter case instead of
+              choosing one.
+            justification: |
+              On a case-insensitive file system "alpha" and "ALPHA" are the same folder, and on a
+              case-sensitive one they are not. Using one comparison everywhere, resolved against what is
+              really on disk, makes the builder produce the same result on every operating system: a
+              dictionary declared as "alpha" finds its folder "ALPHA" instead of being called missing while
+              the same folder is accepted as declared, and an output file left by an earlier run as
+              "ALPHA.tld" is replaced instead of being left beside a new "alpha.tld" that the library
+              could pick up twice. Where a case-sensitive file system holds two spellings, silently
+              choosing one could read or replace the wrong file, so the builder refuses.
+            tests:
+              - BuilderProgram_Run_TechnicalReferencesDifferingInCase_UseDeclaredSpelling
+              - BuilderProgram_Run_TechnicalPartsInDifferentCase_AreFoundAndBuilt
+              - BuilderProgram_Run_DeclaredNameDifferingInCaseFromFolder_ReadsFolderOnDisk
+              - BuilderProgram_Run_TechnicalFolderDifferingInCase_ReadsFolderOnDisk
+              - BuilderProgram_Run_FoldersDifferingOnlyInCase_ReportsAmbiguityNamingBoth
+              - BuilderProgram_Run_TechnicalPartsDifferingOnlyInCase_ReportsAmbiguityNamingBoth
+              - BuilderProgram_Run_ExistingOutputUnderOtherSpelling_IsReplacedByDeclaredSpelling
+              - BuilderProgram_Run_InstallFailsWithOutputUnderOtherSpelling_RestoresOriginalSpelling
+              - BuilderProgram_Run_OutputFilesDifferingOnlyInCase_ReportsAmbiguityAndWritesNothing
+
+          - id: DictionaryBuilder-BuilderProgram-Dictionaries
+            title: >-
+              BuilderProgram shall write one dictionary file per declared name, built from the word lists
+              in the folder of that name, and return the success exit code.
+            justification: |
+              One folder per dictionary lets the lists be organized for people while each dictionary
+              reaches the library as one file; the folder name is the only link between the two, so it
+              must be used exactly.
+            tests:
+              - BuilderProgram_Run_ValidLists_WritesFilesAndReturnsZero
+
+          - id: DictionaryBuilder-BuilderProgram-TechnicalDictionary
+            title: >-
+              BuilderProgram shall build the declared technical dictionary from the lists in its general
+              folder, its language folder, and its reviewed list, applying the spelling-variant rule with
+              the words of the declared variant dictionaries, while writing those variant dictionaries
+              with all their own words, and shall report how many variants were kept and stripped.
+            justification: |
+              The folder a technical list is in is its tag: language lists are exempt from the variant
+              rule, general lists are not. The variant dictionaries are the American-only and British-only
+              words, so they are both an input of the rule and products in their own right.
+            tests:
+              - BuilderProgram_Run_TechnicalDictionary_AppliesVariantRule
+              - BuilderProgram_Run_TechnicalDictionary_LeavesVariantDictionariesWhole
+              - BuilderProgram_Run_TechnicalWithoutKeepList_Succeeds
+
+          - id: DictionaryBuilder-BuilderProgram-TechnicalLists
+            title: >-
+              BuilderProgram shall return the failure exit code, naming the file or word at fault, when a
+              technical word list is outside the general folder, the language folder, and the reviewed
+              list, when the technical dictionary has no general or no language words, and when a word of
+              the reviewed list is not a spelling variant.
+            justification: |
+              A misplaced list would silently change which variants are exempt, and a stale reviewed-list
+              word would hide the rule's real effect; naming the file or word lets the maintainer fix it
+              at once.
+            tests:
+              - BuilderProgram_Run_TechnicalListOutsideKnownPlaces_ReturnsOneNamingFile
+              - BuilderProgram_Run_KeepWordNotVariant_ReturnsOneNamingWord
+              - BuilderProgram_Run_TechnicalWithoutLanguageLists_ReturnsOneNamingLists
+
+          - id: DictionaryBuilder-BuilderProgram-Misconfiguration
+            title: >-
+              BuilderProgram shall return the failure exit code, naming the dictionary or folder at
+              fault, when a declared dictionary has no folder or no words, and when a folder that holds
+              word lists is not declared.
+            justification: |
+              A mistyped or forgotten name would otherwise silently drop a list or ship an empty
+              dictionary; naming the dictionary or folder lets the maintainer fix it at once.
+            tests:
+              - BuilderProgram_Run_UndeclaredFolder_ReturnsOneNamingFolder
+              - BuilderProgram_Run_EmptyDictionary_ReturnsOneNamingDictionary
+              - BuilderProgram_Run_MissingDictionaryFolder_ReturnsOneNamingDictionary
+              - BuilderProgram_Run_MissingInputFolder_ReturnsOne
+
+          - id: DictionaryBuilder-BuilderProgram-ErrorReporting
+            title: >-
+              BuilderProgram shall report every problem on the error stream as "path(line): error:
+              message" (without the line part for a problem that has no line), including a folder that
+              exists but cannot be searched or listed and a word list that exists but cannot be read
+              (the optional reviewed list included), shall treat only a folder that does not exist as
+              missing, shall return the failure exit code, and shall write no dictionary file when any
+              problem exists.
+            justification: |
+              MSBuild and editors turn this format into clickable errors, and the author must see every
+              problem at once. A folder or list that cannot be read must be a reported problem and never
+              be mistaken for an empty or absent one, which would silently drop its words from the
+              product; in particular an unreadable reviewed list must not silently strip the words it
+              approves. Writing nothing on failure keeps a half-updated set of dictionaries from reaching
+              the product.
+            tests:
+              - BuilderProgram_Run_InvalidEntry_WritesNothingAndReportsFileLine
+              - BuilderProgram_Run_OutputPathIsAFile_ReportsErrorAndReturnsOne
+              - BuilderProgram_Run_FolderCannotBeSearched_ReturnsOneNamingFolder
+              - BuilderProgram_Run_InputFolderCannotBeListed_ReturnsOne
+              - BuilderProgram_Run_UndeclaredFolderCannotBeSearched_ReturnsOneNamingFolder
+              - BuilderProgram_Run_TechnicalFolderCannotBeSearched_ReturnsOneNamingFolder
+              - BuilderProgram_Run_KeepListCannotBeRead_ReturnsOneNamingFile
+
+          - id: DictionaryBuilder-BuilderProgram-AllOrNothing
+            title: >-
+              BuilderProgram shall leave every existing dictionary file unchanged and create no new
+              dictionary file, and shall leave no temporary file behind, when any dictionary file cannot
+              be written, and shall, when the file system also prevents restoring the previous files or
+              deleting a temporary file or backup, return a distinct exit code, name every file left
+              inconsistent or behind and the backup that holds its previous content, and keep those
+              backups that still hold previous content.
+            justification: |
+              The dictionaries ship together, so a failure part-way through writing must not leave some
+              updated and others stale; the output folder must end as it began. When the file system
+              itself prevents restoration or cleanup the guarantee cannot be kept, so the failure must be
+              reported as a fatal condition that says exactly what state each file is in and where its
+              previous content is, instead of being reported as an ordinary failure or hidden behind the
+              run's other result. An existing output file that cannot be read is a failure, not an absent
+              file, so it is never overwritten blindly.
+            tests:
+              - BuilderProgram_Run_LaterOutputBlocked_LeavesEarlierOutputUntouched
+              - BuilderProgram_Run_LaterOutputBlockedWithNoPriorFiles_CreatesNothing
+              - BuilderProgram_Run_InstallFails_RestoresPreviousFiles
+              - BuilderProgram_Run_RestoreFails_ReportsInconsistentOutputAndKeepsBackup
+              - BuilderProgram_Run_NewFileCannotBeDeleted_ReportsInconsistentOutputAndKeepsBackup
+              - BuilderProgram_Run_ExistingOutputCannotBeRead_ReportsErrorAndChangesNothing
+              - BuilderProgram_Run_StagedFileCannotBeDeleted_ReportsLeftoverAndReturnsFatal
+              - BuilderProgram_Run_BackupCannotBeDeleted_ReportsLeftoverAndReturnsFatal
+
+          - id: DictionaryBuilder-BuilderProgram-UnchangedOutput
+            title: >-
+              BuilderProgram shall leave an existing dictionary file untouched when its content would be
+              identical, and shall rewrite it when the content differs.
+            justification: |
+              Incremental builds decide what to rebuild from file timestamps, so an identical file must
+              keep its timestamp while a changed one must be updated.
+            tests:
+              - BuilderProgram_Run_UnchangedOutput_IsNotRewritten
+              - BuilderProgram_Run_ChangedList_RewritesOutput

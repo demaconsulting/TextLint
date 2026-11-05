@@ -1,10 +1,12 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/DemaConsulting.TextLint/DemaConsulting.TextLint.csproj" />
+    <Project Path="src/DemaConsulting.TextLint.DictionaryBuilder/DemaConsulting.TextLint.DictionaryBuilder.csproj" />
     <Project Path="src/DemaConsulting.TextLint.Tool/DemaConsulting.TextLint.Tool.csproj" />
   </Folder>
   <Folder Name="/test/">
     <Project Path="test/DemaConsulting.TextLint.Tests/DemaConsulting.TextLint.Tests.csproj" />
+    <Project Path="test/DemaConsulting.TextLint.DictionaryBuilder.Tests/DemaConsulting.TextLint.DictionaryBuilder.Tests.csproj" />
     <Project Path="test/DemaConsulting.TextLint.Tool.Tests/DemaConsulting.TextLint.Tool.Tests.csproj" />
   </Folder>
 </Solution>

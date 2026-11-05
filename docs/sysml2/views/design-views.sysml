@@ -7,6 +7,7 @@ package TextLintTool {
     view SoftwareStructureView {
         expose TextLint::*;
         expose TextLintTool::*;
+        expose DictionaryBuilder::*;
     }
 
     view TextLintToolView {
@@ -26,9 +27,9 @@ package TextLintTool {
     }
 }
 
-// The repository holds two systems: the TextLint library below and the TextLintTool
-// command-line tool above. The TextLint library has two subsystems, each with its own view;
-// units are shown by their subsystem's view.
+// The repository holds three systems: the TextLint library below, the TextLintTool
+// command-line tool above, and the DictionaryBuilder at the end. The TextLint library has two
+// subsystems, each with its own view; units are shown by their subsystem's view.
 package TextLint {
     view TextLintView {
         expose TextLintSystem;
@@ -40,5 +41,14 @@ package TextLint {
 
     view FileSelectionView {
         expose FileSelectionSubsystem;
+    }
+}
+
+// The DictionaryBuilder is a third system: the build-time converter that turns the word lists into
+// the binary dictionary files the library embeds. Its five units sit directly under the system, so
+// the one view shows all of them.
+package DictionaryBuilder {
+    view DictionaryBuilderView {
+        expose DictionaryBuilderSystem;
     }
 }

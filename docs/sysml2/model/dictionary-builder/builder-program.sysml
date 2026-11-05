@@ -1,0 +1,11 @@
+package DictionaryBuilder {
+    part def BuilderProgram {
+        doc /* Entry point of the builder: parses the command line, drives the reader, the variant filter, and the writer, writes the files all-or-nothing, and reports problems in the compiler's error format. */
+
+        comment sourceRef /* Source: src/DemaConsulting.TextLint.DictionaryBuilder/BuilderProgram.cs (with the file system seam FileOperations.cs) */
+        comment testRef /* Test: test/DemaConsulting.TextLint.DictionaryBuilder.Tests/BuilderProgramTests.cs */
+        comment designRef /* Design: docs/design/dictionary-builder/builder-program.md */
+        comment verificationRef /* Verification: docs/verification/dictionary-builder/builder-program.md */
+        comment reqRef /* Requirements: docs/reqstream/dictionary-builder/builder-program.yaml */
+    }
+}

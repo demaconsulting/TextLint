@@ -26,6 +26,12 @@ Local items:
     result and exception types)
 - **TextLintTool**: system, subsystem, and unit design for all local components of the
   command-line tool.
+- **DictionaryBuilder**: system and unit design for the build-time program that converts the word
+  lists under `dictionaries/` into the binary dictionary files embedded in the library. It is not
+  packaged. Its units are **BuilderProgram** (command line and orchestration), **WordListReader**
+  (reads and validates word lists, with its result and diagnostic types), **VariantFilter** (the
+  spelling-variant rule for the technical lists, with its result type), **DictionaryWriter**
+  (serializes a dictionary file), and **DictionaryFormat** (the definitions shared with the library).
 
 OTS items:
 
@@ -53,9 +59,10 @@ The following topics are out of scope:
 The software structure is modeled in SysML2 under `docs/sysml2/` and rendered to the diagram
 below by SysML2Tools as part of the build pipeline. AI agents should query the SysML2 model
 directly (see the `sysml2tools-query` skill) rather than parsing this diagram or the prose
-elsewhere in this document. The model captures the shipped system's runtime composition: the local
-items of both systems and the runtime OTS items the library depends on (YamlDotNet and
-Microsoft.Extensions.FileSystemGlobbing). The remaining OTS items listed in Scope above are
+elsewhere in this document. The model captures the shipped systems' runtime composition: the local
+items of the library and the tool and the runtime OTS items the library depends on (YamlDotNet and
+Microsoft.Extensions.FileSystemGlobbing), and also the build-time DictionaryBuilder system, which is
+not shipped but produces data that ships. The remaining OTS items listed in Scope above are
 build-time and pipeline tooling, documented separately (see `docs/design/ots.md`) rather than
 modeled as SysML2 parts.
 
@@ -63,7 +70,8 @@ modeled as SysML2 parts.
 
 ### Layering
 
-The two systems form a strict two-layer architecture, and every later change must preserve it:
+The TextLint library and the TextLintTool tool form a strict two-layer architecture, and every later
+change must preserve it:
 
 - **TextLint (library)** owns **all linting logic**: settings and configuration loading, file
   discovery and globbing, dictionaries, tokenization, spell checking, and results. It is usable
@@ -77,12 +85,23 @@ New linting capability is therefore added to the library as subsystems and units
 requirements, design, and verification, and the tool only gains the command-line options and
 output needed to invoke it.
 
+The third system, **DictionaryBuilder**, sits outside this layering: it is a build-time program that
+neither the library nor the tool calls at run time. The library's build will run it to produce the
+binary dictionary files that the library embeds, and the library will compile one of its source files
+(`DictionaryFormat`) so that the writer and the reader of those files share their definitions. It depends
+on nothing but the .NET base class library.
+
 ## Folder Layout
 
+- **dictionaries/** - plain-text word lists, one sub-folder per dictionary (the technical dictionary's
+  folder is split into `language/` and `general/` lists plus a reviewed `variant-keep.txt`), and the script
+  that regenerates the imported lists (data, not a software item)
+- **third-party/** - license notices for the third-party data in the word lists
 - **src/** - source files and projects
   - **DemaConsulting.TextLint/** - library source
     - **Configuration/** - settings and settings-file loading subsystem
     - **FileSelection/** - glob pattern and file selection subsystem
+  - **DemaConsulting.TextLint.DictionaryBuilder/** - build-time dictionary builder source (five units)
   - **DemaConsulting.TextLint.Tool/** - main application source
     - **Cli/** - command-line interface subsystem
     - **SelfTest/** - self-validation subsystem

@@ -210,6 +210,16 @@ Generated documentation includes:
 See [CONTRIBUTING.md](https://github.com/demaconsulting/TextLint/blob/main/CONTRIBUTING.md) for
 guidelines on reporting bugs, suggesting features, and submitting pull requests.
 
+## Third-Party Data
+
+The English and technical-term word lists under `dictionaries/` are built from third-party data:
+SCOWL (a permissive license by Kevin Atkinson) for English, and the MIT-licensed cspell-dicts packages
+by Street Side Software for technical terms. The required license notices are in
+[THIRD-PARTY-NOTICES.txt](https://github.com/demaconsulting/TextLint/blob/main/third-party/THIRD-PARTY-NOTICES.txt),
+and the provenance of every list is described in the
+[dictionaries README](https://github.com/demaconsulting/TextLint/blob/main/dictionaries/README.md). The lists are
+not yet used by the library or the tool; they are converted into embedded dictionaries by a later change.
+
 ## License
 
 Copyright (c) DEMA Consulting. Licensed under the MIT License. See [LICENSE][link-license] for details.

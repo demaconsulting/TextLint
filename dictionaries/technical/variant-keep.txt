@@ -1,0 +1,42 @@
+# Reviewed spelling variants that are genuine programming terms.
+# This file is owned by the project and is NEVER overwritten by dictionaries/refresh.py.
+#
+# PURPOSE
+#   The dictionary builder removes every US-only or GB-only spelling variant (a word that is in the en-US
+#   or the en-GB list) from the general technical lists, so that the language setting (en-US or en-GB)
+#   decides such words. A variant stays known in every language only when it is in a programming-language
+#   list (technical/language) or in this file. This file holds the words that are genuine programming
+#   terms, used in the same spelling by programmers of both dialects, and that are in no language list.
+#
+# REVIEW RULE
+#   Add a word only after a reviewer has confirmed that (1) it is a programming or computing term, not
+#   an ordinary English word, and (2) it is a spelling variant that the builder would otherwise strip.
+#   The builder fails the build for a word here that is not a spelling variant, which keeps this file
+#   tight: remove a word when it stops being stripped (for example when a language list gains it).
+#   Never add a word merely to silence a spelling error. One word per line, in lower case, sorted.
+
+analyzer
+colorize
+colorized
+deserializations
+deserializes
+marshaling
+marshalling
+minimizer
+parameterization
+parameterized
+reinitialize
+reinitialized
+reinitializes
+reinitializing
+sanitize
+serializes
+tokenization
+tokenize
+tokenized
+tokenizer
+tokenizers
+tokenizes
+tokenizing
+virtualization
+visualizer

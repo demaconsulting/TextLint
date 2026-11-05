@@ -34,6 +34,12 @@ This document covers the verification design for the following software items:
     - **Validation** — self-validation test runner
   - **Utilities** subsystem
     - **PathHelpers** — safe path combination utilities
+- **DictionaryBuilder** — system and unit verification for the build-time dictionary builder:
+  - **BuilderProgram** — command line, orchestration, and error reporting
+  - **WordListReader** — word-list reading, validation, and merging
+  - **VariantFilter** — spelling-variant rule for the technical lists
+  - **DictionaryWriter** — dictionary file serialization
+  - **DictionaryFormat** — shared format definitions
 
 **OTS items:**
 
@@ -55,7 +61,9 @@ The following topics are out of scope:
 
 - Verification documents are not produced for the test projects themselves — they are the
   means of verification, not subjects of it. This includes the shared test support types
-  (a temporary-directory helper and a recording directory used to observe enumeration).
+  (a temporary-directory helper, a recording directory used to observe enumeration, and for the
+  dictionary builder a process runner, an independent reader of the dictionary file format, a builder of the
+  shared variant word-list tree, and a file operations double that fails on demand).
 - Build pipeline CI configuration is excluded
 - The internal implementation of OTS software items is excluded; only integration and usage
   are verified
@@ -70,6 +78,10 @@ test/
 │   ├── Configuration/                   — Configuration subsystem and unit tests
 │   ├── FileSelection/                   — FileSelection subsystem and unit tests
 │   └── TestSupport/                     — shared test helpers (temporary directory, recording directory)
+├── DemaConsulting.TextLint.DictionaryBuilder.Tests/  — dictionary builder system and unit tests
+│   └── TestSupport/                     — shared test helpers (temporary directory, process runner,
+│                                          independent dictionary file reader, variant fixture,
+│                                          faulting file operations)
 └── DemaConsulting.TextLint.Tool.Tests/  — unit and integration tests
 ```
 
