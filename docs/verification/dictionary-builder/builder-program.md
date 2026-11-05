@@ -22,10 +22,13 @@ N/A - standard test environment. Each test creates and removes its own temporary
 - Every malformed command line, including an option with an empty or blank value, returns the usage exit code,
   prints the usage text, and creates no file.
 - Valid lists return exit code 0 and one file per declared name.
-- Any problem, including a folder that cannot be searched, returns exit code 1, names its file or folder, and
-  leaves the output folder uncreated.
-- A failed write restores the previous files; when the restoration itself fails, exit code 3 is returned, every
-  inconsistent file and its backup are named, and the backups still hold the previous content.
+- Any problem, including a folder or file that exists but cannot be read (told apart from one that does not
+  exist), returns exit code 1, names its file or folder, and leaves the output folder uncreated.
+- A failed write restores the previous files; when the restoration itself fails, or a temporary file or backup cannot
+  be deleted, exit code 3 is returned, every affected file and its backup are named, and the backups that hold
+  previous content are kept.
+- Names that differ only in letter case are one name: duplicates are rejected, references find the declared name,
+  and folder and list names match ignoring case.
 - An unchanged file keeps its timestamp and a changed one is rewritten.
 
 ### Test Scenarios
@@ -47,8 +50,41 @@ scenario is tested by `BuilderProgram_Run_DuplicateOption_ReturnsUsageError`.
 **BuilderProgram_Run_NameWithPathSeparator_ReturnsUsageError**: the name `../alpha` is rejected, and no output
 folder is created. This scenario is tested by `BuilderProgram_Run_NameWithPathSeparator_ReturnsUsageError`.
 
-**BuilderProgram_Run_DuplicateName_ReturnsUsageError**: the same name is declared twice. This scenario is
-tested by `BuilderProgram_Run_DuplicateName_ReturnsUsageError`.
+**BuilderProgram_Run_DuplicateName_ReturnsUsageError** and
+**BuilderProgram_Run_DuplicateNameDifferingInCase_ReturnsUsageError**: the same name is declared twice, and
+`alpha` and `ALPHA` are declared together; both return the usage exit code, the second names `ALPHA` as a repeat
+ignoring case, and nothing is created. These scenarios are tested by the tests of the same names.
+
+**BuilderProgram_Run_TechnicalReferencesDifferingInCase_UseDeclaredSpelling**: the technical and variant
+dictionaries are referenced as `TECHNICAL`, `EN-US`, and `en-gb` while declared as `technical`, `en-US`, and `en-GB`;
+the run succeeds, the variant rule gives the same words as with the declared spelling, and the files carry the
+declared names. This scenario is tested by `BuilderProgram_Run_TechnicalReferencesDifferingInCase_UseDeclaredSpelling`.
+
+**BuilderProgram_Run_TechnicalPartsInDifferentCase_AreFoundAndBuilt**: the technical folder holds `LANGUAGE`,
+`General`, and `Variant-Keep.TXT`; the run succeeds with nothing reported as misplaced and the same words as for the
+lower-case layout, on every operating system. This scenario is tested by
+`BuilderProgram_Run_TechnicalPartsInDifferentCase_AreFoundAndBuilt`.
+
+**BuilderProgram_Run_UndeclaredFolderCheck_MatchesDeclaredNamesIgnoringCase**: the input folder listing reports the
+declared dictionary's folder as `ALPHA`; it is recognized as the declared `alpha` and not reported as undeclared.
+This scenario is tested by `BuilderProgram_Run_UndeclaredFolderCheck_MatchesDeclaredNamesIgnoringCase`.
+
+**BuilderProgram_Run_KeepListCannotBeRead_ReturnsOneNamingFile**: an injected access-denied failure when reading the
+existing keep list returns exit code 1, names the keep list, and creates no output, so approved words are never
+silently stripped. This scenario is tested by `BuilderProgram_Run_KeepListCannotBeRead_ReturnsOneNamingFile`.
+
+**BuilderProgram_Run_ExistingOutputCannotBeRead_ReportsErrorAndChangesNothing**: an injected failure when reading an
+existing output file returns exit code 1 with the write failure reported, and the file and the folder are unchanged.
+This scenario is tested by `BuilderProgram_Run_ExistingOutputCannotBeRead_ReportsErrorAndChangesNothing`.
+
+**BuilderProgram_Run_StagedFileCannotBeDeleted_ReportsLeftoverAndReturnsFatal**: the second installation fails and
+deleting any temporary file fails; the run returns exit code 3, the error names the staged file that is still in the
+output folder, and the first file is restored. This scenario is tested by
+`BuilderProgram_Run_StagedFileCannotBeDeleted_ReportsLeftoverAndReturnsFatal`.
+
+**BuilderProgram_Run_BackupCannotBeDeleted_ReportsLeftoverAndReturnsFatal**: the installation succeeds but deleting
+a backup fails; the run returns exit code 3, names the backup, which still holds the previous content, and the new
+files are in place. This scenario is tested by `BuilderProgram_Run_BackupCannotBeDeleted_ReportsLeftoverAndReturnsFatal`.
 
 **BuilderProgram_Run_ValidLists_WritesFilesAndReturnsZero**: two valid dictionaries produce two files, a
 summary line each, and no errors. This scenario is tested by
@@ -77,10 +113,11 @@ tested by `BuilderProgram_Run_UnchangedOutput_IsNotRewritten`.
 **BuilderProgram_Run_ChangedList_RewritesOutput**: a list gains a word and the file is rewritten with the new
 count. This scenario is tested by `BuilderProgram_Run_ChangedList_RewritesOutput`.
 
-**BuilderProgram_Run_InconsistentTechnicalDeclaration_ReturnsUsageError**: six inconsistent technical
+**BuilderProgram_Run_InconsistentTechnicalDeclaration_ReturnsUsageError**: eight inconsistent technical
 declarations (`--technical` without `--variants`, `--variants` without `--technical`, an undeclared technical
-dictionary, an undeclared variant dictionary, a dictionary that is its own variant source, and a repeated
-`--technical`) each return the usage exit code and create no output. This scenario is tested by
+dictionary, an undeclared variant dictionary, a dictionary that is its own variant source, a repeated
+`--technical`, a variant repeated in another case, and a technical dictionary that is its own variant source in
+another case) each return the usage exit code and create no output. This scenario is tested by
 `BuilderProgram_Run_InconsistentTechnicalDeclaration_ReturnsUsageError`.
 
 **BuilderProgram_Run_TechnicalDictionary_AppliesVariantRule**: in a small tree the technical dictionary holds the

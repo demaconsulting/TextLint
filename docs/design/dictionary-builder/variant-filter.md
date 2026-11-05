@@ -22,7 +22,9 @@ the American-only and the British-only dictionaries.
 The result type, `VariantFilterResult`, is documented here because it has no behavior of its own. It holds the
 technical words that remain (each with its flags), the number of variants kept because a language list has them,
 the number kept only because the keep list has them, the number stripped, and the keep-list words that are not
-spelling variants, in ordinal order. The list is copied into an immutable array when the result is created.
+spelling variants, in ordinal order. The words are copied into an immutable frozen dictionary and the list into an
+immutable array when the result is created, so later changes to the collections the filter built the result from
+cannot alter it, and it cannot be modified through a cast either.
 
 ### Key Methods
 

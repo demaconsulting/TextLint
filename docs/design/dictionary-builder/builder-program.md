@@ -12,14 +12,21 @@ of the knowledge of the word-list or dictionary-file formats.
 
 ### Data Model
 
-`BuilderProgram` is an internal static class with no state. It defines four exit codes: 0 (success),
-1 (invalid word lists or declarations, or files that cannot be written), 2 (invalid command line), and 3
-(a write failed and the file system also prevented restoring the previous files, so the output may be
-inconsistent), the extension of produced files, `.tld`, and the names that give the technical dictionary's
+`BuilderProgram` is an internal static class with no state beyond one comparer. It defines four exit codes: 0
+(success), 1 (invalid word lists or declarations, or files that cannot be written), 2 (invalid command line), and
+3 (the output folder could not be left clean and consistent: a write failed and the file system also prevented
+restoring the previous files, or a temporary file or backup could not be deleted), the extension of produced
+files, `.tld`, and the names that give the technical dictionary's
 folder its structure:
-`general`, `language`, and `variant-keep.txt`. The parsed command line is held in a private record with the
+`general`, `language`, and `variant-keep.txt`. The one comparer, ordinal and ignoring case, is used for every
+name the builder compares (dictionary names, the references to the technical and variant dictionaries, folder
+names, the technical folder's sub-folders and keep list, and output file paths), because on a case-insensitive
+file system `alpha` and `ALPHA` are one folder and one file. The parsed command line is held in a private record
+with the
 absolute input folder, the absolute output folder, the list of dictionary names in command-line order, the name
-of the technical dictionary (or none), the names of the variant dictionaries, and the file operations to use. A
+of the technical dictionary (or none), the names of the variant dictionaries, and the file operations to use. The
+names and the technical and variant references are stored in immutable collections, in the spelling in which the
+dictionaries were declared. A
 dictionary that has been read is held in a private record of its name, its words, and an optional detail text
 for the summary line.
 
@@ -29,9 +36,9 @@ rollback can undo exactly what was done, or say precisely what it could not undo
 
 `FileOperations` (its own source file, part of this unit) is a small class with virtual methods for the file
 system calls that tests cannot portably make fail: enumerating the files of a folder, enumerating the
-sub-folders of a folder, moving a file, and deleting a file. Production code uses its default instance, which
-calls the file system directly; tests pass a subclass that throws on chosen paths. `BuilderProgram.Run` and
-`WordListReader` accept it as an optional parameter.
+sub-folders of a folder, reading a file, moving a file, and deleting a file. Production code uses its default
+instance, which calls the file system directly; tests pass a subclass that throws on chosen paths.
+`BuilderProgram.Run` and `WordListReader` accept it as an optional parameter.
 
 ### Key Methods
 
@@ -44,8 +51,9 @@ calls the file system directly; tests pass a subclass that throws on chosen path
 - _Returns_: the exit code.
 - _Preconditions_: none of the parameters is null.
 - _Postconditions_: with exit code 0 one file exists in the output folder per declared name and every
-  file holds the current content of its lists; with any other exit code no dictionary file was created or
-  changed and no temporary file remains.
+  file holds the current content of its lists; with exit code 1 or 2 no dictionary file was created or
+  changed and no temporary file remains; with exit code 3 the error stream names every file that may be
+  inconsistent or was left behind.
 
 `Run` first parses the arguments. It then reads every declared dictionary, collecting every problem into one
 list; it reports each folder under the input folder that holds word lists but was not declared; and when the
@@ -57,56 +65,79 @@ all of that does it either print the problems and return 1, or write the files.
 with a hyphen (an empty output folder, for example, would otherwise silently resolve to the working folder); the
 first three may
 appear once and `--variants` may repeat with different values. Every other argument is a dictionary name, which
-must consist of ASCII letters, digits, hyphens, and underscores and must not repeat, so that a name can never
-contain a path separator and climb out of the input or output folder. The technical declaration is checked as a
-whole: `--technical` and `--variants` must be given together, the technical dictionary must be a declared name,
-and every variant dictionary must be a declared name other than the technical dictionary. The input and output
+must consist of ASCII letters, digits, hyphens, and underscores and must not repeat ignoring letter case, so that a
+name can never contain a path separator and climb out of the input or output folder and two names can never be
+one folder or file on a case-insensitive file system. The technical declaration is checked as a
+whole: `--technical` and `--variants` must be given together, the technical dictionary must be a declared name
+(matched ignoring case), and every variant dictionary must be a declared name other than the technical
+dictionary, with no variant repeated. A reference that matched in another case is resolved to the declared
+spelling, which is then the folder and file name used. The input and output
 paths are made absolute here, once.
 
-**ReadDictionaries**: reads the word lists of each declared dictionary. A missing dictionary folder is a
-problem, and so is a dictionary whose lists were readable but contain no words. The ordinary dictionaries are
+**ReadDictionaries**: reads the word lists of each declared dictionary. A dictionary folder that does not exist
+is a problem ("does not exist"), a folder that exists but cannot be searched is a different problem, and so is a
+dictionary whose lists were readable but contain no words. The two are told apart by the search itself, not by a
+preliminary existence check. The ordinary dictionaries are
 read first, in declaration order, because the variant rule needs the words of the variant dictionaries; the
 technical dictionary is then combined, and the results are returned in declaration order.
 
-**ReadTechnicalDictionary**: combines the technical dictionary. It reports every word list in the technical
-folder that is not under `general`, not under `language`, and not `variant-keep.txt`; has `WordListReader` read
-the general lists, the language lists, and the keep list (an absent keep list is allowed, an empty general or
-language set is a problem); and hands the three sets and the variant words to `VariantFilter`. Each keep-list word
+**ReadTechnicalDictionary**: combines the technical dictionary. It searches the technical folder once and sorts
+every list that was found into exactly one place by its first path segment, compared ignoring case: under
+`general`, under `language`, or `variant-keep.txt` at the top. A list anywhere else is reported, so a list that
+was found is always either read or reported and cannot be dropped. It has `WordListReader` read the general lists,
+the language lists, and the keep list; an empty general or language set is a problem. The keep list is optional
+only in the sense that it may be absent from the listing: whether it exists is decided by that same listing and
+never by a separate existence check, so a keep list that exists but cannot be read is a problem and can never
+silently strip approved words. The three sets and the variant words go to `VariantFilter`. Each keep-list word
 that the filter reports as not being a spelling variant becomes a problem naming the keep list and the word. The
 summary text for the technical dictionary states how many variants were kept through language lists, kept
 through the keep list, and stripped.
 
 **ReportUndeclaredFolders**: looks at every direct sub-folder of the input folder, in ordinal order, and
-reports one that contains word-list files but is not declared, which catches a mistyped or forgotten name
-that would otherwise silently drop a whole dictionary from the product.
+reports one that contains word-list files but is not declared (matched ignoring case), or that cannot be searched
+to find out, which catches a mistyped or forgotten name that would otherwise silently drop a whole dictionary from
+the product. Only a genuine "directory not found" on the input folder means there is nothing to inspect; any other
+listing failure is a problem.
 
-**WriteFiles**: writes the files all-or-nothing. It creates the output folder; refuses, before writing anything,
-a target path that is occupied by a folder; writes each changed file to a staged file beside its target (a file
-whose content is already identical is left alone, so its timestamp is preserved for incremental builds);
-installs all staged files; and prints one summary line per file.
+**WriteFiles**: writes the files all-or-nothing and reports every file it cannot clean up. It runs
+**StageAndInstall**, then, whatever the outcome, deletes every staged file; a staged file that cannot be deleted is
+not swallowed but reported by path in a fatal report, and the run returns exit code 3 whatever the earlier result
+was. **StageAndInstall** creates the output folder; refuses, before writing anything, a target path that is
+occupied by a folder (only to give a clear message; every other failure is reported by the operation that meets
+it); learns whether a target exists, and whether its content is identical, by reading it, never by a separate
+existence check, so a target that exists but cannot be read is a reported failure rather than an absent file; writes
+each changed file to a staged file beside its target (a file whose content is already identical is left alone, so
+its timestamp is preserved for incremental builds); installs all staged files; and prints one summary line per
+file.
 
-**Install**: moves each existing target aside to a backup and the staged file into its place. If any step
+**Install**: moves each existing target aside to a backup and the staged file into its place; whether a target
+exists is learned from the move itself (a missing source is the "no original" case). If any step
 throws, the files touched so far are put back in reverse order (the new file deleted, the backup restored) and the
 failure is returned for reporting. Restoring a file can itself fail: the new file may not be deletable, or the
 backup may not be movable back. Each such file is described in the compiler's error format, with the backup that
 still holds its previous content, and the backup is never deleted. When any file could not be restored, `WriteFiles`
-reports the fatal condition and returns exit code 3. On success the backups are deleted on a best-effort basis. The
-staged files are always deleted afterwards, so no temporary file is left behind whatever happened.
+reports the fatal condition and returns exit code 3. On success the backups are deleted; a backup that cannot be
+deleted is described and reported by `WriteFiles` in the same fatal report as a leftover staged file, because a file
+left in the output folder must never be hidden behind the run's other result.
 
 ### Error Handling
 
 Problems with the word lists or declarations are data, not exceptions: they are collected as diagnostics and
 printed to standard error in the compiler's format, `path(line): error: message` (without the line part when a
-problem has no line), after which the run returns 1. A folder that cannot be searched or listed (access denied or
-an I/O error, including part-way through) is such a problem and is never mistaken for an empty folder. A
+problem has no line), after which the run returns 1. A folder that cannot be searched or listed, or a list that
+cannot be read (access denied or an I/O error, including part-way through), is such a problem and is never mistaken
+for an empty or absent one; only a genuine "directory not found" or "file not found" means absent. A
 command-line problem prints `DictionaryBuilder: error:` followed by the reason and the usage text and returns 2. A
 dictionary that is larger than the format allows (a defensive case that no realistic list reaches) is reported as
-a problem for that dictionary. File system failures while creating the output folder, writing a staged file, or
+a problem for that dictionary. File system failures while creating the output folder, reading an existing output
+file, writing a staged file, or
 installing the files are caught, the previous state is restored, and the failure is reported as an error naming the
 output folder with exit code 1; a failure to read an input file is reported by `WordListReader` as a problem of that
-file. When the previous state cannot be restored, the run reports a fatal condition instead: the error stream names
-the output folder, every file left inconsistent, and the backup that holds each previous version, and the exit code
-is 3. Anything else is a defect and propagates as an unhandled exception, which also fails the build.
+file. When the previous state cannot be restored, or a temporary file or backup cannot be deleted, the run reports
+a fatal condition instead: the error stream names the output folder, every file left inconsistent or behind, and
+the backup that holds each previous version, and the exit code is 3. No exception handler in the builder discards
+an error: each one either converts the failure into a reported problem or describes what it could not undo.
+Anything else is a defect and propagates as an unhandled exception, which also fails the build.
 
 ### Dependencies
 

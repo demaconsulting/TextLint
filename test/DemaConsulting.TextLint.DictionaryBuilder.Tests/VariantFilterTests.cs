@@ -75,6 +75,27 @@ public class VariantFilterTests
     }
 
     /// <summary>
+    ///     Test that changing the collections a result was built from does not change the result.
+    /// </summary>
+    [Fact]
+    public void VariantFilter_Result_SourceMutatedAfterConstruction_ResultUnchanged()
+    {
+        // Arrange: a result built from a dictionary and a list that the caller keeps
+        var words = Words("kubernetes");
+        var notVariants = new List<string> { "nuget" };
+        var result = new VariantFilterResult(words, 1, 2, 3, notVariants);
+
+        // Act: the caller changes both collections afterwards
+        words["void"] = DictionaryFormat.CaseLower;
+        notVariants.Add("npm");
+
+        // Assert: the result still holds exactly the original contents, and even a cast cannot change the words
+        Assert.Equal(["kubernetes"], result.Words.Keys);
+        Assert.Equal(["nuget"], result.KeepWordsNotVariants);
+        Assert.Throws<NotSupportedException>(() => ((IDictionary<string, uint>)result.Words).Add("cherry", DictionaryFormat.CaseLower));
+    }
+
+    /// <summary>
     ///     Test that a non-variant general word is kept.
     /// </summary>
     [Fact]

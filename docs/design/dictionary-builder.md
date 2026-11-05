@@ -54,13 +54,16 @@ below and in the _VariantFilter_ design.
 - _Contract_: `--input <word-list-folder> --output <folder> <name> [<name> ...]`, optionally followed by
   `--technical <name> --variants <name> [--variants <name> ...]`. For each name the builder reads the word
   lists beneath `<word-list-folder>/<name>/` and writes `<folder>/<name>.tld`. Dictionary names consist of
-  letters, digits, hyphens, and underscores only. `--technical` declares which of the names is the technical
+  letters, digits, hyphens, and underscores only, and two names that differ only in letter case are one name
+  (they would be one folder and one file on a case-insensitive file system). `--technical` declares which of the
+  names is the technical
   dictionary, and each `--variants` names a declared dictionary whose words are regional spelling variants
   (the American-only and the British-only dictionaries); the two options must be given together.
 - _Constraints_: exit code 0 on success, 1 when the word lists or the declarations are invalid or the files
   cannot be written (nothing is changed), 2 when the command line is invalid (including an option with an
-  empty value), and 3 when a write failed and the file system also prevented restoring the previous files,
-  so the output may be inconsistent (a fatal condition, reported with the affected files and the backups).
+  empty value), and 3 when the output folder could not be left clean and consistent: a write failed and the file
+  system also prevented restoring the previous files, or a temporary file or backup could not be deleted (a fatal
+  condition, reported with the affected files and the backups).
 
 **Word Lists**: the input data.
 
@@ -74,10 +77,13 @@ below and in the _VariantFilter_ design.
 - _Constraints_: any other character, including digits, hyphens, spaces, the typographic apostrophe,
   and letters of other scripts, makes the entry invalid.
 
-The folder is the tag, and there is no manifest. An ordinary dictionary reads every `.txt` file beneath its
+The folder is the tag, and there is no manifest. An ordinary dictionary reads every `.txt` file (the extension in any
+letter case) beneath its
 folder. The technical dictionary's folder is organized instead as: `language/` for the keyword and API lists of
 programming languages, `general/` for every other technical list, and `variant-keep.txt` for the reviewed list of
-spelling variants that are programming terms. A word list anywhere else in the technical folder is an error. The
+spelling variants that are programming terms. A word list anywhere else in the technical folder is an error. Every
+comparison of a dictionary, folder, or list name ignores letter case, so the builder behaves the same on every file
+system. The
 lists imported from third-party sources are kept as faithful to their source as possible and are never edited to
 apply the variant rule; the rule is applied here, when the technical dictionary is combined.
 
@@ -100,8 +106,9 @@ apply the variant rule; the rule is applied here, when the technical dictionary 
   spelling variants were kept through language lists, kept through the reviewed list, and stripped.
   Standard error receives each problem as `path(line): error: message`, or `path: error: message` when the
   problem has no line, which MSBuild and editors turn into clickable errors.
-- _Constraints_: on any problem the output folder is left as it was; if it cannot be left as it was, the
-  error stream says so, names every affected file, and names every backup that holds a previous version.
+- _Constraints_: on any problem the output folder is left as it was; if it cannot be left as it was, or a temporary
+  file cannot be deleted, the error stream says so, names every affected file, and names every backup that holds a
+  previous version.
 
 ## Dependencies
 
@@ -120,8 +127,9 @@ change any output when a problem exists protect the data quality of the product,
 1. The build starts the builder with the folder of word lists, the output folder, the dictionary names, and
    the declaration of the technical and variant dictionaries.
 2. `BuilderProgram` validates the command line. A problem ends the run with exit code 2.
-3. For each declared ordinary name, `BuilderProgram` checks that the folder exists and asks `WordListReader`
-   to read it. The reader reads the files in ordinal path order, decodes them strictly as UTF-8, validates
+3. For each declared ordinary name, `BuilderProgram` asks `WordListReader` to find the files of the folder; a
+   folder that does not exist is a problem, and so is one that exists but cannot be searched, and the
+   reader then reads the files. The reader reads the files in ordinal path order, decodes them strictly as UTF-8, validates
    each entry, folds it with `DictionaryFormat`, and merges it into one set of distinct words with the
    capitalization forms each word had. Every problem is collected, not just the first.
 4. For the technical dictionary, `BuilderProgram` checks that every word list lies in the general folder, the
@@ -136,6 +144,8 @@ change any output when a problem exists protect the data quality of the product,
    beside its target and installs them together. If an installation step fails, the files already installed are
    restored and the run ends with exit code 1. If the restoration itself fails, the backups that hold the
    previous versions are kept, the affected files and backups are reported, and the run ends with exit code 3.
+   Temporary files and backups are deleted at the end; one that cannot be deleted is reported and also ends the run
+   with exit code 3.
    When every file is installed the summary lines are printed and the run ends with exit code 0.
 
 ## Design Constraints
@@ -153,9 +163,15 @@ change any output when a problem exists protect the data quality of the product,
   names every file left inconsistent and the backup that holds its previous version, so the build fails
   loudly and the maintainer can restore by hand.
 - File system seam: the few file system calls whose failures cannot be provoked portably in tests (searching
-  folders, moving files, and deleting files) go through one small class, `FileOperations`, which production
-  code uses in its real form and tests replace with a version that fails on demand. It is part of the
+  folders, reading files, moving files, and deleting files) go through one small class, `FileOperations`, which
+  production code uses in its real form and tests replace with a version that fails on demand. It is part of the
   `BuilderProgram` unit.
+- Failures are never mistaken for absence: a folder or file that exists but cannot be read is a reported problem,
+  never an empty or missing one. Whether something exists is learned from the operation that uses it, and only a
+  genuine "not found" condition means absent, so there are no existence checks that could hide an access or I/O
+  failure. No exception handler discards an error; each reports it or describes what it could not undo.
+- Results are values: the result types of the reader and the filter copy what they are given into immutable
+  collections, so a result never changes after it is created.
 - Strictness: the builder rejects what it does not understand instead of guessing, because the lists
   are edited by hand and imported from third-party sources and a silent skip would be a wrong dictionary
   in the product.

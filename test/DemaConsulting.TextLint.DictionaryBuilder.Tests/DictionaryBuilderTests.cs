@@ -459,6 +459,44 @@ public class DictionaryBuilderTests
     }
 
     /// <summary>
+    ///     Test that two dictionary names that differ only in letter case are rejected rather than allowed to overwrite each other.
+    /// </summary>
+    [Fact]
+    public void DictionaryBuilder_Build_NamesDifferingOnlyInCase_RejectedAsDuplicate()
+    {
+        // Arrange: one dictionary, declared under two names that are the same folder on a case-insensitive file system
+        using var temp = new TempDirectory();
+        temp.CreateFile("input/alpha/words.txt", "apple\n");
+
+        // Act: run the builder with both spellings
+        var result = Build(temp, "alpha", "ALPHA");
+
+        // Assert: the usage exit code naming the repeated name, and nothing was written
+        Assert.Equal(2, result.ExitCode);
+        Assert.Contains("'ALPHA'", result.Error);
+        Assert.False(Directory.Exists(temp.PathOf("out")));
+    }
+
+    /// <summary>
+    ///     Test that a declared dictionary whose folder does not exist fails and is named as missing.
+    /// </summary>
+    [Fact]
+    public void DictionaryBuilder_Build_MissingDictionaryFolder_FailsNamingFolder()
+    {
+        // Arrange: one dictionary with a folder and one declared dictionary with none
+        using var temp = new TempDirectory();
+        temp.CreateFile("input/alpha/words.txt", "apple\n");
+
+        // Act: run the builder for both
+        var result = Build(temp, "alpha", "beta");
+
+        // Assert: failure that names the missing folder, and nothing was written
+        Assert.Equal(1, result.ExitCode);
+        Assert.Contains($"{temp.PathOf("input/beta")}: error: the word-list folder of dictionary 'beta' does not exist", result.Error);
+        Assert.False(Directory.Exists(temp.PathOf("out")));
+    }
+
+    /// <summary>
     ///     Test that building the same lists twice produces byte-identical files.
     /// </summary>
     [Fact]

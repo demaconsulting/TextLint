@@ -43,10 +43,14 @@ sections:
             title: >-
               VariantFilter shall report the reviewed-list words that are not spelling variants, in order,
               and the number of variants kept through programming-language lists, kept through the reviewed
-              list, and removed.
+              list, and removed, as a result that later changes to the collections it was built from
+              cannot alter.
             justification: |
               A reviewed-list word that is not a variant is a stale entry, and the counts let a person
-              reviewing a refresh of the lists see what the rule did without comparing dictionaries.
+              reviewing a refresh of the lists see what the rule did without comparing dictionaries. A
+              result that claims to be fixed must not change when a caller later reuses or edits the
+              collections it passed in, or the report and the dictionary built from it could disagree.
             tests:
               - VariantFilter_Apply_KeepWordNotVariant_IsReported
               - VariantFilter_Apply_MixedInput_CountsKeptAndStripped
+              - VariantFilter_Result_SourceMutatedAfterConstruction_ResultUnchanged

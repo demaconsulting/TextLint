@@ -144,23 +144,59 @@ sections:
         title: >-
           The builder shall change no dictionary file when any dictionary cannot be produced or any
           dictionary file cannot be written, and when the file system also prevents restoring the previous
-          files it shall report that fatal condition with a distinct exit code, naming the affected files
-          and the backups that hold their previous content.
+          files or deleting a temporary file it shall report that fatal condition with a distinct exit
+          code, naming the affected files and the backups that hold their previous content.
         tags: [system]
         justification: |
           The dictionaries ship together and a lookup that is correct for one dictionary but stale for
           another is a wrong result nobody can notice. A build that fails must therefore leave every
           dictionary file as it was, so that a later successful build starts from a consistent state.
-          A file system cannot be forced to undo a change, so when restoration itself fails the build
-          must say so plainly and preserve the previous content, instead of hiding an inconsistent
-          output behind an ordinary failure. The system-level test covers the failed-write guarantee;
-          the fatal report is verified by the unit tests of the child requirement, because it needs a
-          file system failure that cannot be provoked portably from outside the process.
+          A file system cannot be forced to undo a change, so when restoration or cleanup itself fails
+          the build must say so plainly and preserve the previous content, instead of hiding an
+          inconsistent output behind an ordinary failure. The system-level test covers the failed-write
+          guarantee; the fatal reports are verified by the unit tests of the child requirement, because
+          they need a file system failure that cannot be provoked portably from outside the process.
         children:
           - DictionaryBuilder-BuilderProgram-AllOrNothing
         tests:
           - DictionaryBuilder_Build_LaterOutputBlocked_LeavesEarlierOutputUntouched
           - DictionaryBuilder_Build_InvalidEntry_ReportsFileAndLineAndWritesNothing
+
+      - id: DictionaryBuilder-System-NameMatching
+        title: >-
+          The builder shall treat dictionary names, folder names, and list-file names that differ only in
+          letter case as the same name, so that it gives the same result on case-sensitive and
+          case-insensitive file systems.
+        tags: [system]
+        justification: |
+          The library is built on Windows, Linux, and macOS, whose file systems disagree about whether
+          "alpha" and "ALPHA" are one folder. A build that silently let one dictionary overwrite another
+          on one platform only, or found a list on one platform and skipped it on another, would produce
+          different products from the same repository.
+        children:
+          - DictionaryBuilder-BuilderProgram-NameMatching
+          - DictionaryBuilder-WordListReader-EntryParsing
+        tests:
+          - DictionaryBuilder_Build_NamesDifferingOnlyInCase_RejectedAsDuplicate
+
+      - id: DictionaryBuilder-System-UnreadableInput
+        title: >-
+          The builder shall fail, naming the folder or file at fault, when a word-list folder or file
+          cannot be read, and shall treat only a folder that does not exist as absent.
+        tags: [system]
+        justification: |
+          A folder or list that is present but unreadable (access denied, an I/O error) looks exactly like
+          an empty or missing one to a careless check, and the words it holds would silently vanish from
+          the product, for example an unreadable reviewed list would silently strip the words it approves.
+          Reporting the real cause lets the maintainer fix the permission instead of chasing a missing
+          word. The system-level test covers the missing folder; the unreadable cases are verified by the
+          unit tests of the child requirements, because they need a file system failure that cannot be
+          provoked portably from outside the process.
+        children:
+          - DictionaryBuilder-BuilderProgram-ErrorReporting
+          - DictionaryBuilder-WordListReader-Validation
+        tests:
+          - DictionaryBuilder_Build_MissingDictionaryFolder_FailsNamingFolder
 
       - id: DictionaryBuilder-System-VariantSpellings
         title: >-

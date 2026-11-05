@@ -22,7 +22,7 @@ namespace DemaConsulting.TextLint.DictionaryBuilder;
 
 /// <summary>
 ///     The file system operations of the builder that can fail in ways a test cannot portably
-///     provoke: searching folders, moving files, and deleting files.
+///     provoke: searching folders, reading files, moving files, and deleting files.
 /// </summary>
 /// <remarks>
 ///     A permission error or a locked file is exactly what the builder's all-or-nothing and
@@ -67,10 +67,28 @@ internal class FileOperations
         Directory.EnumerateDirectories(folder);
 
     /// <summary>
+    ///     Reads the whole content of a file.
+    /// </summary>
+    /// <remarks>
+    ///     A missing file is reported as <see cref="FileNotFoundException"/> or
+    ///     <see cref="DirectoryNotFoundException"/> (both are <see cref="IOException"/>), so a caller
+    ///     can tell "not there" from "there but unreadable" without a separate existence check that
+    ///     would hide the second case. Reads the file system.
+    /// </remarks>
+    /// <param name="path">The file to read. Must not be null.</param>
+    /// <returns>The bytes of the file.</returns>
+    /// <exception cref="FileNotFoundException">Thrown when the file does not exist.</exception>
+    /// <exception cref="DirectoryNotFoundException">Thrown when a folder on the path does not exist.</exception>
+    /// <exception cref="IOException">Thrown when the file cannot be read.</exception>
+    /// <exception cref="UnauthorizedAccessException">Thrown when access to the file is denied.</exception>
+    internal virtual byte[] ReadAllBytes(string path) => File.ReadAllBytes(path);
+
+    /// <summary>
     ///     Moves a file, failing if the destination already exists.
     /// </summary>
     /// <remarks>
-    ///     Never overwrites, so the builder always knows what it moved aside. Writes the file system.
+    ///     Never overwrites, so the builder always knows what it moved aside. A missing source is
+    ///     reported as <see cref="FileNotFoundException"/>. Writes the file system.
     /// </remarks>
     /// <param name="source">The file to move. Must not be null.</param>
     /// <param name="destination">The new path. Must not be null.</param>

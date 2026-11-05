@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+using System.Collections.Frozen;
 using System.Collections.Immutable;
 
 namespace DemaConsulting.TextLint.DictionaryBuilder;
@@ -28,9 +29,11 @@ namespace DemaConsulting.TextLint.DictionaryBuilder;
 /// </summary>
 /// <remarks>
 ///     The counts exist so that a build (and a person reviewing a refresh of the lists) can see
-///     what the rule did without diffing dictionaries. The collections are exposed as read-only
-///     views and the list is copied into an immutable array, so no caller can change a result
-///     afterwards. Instances are immutable after construction and thread-safe.
+///     what the rule did without diffing dictionaries. The words are copied into an immutable frozen
+///     dictionary (keyed by ordinal comparison, as the rule folds them) and the list into an immutable array when
+///     the result is created, so neither a later change to the collections the caller passed in nor
+///     any caller of the result can change it afterwards. Instances are immutable after construction
+///     and thread-safe.
 /// </remarks>
 internal sealed class VariantFilterResult
 {
@@ -52,7 +55,7 @@ internal sealed class VariantFilterResult
         int stripped,
         IReadOnlyList<string> keepWordsNotVariants)
     {
-        Words = words;
+        Words = words.ToFrozenDictionary(StringComparer.Ordinal);
         KeptViaLanguage = keptViaLanguage;
         KeptViaKeepList = keptViaKeepList;
         Stripped = stripped;

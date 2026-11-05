@@ -490,6 +490,8 @@ public class BuilderProgramTests
     [InlineData("--technical alpha --variants missing")]
     [InlineData("--technical alpha --variants alpha")]
     [InlineData("--technical alpha --technical alpha --variants beta")]
+    [InlineData("--technical alpha --variants beta --variants BETA")]
+    [InlineData("--technical ALPHA --variants alpha")]
     public void BuilderProgram_Run_InconsistentTechnicalDeclaration_ReturnsUsageError(string extra)
     {
         // Arrange: two valid dictionaries and an inconsistent technical declaration
@@ -733,6 +735,7 @@ public class BuilderProgramTests
         // Assert: exit code 1, the folder is named, and no output exists
         Assert.Equal(BuilderProgram.ExitInvalidWordLists, exitCode);
         Assert.Contains($"{folder}: error: the folder cannot be searched for word lists", error);
+        Assert.DoesNotContain("does not exist", error);
         Assert.False(Directory.Exists(temp.PathOf("out")));
     }
 
@@ -795,6 +798,184 @@ public class BuilderProgramTests
         // Assert: exit code 1, the folder is named, and no output exists
         Assert.Equal(BuilderProgram.ExitInvalidWordLists, exitCode);
         Assert.Contains($"{technical}: error: the folder cannot be searched for word lists", error);
+        Assert.DoesNotContain("does not exist", error);
         Assert.False(Directory.Exists(temp.PathOf("out")));
+    }
+
+    /// <summary>
+    ///     Test that dictionary names that differ only in case are one name and are rejected as a duplicate.
+    /// </summary>
+    [Fact]
+    public void BuilderProgram_Run_DuplicateNameDifferingInCase_ReturnsUsageError()
+    {
+        // Arrange: a command line that declares "alpha" and "ALPHA", which are one folder and one file on a case-insensitive file system
+        using var temp = new TempDirectory();
+
+        // Act: run the builder
+        var (exitCode, _, error) = Execute("--input", CreateValidInput(temp), "--output", temp.PathOf("out"), "alpha", "ALPHA");
+
+        // Assert: exit code 2, the name is reported as a duplicate ignoring case, and nothing was created
+        Assert.Equal(BuilderProgram.ExitUsage, exitCode);
+        Assert.Contains("'ALPHA' is not a valid dictionary name or repeats an earlier name, ignoring case", error);
+        Assert.False(Directory.Exists(temp.PathOf("out")));
+    }
+
+    /// <summary>
+    ///     Test that the technical and variant references match the declared names ignoring case and use the declared spelling.
+    /// </summary>
+    [Fact]
+    public void BuilderProgram_Run_TechnicalReferencesDifferingInCase_UseDeclaredSpelling()
+    {
+        // Arrange: the shared fixture, referenced with different capitalization than it is declared with
+        using var temp = new TempDirectory();
+        VariantFixture.Create(temp);
+
+        // Act: build with upper-case references to the technical and variant dictionaries
+        var (exitCode, _, _) = Execute(
+            "--input", temp.PathOf("input"), "--output", temp.PathOf("out"),
+            "en-US", "en-GB", "technical",
+            "--technical", "TECHNICAL", "--variants", "EN-US", "--variants", "en-gb");
+
+        // Assert: the variant rule was applied exactly as with the declared spelling, and the files carry the declared names
+        Assert.Equal(BuilderProgram.ExitSuccess, exitCode);
+        Assert.Equal(["color", "grey", "kubernetes", "tokenizer", "void"], new TldReader(File.ReadAllBytes(temp.PathOf("out/technical.tld"))).Words);
+        Assert.Equal(["en-GB.tld", "en-US.tld", "technical.tld"], Directory.GetFiles(temp.PathOf("out")).Select(Path.GetFileName).Order(StringComparer.Ordinal));
+    }
+
+    /// <summary>
+    ///     Test that the technical dictionary's sub-folders, keep list, and list extensions are matched ignoring case, on every operating system.
+    /// </summary>
+    [Fact]
+    public void BuilderProgram_Run_TechnicalPartsInDifferentCase_AreFoundAndBuilt()
+    {
+        // Arrange: the fixture's lists under differently capitalized folder and file names
+        using var temp = new TempDirectory();
+        temp.CreateFile("input/en-US/us.txt", "favorite\ncolor\ntokenizer\n");
+        temp.CreateFile("input/en-GB/gb.txt", "colour\ngrey\n");
+        temp.CreateFile("input/technical/LANGUAGE/lang.TXT", "color\ngrey\nvoid\n");
+        temp.CreateFile("input/technical/General/general.txt", "favorite\ncolour\ntokenizer\nkubernetes\n");
+        temp.CreateFile("input/technical/Variant-Keep.TXT", "tokenizer\n");
+
+        // Act: build with the variant rule
+        var (exitCode, _, error) = Execute(VariantFixture.Arguments(temp));
+
+        // Assert: nothing is reported as misplaced, and the result equals the one for the lower-case layout
+        Assert.Equal(BuilderProgram.ExitSuccess, exitCode);
+        Assert.Equal(string.Empty, error);
+        Assert.Equal(["color", "grey", "kubernetes", "tokenizer", "void"], new TldReader(File.ReadAllBytes(temp.PathOf("out/technical.tld"))).Words);
+    }
+
+    /// <summary>
+    ///     Test that a folder is matched against the declared names ignoring case when looking for undeclared folders.
+    /// </summary>
+    [Fact]
+    public void BuilderProgram_Run_UndeclaredFolderCheck_MatchesDeclaredNamesIgnoringCase()
+    {
+        // Arrange: a declared dictionary whose folder is listed with different capitalization, as a case-insensitive file system may report it
+        using var temp = new TempDirectory();
+        var input = CreateValidInput(temp);
+        var listed = Path.Combine(input, "ALPHA");
+        var operations = new FaultingFileOperations { ListDirectories = _ => [listed] };
+
+        // Act: build only the declared dictionary
+        var (exitCode, _, error) = ExecuteWith(operations, "--input", input, "--output", temp.PathOf("out"), "alpha");
+
+        // Assert: the listed folder is recognized as the declared dictionary, not reported as undeclared
+        Assert.Equal(BuilderProgram.ExitSuccess, exitCode);
+        Assert.DoesNotContain("not a declared dictionary", error);
+    }
+
+    /// <summary>
+    ///     Test that a keep list that exists but cannot be read is reported and nothing is written.
+    /// </summary>
+    [Fact]
+    public void BuilderProgram_Run_KeepListCannotBeRead_ReturnsOneNamingFile()
+    {
+        // Arrange: the shared fixture whose keep list cannot be read
+        using var temp = new TempDirectory();
+        VariantFixture.Create(temp);
+        var keepFile = temp.PathOf("input/technical/variant-keep.txt");
+        var operations = new FaultingFileOperations { FailRead = path => string.Equals(path, keepFile, StringComparison.Ordinal) };
+
+        // Act: build with the variant rule
+        var (exitCode, _, error) = ExecuteWith(operations, VariantFixture.Arguments(temp));
+
+        // Assert: exit code 1, the keep list is named, and no dictionary was built that silently stripped the approved words
+        Assert.Equal(BuilderProgram.ExitInvalidWordLists, exitCode);
+        Assert.Contains($"{keepFile}: error: the file cannot be read", error);
+        Assert.False(Directory.Exists(temp.PathOf("out")));
+    }
+
+    /// <summary>
+    ///     Test that an existing output file that cannot be read is a reported failure, not treated as absent.
+    /// </summary>
+    [Fact]
+    public void BuilderProgram_Run_ExistingOutputCannotBeRead_ReportsErrorAndChangesNothing()
+    {
+        // Arrange: a built dictionary whose output file can no longer be read
+        using var temp = new TempDirectory();
+        var input = CreateValidInput(temp);
+        Execute("--input", input, "--output", temp.PathOf("out"), "alpha");
+        var alphaFile = temp.PathOf("out/alpha.tld");
+        var original = File.ReadAllBytes(alphaFile);
+        var operations = new FaultingFileOperations { FailRead = path => string.Equals(path, alphaFile, StringComparison.Ordinal) };
+
+        // Act: build again
+        var (exitCode, _, error) = ExecuteWith(operations, "--input", input, "--output", temp.PathOf("out"), "alpha");
+
+        // Assert: exit code 1 with the failure reported, and the output folder holds only the original file
+        Assert.Equal(BuilderProgram.ExitInvalidWordLists, exitCode);
+        Assert.Contains("the dictionary files cannot be written", error);
+        Assert.Equal(original, File.ReadAllBytes(alphaFile));
+        Assert.Equal(["alpha.tld"], Directory.GetFileSystemEntries(temp.PathOf("out")).Select(Path.GetFileName));
+    }
+
+    /// <summary>
+    ///     Test that a staged file that cannot be deleted is reported as a fatal condition that names it.
+    /// </summary>
+    [Fact]
+    public void BuilderProgram_Run_StagedFileCannotBeDeleted_ReportsLeftoverAndReturnsFatal()
+    {
+        // Arrange: the second installation fails, which leaves its staged file to be deleted, and that deletion is denied
+        using var temp = new TempDirectory();
+        var (input, alphaFile, original) = PrepareChangedFirstAndNewSecond(temp);
+        var operations = new FaultingFileOperations
+        {
+            FailMove = (source, destination) => source.EndsWith(".tmp", StringComparison.Ordinal) && destination.EndsWith("beta.tld", StringComparison.Ordinal),
+            FailDelete = path => path.EndsWith(".tmp", StringComparison.Ordinal)
+        };
+
+        // Act: build both dictionaries
+        var (exitCode, _, error) = ExecuteWith(operations, "--input", input, "--output", temp.PathOf("out"), "alpha", "beta");
+
+        // Assert: the fatal exit code, the leftover is named and still exists, and the first file was restored
+        Assert.Equal(BuilderProgram.ExitOutputInconsistent, exitCode);
+        Assert.Contains("the dictionary files cannot be written", error);
+        var leftover = Assert.Single(Directory.GetFiles(temp.PathOf("out"), "beta.tld.*.tmp"));
+        Assert.Contains($"{leftover}: error: the temporary file could not be deleted", error);
+        Assert.Equal(original, File.ReadAllBytes(alphaFile));
+    }
+
+    /// <summary>
+    ///     Test that a backup that cannot be deleted after a successful installation is reported as a fatal condition that names it.
+    /// </summary>
+    [Fact]
+    public void BuilderProgram_Run_BackupCannotBeDeleted_ReportsLeftoverAndReturnsFatal()
+    {
+        // Arrange: a successful installation that replaces the first file, and the deletion of its backup is denied
+        using var temp = new TempDirectory();
+        var (input, alphaFile, original) = PrepareChangedFirstAndNewSecond(temp);
+        var operations = new FaultingFileOperations { FailDelete = path => path.EndsWith(".bak", StringComparison.Ordinal) };
+
+        // Act: build both dictionaries
+        var (exitCode, _, error) = ExecuteWith(operations, "--input", input, "--output", temp.PathOf("out"), "alpha", "beta");
+
+        // Assert: the fatal exit code, the backup is named and still holds the previous content, and the new files are in place
+        Assert.Equal(BuilderProgram.ExitOutputInconsistent, exitCode);
+        var backup = Assert.Single(Directory.GetFiles(temp.PathOf("out"), "*.bak"));
+        Assert.Contains($"{backup}: error: the backup of the previous content could not be deleted", error);
+        Assert.Equal(original, File.ReadAllBytes(backup));
+        Assert.NotEqual(original, File.ReadAllBytes(alphaFile));
+        Assert.True(File.Exists(temp.PathOf("out/beta.tld")));
     }
 }

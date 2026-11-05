@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+using System.Collections.Frozen;
 using System.Collections.Immutable;
 
 namespace DemaConsulting.TextLint.DictionaryBuilder;
@@ -28,9 +29,10 @@ namespace DemaConsulting.TextLint.DictionaryBuilder;
 /// </summary>
 /// <remarks>
 ///     Returning a result instead of throwing lets the builder report every problem in every list
-///     at once. The diagnostics are copied into an immutable array when the result is created, and
-///     the words are exposed as a read-only view, so no caller can change the result afterwards.
-///     Instances are immutable after construction and thread-safe.
+///     at once. The diagnostics are copied into an immutable array and the words into an immutable
+///     frozen dictionary when the result is created, so neither a later change to the collection the
+///     caller passed in nor any caller of the result can change it afterwards. Words are keyed by
+///     ordinal comparison, as the reader folds them. Instances are immutable after construction and thread-safe.
 /// </remarks>
 internal sealed class WordListReadResult
 {
@@ -53,7 +55,7 @@ internal sealed class WordListReadResult
         int problemCount,
         int fileCount)
     {
-        Words = words;
+        Words = words.ToFrozenDictionary(StringComparer.Ordinal);
         Diagnostics = diagnostics.ToImmutableArray();
         ProblemCount = problemCount;
         FileCount = fileCount;

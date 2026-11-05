@@ -22,8 +22,8 @@ output folder by the test project, so no repository root has to be located.
 
 - All system tests pass with zero failures on every supported platform.
 - The exit code is 0 for valid lists, 1 for invalid lists or declarations, and 2 for an invalid command line. The
-  fatal exit code 3, for a write failure whose restoration also fails, needs an injected file system failure and
-  is verified by the unit tests of `BuilderProgram`.
+  fatal exit code 3, for a write failure whose restoration also fails or for a temporary file or backup that cannot
+  be deleted, needs an injected file system failure and is verified by the unit tests of `BuilderProgram`.
 - No dictionary file exists after a run that reported a problem.
 - Every entry of every committed word list is found in the dictionary built from it, except the stripped
   spelling variants of the technical dictionary, which are not found.
@@ -105,6 +105,15 @@ comments fails with an error that names the dictionary and writes nothing. This 
 **DictionaryBuilder_Build_UndeclaredFolder_FailsNamingFolder**: A folder of word lists whose name was left off
 the command line fails with an error that names the folder and writes nothing. This scenario is tested by
 `DictionaryBuilder_Build_UndeclaredFolder_FailsNamingFolder`.
+
+**DictionaryBuilder_Build_NamesDifferingOnlyInCase_RejectedAsDuplicate**: One dictionary is declared as `alpha` and
+`ALPHA`; the run exits with code 2, the error names `ALPHA`, and nothing is written. This scenario is tested by
+`DictionaryBuilder_Build_NamesDifferingOnlyInCase_RejectedAsDuplicate`.
+
+**DictionaryBuilder_Build_MissingDictionaryFolder_FailsNamingFolder**: A declared dictionary whose folder does not
+exist fails the run with an error that names the missing folder and writes nothing. The unreadable-folder and
+unreadable-file cases need an injected file system failure and are verified by the unit tests. This scenario is
+tested by `DictionaryBuilder_Build_MissingDictionaryFolder_FailsNamingFolder`.
 
 **DictionaryBuilder_Build_SameListsTwice_ProducesIdenticalFiles**: Two thousand words are built twice from the
 same lists, with the output deleted between runs; the files are byte-identical. This scenario is tested by

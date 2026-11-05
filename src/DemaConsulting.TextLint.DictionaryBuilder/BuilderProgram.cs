@@ -18,6 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+using System.Collections.Immutable;
+
 namespace DemaConsulting.TextLint.DictionaryBuilder;
 
 /// <summary>
@@ -29,8 +31,9 @@ namespace DemaConsulting.TextLint.DictionaryBuilder;
 ///     The builder runs inside the build of the library, so its contract with the build is small
 ///     and strict: exit code 0 means every file was produced; exit code 1 means the word lists or
 ///     the dictionary declarations are wrong (or the files could not be written) and no output was
-///     changed; exit code 2 means the command line was wrong; exit code 3 means a write failed and the
-///     file system also prevented restoring the previous files, so the output may be inconsistent (the
+///     changed; exit code 2 means the command line was wrong; exit code 3 means the output folder
+///     could not be left clean and consistent: a write failed and the file system also prevented
+///     restoring the previous files, or a temporary file or backup could not be deleted (the
 ///     error stream then names the affected files and the backups that were kept). Errors go to the
 ///     error stream as <c>path(line): error: message</c>, which MSBuild turns into build errors that
 ///     point at the offending line. All files are produced in memory first, then staged beside their
@@ -60,9 +63,10 @@ internal static class BuilderProgram
     internal const int ExitUsage = 2;
 
     /// <summary>
-    ///     The exit code returned when writing the dictionary files failed and the file system also
-    ///     prevented restoring the previous files, so the output folder may be inconsistent. The error
-    ///     stream names every affected file and every backup that was kept.
+    ///     The exit code returned when the output folder could not be left in a clean, consistent
+    ///     state: writing the dictionary files failed and the file system also prevented restoring the
+    ///     previous files, or a temporary file or backup could not be deleted. The error stream names
+    ///     every affected file and every backup that was kept.
     /// </summary>
     internal const int ExitOutputInconsistent = 3;
 
@@ -120,6 +124,20 @@ internal static class BuilderProgram
     ///     The extension of the backup of an output file that is being replaced.
     /// </summary>
     private const string BackupExtension = ".bak";
+
+    /// <summary>
+    ///     The comparer used for every dictionary name, folder name, and file name the builder compares.
+    /// </summary>
+    /// <remarks>
+    ///     Names become folder and file names, and on a case-insensitive file system (the default on
+    ///     Windows and macOS) <c>alpha</c> and <c>ALPHA</c> are the same folder and the same output
+    ///     file. Comparing ignoring case everywhere (duplicate detection, references to the technical
+    ///     and variant dictionaries, folder matching, and the technical dictionary's sub-folders)
+    ///     makes the builder behave the same on every operating system, and makes a collision a usage
+    ///     error instead of one dictionary silently overwriting another. The words inside the lists
+    ///     are not names and keep their own ordinal comparison.
+    /// </remarks>
+    private static readonly StringComparer NameComparer = StringComparer.OrdinalIgnoreCase;
 
     /// <summary>
     ///     The usage text printed after a command-line error.
@@ -233,9 +251,9 @@ internal static class BuilderProgram
             // A plain argument is a dictionary name
             if (!argument.StartsWith(OptionPrefix, StringComparison.Ordinal))
             {
-                if (!IsValidName(argument) || names.Contains(argument, StringComparer.Ordinal))
+                if (!IsValidName(argument) || names.Contains(argument, NameComparer))
                 {
-                    problem = $"'{argument}' is not a valid or unique dictionary name (use letters, digits, '-' and '_')";
+                    problem = $"'{argument}' is not a valid dictionary name or repeats an earlier name, ignoring case (use letters, digits, '-' and '_')";
                     return null;
                 }
 
@@ -280,7 +298,21 @@ internal static class BuilderProgram
 
         // The technical declaration is all or nothing and must refer to declared dictionaries
         problem = FindTechnicalDeclarationProblem(names, technical, variants);
-        return problem is null ? new BuildOptions(Path.GetFullPath(input), Path.GetFullPath(outputFolder), names, technical, variants, FileOperations.Default) : null;
+        if (problem is not null)
+        {
+            return null;
+        }
+
+        // A reference matched ignoring case is resolved to the declared spelling, which is the folder and file name used from here on
+        var declaredTechnical = technical is null ? null : names.First(name => NameComparer.Equals(name, technical));
+        var declaredVariants = variants.Select(variant => names.First(name => NameComparer.Equals(name, variant))).ToList();
+        return new BuildOptions(
+            Path.GetFullPath(input),
+            Path.GetFullPath(outputFolder),
+            names.ToImmutableArray(),
+            declaredTechnical,
+            declaredVariants.ToImmutableArray(),
+            FileOperations.Default);
     }
 
     /// <summary>
@@ -314,7 +346,7 @@ internal static class BuilderProgram
     /// <returns><see langword="true"/> when the value was added; <see langword="false"/> when it was a repeat.</returns>
     private static bool AddOnce(List<string> values, string value)
     {
-        if (values.Contains(value, StringComparer.Ordinal))
+        if (values.Contains(value, NameComparer))
         {
             return false;
         }
@@ -342,7 +374,7 @@ internal static class BuilderProgram
             return variants.Count > 0 ? $"{VariantsOption} needs {TechnicalOption}" : null;
         }
 
-        if (!names.Contains(technical, StringComparer.Ordinal))
+        if (!names.Contains(technical, NameComparer))
         {
             return $"the technical dictionary '{technical}' is not a declared dictionary name";
         }
@@ -352,7 +384,7 @@ internal static class BuilderProgram
             return $"{TechnicalOption} needs at least one {VariantsOption}";
         }
 
-        var invalid = variants.FirstOrDefault(variant => string.Equals(variant, technical, StringComparison.Ordinal) || !names.Contains(variant, StringComparer.Ordinal));
+        var invalid = variants.FirstOrDefault(variant => NameComparer.Equals(variant, technical) || !names.Contains(variant, NameComparer));
         return invalid is null ? null : $"the variant dictionary '{invalid}' must be a declared dictionary name other than the technical dictionary";
     }
 
@@ -382,19 +414,20 @@ internal static class BuilderProgram
     private static List<BuiltDictionary> ReadDictionaries(BuildOptions options, List<WordListDiagnostic> problems)
     {
         // Read every ordinary dictionary first
-        var read = new Dictionary<string, BuiltDictionary>(StringComparer.Ordinal);
+        var read = new Dictionary<string, BuiltDictionary>(NameComparer);
         foreach (var name in options.Names.Where(name => !IsTechnical(options, name)))
         {
-            // A declared dictionary must have a folder
+            // A declared dictionary must have a folder; only a genuinely absent folder says so, a failed search is its own problem
             var folder = Path.Combine(options.InputFolder, name);
-            if (!Directory.Exists(folder))
+            var files = WordListReader.FindWordListFiles(folder, out var searchProblem, out var folderMissing, options.Operations);
+            if (folderMissing)
             {
                 problems.Add(new WordListDiagnostic(folder, WordListDiagnostic.NoLine, $"the word-list folder of dictionary '{name}' does not exist"));
                 continue;
             }
 
             // Collect the reader's problems, and require at least one word when the lists were readable
-            var result = WordListReader.Read(folder, options.Operations);
+            var result = WordListReader.ReadFiles(files, folder, searchProblem, options.Operations);
             problems.AddRange(result.Diagnostics);
             ReportMissingWords(result, folder, $"dictionary '{name}'", problems);
             read[name] = new BuiltDictionary(name, result.Words, string.Empty);
@@ -428,7 +461,7 @@ internal static class BuilderProgram
     /// <param name="name">The dictionary name. Must not be null.</param>
     /// <returns><see langword="true"/> when the name is the declared technical dictionary.</returns>
     private static bool IsTechnical(BuildOptions options, string name) =>
-        string.Equals(options.TechnicalName, name, StringComparison.Ordinal);
+        options.TechnicalName is not null && NameComparer.Equals(options.TechnicalName, name);
 
     /// <summary>
     ///     Records a problem when the lists of a dictionary were readable but contain no words.
@@ -455,9 +488,14 @@ internal static class BuilderProgram
     /// <remarks>
     ///     The folder is the tag: the lists under <c>language</c> are programming-language keyword and
     ///     API lists, the lists under <c>general</c> are everything else, and <c>variant-keep.txt</c> is
-    ///     a reviewed list of variant spellings that are programming terms. A word list anywhere else
-    ///     in the folder is reported, so a misplaced list cannot silently drop out of the product. The
-    ///     rule itself is applied by <see cref="VariantFilter"/>. Reads the file system.
+    ///     a reviewed list of variant spellings that are programming terms. The folder is found with
+    ///     <see cref="NameComparer"/> and every list is sorted into one of those three places from the
+    ///     single listing of the technical folder, so a list that was found is always either read or
+    ///     reported, never dropped, and a word list anywhere else in the folder is reported, so a
+    ///     misplaced list cannot silently drop out of the product. Whether the optional keep list exists
+    ///     is decided by that same listing, not by a separate existence check: a keep list that is
+    ///     listed but cannot be read is a problem, so an unreadable keep list can never silently strip
+    ///     approved words. The rule itself is applied by <see cref="VariantFilter"/>. Reads the file system.
     /// </remarks>
     /// <param name="name">The technical dictionary name. Must not be null.</param>
     /// <param name="folder">The technical dictionary folder. Must not be null.</param>
@@ -467,9 +505,17 @@ internal static class BuilderProgram
     /// <returns>The combined dictionary, or <see langword="null"/> when a problem prevented it.</returns>
     private static BuiltDictionary? ReadTechnicalDictionary(string name, string folder, HashSet<string> variantWords, FileOperations operations, List<WordListDiagnostic> problems)
     {
-        if (!Directory.Exists(folder))
+        // Search the whole folder once; only a genuinely absent folder says "does not exist", a failed search is its own problem
+        var allFiles = WordListReader.FindWordListFiles(folder, out var searchProblem, out var folderMissing, operations);
+        if (folderMissing)
         {
             problems.Add(new WordListDiagnostic(folder, WordListDiagnostic.NoLine, $"the word-list folder of dictionary '{name}' does not exist"));
+            return null;
+        }
+
+        if (searchProblem is not null)
+        {
+            problems.Add(searchProblem);
             return null;
         }
 
@@ -478,22 +524,36 @@ internal static class BuilderProgram
         var keepFile = Path.Combine(folder, KeepListFileName);
         var problemsBefore = problems.Count;
 
-        // Every list must be in one of the three places the rule knows about
-        var allFiles = WordListReader.FindWordListFiles(folder, out var searchProblem, operations);
-        if (searchProblem is not null)
+        // Sort every list into the one place the rule knows for it, so that no list can be found yet never read
+        var generalFiles = new List<string>();
+        var languageFiles = new List<string>();
+        var keepFiles = new List<string>();
+        foreach (var file in allFiles)
         {
-            problems.Add(searchProblem);
+            var segments = Path.GetRelativePath(folder, file).Split(Path.DirectorySeparatorChar);
+            if (segments.Length > 1 && NameComparer.Equals(segments[0], GeneralFolderName))
+            {
+                generalFiles.Add(file);
+            }
+            else if (segments.Length > 1 && NameComparer.Equals(segments[0], LanguageFolderName))
+            {
+                languageFiles.Add(file);
+            }
+            else if (segments.Length == 1 && NameComparer.Equals(segments[0], KeepListFileName))
+            {
+                keepFiles.Add(file);
+            }
+            else
+            {
+                problems.Add(new WordListDiagnostic(file, WordListDiagnostic.NoLine, $"the word list is not in the '{GeneralFolderName}' or '{LanguageFolderName}' folder and is not {KeepListFileName}"));
+            }
         }
 
-        foreach (var file in allFiles.Where(file => !IsUnder(file, generalFolder) && !IsUnder(file, languageFolder) && !string.Equals(file, keepFile, StringComparison.Ordinal)))
-        {
-            problems.Add(new WordListDiagnostic(file, WordListDiagnostic.NoLine, $"the word list is not in the '{GeneralFolderName}' or '{LanguageFolderName}' folder and is not {KeepListFileName}"));
-        }
-
-        // Read the three sources; the general and language lists must each hold words, the keep list is optional
-        var general = WordListReader.Read(generalFolder, operations);
-        var language = WordListReader.Read(languageFolder, operations);
-        var keep = WordListReader.ReadFiles(File.Exists(keepFile) ? [keepFile] : [], keepFile);
+        // Read the three sources; the general and language lists must each hold words. The keep list is
+        // optional only in the sense that it may be absent from the listing: one that is listed but cannot be read is a problem
+        var general = WordListReader.ReadFiles(generalFiles, generalFolder, operations: operations);
+        var language = WordListReader.ReadFiles(languageFiles, languageFolder, operations: operations);
+        var keep = WordListReader.ReadFiles(keepFiles, keepFile, operations: operations);
         problems.AddRange(general.Diagnostics);
         problems.AddRange(language.Diagnostics);
         problems.AddRange(keep.Diagnostics);
@@ -516,40 +576,30 @@ internal static class BuilderProgram
     }
 
     /// <summary>
-    ///     Determines whether a file lies beneath a folder.
-    /// </summary>
-    /// <remarks>
-    ///     Compares full paths in ordinal order with the directory separator, so a folder whose name merely
-    ///     starts with another folder's name is not mistaken for a child. Pure function; thread-safe.
-    /// </remarks>
-    /// <param name="file">The full path of the file. Must not be null.</param>
-    /// <param name="folder">The full path of the folder. Must not be null.</param>
-    /// <returns><see langword="true"/> when the file is inside the folder or one of its sub-folders.</returns>
-    private static bool IsUnder(string file, string folder) =>
-        file.StartsWith(folder + Path.DirectorySeparatorChar, StringComparison.Ordinal);
-
-    /// <summary>
     ///     Reports each folder that holds word lists but was not declared on the command line.
     /// </summary>
     /// <remarks>
     ///     A mistyped or forgotten dictionary name would otherwise silently drop a whole list from
-    ///     the product, which no later check could notice. Reads the file system.
+    ///     the product, which no later check could notice. Folder names are matched against the
+    ///     declared names with <see cref="NameComparer"/>. There is no existence check on the input
+    ///     folder: only a genuine "directory not found" means there is nothing to inspect (the
+    ///     declared dictionaries report that themselves); any other listing failure is a problem.
+    ///     Reads the file system.
     /// </remarks>
     /// <param name="options">The parsed options. Must not be null.</param>
     /// <param name="problems">The list that receives every problem. Must not be null.</param>
     private static void ReportUndeclaredFolders(BuildOptions options, List<WordListDiagnostic> problems)
     {
-        // A missing input folder has no sub-folders to inspect; the declared dictionaries already reported it
-        if (!Directory.Exists(options.InputFolder))
-        {
-            return;
-        }
-
         // List the folders; a listing failure is a problem, not a crash and not an empty input
         List<string> folders;
         try
         {
             folders = [.. options.Operations.EnumerateDirectories(options.InputFolder)];
+        }
+        catch (DirectoryNotFoundException)
+        {
+            // A missing input folder has no sub-folders to inspect; the declared dictionaries already reported it
+            return;
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
@@ -561,13 +611,13 @@ internal static class BuilderProgram
         foreach (var folder in folders)
         {
             var name = Path.GetFileName(folder);
-            if (options.Names.Contains(name, StringComparer.Ordinal))
+            if (options.Names.Contains(name, NameComparer))
             {
                 continue;
             }
 
             // An undeclared folder is a problem when it holds word lists, or when it cannot be searched to find out
-            var lists = WordListReader.FindWordListFiles(folder, out var searchProblem, options.Operations);
+            var lists = WordListReader.FindWordListFiles(folder, out var searchProblem, out _, options.Operations);
             if (searchProblem is not null)
             {
                 problems.Add(searchProblem);
@@ -592,8 +642,13 @@ internal static class BuilderProgram
     ///     own exit code, names every file left inconsistent and every backup that was kept, and
     ///     deletes none of those backups. Not
     ///     rewriting an identical file keeps its timestamp, so an incremental build that uses the
-    ///     files as outputs does not see a change. File system failures are reported as errors rather
-    ///     than thrown. Writes the file system.
+    ///     files as outputs does not see a change. Whether a target already exists is decided by
+    ///     reading it, never by a separate existence check, so an existing target that cannot be read
+    ///     is a reported failure rather than being treated as absent. Every temporary file the run
+    ///     created (staged files and backups) is deleted at the end, and one that cannot be deleted is
+    ///     named in a fatal report with the same exit code as a failed restoration, so no leftover is
+    ///     ever hidden behind the run's other result. File system failures are reported as errors
+    ///     rather than thrown. Writes the file system.
     /// </remarks>
     /// <param name="options">The parsed options. Must not be null.</param>
     /// <param name="files">The files to write. Must not be null.</param>
@@ -603,6 +658,61 @@ internal static class BuilderProgram
     private static int WriteFiles(BuildOptions options, List<OutputFile> files, TextWriter output, TextWriter error)
     {
         var staged = new List<StagedFile>();
+        var leftovers = new List<string>();
+        int result;
+        try
+        {
+            result = StageAndInstall(options, files, staged, leftovers, output, error);
+        }
+        finally
+        {
+            // Whatever happened, no staged file may be left behind unreported
+            foreach (var stagedFile in staged)
+            {
+                var leftover = stagedFile.DeleteStaged();
+                if (leftover is not null)
+                {
+                    leftovers.Add(leftover);
+                }
+            }
+
+            if (leftovers.Count > 0)
+            {
+                error.WriteLine($"{options.OutputFolder}: error: temporary files could not be deleted and were left in the output folder; delete them by hand");
+                foreach (var leftover in leftovers)
+                {
+                    error.WriteLine(leftover);
+                }
+            }
+        }
+
+        return leftovers.Count > 0 ? ExitOutputInconsistent : result;
+    }
+
+    /// <summary>
+    ///     Stages every changed file, installs them together, and reports the outcome.
+    /// </summary>
+    /// <remarks>
+    ///     The first half of <see cref="WriteFiles"/>: it never deletes the staged files itself, so the
+    ///     caller can report any file that cannot be cleaned up whatever the outcome here. A target
+    ///     path that is occupied by a folder is refused up front only to give a clear message; every
+    ///     other kind of failure is still reported by the operation that hits it. Writes the file system.
+    /// </remarks>
+    /// <param name="options">The parsed options. Must not be null.</param>
+    /// <param name="files">The files to write. Must not be null.</param>
+    /// <param name="staged">Receives every staged file, so the caller can clean them up. Must not be null.</param>
+    /// <param name="leftovers">Receives the description of every backup that could not be deleted. Must not be null.</param>
+    /// <param name="output">The stream that receives the summary lines. Must not be null.</param>
+    /// <param name="error">The stream that receives error messages. Must not be null.</param>
+    /// <returns><see cref="ExitSuccess"/>, <see cref="ExitInvalidWordLists"/>, or <see cref="ExitOutputInconsistent"/>.</returns>
+    private static int StageAndInstall(
+        BuildOptions options,
+        List<OutputFile> files,
+        List<StagedFile> staged,
+        List<string> leftovers,
+        TextWriter output,
+        TextWriter error)
+    {
         try
         {
             Directory.CreateDirectory(options.OutputFolder);
@@ -615,11 +725,12 @@ internal static class BuilderProgram
             }
 
             // Stage every changed file beside its target; nothing is installed until all are written
-            var unchanged = new HashSet<string>(StringComparer.Ordinal);
+            var unchanged = new HashSet<string>(NameComparer);
             foreach (var file in files)
             {
                 var path = TargetPath(options, file);
-                if (File.Exists(path) && File.ReadAllBytes(path).AsSpan().SequenceEqual(file.Content))
+                var existing = ReadExisting(path, options.Operations);
+                if (existing is not null && existing.AsSpan().SequenceEqual(file.Content))
                 {
                     unchanged.Add(path);
                     continue;
@@ -631,7 +742,7 @@ internal static class BuilderProgram
             }
 
             // Install them together; a failure is rolled back, and a rollback that fails is a fatal report
-            var failure = Install(staged, out var inconsistencies);
+            var failure = Install(staged, out var inconsistencies, leftovers);
             if (inconsistencies.Count > 0)
             {
                 error.WriteLine($"{options.OutputFolder}: error: the dictionary files cannot be written ({failure?.Message}) and the previous files could not be restored; the output folder is inconsistent");
@@ -663,13 +774,30 @@ internal static class BuilderProgram
             error.WriteLine($"{options.OutputFolder}: error: the dictionary files cannot be written: {exception.Message}");
             return ExitInvalidWordLists;
         }
-        finally
+    }
+
+    /// <summary>
+    ///     Reads an existing output file, telling an absent file from one that cannot be read.
+    /// </summary>
+    /// <remarks>
+    ///     Reading instead of asking whether the file exists means that a file that is present but
+    ///     unreadable (access denied, locked) surfaces as the failure it is; only a genuinely absent
+    ///     file yields <see langword="null"/>. Reads the file system.
+    /// </remarks>
+    /// <param name="path">The full path of the file. Must not be null.</param>
+    /// <param name="operations">The file system operations to use. Must not be null.</param>
+    /// <returns>The content of the file, or <see langword="null"/> when it does not exist.</returns>
+    /// <exception cref="IOException">Thrown when the file exists but cannot be read.</exception>
+    /// <exception cref="UnauthorizedAccessException">Thrown when access to the file is denied.</exception>
+    private static byte[]? ReadExisting(string path, FileOperations operations)
+    {
+        try
         {
-            // Whatever happened, no staged file may be left behind
-            foreach (var stagedFile in staged)
-            {
-                stagedFile.DeleteStaged();
-            }
+            return operations.ReadAllBytes(path);
+        }
+        catch (Exception exception) when (exception is FileNotFoundException or DirectoryNotFoundException)
+        {
+            return null;
         }
     }
 
@@ -694,14 +822,16 @@ internal static class BuilderProgram
     ///     and the backup restored). If the file system prevents a restoration, the description of
     ///     what is left behind, including where the backup remains, is returned in
     ///     <paramref name="inconsistencies"/> and that backup is never deleted. The backups are
-    ///     deleted on success, on a best-effort basis, because a leftover backup is harmless and must
-    ///     not turn a completed installation into a reported failure. An exception that is not a file
-    ///     system failure is rethrown after a clean rollback. Writes the file system.
+    ///     deleted on success; one that cannot be deleted is not swallowed but described in
+    ///     <paramref name="leftovers"/>, because a leftover file in the output folder must always be
+    ///     reported. An exception that is not a file system failure is rethrown after a clean
+    ///     rollback. Writes the file system.
     /// </remarks>
     /// <param name="staged">The staged files to install. Must not be null.</param>
     /// <param name="inconsistencies">Receives one description per file that could not be restored; empty when the previous state is intact.</param>
+    /// <param name="leftovers">Receives one description per backup that could not be deleted after a successful installation. Must not be null.</param>
     /// <returns>The failure that stopped the installation, or <see langword="null"/> when every file was installed.</returns>
-    private static Exception? Install(List<StagedFile> staged, out List<string> inconsistencies)
+    private static Exception? Install(List<StagedFile> staged, out List<string> inconsistencies, List<string> leftovers)
     {
         inconsistencies = [];
         try
@@ -733,7 +863,11 @@ internal static class BuilderProgram
 
         foreach (var file in staged)
         {
-            file.DeleteBackup();
+            var leftover = file.DeleteBackup();
+            if (leftover is not null)
+            {
+                leftovers.Add(leftover);
+            }
         }
 
         return null;
@@ -834,12 +968,21 @@ internal static class BuilderProgram
         /// <summary>
         ///     Moves the original (if any) aside and the staged file into place.
         /// </summary>
+        /// <remarks>
+        ///     Whether an original exists is learned from the move itself (a missing source is a
+        ///     <see cref="FileNotFoundException"/>), not from a separate existence check that could
+        ///     mistake an inaccessible original for an absent one.
+        /// </remarks>
         public void MoveIntoPlace()
         {
-            if (File.Exists(_targetPath))
+            try
             {
                 _operations.Move(_targetPath, _backupPath);
                 _backedUp = true;
+            }
+            catch (FileNotFoundException)
+            {
+                // There was no original to keep; the staged file is simply installed
             }
 
             _operations.Move(StagedPath, _targetPath);
@@ -890,28 +1033,38 @@ internal static class BuilderProgram
         }
 
         /// <summary>
-        ///     Deletes the backup of the original; best effort, never throws.
+        ///     Deletes the backup of the original after a successful installation.
         /// </summary>
-        public void DeleteBackup() => DeleteQuietly(_backupPath);
+        /// <returns>A description of the backup that could not be deleted, or <see langword="null"/> when it was deleted or never existed.</returns>
+        public string? DeleteBackup() => Delete(_backupPath, "the backup of the previous content");
 
         /// <summary>
-        ///     Deletes the staged file if it is still there; best effort, never throws.
+        ///     Deletes the staged file if it is still there.
         /// </summary>
-        public void DeleteStaged() => DeleteQuietly(StagedPath);
+        /// <returns>A description of the staged file that could not be deleted, or <see langword="null"/> when it was deleted or is already gone.</returns>
+        public string? DeleteStaged() => Delete(StagedPath, "the temporary file");
 
         /// <summary>
-        ///     Deletes a file, ignoring file system errors.
+        ///     Deletes a file the builder created, and says so when that is not possible.
         /// </summary>
+        /// <remarks>
+        ///     Never throws and never hides a failure: a file left behind in the output folder is
+        ///     described, naming its path, so the caller can report it. A file that is already gone is
+        ///     not a failure.
+        /// </remarks>
         /// <param name="path">The file to delete. Must not be null.</param>
-        private void DeleteQuietly(string path)
+        /// <param name="what">What the file is, for the description. Must not be null.</param>
+        /// <returns>A description in the compiler's error format, or <see langword="null"/> when nothing is left behind.</returns>
+        private string? Delete(string path, string what)
         {
             try
             {
                 _operations.Delete(path);
+                return null;
             }
             catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
             {
-                // A leftover temporary file is harmless and must not hide the real outcome
+                return $"{path}: error: {what} could not be deleted ({exception.Message}) and was left in the output folder";
             }
         }
     }

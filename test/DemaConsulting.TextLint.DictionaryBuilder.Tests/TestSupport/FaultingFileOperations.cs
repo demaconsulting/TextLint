@@ -43,6 +43,11 @@ internal sealed class FaultingFileOperations : FileOperations
     public Func<string, bool> FailDelete { get; init; } = _ => false;
 
     /// <summary>
+    ///     Gets or sets the predicate that selects the files whose reading fails; it receives the path.
+    /// </summary>
+    public Func<string, bool> FailRead { get; init; } = _ => false;
+
+    /// <summary>
     ///     Gets or sets the predicate that selects the folders whose file search fails; it receives the folder.
     /// </summary>
     public Func<string, bool> FailEnumerateFiles { get; init; } = _ => false;
@@ -52,13 +57,25 @@ internal sealed class FaultingFileOperations : FileOperations
     /// </summary>
     public Func<string, bool> FailEnumerateDirectories { get; init; } = _ => false;
 
+    /// <summary>
+    ///     Gets or sets a replacement for the real listing of sub-folders; it receives the folder and
+    ///     returns the folders to report, or null to use the real listing.
+    /// </summary>
+    public Func<string, IEnumerable<string>?> ListDirectories { get; init; } = _ => null;
+
+    /// <inheritdoc/>
+    internal override byte[] ReadAllBytes(string path) =>
+        FailRead(path) ? throw new UnauthorizedAccessException("injected access denied") : base.ReadAllBytes(path);
+
     /// <inheritdoc/>
     internal override IEnumerable<string> EnumerateFiles(string folder) =>
         FailEnumerateFiles(folder) ? FailPartWay(base.EnumerateFiles(folder)) : base.EnumerateFiles(folder);
 
     /// <inheritdoc/>
     internal override IEnumerable<string> EnumerateDirectories(string folder) =>
-        FailEnumerateDirectories(folder) ? throw new UnauthorizedAccessException("injected access denied") : base.EnumerateDirectories(folder);
+        FailEnumerateDirectories(folder)
+            ? throw new UnauthorizedAccessException("injected access denied")
+            : ListDirectories(folder) ?? base.EnumerateDirectories(folder);
 
     /// <inheritdoc/>
     internal override void Move(string source, string destination)

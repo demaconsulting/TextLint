@@ -84,32 +84,32 @@ public class WordListReaderTests
     }
 
     /// <summary>
-    ///     Test that only files with the exact lower-case extension are found, in ordinal order, including in sub-folders.
+    ///     Test that only files with the word-list extension are found, ignoring the case of the extension, in ordinal order, including in sub-folders.
     /// </summary>
     [Fact]
-    public void WordListReader_FindWordListFiles_MixedExtensions_ReturnsOnlyTxtFilesInOrdinalOrder()
+    public void WordListReader_FindWordListFiles_MixedExtensions_ReturnsTxtFilesIgnoringCaseInOrdinalOrder()
     {
-        // Arrange: lists in the folder and a sub-folder, plus files that must be ignored
+        // Arrange: lists in the folder and a sub-folder, one with an upper-case extension, plus a file that must be ignored
         using var temp = new TempDirectory();
         temp.CreateFile("list/b.txt", "b\n");
         temp.CreateFile("list/a.txt", "a\n");
         temp.CreateFile("list/sub/c.txt", "c\n");
         temp.CreateFile("list/readme.md", "x\n");
-        temp.CreateFile("list/upper.TXT", "x\n");
+        temp.CreateFile("list/UPPER.TXT", "x\n");
 
         // Act: find the files
-        var files = WordListReader.FindWordListFiles(temp.PathOf("list"), out var problem);
+        var files = WordListReader.FindWordListFiles(temp.PathOf("list"), out var problem, out var folderMissing);
 
-        // Assert: exactly the three .txt files, sorted in ordinal order by full path, and no problem
+        // Assert: exactly the four list files, sorted in ordinal order by full path, and no problem
         Assert.Null(problem);
+        Assert.False(folderMissing);
         Assert.Equal(
-            [temp.PathOf("list/a.txt"), temp.PathOf("list/b.txt"), temp.PathOf("list/sub/c.txt")],
-            files.Order(StringComparer.Ordinal));
-        Assert.Equal(files.Order(StringComparer.Ordinal), files);
+            [temp.PathOf("list/UPPER.TXT"), temp.PathOf("list/a.txt"), temp.PathOf("list/b.txt"), temp.PathOf("list/sub/c.txt")],
+            files);
     }
 
     /// <summary>
-    ///     Test that a search that fails part-way is reported as a problem and yields no files.
+    ///     Test that a search that fails part-way is reported as a problem, not as a missing folder, and yields no files.
     /// </summary>
     [Fact]
     public void WordListReader_FindWordListFiles_SearchFails_ReportsProblemAndNoFiles()
@@ -121,14 +121,74 @@ public class WordListReaderTests
         var operations = new FaultingFileOperations { FailEnumerateFiles = _ => true };
 
         // Act: find the files
-        var files = WordListReader.FindWordListFiles(temp.PathOf("list"), out var problem, operations);
+        var files = WordListReader.FindWordListFiles(temp.PathOf("list"), out var problem, out var folderMissing, operations);
 
-        // Assert: no files are returned and the folder is named in a no-line problem
+        // Assert: no files are returned, the folder is not called missing, and a no-line problem names it
         Assert.Empty(files);
+        Assert.False(folderMissing);
         Assert.NotNull(problem);
         Assert.Equal(temp.PathOf("list"), problem.Path);
         Assert.Equal(WordListDiagnostic.NoLine, problem.Line);
         Assert.Contains("cannot be searched", problem.Message);
+    }
+
+    /// <summary>
+    ///     Test that a folder that does not exist is reported as missing, and only that is treated as absent.
+    /// </summary>
+    [Fact]
+    public void WordListReader_FindWordListFiles_FolderMissing_ReportsMissingWithoutProblem()
+    {
+        // Arrange: a folder path that does not exist
+        using var temp = new TempDirectory();
+
+        // Act: find the files
+        var files = WordListReader.FindWordListFiles(temp.PathOf("missing"), out var problem, out var folderMissing);
+
+        // Assert: no files, no problem, and the folder is reported as missing
+        Assert.Empty(files);
+        Assert.Null(problem);
+        Assert.True(folderMissing);
+    }
+
+    /// <summary>
+    ///     Test that a listed file that cannot be read is reported as a problem naming the file.
+    /// </summary>
+    [Fact]
+    public void WordListReader_ReadFiles_FileCannotBeRead_ReportsProblemNamingFile()
+    {
+        // Arrange: a list whose reading is denied
+        using var temp = new TempDirectory();
+        var file = temp.CreateFile("list/a.txt", "apple\n");
+        var operations = new FaultingFileOperations { FailRead = path => string.Equals(path, file, StringComparison.Ordinal) };
+
+        // Act: read the file through the substituted operations
+        var result = WordListReader.ReadFiles([file], temp.PathOf("list"), operations: operations);
+
+        // Assert: the problem names the file and no words were taken from it
+        Assert.True(result.HasProblems);
+        Assert.Empty(result.Words);
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Equal(file, diagnostic.Path);
+        Assert.Contains("cannot be read", diagnostic.Message);
+    }
+
+    /// <summary>
+    ///     Test that changing the dictionary the result was built from does not change the result.
+    /// </summary>
+    [Fact]
+    public void WordListReader_ReadResult_SourceMutatedAfterConstruction_ResultUnchanged()
+    {
+        // Arrange: a result built from a dictionary the caller keeps
+        var source = new Dictionary<string, uint>(StringComparer.Ordinal) { ["apple"] = DictionaryFormat.CaseLower };
+        var result = new WordListReadResult(source, [], 0, 1);
+
+        // Act: the caller changes its dictionary afterwards
+        source["banana"] = DictionaryFormat.CaseLower;
+        source.Remove("apple");
+
+        // Assert: the result still holds exactly the original words, and even a cast cannot change them
+        Assert.Equal(["apple"], result.Words.Keys);
+        Assert.Throws<NotSupportedException>(() => ((IDictionary<string, uint>)result.Words).Add("cherry", DictionaryFormat.CaseLower));
     }
 
     /// <summary>

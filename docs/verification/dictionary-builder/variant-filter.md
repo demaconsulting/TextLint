@@ -21,6 +21,7 @@ N/A - standard test environment.
 - The capitalization flags of a word in several lists are merged.
 - Keep-list words that are not variants are reported in ordinal order, and the three counts are correct for a
   mixed input.
+- A result is unaffected by later changes to the collections it was built from.
 
 ### Test Scenarios
 
@@ -53,3 +54,8 @@ case in a language list is kept with both flags. This scenario is tested by
 **VariantFilter_Apply_MixedInput_CountsKeptAndStripped**: two language variants, one keep-list variant, two
 stripped variants, and an ordinary word give the counts 2, 1, and 2 and the expected remaining words. This
 scenario is tested by `VariantFilter_Apply_MixedInput_CountsKeptAndStripped`.
+
+**VariantFilter_Result_SourceMutatedAfterConstruction_ResultUnchanged**: a result is built from a word dictionary
+and a keep-word list; after a word is added to the dictionary and another to the list, the result still holds the
+original words and keep-list words, and its words reject modification even through a cast. This scenario is tested
+by `VariantFilter_Result_SourceMutatedAfterConstruction_ResultUnchanged`.

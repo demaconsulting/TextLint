@@ -40,8 +40,9 @@ namespace DemaConsulting.TextLint.DictionaryBuilder;
 internal static class WordListReader
 {
     /// <summary>
-    ///     The extension that marks a file as a word list. Matched case-sensitively so that the set
-    ///     of files read is the same on every operating system.
+    ///     The extension that marks a file as a word list. Matched ignoring case, like every other
+    ///     file-name comparison of the builder, so that <c>LIST.TXT</c> is never silently skipped on a
+    ///     case-insensitive file system and the set of files read is the same on every operating system.
     /// </summary>
     internal const string FileExtension = ".txt";
 
@@ -86,35 +87,44 @@ internal static class WordListReader
     ///     Finds the word-list files of a dictionary folder.
     /// </summary>
     /// <remarks>
-    ///     Searches the folder and all folders beneath it. The extension test is ordinal and
-    ///     case-sensitive and the result is sorted in ordinal order, so the same files are found in the
-    ///     same order on every operating system. A folder that cannot be searched (access denied or an
-    ///     I/O error, possibly part-way through) is reported through <paramref name="problem"/> and
-    ///     yields no files, so the caller can never mistake a failed search for an empty folder. Reads
-    ///     the file system; thread-safe.
+    ///     Searches the folder and all folders beneath it. The extension test ignores case, like every
+    ///     other file-name comparison of the builder, and the result is sorted in ordinal order, so the
+    ///     same files are found in the same order on every operating system. There is deliberately no
+    ///     existence check before the search: such a check cannot tell a missing folder from one that
+    ///     is merely unreadable. Instead only a genuine "directory not found" condition counts as a
+    ///     missing folder, reported through <paramref name="folderMissing"/> with no problem, and any
+    ///     other failure (access denied or an I/O error, possibly part-way through) is reported through
+    ///     <paramref name="problem"/> and yields no files, so the caller can never mistake a failed
+    ///     search for an empty or absent folder. Reads the file system; thread-safe.
     /// </remarks>
     /// <param name="folder">The dictionary folder. Must not be null.</param>
     /// <param name="problem">Receives the problem when the folder could not be searched; otherwise null.</param>
+    /// <param name="folderMissing">Receives <see langword="true"/> when the folder does not exist; otherwise <see langword="false"/>.</param>
     /// <param name="operations">The file system operations to use; null for the real file system.</param>
     /// <returns>The full paths of the word-list files in ordinal order; empty when the folder is missing, holds none, or could not be searched.</returns>
-    internal static IReadOnlyList<string> FindWordListFiles(string folder, out WordListDiagnostic? problem, FileOperations? operations = null)
+    internal static IReadOnlyList<string> FindWordListFiles(
+        string folder,
+        out WordListDiagnostic? problem,
+        out bool folderMissing,
+        FileOperations? operations = null)
     {
         problem = null;
+        folderMissing = false;
 
-        // A missing folder simply has no files; the caller decides whether that is an error
-        if (!Directory.Exists(folder))
-        {
-            return [];
-        }
-
-        // Keep only files with the exact extension and fix the order; the lazy enumeration can fail at any point
+        // Keep only files with the extension and fix the order; the lazy enumeration can fail at any point
         try
         {
             var files = (operations ?? FileOperations.Default).EnumerateFiles(folder)
-                .Where(file => string.Equals(Path.GetExtension(file), FileExtension, StringComparison.Ordinal))
+                .Where(file => string.Equals(Path.GetExtension(file), FileExtension, StringComparison.OrdinalIgnoreCase))
                 .ToList();
             files.Sort(StringComparer.Ordinal);
             return files;
+        }
+        catch (DirectoryNotFoundException)
+        {
+            // The one condition that means "absent" rather than "unreadable"; the caller decides whether it is an error
+            folderMissing = true;
+            return [];
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
@@ -129,16 +139,17 @@ internal static class WordListReader
     /// <remarks>
     ///     Every problem found in every file is collected, up to <see cref="MaxDiagnostics"/> in
     ///     detail, so the author can fix a whole list in one pass. A folder that cannot be searched is
-    ///     one such problem. Reads the file system and allocates the merged set; thread-safe because it
-    ///     shares no state.
+    ///     one such problem; a folder that does not exist simply yields an empty result, which the
+    ///     caller treats according to whether the folder is required. Reads the file system and
+    ///     allocates the merged set; thread-safe because it shares no state.
     /// </remarks>
     /// <param name="folder">The dictionary folder. Must not be null.</param>
     /// <param name="operations">The file system operations to use; null for the real file system.</param>
     /// <returns>The merged words and any problems; never null.</returns>
     internal static WordListReadResult Read(string folder, FileOperations? operations = null)
     {
-        var files = FindWordListFiles(folder, out var searchProblem, operations);
-        return ReadFiles(files, folder, searchProblem);
+        var files = FindWordListFiles(folder, out var searchProblem, out _, operations);
+        return ReadFiles(files, folder, searchProblem, operations);
     }
 
     /// <summary>
@@ -148,13 +159,19 @@ internal static class WordListReader
     ///     Used when the files of a dictionary come from several places (the technical dictionary
     ///     reads its general lists, its language lists, and its keep list separately), and by
     ///     <see cref="Read"/> for a whole folder. The caps and the diagnostics behave exactly as for a
-    ///     folder. Reads the file system; thread-safe because it shares no state.
+    ///     folder. A listed file that cannot be read is a problem, never an absent file. Reads the
+    ///     file system; thread-safe because it shares no state.
     /// </remarks>
     /// <param name="files">The full paths of the files, in the order to read them. Must not be null.</param>
     /// <param name="summaryPath">The folder or file named by the cap summary diagnostic. Must not be null.</param>
     /// <param name="earlierProblem">A problem found before the files were listed, to report first; null for none.</param>
+    /// <param name="operations">The file system operations to use; null for the real file system.</param>
     /// <returns>The merged words and any problems; never null.</returns>
-    internal static WordListReadResult ReadFiles(IReadOnlyList<string> files, string summaryPath, WordListDiagnostic? earlierProblem = null)
+    internal static WordListReadResult ReadFiles(
+        IReadOnlyList<string> files,
+        string summaryPath,
+        WordListDiagnostic? earlierProblem = null,
+        FileOperations? operations = null)
     {
         var words = new Dictionary<string, uint>(StringComparer.Ordinal);
         var problems = new ProblemLog(summaryPath);
@@ -164,9 +181,10 @@ internal static class WordListReader
         }
 
         // Merge the files one after another; duplicates across files collapse in the dictionary
+        var fileSystem = operations ?? FileOperations.Default;
         foreach (var file in files)
         {
-            ReadFile(file, words, problems);
+            ReadFile(file, words, problems, fileSystem);
         }
 
         return new WordListReadResult(words, problems.Finish(), problems.Count, files.Count);
@@ -182,13 +200,14 @@ internal static class WordListReader
     /// <param name="file">The full path of the file. Must not be null.</param>
     /// <param name="words">The merged set to add to. Must not be null.</param>
     /// <param name="problems">The log that receives every problem. Must not be null.</param>
-    private static void ReadFile(string file, Dictionary<string, uint> words, ProblemLog problems)
+    /// <param name="operations">The file system operations to use. Must not be null.</param>
+    private static void ReadFile(string file, Dictionary<string, uint> words, ProblemLog problems, FileOperations operations)
     {
         // Decode strictly so that a file saved in another encoding is reported, not misread
         string text;
         try
         {
-            text = StrictUtf8.GetString(File.ReadAllBytes(file));
+            text = StrictUtf8.GetString(operations.ReadAllBytes(file));
         }
         catch (DecoderFallbackException)
         {
