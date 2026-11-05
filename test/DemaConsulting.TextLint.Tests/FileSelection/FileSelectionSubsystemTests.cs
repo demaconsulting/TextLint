@@ -140,6 +140,43 @@ public class FileSelectionSubsystemTests
     }
 
     /// <summary>
+    ///     Test that absolute path patterns are rejected naming the pattern.
+    /// </summary>
+    [Fact]
+    public void FileSelectionSubsystem_Select_AbsolutePathPattern_ThrowsNamingPattern()
+    {
+        // Arrange: a root and absolute drive and network patterns
+        using var temp = new TempDirectory();
+
+        // Act / Assert: each is rejected with an error that names the pattern and says it is absolute
+        var drive = Assert.Throws<InvalidGlobPatternException>(() => FileSelector.Select(temp.FullPath, ["C:/docs/**"], []));
+        var network = Assert.Throws<InvalidGlobPatternException>(() => FileSelector.Select(temp.FullPath, ["//server/share/**"], []));
+        Assert.Multiple(
+            () => Assert.Contains("'C:/docs/**'", drive.Message),
+            () => Assert.Contains("absolute paths", drive.Message),
+            () => Assert.Contains("'//server/share/**'", network.Message),
+            () => Assert.Contains("absolute paths", network.Message));
+    }
+
+    /// <summary>
+    ///     Test that a leading slash anchors a pattern at the root directory rather than being an absolute path.
+    /// </summary>
+    [Fact]
+    public void FileSelectionSubsystem_Select_LeadingSlashPattern_AnchorsToRoot()
+    {
+        // Arrange: a docs directory at the root and another nested deeper
+        using var temp = new TempDirectory();
+        temp.CreateFile("docs/guide.md");
+        temp.CreateFile("src/docs/guide.md");
+
+        // Act: select with a leading-slash directory pattern
+        var paths = SelectPaths(temp, ["/docs/**"]);
+
+        // Assert: only the docs directory directly under the root is selected
+        Assert.Equal(["docs/guide.md"], paths);
+    }
+
+    /// <summary>
     ///     Test that hidden entries are skipped unless hidden-file matching is enabled.
     /// </summary>
     [Fact]

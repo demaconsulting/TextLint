@@ -63,3 +63,8 @@ scenario is tested by `ConfigurationSubsystem_LoadAsync_UnsupportedKey_ReportsEr
 **ConfigurationSubsystem_LoadAsync_InvalidPattern_ReportsErrorWithPosition**: A file whose include pattern is
 negated is loaded; no settings are returned and the error is at the pattern's line and names the pattern. This
 scenario is tested by `ConfigurationSubsystem_LoadAsync_InvalidPattern_ReportsErrorWithPosition`.
+
+**ConfigurationSubsystem_LoadAsync_AbsolutePathPattern_ReportsErrorWithPosition**: A file whose include pattern is
+the network path `//server/share/**` is loaded; no settings are returned and the error is at line 2 column 5,
+names the file, and says absolute paths are not supported. This scenario is tested by
+`ConfigurationSubsystem_LoadAsync_AbsolutePathPattern_ReportsErrorWithPosition`.

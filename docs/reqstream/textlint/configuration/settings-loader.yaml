@@ -105,6 +105,9 @@ sections:
                   - SettingsLoader_Parse_InvalidFilesPattern_ReportsErrorAtItem
                   - SettingsLoader_Parse_InvalidIgnorePathsPattern_ReportsErrorAtItem
                   - SettingsLoader_Parse_InvalidPattern_NamesPatternAndReason
+                  - SettingsLoader_Parse_AbsolutePathPattern_ReportsErrorAtItem
+                  - SettingsLoader_Parse_QuestionMarkPattern_ReportsErrorSuggestingStar
+                  - SettingsLoader_Parse_LeadingSlashPattern_IsAccepted
                   - SettingsLoader_Parse_ValidBraceAndBareNamePatterns_AreAccepted
 
               - id: TextLint-Configuration-SettingsLoader-Diagnostics

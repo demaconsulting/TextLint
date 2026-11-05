@@ -97,3 +97,4 @@ sections:
               - TextLint-Configuration-SettingsLoader-InvalidPatterns
             tests:
               - ConfigurationSubsystem_LoadAsync_InvalidPattern_ReportsErrorWithPosition
+              - ConfigurationSubsystem_LoadAsync_AbsolutePathPattern_ReportsErrorWithPosition

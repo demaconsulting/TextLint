@@ -558,6 +558,82 @@ public class TextLintTests
     }
 
     /// <summary>
+    ///     Test that an absolute path pattern is rejected naming the pattern.
+    /// </summary>
+    [Fact]
+    public void TextLint_Files_AbsolutePathPattern_ThrowsNamingPattern()
+    {
+        // Arrange: settings built in code with a drive path
+        using var temp = new TempDirectory();
+        var settings = new TextLintSettings { Files = ["C:/docs/**"] };
+
+        // Act / Assert: selection throws an exception that names the pattern and says it is absolute
+        var exception = Assert.Throws<InvalidGlobPatternException>(() => SelectFiles(temp.FullPath, settings));
+        Assert.Multiple(
+            () => Assert.Contains("'C:/docs/**'", exception.Message),
+            () => Assert.Contains("absolute paths", exception.Message));
+    }
+
+    /// <summary>
+    ///     Test that a pattern with a leading slash is anchored at the root directory.
+    /// </summary>
+    [Fact]
+    public void TextLint_Files_LeadingSlashPattern_AnchorsAtRoot()
+    {
+        // Arrange: a file named README.md at the root and another nested
+        using var temp = new TempDirectory();
+        temp.CreateFile("README.md");
+        temp.CreateFile("docs/README.md");
+
+        // Act: select with a leading-slash pattern
+        var paths = SelectPaths(temp, new TextLintSettings { Files = ["/README.md"] });
+
+        // Assert: only the file in the root directory is selected
+        Assert.Equal(["README.md"], paths);
+    }
+
+    /// <summary>
+    ///     Test that an absolute path pattern in a settings file is reported with the file, line, and column.
+    /// </summary>
+    [Fact]
+    public async Task TextLint_Settings_AbsolutePathPattern_ReportsFileLineAndColumn()
+    {
+        // Arrange: a settings file whose second pattern is a drive path
+        using var temp = new TempDirectory();
+
+        // Act: load it
+        var result = await LoadConfigAsync(temp, "files:\n  - \"**/*.md\"\n  - \"C:/docs/**\"\n");
+
+        // Assert: the error is at the second item, names the file, and says the path is absolute
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Multiple(
+            () => Assert.EndsWith(".textlint.yaml", diagnostic.FilePath),
+            () => Assert.Equal(3, diagnostic.Line),
+            () => Assert.Equal(5, diagnostic.Column),
+            () => Assert.Contains("absolute paths", diagnostic.Message));
+    }
+
+    /// <summary>
+    ///     Test that a question-mark pattern in a settings file is reported with a suggestion to use the star.
+    /// </summary>
+    [Fact]
+    public async Task TextLint_Settings_QuestionMarkPattern_ReportsErrorSuggestingStar()
+    {
+        // Arrange: a settings file whose pattern uses the unsupported ? wildcard
+        using var temp = new TempDirectory();
+
+        // Act: load it
+        var result = await LoadConfigAsync(temp, "files:\n  - \"docs/file?.md\"\n");
+
+        // Assert: the error is at the item, names the pattern, and suggests the supported wildcard
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Multiple(
+            () => Assert.Equal(2, diagnostic.Line),
+            () => Assert.Contains("'docs/file?.md'", diagnostic.Message),
+            () => Assert.Contains("use '*'", diagnostic.Message));
+    }
+
+    /// <summary>
     ///     Test that a negated pattern is rejected naming the pattern.
     /// </summary>
     [Fact]

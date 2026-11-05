@@ -663,6 +663,63 @@ public class SettingsLoaderTests
     }
 
     /// <summary>
+    ///     Test that an absolute path pattern is reported at its list item.
+    /// </summary>
+    [Fact]
+    public void SettingsLoader_Parse_AbsolutePathPattern_ReportsErrorAtItem()
+    {
+        // Arrange: an include list whose second item is a drive path and whose ignore list holds a network path
+        const string yaml = "files:\n  - \"**/*.md\"\n  - \"C:/docs/**\"\nignorePaths:\n  - \"//server/share/**\"\n";
+
+        // Act: parse the text
+        var result = SettingsLoader.Parse(yaml, Source);
+
+        // Assert: both items are reported as absolute paths at their own positions
+        Assert.Multiple(
+            () => Assert.Equal([3, 5], result.Diagnostics.Select(diagnostic => diagnostic.Line)),
+            () => Assert.All(result.Diagnostics, diagnostic => Assert.Contains("absolute paths", diagnostic.Message)),
+            () => Assert.Null(result.Settings));
+    }
+
+    /// <summary>
+    ///     Test that a question-mark pattern is reported with a message that suggests the star.
+    /// </summary>
+    [Fact]
+    public void SettingsLoader_Parse_QuestionMarkPattern_ReportsErrorSuggestingStar()
+    {
+        // Arrange: an include list using the unsupported ? wildcard
+        const string yaml = "files:\n  - \"docs/file?.md\"\n";
+
+        // Act: parse the text
+        var diagnostic = ParseSingleError(yaml);
+
+        // Assert: the error is at the item, names the pattern, and suggests the supported wildcard
+        Assert.Multiple(
+            () => Assert.Equal(2, diagnostic.Line),
+            () => Assert.Contains("'docs/file?.md'", diagnostic.Message),
+            () => Assert.Contains("use '*'", diagnostic.Message));
+    }
+
+    /// <summary>
+    ///     Test that a pattern with a single leading slash, which anchors at the root, is accepted.
+    /// </summary>
+    [Fact]
+    public void SettingsLoader_Parse_LeadingSlashPattern_IsAccepted()
+    {
+        // Arrange: patterns written with a leading slash
+        const string yaml = "files:\n  - /README.md\nignorePaths:\n  - /build/\n";
+
+        // Act: parse the text
+        var result = SettingsLoader.Parse(yaml, Source);
+
+        // Assert: loading succeeds and the patterns are kept as written
+        Assert.Multiple(
+            () => Assert.True(result.Succeeded),
+            () => Assert.Equal(["/README.md"], result.Settings!.Files),
+            () => Assert.Equal(["/build/"], result.Settings!.IgnorePaths));
+    }
+
+    /// <summary>
     ///     Test that an invalid pattern's error names the pattern and the reason.
     /// </summary>
     [Fact]

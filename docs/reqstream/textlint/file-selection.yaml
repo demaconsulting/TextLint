@@ -44,8 +44,8 @@ sections:
 
           - id: TextLint-FileSelection-PatternValidation
             title: >-
-              The FileSelection subsystem shall reject unsupported or malformed patterns with an
-              error that names the pattern.
+              The FileSelection subsystem shall reject unsupported or malformed patterns,
+              including absolute paths, with an error that names the pattern.
             justification: |
               Patterns that cannot be honored reliably must fail visibly rather than silently
               select the wrong files.
@@ -54,6 +54,19 @@ sections:
               - TextLint-FileSelection-FileSelector-InvalidPatterns
             tests:
               - FileSelectionSubsystem_Select_NegatedPattern_ThrowsNamingPattern
+              - FileSelectionSubsystem_Select_AbsolutePathPattern_ThrowsNamingPattern
+
+          - id: TextLint-FileSelection-RootAnchoredPatterns
+            title: >-
+              The FileSelection subsystem shall interpret a pattern that begins with a single slash
+              as anchored to the root directory, not as an absolute path.
+            justification: |
+              Users write /build/ or /README.md to mean the project root, as in ignore files and
+              cspell configurations; the pattern must select the same files on every platform.
+            children:
+              - TextLint-FileSelection-GlobPatternExpander-RootAnchoring
+            tests:
+              - FileSelectionSubsystem_Select_LeadingSlashPattern_AnchorsToRoot
 
           - id: TextLint-FileSelection-HiddenFiles
             title: >-

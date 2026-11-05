@@ -50,6 +50,14 @@ the nested copy. This scenario is tested by `FileSelectionSubsystem_Select_BareN
 message names the pattern. This scenario is tested by
 `FileSelectionSubsystem_Select_NegatedPattern_ThrowsNamingPattern`.
 
+**FileSelectionSubsystem_Select_AbsolutePathPattern_ThrowsNamingPattern**: A drive path and a `//` network path
+each throw an exception whose message names the pattern and says absolute paths are not supported. This scenario
+is tested by `FileSelectionSubsystem_Select_AbsolutePathPattern_ThrowsNamingPattern`.
+
+**FileSelectionSubsystem_Select_LeadingSlashPattern_AnchorsToRoot**: With a `docs` directory at the root and
+another under `src`, the pattern `/docs/**` selects only the root one. This scenario is tested by
+`FileSelectionSubsystem_Select_LeadingSlashPattern_AnchorsToRoot`.
+
 **FileSelectionSubsystem_Select_HiddenEntries_SkippedUnlessEnabled**: A wildcard skips hidden files and
 directories by default and selects them when hidden matching is enabled. This scenario is tested by
 `FileSelectionSubsystem_Select_HiddenEntries_SkippedUnlessEnabled`.

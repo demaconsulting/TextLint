@@ -117,6 +117,10 @@ Settings reach the rest of the library by one of two routes, and from there a si
   until its startup cost has been measured.
 - Case sensitivity: glob patterns are matched case-sensitively on every operating system, so a
   configuration selects the same files everywhere.
+- Root-relative patterns: glob patterns are relative to the root directory searched. A pattern that
+  begins with a single `/` is anchored to that root directory, as in ignore files and cspell, and is
+  not a file system path; true absolute paths (a drive letter or a `//` network path) are rejected
+  both when a settings file is loaded and when files are selected.
 - Hidden files: wildcards never match a name that starts with a dot unless `enableGlobDot` is set,
   but a pattern segment that itself starts with a literal dot does, following cspell.
 - Packaging: the library and the tool are packed and published as separate NuGet packages from the

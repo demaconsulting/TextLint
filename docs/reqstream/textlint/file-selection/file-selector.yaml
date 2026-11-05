@@ -34,6 +34,7 @@ sections:
                   - FileSelector_Select_NullRoot_ThrowsArgumentNullException
                   - FileSelector_Select_EmptyRoot_ThrowsArgumentException
                   - FileSelector_Select_Result_ExposesFullPath
+                  - FileSelector_Select_LeadingSlashPattern_MatchesOnlyAtRoot
 
               - id: TextLint-FileSelection-FileSelector-CaseSensitive
                 title: FileSelector shall match patterns case-sensitively on every platform.
@@ -97,3 +98,4 @@ sections:
                 tests:
                   - FileSelector_Select_InvalidIncludePattern_ThrowsInvalidGlobPattern
                   - FileSelector_Select_InvalidIgnorePattern_ThrowsInvalidGlobPattern
+                  - FileSelector_Select_AbsolutePathPattern_ThrowsInvalidGlobPattern

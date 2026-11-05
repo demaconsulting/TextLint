@@ -151,6 +151,18 @@ segment is an error at that item. This scenario is tested by
 **SettingsLoader_Parse_InvalidPattern_NamesPatternAndReason**: A negated pattern's error names the pattern and
 says it is negated. This scenario is tested by `SettingsLoader_Parse_InvalidPattern_NamesPatternAndReason`.
 
+**SettingsLoader_Parse_AbsolutePathPattern_ReportsErrorAtItem**: A drive path in `files` (line 3) and a network
+path in `ignorePaths` (line 5) are each reported at their own item as absolute paths, and no settings are
+returned. This scenario is tested by `SettingsLoader_Parse_AbsolutePathPattern_ReportsErrorAtItem`.
+
+**SettingsLoader_Parse_QuestionMarkPattern_ReportsErrorSuggestingStar**: `docs/file?.md` is an error at its item
+that names the pattern and suggests using `*`. This scenario is tested by
+`SettingsLoader_Parse_QuestionMarkPattern_ReportsErrorSuggestingStar`.
+
+**SettingsLoader_Parse_LeadingSlashPattern_IsAccepted**: `/README.md` and `/build/` load successfully and are
+kept as written, because a leading slash means the root directory. This scenario is tested by
+`SettingsLoader_Parse_LeadingSlashPattern_IsAccepted`.
+
 **SettingsLoader_Parse_ValidBraceAndBareNamePatterns_AreAccepted**: Brace and bare-name patterns load and are
 kept as written. This scenario is tested by `SettingsLoader_Parse_ValidBraceAndBareNamePatterns_AreAccepted`.
 

@@ -71,6 +71,10 @@ the null variant. This scenario is tested by `FileSelector_Select_EmptyRoot_Thro
 **FileSelector_Select_Result_ExposesFullPath**: A selected file's full path equals the absolute path of the
 created file. This scenario is tested by `FileSelector_Select_Result_ExposesFullPath`.
 
+**FileSelector_Select_LeadingSlashPattern_MatchesOnlyAtRoot**: With `README.md` at the root and another in a
+subdirectory, the pattern `/README.md` selects only the one in the root directory. This scenario is tested by
+`FileSelector_Select_LeadingSlashPattern_MatchesOnlyAtRoot`.
+
 **FileSelector_Select_DifferentCaseExtension_IsNotSelected**: `README.MD` is not selected by `**/*.md`. This
 scenario is tested by `FileSelector_Select_DifferentCaseExtension_IsNotSelected`.
 
@@ -133,3 +137,7 @@ exception that exposes the pattern. This scenario is tested by
 **FileSelector_Select_InvalidIgnorePattern_ThrowsInvalidGlobPattern**: A backslash ignore pattern throws even
 when nothing is included. This scenario is tested by
 `FileSelector_Select_InvalidIgnorePattern_ThrowsInvalidGlobPattern`.
+
+**FileSelector_Select_AbsolutePathPattern_ThrowsInvalidGlobPattern**: A drive path as an include pattern and a
+`//` network path as an ignore pattern each throw an exception that exposes the pattern and says absolute paths
+are not supported. This scenario is tested by `FileSelector_Select_AbsolutePathPattern_ThrowsInvalidGlobPattern`.

@@ -35,9 +35,11 @@ does not read settings files; that belongs to the `Configuration` subsystem.
 **Supported pattern forms**: Patterns use `/` as the separator and `*` and `**` as wildcards.
 `**` matches any number of directory levels. Brace alternatives such as `*.{md,cs}` expand to one
 pattern per alternative. A pattern with no `/` names a file or directory at any depth, so
-`node_modules` excludes every such directory; a leading `/` or `./` anchors a pattern at the root; a
-trailing `/` limits it to directories. Negation (`!`), backslashes, the `?` wildcard, drive-rooted
-paths, empty and `..` segments, unbalanced braces, and expansions beyond a fixed limit are rejected.
+`node_modules` excludes every such directory; a leading `/` or `./` anchors a pattern at the root
+directory (so `/build/` is the `build` directory under the root, not a file system path); a
+trailing `/` limits it to directories. Negation (`!`), backslashes, the `?` wildcard (the error suggests `*`),
+absolute paths (a drive letter such as `C:/x`, or a `//` network path), empty and `..` segments, unbalanced
+braces, and expansions beyond a fixed limit are rejected.
 
 **Dependencies on other subsystems**: None. The subsystem takes its inputs as plain parameters
 rather than a configuration type, so it does not depend on the `Configuration` subsystem. The

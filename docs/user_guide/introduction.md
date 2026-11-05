@@ -216,14 +216,20 @@ Every problem found is reported, not just the first, as `file(line,column): erro
 
 - Use `/` as the path separator on every platform; a backslash is rejected.
 - `*` matches within a path segment and `**` matches any number of directory levels. The `?`
-  wildcard is not supported and is rejected.
+  wildcard is not supported: a pattern containing `?` is rejected with the message
+  `the '?' wildcard is not supported; use '*' to match any run of characters`. Use `*` instead; for
+  example, write `file*.md` rather than `file?.md`.
 - Brace alternatives are expanded: `**/*.{md,cs}` matches both extensions.
 - A pattern without a `/` names a file or directory at any depth, so `node_modules` excludes every
-  directory of that name. A leading `/` or `./` anchors a pattern at the root, and a trailing `/`
-  limits it to directories.
+  directory of that name. A trailing `/` limits a pattern to directories.
+- A pattern that begins with a single `/` (or `./`) is anchored to the root directory being searched, as in
+  `.gitignore` and cspell: `/build/` and `/README.md` mean the entries directly under the root, not a path on
+  the file system.
+- Absolute paths are rejected: a drive letter (`C:/docs/**`, `c:docs/**`, or `C:\docs\**`) and a
+  double-slash network path (`//server/share/**`). Write the path relative to the root directory instead.
 - Matching is case-sensitive on every operating system.
-- Negation (`!`), absolute and drive-rooted paths, `..` segments, and unbalanced braces are rejected,
-  and an invalid pattern in the file is reported at its line and column.
+- Negation (`!`), `..` segments, and unbalanced braces are rejected, and an invalid pattern in the file is
+  reported at its line and column.
 - Wildcards do not match hidden names (those starting with a dot) unless `enableGlobDot` is `true`.
   A hidden name written literally in a pattern does match, so `.github/**/*.yml` selects workflow files
   without enabling hidden matching everywhere.

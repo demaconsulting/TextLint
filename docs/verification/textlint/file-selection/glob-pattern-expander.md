@@ -15,8 +15,10 @@ N/A - standard test environment.
 - All unit tests pass with zero failures.
 - Brace groups expand per alternative, including nested and multiple groups, and groups without alternatives
   stay literal.
-- Bare names, trailing slashes, leading slashes, and `./` prefixes anchor as documented.
-- Every unsupported form is rejected with an exception that names the pattern and the reason.
+- Bare names, trailing slashes, leading slashes, and `./` prefixes anchor as documented; a single leading
+  slash is root-anchored, not absolute.
+- Every unsupported form, including drive-letter and `//` absolute paths and the `?` wildcard, is rejected with
+  an exception that names the pattern and the reason; the `?` message suggests `*`.
 
 #### Test Scenarios
 
@@ -60,6 +62,10 @@ subtree at any depth. This scenario is tested by
 **GlobPatternExpander_Expand_LeadingSlash_AnchorsToRoot**: `/README.md` expands to `README.md`. This scenario is
 tested by `GlobPatternExpander_Expand_LeadingSlash_AnchorsToRoot`.
 
+**GlobPatternExpander_Expand_LeadingSlashDirectoryPattern_AnchorsToRootNotAbsolute**: `/docs/**`, which looks
+like an absolute Unix path, is accepted and expands to `docs/**`. This scenario is tested by
+`GlobPatternExpander_Expand_LeadingSlashDirectoryPattern_AnchorsToRootNotAbsolute`.
+
 **GlobPatternExpander_Expand_LeadingDotSlash_IsStrippedAndAnchors**: `./README.md` expands to `README.md`. This
 scenario is tested by `GlobPatternExpander_Expand_LeadingDotSlash_IsStrippedAndAnchors`.
 
@@ -87,15 +93,29 @@ scenario is tested by `GlobPatternExpander_Expand_NegatedPattern_ThrowsInvalidGl
 **GlobPatternExpander_Expand_BackslashPattern_ThrowsInvalidGlobPattern**: A backslash separator is rejected.
 This scenario is tested by `GlobPatternExpander_Expand_BackslashPattern_ThrowsInvalidGlobPattern`.
 
-**GlobPatternExpander_Expand_QuestionMarkPattern_ThrowsInvalidGlobPattern**: The unsupported `?` wildcard is
-rejected. This scenario is tested by `GlobPatternExpander_Expand_QuestionMarkPattern_ThrowsInvalidGlobPattern`.
+**GlobPatternExpander_Expand_QuestionMarkPattern_ThrowsInvalidGlobPattern**: `file?.md` is rejected; the
+message names the pattern, says the `?` wildcard is not supported, and suggests using `*`. This scenario is
+tested by `GlobPatternExpander_Expand_QuestionMarkPattern_ThrowsInvalidGlobPattern`.
 
-**GlobPatternExpander_Expand_DriveRootedPattern_ThrowsInvalidGlobPattern**: A Windows drive prefix is rejected.
-This scenario is tested by `GlobPatternExpander_Expand_DriveRootedPattern_ThrowsInvalidGlobPattern`.
+**GlobPatternExpander_Expand_DriveRootedPattern_ThrowsInvalidGlobPattern**: `C:/docs/**` is rejected with a
+message that says absolute paths are not supported. This scenario is tested by
+`GlobPatternExpander_Expand_DriveRootedPattern_ThrowsInvalidGlobPattern`.
 
-**GlobPatternExpander_Expand_DoubleSlashRoot_ThrowsInvalidGlobPattern**: A network-style `//` root is rejected
-as an empty segment. This scenario is tested by
+**GlobPatternExpander_Expand_DriveLetterWithoutSlash_ThrowsInvalidGlobPattern**: `c:docs/**` (lower-case drive
+letter, no slash) is rejected as an absolute path. This scenario is tested by
+`GlobPatternExpander_Expand_DriveLetterWithoutSlash_ThrowsInvalidGlobPattern`.
+
+**GlobPatternExpander_Expand_DriveRootedBackslashPattern_ReportsAbsolutePath**: `C:\docs\**` is reported as an
+absolute path rather than as a backslash problem. This scenario is tested by
+`GlobPatternExpander_Expand_DriveRootedBackslashPattern_ReportsAbsolutePath`.
+
+**GlobPatternExpander_Expand_DoubleSlashRoot_ThrowsInvalidGlobPattern**: A network-style `//server/share/**`
+is rejected as an absolute path. This scenario is tested by
 `GlobPatternExpander_Expand_DoubleSlashRoot_ThrowsInvalidGlobPattern`.
+
+**GlobPatternExpander_Expand_AbsolutePathFromBraces_ThrowsInvalidGlobPattern**: `{C:/docs,src}/**` and
+`{//server/share,src}/**`, whose absolute form only appears after brace expansion, are rejected. This scenario
+is tested by `GlobPatternExpander_Expand_AbsolutePathFromBraces_ThrowsInvalidGlobPattern`.
 
 **GlobPatternExpander_Expand_ParentSegment_ThrowsInvalidGlobPattern**: A `..` segment is rejected. This
 scenario is tested by `GlobPatternExpander_Expand_ParentSegment_ThrowsInvalidGlobPattern`.

@@ -192,3 +192,20 @@ exception whose message names the pattern. This scenario is tested by
 **TextLint_Files_BackslashPattern_ThrowsNamingPattern**: Selecting with a pattern that uses a backslash
 throws an exception whose message names the pattern. This scenario is tested by
 `TextLint_Files_BackslashPattern_ThrowsNamingPattern`.
+
+**TextLint_Files_AbsolutePathPattern_ThrowsNamingPattern**: Selecting with the drive path `C:/docs/**`
+throws an exception whose message names the pattern and says absolute paths are not supported. This scenario is
+tested by `TextLint_Files_AbsolutePathPattern_ThrowsNamingPattern`.
+
+**TextLint_Files_LeadingSlashPattern_AnchorsAtRoot**: A pattern `/README.md` selects the README in the root
+directory and not the one in a subdirectory, showing that a leading slash means the root directory and not an
+absolute path. This scenario is tested by `TextLint_Files_LeadingSlashPattern_AnchorsAtRoot`.
+
+**TextLint_Settings_AbsolutePathPattern_ReportsFileLineAndColumn**: A settings file whose second include
+pattern is the drive path `C:/docs/**` is loaded; the error is at line 3 column 5, names the file, and says
+absolute paths are not supported. This scenario is tested by
+`TextLint_Settings_AbsolutePathPattern_ReportsFileLineAndColumn`.
+
+**TextLint_Settings_QuestionMarkPattern_ReportsErrorSuggestingStar**: A settings file whose pattern is
+`docs/file?.md` is loaded; the error is at the item, names the pattern, and suggests using `*`. This scenario is
+tested by `TextLint_Settings_QuestionMarkPattern_ReportsErrorSuggestingStar`.

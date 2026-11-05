@@ -567,6 +567,43 @@ public class FileSelectorTests
     }
 
     /// <summary>
+    ///     Test that absolute path patterns are rejected naming the pattern.
+    /// </summary>
+    [Fact]
+    public void FileSelector_Select_AbsolutePathPattern_ThrowsInvalidGlobPattern()
+    {
+        // Arrange: a root, a drive path as an include pattern, and a network path as an ignore pattern
+        using var temp = new TempDirectory();
+
+        // Act / Assert: each is rejected as an absolute path, and the exception exposes the pattern
+        var include = Assert.Throws<InvalidGlobPatternException>(() => FileSelector.Select(temp.FullPath, ["C:/docs/**"], []));
+        var ignore = Assert.Throws<InvalidGlobPatternException>(() => FileSelector.Select(temp.FullPath, ["**/*.md"], ["//server/share/**"]));
+        Assert.Multiple(
+            () => Assert.Equal("C:/docs/**", include.Pattern),
+            () => Assert.Contains("absolute paths", include.Message),
+            () => Assert.Equal("//server/share/**", ignore.Pattern),
+            () => Assert.Contains("absolute paths", ignore.Message));
+    }
+
+    /// <summary>
+    ///     Test that a pattern with a leading slash matches only at the root directory.
+    /// </summary>
+    [Fact]
+    public void FileSelector_Select_LeadingSlashPattern_MatchesOnlyAtRoot()
+    {
+        // Arrange: a file named README.md at the root and another nested
+        using var temp = new TempDirectory();
+        temp.CreateFile("README.md");
+        temp.CreateFile("docs/README.md");
+
+        // Act: select by a leading-slash pattern
+        var paths = SelectPaths(temp, ["/README.md"]);
+
+        // Assert: only the file in the root directory is selected
+        Assert.Equal(["README.md"], paths);
+    }
+
+    /// <summary>
     ///     Test that an invalid ignore pattern is rejected even when nothing is included.
     /// </summary>
     [Fact]

@@ -319,39 +319,110 @@ public class GlobPatternExpanderTests
     }
 
     /// <summary>
-    ///     Test that a pattern using the question-mark wildcard is rejected.
+    ///     Test that a pattern using the question-mark wildcard is rejected with a message that suggests the star.
     /// </summary>
     [Fact]
     public void GlobPatternExpander_Expand_QuestionMarkPattern_ThrowsInvalidGlobPattern()
     {
         // Arrange: no setup required
 
-        // Act / Assert: the unsupported ? wildcard is rejected
-        Assert.Throws<InvalidGlobPatternException>(() => GlobPatternExpander.Expand("file?.md"));
+        // Act: expand a pattern that uses the unsupported ? wildcard
+        var exception = Assert.Throws<InvalidGlobPatternException>(() => GlobPatternExpander.Expand("file?.md"));
+
+        // Assert: the message names the pattern and the wildcard and suggests the supported alternative
+        Assert.Multiple(
+            () => Assert.Contains("'file?.md'", exception.Message),
+            () => Assert.Contains("'?' wildcard is not supported", exception.Message),
+            () => Assert.Contains("use '*'", exception.Message));
     }
 
     /// <summary>
-    ///     Test that a drive-rooted pattern is rejected.
+    ///     Test that a drive-rooted pattern is rejected as an absolute path.
     /// </summary>
     [Fact]
     public void GlobPatternExpander_Expand_DriveRootedPattern_ThrowsInvalidGlobPattern()
     {
         // Arrange: no setup required
 
-        // Act / Assert: a Windows drive prefix is rejected
-        Assert.Throws<InvalidGlobPatternException>(() => GlobPatternExpander.Expand("C:/docs/**"));
+        // Act: expand a pattern that starts with a Windows drive and a slash
+        var exception = Assert.Throws<InvalidGlobPatternException>(() => GlobPatternExpander.Expand("C:/docs/**"));
+
+        // Assert: the reason is that the path is absolute
+        Assert.Contains("absolute paths", exception.Message);
     }
 
     /// <summary>
-    ///     Test that a double-slash root is rejected.
+    ///     Test that a drive letter without a slash is rejected as an absolute path.
+    /// </summary>
+    [Fact]
+    public void GlobPatternExpander_Expand_DriveLetterWithoutSlash_ThrowsInvalidGlobPattern()
+    {
+        // Arrange: no setup required
+
+        // Act: expand a drive-relative pattern in lower case
+        var exception = Assert.Throws<InvalidGlobPatternException>(() => GlobPatternExpander.Expand("c:docs/**"));
+
+        // Assert: the reason is that the path is absolute
+        Assert.Contains("absolute paths", exception.Message);
+    }
+
+    /// <summary>
+    ///     Test that a Windows path with backslashes is reported as an absolute path.
+    /// </summary>
+    [Fact]
+    public void GlobPatternExpander_Expand_DriveRootedBackslashPattern_ReportsAbsolutePath()
+    {
+        // Arrange: no setup required
+
+        // Act: expand a Windows path copied from the file system
+        var exception = Assert.Throws<InvalidGlobPatternException>(() => GlobPatternExpander.Expand("C:\\docs\\**"));
+
+        // Assert: the absolute-path reason is given rather than the backslash reason
+        Assert.Contains("absolute paths", exception.Message);
+    }
+
+    /// <summary>
+    ///     Test that a double-slash network path is rejected as an absolute path.
     /// </summary>
     [Fact]
     public void GlobPatternExpander_Expand_DoubleSlashRoot_ThrowsInvalidGlobPattern()
     {
         // Arrange: no setup required
 
-        // Act / Assert: a network-style root is rejected as an empty segment
-        Assert.Throws<InvalidGlobPatternException>(() => GlobPatternExpander.Expand("//server/share/**"));
+        // Act: expand a network-style path
+        var exception = Assert.Throws<InvalidGlobPatternException>(() => GlobPatternExpander.Expand("//server/share/**"));
+
+        // Assert: the reason is that the path is absolute
+        Assert.Contains("absolute paths", exception.Message);
+    }
+
+    /// <summary>
+    ///     Test that an absolute path that only appears through a brace alternative is rejected.
+    /// </summary>
+    [Fact]
+    public void GlobPatternExpander_Expand_AbsolutePathFromBraces_ThrowsInvalidGlobPattern()
+    {
+        // Arrange: patterns whose absolute form only appears after brace expansion
+
+        // Act / Assert: both a drive path and a network path alternative are rejected
+        Assert.Multiple(
+            () => Assert.Throws<InvalidGlobPatternException>(() => GlobPatternExpander.Expand("{C:/docs,src}/**")),
+            () => Assert.Throws<InvalidGlobPatternException>(() => GlobPatternExpander.Expand("{//server/share,src}/**")));
+    }
+
+    /// <summary>
+    ///     Test that a single leading slash anchors a directory pattern at the root instead of being an absolute path.
+    /// </summary>
+    [Fact]
+    public void GlobPatternExpander_Expand_LeadingSlashDirectoryPattern_AnchorsToRootNotAbsolute()
+    {
+        // Arrange: a pattern that looks like an absolute Unix path
+
+        // Act: expand it
+        var result = GlobPatternExpander.Expand("/docs/**");
+
+        // Assert: it is accepted and means the docs directory under the root
+        Assert.Equal(["docs/**"], result);
     }
 
     /// <summary>

@@ -220,6 +220,28 @@ public class ConfigurationSubsystemTests
     }
 
     /// <summary>
+    ///     Test that an absolute path pattern is reported with its file, line, and column.
+    /// </summary>
+    [Fact]
+    public async Task ConfigurationSubsystem_LoadAsync_AbsolutePathPattern_ReportsErrorWithPosition()
+    {
+        // Arrange: a file whose include pattern is a network path
+        using var temp = new TempDirectory();
+
+        // Act: load it
+        var result = await LoadAsync(temp, "files:\n  - \"//server/share/**\"\n");
+
+        // Assert: loading fails with an error at the item that names the file and says the path is absolute
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Multiple(
+            () => Assert.Null(result.Settings),
+            () => Assert.EndsWith(".textlint.yaml", diagnostic.FilePath),
+            () => Assert.Equal(2, diagnostic.Line),
+            () => Assert.Equal(5, diagnostic.Column),
+            () => Assert.Contains("absolute paths", diagnostic.Message));
+    }
+
+    /// <summary>
     ///     Test that an invalid glob pattern is reported with its file and position.
     /// </summary>
     [Fact]

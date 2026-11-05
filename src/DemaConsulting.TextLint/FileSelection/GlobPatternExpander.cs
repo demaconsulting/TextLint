@@ -87,6 +87,22 @@ internal static class GlobPatternExpander
     private const int DrivePrefixLength = 2;
 
     /// <summary>
+    ///     The leading text that marks a network path such as <c>//server/share</c>.
+    /// </summary>
+    private const string NetworkPathPrefix = "//";
+
+    /// <summary>
+    ///     The reason given when a pattern is an absolute path.
+    /// </summary>
+    /// <remarks>
+    ///     It points the user at the supported alternative, because the most common cause is a
+    ///     path copied from the file system.
+    /// </remarks>
+    private const string AbsolutePathReason =
+        "absolute paths (a drive letter or a '//' network path) are not supported; " +
+        "patterns are relative to the root directory, and a leading '/' means the root directory itself";
+
+    /// <summary>
     ///     Validates a user pattern and rewrites it into one or more matcher patterns.
     /// </summary>
     /// <remarks>
@@ -99,8 +115,9 @@ internal static class GlobPatternExpander
     /// <returns>The matcher patterns, without duplicates, in a stable order.</returns>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="pattern"/> is null.</exception>
     /// <exception cref="InvalidGlobPatternException">
-    ///     Thrown when the pattern is empty, negated, uses a backslash or the <c>?</c> wildcard, is
-    ///     drive-rooted, has an empty or parent segment, has unbalanced braces, or expands to too many patterns.
+    ///     Thrown when the pattern is empty, negated, uses a backslash or the <c>?</c> wildcard, is an
+    ///     absolute path (drive-rooted or a <c>//</c> network path), has an empty or parent segment, has
+    ///     unbalanced braces, or expands to too many patterns.
     /// </exception>
     internal static IReadOnlyList<string> Expand(string pattern)
     {
@@ -139,6 +156,12 @@ internal static class GlobPatternExpander
             throw new InvalidGlobPatternException(pattern, "negated patterns ('!') are not supported");
         }
 
+        // Absolute forms are checked first so a Windows path such as C:\x is reported as absolute, not as a backslash
+        if (IsAbsolute(pattern))
+        {
+            throw new InvalidGlobPatternException(pattern, AbsolutePathReason);
+        }
+
         if (pattern.Contains('\\'))
         {
             throw new InvalidGlobPatternException(pattern, "use '/' as the path separator instead of '\\'");
@@ -146,12 +169,7 @@ internal static class GlobPatternExpander
 
         if (pattern.Contains('?'))
         {
-            throw new InvalidGlobPatternException(pattern, "the '?' wildcard is not supported");
-        }
-
-        if (IsDriveRooted(pattern))
-        {
-            throw new InvalidGlobPatternException(pattern, "absolute paths are not supported");
+            throw new InvalidGlobPatternException(pattern, "the '?' wildcard is not supported; use '*' to match any run of characters");
         }
 
         if (!HasBalancedBraces(pattern))
@@ -159,6 +177,20 @@ internal static class GlobPatternExpander
             throw new InvalidGlobPatternException(pattern, "the braces are not balanced");
         }
     }
+
+    /// <summary>
+    ///     Determines whether a pattern is an absolute path rather than one relative to the root directory.
+    /// </summary>
+    /// <remarks>
+    ///     A single leading <c>/</c> is not absolute: it anchors the pattern at the root directory, as
+    ///     in ignore files. Absolute means a Windows drive specifier (<c>C:/x</c>, <c>c:x</c>) or a
+    ///     leading <c>//</c> (a network path such as <c>//server/share</c>). The test is textual, so
+    ///     the answer is the same on every operating system. Stateless and thread-safe.
+    /// </remarks>
+    /// <param name="pattern">The pattern or brace alternative to test. Must not be null.</param>
+    /// <returns><see langword="true"/> when the text is an absolute path.</returns>
+    private static bool IsAbsolute(string pattern) =>
+        IsDriveRooted(pattern) || pattern.StartsWith(NetworkPathPrefix, StringComparison.Ordinal);
 
     /// <summary>
     ///     Determines whether a pattern starts with a Windows drive specifier such as <c>C:</c>.
@@ -338,9 +370,15 @@ internal static class GlobPatternExpander
     /// <param name="original">The original user pattern, used to name it in errors. Must not be null.</param>
     /// <param name="alternative">The brace-free pattern to convert. Must not be null.</param>
     /// <returns>One or two matcher patterns.</returns>
-    /// <exception cref="InvalidGlobPatternException">Thrown when the pattern has no segments, an empty segment, or a parent segment.</exception>
+    /// <exception cref="InvalidGlobPatternException">Thrown when the pattern is absolute, or has no segments, an empty segment, or a parent segment.</exception>
     private static IReadOnlyList<string> Anchor(string original, string alternative)
     {
+        // An absolute path can appear only after brace expansion (for example {C:/x,y}), so check each alternative too
+        if (IsAbsolute(alternative))
+        {
+            throw new InvalidGlobPatternException(original, AbsolutePathReason);
+        }
+
         // Read the anchoring and directory-only markers, then drop them from the text
         var text = alternative;
         var anchored = false;
