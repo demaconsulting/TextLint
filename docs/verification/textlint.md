@@ -14,7 +14,7 @@ checks are design-constraint guards that are not linked to a requirement:
   A further check asserts that the package carries `THIRD-PARTY-NOTICES.txt` at its root with the
   notices of the embedded word lists; that is the evidence for the third-party notices requirement.
   Another asserts that the packaged assembly contains the four embedded dictionaries, which together
-  with the assembly inspection below is the evidence for the embedded dictionaries requirement.
+  with the assembly inspection below is the evidence for the self-contained lookup requirement.
   The library package id is a prefix of the tool package id, so the build asserts the library
   package after packing only the library and before packing the tool.
 - **Project configuration** _(guard, not requirement evidence)_: FileAssert (tag `library-project`)
@@ -83,6 +83,8 @@ requires the DictionaryBuilder project, which the library project builds first; 
 - American spellings are known by default and British spellings are not, the British selection reverses
   that, the combined selection knows both, and an unsupported language is rejected naming it.
 - Technical terms, including a programming term in an American spelling, are known in every selection.
+- The library assembly alone, loaded from its bytes with no dictionary files, configuration, or network, still looks
+  words up correctly.
 - The assembly embeds exactly the four dictionaries, each a dictionary file.
 - Every word of every repository word list is known for the selection that includes its list.
 - Lookups from many threads at once return correct answers.
@@ -277,6 +279,12 @@ knows both spellings. This scenario is tested by `TextLint_Dictionary_BothLangua
 programming term in an American spelling that the word lists keep for every language, are known in the American,
 British, and combined selections. This scenario is tested by
 `TextLint_Dictionary_TechnicalTerm_IsKnownInEveryLanguage`.
+
+**TextLint_Dictionary_LibraryAssemblyAlone_LooksUpWords**: The bytes of the library assembly, and nothing else, are
+loaded into a separate load context, so no dictionary file, settings file, or other part of the library is available to
+it; a British selection is requested and a known word, a British spelling, an American spelling, a technical term, and
+an unknown word are looked up with the correct answers. This scenario is tested by
+`TextLint_Dictionary_LibraryAssemblyAlone_LooksUpWords`.
 
 **TextLint_Assembly_Loaded_EmbedsDictionaries**: The loaded library assembly's resources include exactly the four
 dictionary resources under their stable names, and each starts with the dictionary file identifier. This scenario

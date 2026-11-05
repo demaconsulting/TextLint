@@ -35,13 +35,18 @@ and the bits are kept for a later case-sensitive check.
 - _Preconditions_: neither argument is null, and the array is not modified afterwards.
 - _Postconditions_: the image is valid, or `InvalidDataException` was thrown.
 
-The checks take constant time and are, in order: the data is at least as long as the header; the identifier is
+The header checks take constant time and are, in order: the data is at least as long as the header; the identifier is
 the supported one; the option flags are zero; the hash identifier is the supported one; the reserved bytes are
 zero; the slot count is a power of two (which excludes zero); the word count is within the load limit of
 the slot count; the word block is no larger than the format allows; the total length equals exactly what the header
-implies (header, padded word block, and slot table); and a non-empty word block ends with a terminator. There is
-deliberately no checksum: the bytes come from the build of this repository, and a full scan would defeat the
-purpose of precomputing the table.
+implies (header, padded word block, and slot table); and a non-empty word block ends with a terminator. Two linear
+passes over the data already in memory then tie the header to the content: the number of terminators in the word
+block must equal the word count, and a scan of the slot table must find exactly that many occupied slots, each holding
+an offset that lies inside the word block at the start of a word (the first byte, or the byte after a terminator).
+This rejects a header that claims words the block does not hold, which would otherwise load as a valid but wrong
+dictionary, and it means a lookup can trust every offset it reads. The scans do not prove that the words are sorted,
+distinct, or reachable from their hash position; the builder guarantees those properties and its tests verify them with
+an independent reader. There is deliberately no checksum: the bytes come from the build of this repository.
 
 **LoadEmbedded**: Reads an embedded resource and builds an image.
 
@@ -60,18 +65,18 @@ array to the constructor, with the resource name as the dictionary name.
 - _Postconditions_: nothing is allocated and nothing changes.
 
 Steps: (1) take the home slot as the hash masked to the slot count; (2) read the slot with a bounds-checked
-little-endian read, and answer `false` at an empty slot; (3) decode the stored offset and report damage if it
-lies outside the word block; (4) the slot matches when more bytes remain in the block than the key is long, the byte
+little-endian read, and answer `false` at an empty slot; (3) decode the stored offset, which loading has already
+proved lies at the start of a word; (4) the slot matches when more bytes remain in the block than the key is long, the byte
 after those is the terminator, and the bytes equal the key, so a stored word that merely starts with the key does not
 match, and a key longer than what remains cannot match; (5) otherwise move to the next slot, wrapping at the end,
-and stop after one full cycle of the table, which makes the loop finite even for a table that was damaged to
-have no empty slot.
+and stop after one full cycle of the table, which makes the loop finite.
 
 #### Error Handling
 
 Every failure is an `InvalidDataException` whose message names the dictionary and gives the reason: a missing
-resource, a resource that is too large to read, a header that fails validation, and a slot found at lookup time
-that points outside the word block. Null arguments throw `ArgumentNullException`. Nothing is caught: a damaged
+resource, a resource that is too large to read, or a file that fails validation (a damaged header, a word count that
+disagrees with the content, or a slot that does not point at a word). All of them are raised when the image is created;
+a lookup of a validated image does not throw. Null arguments throw `ArgumentNullException`. Nothing is caught: a damaged
 dictionary means a defective build, and it is propagated to the caller with its name so that the file that must be
 rebuilt can be identified. A missing resource is reported the same way as a damaged one, because no caller can
 recover from either.

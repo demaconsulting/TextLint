@@ -278,19 +278,22 @@ sections:
         tests:
           - TextLint_Dictionary_TechnicalTerm_IsKnownInEveryLanguage
 
-      - id: TextLint-System-EmbeddedDictionaries
+      - id: TextLint-System-SelfContainedLookup
         title: >-
-          The library shall carry its dictionaries inside its assembly, so that word lookup needs
-          no data files at run time.
+          The library shall look words up without requiring any dictionary files, configuration,
+          or network access at run time.
         tags: [system]
         justification: |
           The library is distributed as a single NuGet package and used from a command-line tool
-          that runs in build pipelines and containers. Data files that had to be found beside the
-          program, or on a network, would be a source of installation and path failures; data
-          inside the assembly travels with it.
+          that runs in build pipelines and containers. A lookup that depended on data files being
+          found beside the program, or on a network, would be a source of installation and path
+          failures; vocabulary that ships with the library works wherever the library does. The
+          evidence is a lookup from a copy of the library with nothing beside it, an inspection of
+          the loaded assembly, and an inspection of the produced package.
         children:
-          - TextLint-Dictionaries-EmbeddedContent
+          - TextLint-Dictionaries-ShippedData
         tests:
+          - TextLint_Dictionary_LibraryAssemblyAlone_LooksUpWords
           - TextLint_Assembly_Loaded_EmbedsDictionaries
           - TextLint_Package_Packed_ContainsEmbeddedDictionaries
 
@@ -305,7 +308,7 @@ sections:
           would be a silent failure of the build that turns the lists into dictionaries, so the
           whole vocabulary is checked, in every capitalization, against the public behavior.
         children:
-          - TextLint-Dictionaries-EmbeddedContent
+          - TextLint-Dictionaries-ShippedData
         tests:
           - TextLint_Dictionary_EveryListedWord_IsKnown
 

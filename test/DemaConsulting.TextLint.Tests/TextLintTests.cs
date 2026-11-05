@@ -22,6 +22,7 @@
 
 using System.Collections.Concurrent;
 using System.Reflection;
+using System.Runtime.Loader;
 using System.Runtime.Versioning;
 using System.Text;
 using DemaConsulting.TextLint.Configuration;
@@ -889,6 +890,36 @@ public class TextLintTests
 
         // Assert: every selection knows every term
         Assert.Empty(unknown);
+    }
+
+    /// <summary>
+    ///     The shape of <see cref="SpellingDictionary.IsKnown"/>, so the method of a copy of the library loaded
+    ///     into another load context can be called without a reference to that copy's types.
+    /// </summary>
+    /// <param name="word">The word to look up.</param>
+    /// <returns>Whether the word is known.</returns>
+    private delegate bool IsKnownDelegate(ReadOnlySpan<char> word);
+
+    /// <summary>
+    ///     Test that a copy of the library assembly with nothing beside it still looks words up.
+    /// </summary>
+    [Fact]
+    public void TextLint_Dictionary_LibraryAssemblyAlone_LooksUpWords()
+    {
+        // Arrange: load the bytes of the library assembly, and nothing else, into a separate load context, so no
+        // dictionary file, settings file, or other assembly of the library is available to it
+        var bytes = File.ReadAllBytes(LoadLibrary().Location);
+        var context = new AssemblyLoadContext("library-alone");
+        using var stream = new MemoryStream(bytes);
+        var type = context.LoadFromStream(stream).GetType("DemaConsulting.TextLint.Dictionaries.SpellingDictionary")!;
+        var dictionary = type.GetMethod("ForLanguages")!.Invoke(null, ["en-GB"])!;
+        var isKnown = type.GetMethod("IsKnown")!.CreateDelegate<IsKnownDelegate>(dictionary);
+
+        // Act: look up an English word, a British spelling, an American spelling, a technical term, and a nonsense word
+        var answers = new[] { "table", "neighbour", "neighbor", "kubernetes", "xyzzyq" }.Select(word => isKnown(word)).ToArray();
+
+        // Assert: the answers are those of the British selection
+        Assert.Equal([true, true, false, true, false], answers);
     }
 
     /// <summary>

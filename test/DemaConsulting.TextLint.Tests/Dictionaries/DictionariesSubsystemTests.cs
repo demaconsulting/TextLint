@@ -233,7 +233,7 @@ public class DictionariesSubsystemTests
     ///     Test that each embedded dictionary contributes words that no other dictionary supplies.
     /// </summary>
     [Fact]
-    public void DictionariesSubsystem_ForLanguages_EmbeddedDictionaries_ContainSampleWordsOfEachList()
+    public void DictionariesSubsystem_ForLanguages_ShippedVocabulary_ContainsSampleWordsOfEachPart()
     {
         // Arrange: words that come from exactly one of the four dictionaries, and the selections
         var american = SpellingDictionary.ForLanguages("en-US");

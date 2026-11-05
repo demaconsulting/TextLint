@@ -29,14 +29,14 @@ sections:
                   - DictionaryImage_Contains_CollidingKeys_FoundByProbing
                   - DictionaryImage_Contains_EmptyImage_IsFalse
 
-              - id: TextLint-Dictionaries-DictionaryImage-EmbeddedLoad
+              - id: TextLint-Dictionaries-DictionaryImage-LoadShippedData
                 title: >-
-                  DictionaryImage shall load a dictionary embedded in an assembly by its resource
-                  name, and shall report a missing or unusable one with an error that names it.
+                  DictionaryImage shall load a named dictionary that ships with the library, and
+                  shall report a missing or unusable one with an error that names it.
                 justification: |
-                  The dictionaries travel inside the library assembly. If one is absent or damaged,
-                  the library was built or packaged incorrectly, and the person who has to fix it
-                  needs to know which dictionary it is.
+                  The dictionaries travel with the library. If one is absent or damaged, the library
+                  was built or packaged incorrectly, and the person who has to fix it needs to know
+                  which dictionary it is.
                 tests:
                   - DictionaryImage_LoadEmbedded_ExistingResource_Loads
                   - DictionaryImage_LoadEmbedded_MissingResource_ThrowsNamingResource

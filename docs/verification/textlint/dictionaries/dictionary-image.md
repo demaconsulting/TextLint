@@ -31,8 +31,8 @@ N/A - standard test environment.
   words finds nothing.
 - Every kind of header damage (length, identifier, options, hash, reserved bytes, slot count, load, word block size,
   total length, terminator) is rejected with an `InvalidDataException` that names the dictionary.
-- A slot that points outside the word block is reported as damage at lookup, and a table with no empty slot ends the
-  probe instead of looping.
+- A header whose word count disagrees with the word block or the slot table, including a header that claims words
+  but has none, and a slot that does not point at the start of a word, are rejected when the image is loaded.
 - A real embedded dictionary loads and answers, and a missing or damaged embedded resource is rejected naming the
   resource.
 
@@ -59,17 +59,29 @@ scenario is tested by `DictionaryImage_Contains_CollidingKeys_FoundByProbing`.
 **DictionaryImage_Contains_EmptyImage_IsFalse**: An image with no words is valid and finds nothing. This scenario
 is tested by `DictionaryImage_Contains_EmptyImage_IsFalse`.
 
-**DictionaryImage_Contains_SlotOffsetOutsideBlob_ThrowsInvalidData**: The occupied slot of a one-word image is changed
-to point far beyond the word block; looking the word up throws `InvalidDataException` naming the dictionary. This
-scenario is tested by `DictionaryImage_Contains_SlotOffsetOutsideBlob_ThrowsInvalidData`.
+**DictionaryImage_New_SlotOffsetOutsideBlob_ThrowsInvalidData**: The occupied slot of a one-word image is changed
+to point far beyond the word block; loading the image throws `InvalidDataException` naming the dictionary. This
+scenario is tested by `DictionaryImage_New_SlotOffsetOutsideBlob_ThrowsInvalidData`.
 
-**DictionaryImage_Contains_SlotWithoutOffset_ThrowsInvalidData**: The occupied slot is changed to hold case flags
-and no offset; looking the word up throws `InvalidDataException`. This scenario is tested by
-`DictionaryImage_Contains_SlotWithoutOffset_ThrowsInvalidData`.
+**DictionaryImage_New_SlotWithoutOffset_ThrowsInvalidData**: The occupied slot is changed to hold case flags
+and no offset; loading throws `InvalidDataException`. This scenario is tested by
+`DictionaryImage_New_SlotWithoutOffset_ThrowsInvalidData`.
 
-**DictionaryImage_Contains_TableWithoutEmptySlot_ReturnsFalse**: Every slot of an eight-slot table is damaged to point
-at the stored word; looking up an absent word ends after one cycle and returns false. This scenario is tested by
-`DictionaryImage_Contains_TableWithoutEmptySlot_ReturnsFalse`.
+**DictionaryImage_New_SlotInsideWord_ThrowsInvalidData**: The occupied slot is changed to point at the second
+letter of its word; loading throws `InvalidDataException`. This scenario is tested by
+`DictionaryImage_New_SlotInsideWord_ThrowsInvalidData`.
+
+**DictionaryImage_New_WordCountMismatchesBlob_ThrowsInvalidData**: The header of a one-word image is changed to
+claim two words; loading throws `InvalidDataException` saying the count does not match the word block. This
+scenario is tested by `DictionaryImage_New_WordCountMismatchesBlob_ThrowsInvalidData`.
+
+**DictionaryImage_New_WordCountWithoutBlob_ThrowsInvalidData**: A hand-made image that claims one word but has an
+empty word block is loaded; it is rejected and cannot pass as an empty image. This scenario is tested by
+`DictionaryImage_New_WordCountWithoutBlob_ThrowsInvalidData`.
+
+**DictionaryImage_New_SlotTableMismatchesWordCount_ThrowsInvalidData**: Every slot of a one-word image is damaged to
+point at the word; loading throws `InvalidDataException` saying the count does not match the slot table. This
+scenario is tested by `DictionaryImage_New_SlotTableMismatchesWordCount_ThrowsInvalidData`.
 
 **DictionaryImage_New_ValidImage_IsAccepted**: A valid image passes validation and answers a lookup. This scenario
 is tested by `DictionaryImage_New_ValidImage_IsAccepted`.

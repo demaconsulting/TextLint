@@ -61,7 +61,7 @@ public class SpellingDictionaryTests
     ///     Test that the default selection is American English.
     /// </summary>
     [Fact]
-    public void SpellingDictionary_Default_IsAmerican()
+    public void SpellingDictionary_Default_Selection_IsAmerican()
     {
         // Arrange: the default selection
         var dictionary = SpellingDictionary.Default;

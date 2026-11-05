@@ -177,9 +177,13 @@ and embeds the four resulting files in the assembly; see _Design Constraints_.
   target then runs the builder with the same .NET host that runs the build, passing the word-list folder,
   an output folder under the project's intermediate folder (separate for each configuration and target
   framework), the four dictionary names, and the declaration of the technical dictionary and of the two regional
-  dictionaries whose words are spelling variants. The target is incremental: its inputs are every word list and the
+  dictionaries whose words are spelling variants. The target is incremental: its inputs are every word list, a manifest of the list of word lists, and the
   builder's assembly, and its outputs are the four dictionary files, so an unchanged build does not run the builder
-  again, and an edited list or a rebuilt builder runs it once. The files are then embedded as resources under
+  again, and an edited, added, deleted, or renamed list, or a rebuilt builder, runs it once. The manifest exists
+  because a deleted file leaves no timestamp to compare: it is rewritten, only when its content differs, before each
+  conversion check, so a change in the set of lists makes it newer than the outputs. After the builder succeeds the
+  outputs are touched (the builder leaves a file whose content did not change alone), which can never hide a failure
+  because the builder's non-zero exit code stops the target first and touching a missing output is itself an error. The files are then embedded as resources under
   stable logical names that do not depend on the folder or the namespace. The builder reports each problem in the
   compiler's error format and ends with a non-zero exit code, which fails the library build with its diagnostics,
   and the target must run before compilation and before the package is packed from the build output, so a package

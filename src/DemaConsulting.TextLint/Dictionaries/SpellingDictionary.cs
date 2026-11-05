@@ -37,7 +37,10 @@ namespace DemaConsulting.TextLint.Dictionaries;
 ///     names given to <see cref="ForLanguages"/>. Only the three possible selections exist, and
 ///     each is a single shared instance, so asking for the same selection twice returns the same
 ///     object. A selection loads its dictionaries lazily, the first time a word is looked up, and
-///     the loaded data is shared by every selection that uses it. Instances are immutable and
+///     the loaded data is shared by every selection that uses it. A failed load (a missing or damaged
+///     embedded dictionary, which means a defective build) is cached for the life of the process and is
+///     not retried, so every lookup of the affected selection throws the same
+///     <see cref="InvalidDataException"/>. Instances are immutable and
 ///     safe to use from any number of threads at the same time.
 /// </remarks>
 public sealed class SpellingDictionary

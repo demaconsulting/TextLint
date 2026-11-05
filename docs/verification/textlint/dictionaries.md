@@ -27,7 +27,7 @@ project references.
   rejected naming it.
 - Technical terms are known in every selection.
 - Equal selections are the same instance, and many threads get consistent answers.
-- Each of the four embedded dictionaries contributes words that the selection needs.
+- Each of the four parts of the shipped vocabulary contributes words that the selection needs.
 
 ### Test Scenarios
 
@@ -75,8 +75,8 @@ different spelling and spacing; the same instance is returned. This scenario is 
 three selections are made from many threads at once; every answer matches the selection. This scenario is tested by
 `DictionariesSubsystem_IsKnown_ParallelCallers_ReturnConsistentAnswers`.
 
-**DictionariesSubsystem_ForLanguages_EmbeddedDictionaries_ContainSampleWordsOfEachList**: A common word, an
+**DictionariesSubsystem_ForLanguages_ShippedVocabulary_ContainsSampleWordsOfEachPart**: A common word, an
 American-only word, a British-only word, and a technical term are looked up in the American and British selections;
-each is known exactly where the dictionary that holds it is selected, which shows that all four embedded
-dictionaries are loaded and used. This scenario is tested by
-`DictionariesSubsystem_ForLanguages_EmbeddedDictionaries_ContainSampleWordsOfEachList`.
+each is known exactly where the part of the vocabulary that holds it is selected, which shows that all four parts of
+the shipped vocabulary are loaded and used. This scenario is tested by
+`DictionariesSubsystem_ForLanguages_ShippedVocabulary_ContainsSampleWordsOfEachPart`.

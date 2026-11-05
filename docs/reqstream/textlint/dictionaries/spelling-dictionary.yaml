@@ -22,7 +22,7 @@ sections:
                   project that mixes dialects select both. An error that names the offending value
                   tells the user exactly what to correct.
                 tests:
-                  - SpellingDictionary_Default_IsAmerican
+                  - SpellingDictionary_Default_Selection_IsAmerican
                   - SpellingDictionary_ForLanguages_En_SameAsEnUs
                   - SpellingDictionary_ForLanguages_LowerCaseAndSpaces_Accepted
                   - SpellingDictionary_ForLanguages_UnsupportedLanguage_ThrowsNamingLanguage
@@ -33,9 +33,10 @@ sections:
 
               - id: TextLint-Dictionaries-SpellingDictionary-Composition
                 title: >-
-                  SpellingDictionary shall report a word as known when the common English
-                  dictionary, a dictionary of a selected language, or the technical dictionary
-                  holds it, and shall not use the dictionary of a language that is not selected.
+                  SpellingDictionary shall report a word as known when it belongs to the English
+                  words that all dialects share, to the spellings of a selected language, or to the
+                  technical terms, and shall not report the spellings of a language that is not
+                  selected as known.
                 justification: |
                   A selection must know exactly the vocabulary of its languages: the words every
                   dialect shares, the spellings of the chosen dialects, and the technical terms.
@@ -49,7 +50,7 @@ sections:
                   - SpellingDictionary_IsKnown_VariantSpellingInGeneralList_FollowsLanguage
 
               - id: TextLint-Dictionaries-SpellingDictionary-TechnicalTerms
-                title: SpellingDictionary shall include the technical dictionary in every selection.
+                title: SpellingDictionary shall treat the technical terms as known in every selection.
                 justification: |
                   Software terms are correct whatever the dialect, so no selection may omit them,
                   including the programming terms whose spelling also appears as a regional variant.

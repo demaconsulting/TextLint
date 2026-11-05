@@ -31,11 +31,11 @@ namespace DemaConsulting.TextLint.Dictionaries;
 /// <remarks>
 ///     The image exists so that a dictionary of well over a hundred thousand words can be loaded
 ///     without building any data structure: the build has already sorted the words into a block
-///     and precomputed a hash table over them, so loading is one read of the bytes plus a cheap
-///     check of the header, and a lookup is one hash and a short probe. The bytes are read once
+///     and precomputed a hash table over them, so loading is one read of the bytes plus one linear
+///     consistency pass, and a lookup is one hash and a short probe. The bytes are read once
 ///     into a managed array and every access goes through bounds-checked spans and
 ///     <see cref="BinaryPrimitives"/>, so a damaged image can only produce an
-///     <see cref="InvalidDataException"/>, never an out-of-range read; no unsafe code is involved
+///     <see cref="InvalidDataException"/> at load, never an out-of-range read; no unsafe code is involved
 ///     anywhere. Safety was chosen over the small extra speed that reading the resource in place
 ///     would give. The layout and the hash are defined once, in <see cref="DictionaryFormat"/>,
 ///     which the dictionary builder compiles as well. An instance never changes after
@@ -73,11 +73,11 @@ internal sealed class DictionaryImage
     ///     dictionary file after validating its header.
     /// </summary>
     /// <remarks>
-    ///     Validation looks at the header and the overall length only, so it takes constant time
-    ///     however large the dictionary is. There is deliberately no checksum: the bytes come from
-    ///     a build of this very repository, and a full scan would defeat the point of precomputing
-    ///     the table. The array is kept, not copied, so the caller must not modify it afterwards.
-    ///     Corruption that only shows up at a particular slot is caught when that slot is read.
+    ///     Validation checks the header, the overall length, and the agreement of the header's word count with
+    ///     the word block and the slot table, in one linear pass over the bytes that were just read, so every
+    ///     offset a lookup later reads is already known to be inside the word block. There is deliberately no
+    ///     checksum: the bytes come from a build of this very repository. The array is kept, not copied, so the
+    ///     caller must not modify it afterwards.
     /// </remarks>
     /// <param name="name">The name of the dictionary, used in error messages. Must not be null.</param>
     /// <param name="data">The complete dictionary file. Must not be null and must not be modified after the call.</param>
@@ -85,8 +85,10 @@ internal sealed class DictionaryImage
     /// <exception cref="InvalidDataException">
     ///     Thrown, naming the dictionary and the reason, when the data is shorter than the header, has
     ///     the wrong identifier, uses an unsupported option or hash, has non-zero reserved bytes, has a
-    ///     slot count that is zero or not a power of two, is loaded beyond the load limit, or does not
-    ///     have exactly the length that the header implies.
+    ///     slot count that is zero or not a power of two, is loaded beyond the load limit, does not
+    ///     have exactly the length that the header implies, has a word block that is not terminated, or
+    ///     has a word count that disagrees with the word block or the slot table, or a slot that does not
+    ///     point at the start of a word.
     /// </exception>
     internal DictionaryImage(string name, byte[] data)
     {
@@ -153,13 +155,24 @@ internal sealed class DictionaryImage
 
         _slotsOffset = (int)slotsOffset;
 
-        // A non-empty word block ends with the terminator of its last word, which also guarantees that a
-        // comparison against any stored word finds the terminator before it runs off the block
+        // A non-empty word block ends with the terminator of its last word
         var blob = data.AsSpan(DictionaryFormat.HeaderLength, _blobLength);
         if (!blob.IsEmpty && blob[^1] != DictionaryFormat.WordTerminator)
         {
             throw Invalid("its word block does not end with a word terminator");
         }
+
+        // The header's word count must agree with the word block (one terminator per word) and with the slot
+        // table (one occupied slot per word), and every occupied slot must point at the start of a word. A
+        // header that disagrees with its content is damage even when each field looks plausible, and checking
+        // it here means that lookups can trust every offset they read. The scan is one linear pass over data
+        // that has already been read into memory.
+        if (blob.Count(DictionaryFormat.WordTerminator) != wordCount)
+        {
+            throw Invalid("its word count does not match its word block");
+        }
+
+        ValidateSlots(wordCount);
     }
 
     /// <summary>
@@ -212,15 +225,13 @@ internal sealed class DictionaryImage
     ///     forward until it finds the word or an empty slot, which the load limit guarantees exists.
     ///     A slot matches when the stored word equals the key and is followed by its terminator, so a
     ///     stored word that merely starts with the key does not match. Every read is bounds checked.
-    ///     The probe count is capped at the slot count, so even a table damaged to have no empty slot
-    ///     cannot loop forever. Allocation-free and thread-safe.
+    ///     The probe count is capped at the slot count, so it cannot loop forever. Loading has already
+    ///     proved that every occupied slot points at a word, so a lookup never throws for a validated
+    ///     image. Allocation-free and thread-safe.
     /// </remarks>
     /// <param name="key">The folded key bytes, as produced by <see cref="DictionaryFormat.TryFold"/>.</param>
     /// <param name="hash">The hash of <paramref name="key"/>, as produced by <see cref="DictionaryFormat.Hash"/>.</param>
     /// <returns><see langword="true"/> when the dictionary stores the key; otherwise <see langword="false"/>.</returns>
-    /// <exception cref="InvalidDataException">
-    ///     Thrown, naming the dictionary, when a slot that the probe reads points outside the word block.
-    /// </exception>
     internal bool Contains(ReadOnlySpan<byte> key, uint hash)
     {
         var blob = _data.AsSpan(DictionaryFormat.HeaderLength, _blobLength);
@@ -228,7 +239,9 @@ internal sealed class DictionaryImage
         var mask = _slotCount - 1;
         var index = hash & mask;
 
-        // Probe from the home slot until the word is found or an empty slot proves it is absent
+        // Probe from the home slot until the word is found or an empty slot proves it is absent. Loading
+        // proved that every occupied slot points at a word and that empty slots exist, so the probe ends;
+        // the cap at one cycle of the table is a second guarantee that it cannot loop.
         for (uint probes = 0; probes < _slotCount; probes++)
         {
             var slot = BinaryPrimitives.ReadUInt32LittleEndian(
@@ -238,16 +251,8 @@ internal sealed class DictionaryImage
                 return false;
             }
 
-            // The low bits hold the offset of the stored word plus one; an offset outside the block is
-            // damage that only a lookup can find
-            var offset = (int)(slot & DictionaryFormat.OffsetMask) - 1;
-            if ((uint)offset >= (uint)blob.Length)
-            {
-                throw Invalid("a slot points outside its word block");
-            }
-
             // The slot matches when the key is stored here in full: the same bytes, then the terminator
-            var remaining = blob[offset..];
+            var remaining = blob[((int)(slot & DictionaryFormat.OffsetMask) - 1)..];
             if (remaining.Length > key.Length &&
                 remaining[key.Length] == DictionaryFormat.WordTerminator &&
                 remaining[..key.Length].SequenceEqual(key))
@@ -259,6 +264,47 @@ internal sealed class DictionaryImage
         }
 
         return false;
+    }
+
+    /// <summary>
+    ///     Checks that the slot table agrees with the header and with the word block.
+    /// </summary>
+    /// <remarks>
+    ///     Every occupied slot must hold an offset that lies inside the word block and falls at the start
+    ///     of a word (the first byte of the block, or the byte after a terminator), and the number of
+    ///     occupied slots must equal the word count. Together with the terminator count this ties the
+    ///     header, the block, and the table to one another. It does not prove that the words are sorted,
+    ///     distinct, or reachable from their hash, which the builder guarantees and its tests verify.
+    ///     Reads only; thread-safe.
+    /// </remarks>
+    /// <param name="wordCount">The word count from the header.</param>
+    /// <exception cref="InvalidDataException">Thrown, naming the dictionary, when a slot or the slot count is inconsistent.</exception>
+    private void ValidateSlots(uint wordCount)
+    {
+        var blob = _data.AsSpan(DictionaryFormat.HeaderLength, _blobLength);
+        var slots = _data.AsSpan(_slotsOffset);
+        uint occupied = 0;
+        for (var position = 0; position < slots.Length; position += DictionaryFormat.SlotSize)
+        {
+            var slot = BinaryPrimitives.ReadUInt32LittleEndian(slots.Slice(position, DictionaryFormat.SlotSize));
+            if (slot == 0)
+            {
+                continue;
+            }
+
+            // The offset is stored plus one, so a slot with no offset bits cannot point anywhere
+            occupied++;
+            var offset = (int)(slot & DictionaryFormat.OffsetMask) - 1;
+            if ((uint)offset >= (uint)blob.Length || (offset > 0 && blob[offset - 1] != DictionaryFormat.WordTerminator))
+            {
+                throw Invalid("a slot does not point at the start of a word");
+            }
+        }
+
+        if (occupied != wordCount)
+        {
+            throw Invalid("its word count does not match its slot table");
+        }
     }
 
     /// <summary>

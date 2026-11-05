@@ -144,22 +144,37 @@
     <Compile Include="..\DemaConsulting.TextLint.DictionaryBuilder\DictionaryFormat.cs" Link="Dictionaries\DictionaryFormat.cs" />
   </ItemGroup>
 
-  <!-- Incremental: the target is skipped when every converted file is newer than every word list and the
-       builder. A builder error fails the build: its messages are in the compiler error format, so MSBuild
-       reports each problem with its file and line, and the non-zero exit code fails the Exec task.
-       Design-time builds (an editor or dotnet format loading the project to analyze it) only need the
+  <!-- The set of word lists is an input too. A deleted file cannot be seen through the file timestamps that the
+       incremental target compares, so the list of files is written to a manifest that is an input of the
+       conversion: when a list is added, removed, or renamed the manifest changes, becomes newer than the converted
+       files, and the conversion runs again. The manifest is rewritten only when its content differs, so an
+       unchanged set leaves it (and the conversion) alone. -->
+  <Target Name="WriteDictionaryManifest"
+          Condition="'$(DesignTimeBuild)' != 'true'">
+    <MakeDir Directories="$(DictionaryOutputDir)" />
+    <WriteLinesToFile File="$(DictionaryOutputDir)/wordlists.manifest"
+                      Lines="@(DictionaryWordList)"
+                      Overwrite="true"
+                      WriteOnlyWhenDifferent="true" />
+  </Target>
+
+  <!-- Incremental: the target is skipped when every converted file is newer than every word list, the list of
+       word lists, and the builder. A builder error fails the build: its messages are in the compiler error
+       format, so MSBuild reports each problem with its file and line, and the non-zero exit code fails the Exec
+       task. Design-time builds (an editor or dotnet format loading the project to analyze it) only need the
        source to be analyzed, never the compiled output, and the builder may not have been built yet in
        that configuration, so they skip the conversion. -->
   <Target Name="BuildDictionaries"
           BeforeTargets="CoreCompile;GenerateAssemblyInfo"
-          DependsOnTargets="ResolveProjectReferences"
+          DependsOnTargets="ResolveProjectReferences;WriteDictionaryManifest"
           Condition="'$(DesignTimeBuild)' != 'true'"
-          Inputs="@(DictionaryWordList);@(DictionaryBuilderAssembly)"
+          Inputs="@(DictionaryWordList);$(DictionaryOutputDir)/wordlists.manifest;@(DictionaryBuilderAssembly)"
           Outputs="@(DictionaryBinary)">
     <MakeDir Directories="$(DictionaryOutputDir)" />
     <Exec Command="&quot;$(DictionaryDotNet)&quot; &quot;@(DictionaryBuilderAssembly)&quot; --input &quot;$(DictionaryWordListRoot)&quot; --output &quot;$(DictionaryOutputDir)&quot; @(Dictionary, ' ') --technical technical @(DictionaryVariant->'--variants %(Identity)', ' ')" />
     <!-- The builder leaves a file whose content did not change untouched, so mark every output as up to date
-         to let the next build skip this target. -->
+         to let the next build skip this target. This runs only after the builder succeeded, and Touch fails
+         for an output that does not exist (it is never asked to create one), so it cannot hide a failure. -->
     <Touch Files="@(DictionaryBinary)" />
   </Target>
 

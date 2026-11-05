@@ -74,6 +74,11 @@ public class DictionaryImageTests
     private const uint FirstWordSlot = 1;
 
     /// <summary>
+    ///     A slot value that points at the second byte of the first word, which is not the start of a word.
+    /// </summary>
+    private const uint SecondByteSlot = 2;
+
+    /// <summary>
     ///     A blob length beyond what the format allows.
     /// </summary>
     private const uint OversizedBlobLength = 0x10000000;
@@ -227,46 +232,85 @@ public class DictionaryImageTests
     }
 
     /// <summary>
-    ///     Test that a slot that points outside the word block is reported as damage when it is read.
+    ///     Test that a slot that points outside the word block is rejected when the image is loaded.
     /// </summary>
     [Fact]
-    public void DictionaryImage_Contains_SlotOffsetOutsideBlob_ThrowsInvalidData()
+    public void DictionaryImage_New_SlotOffsetOutsideBlob_ThrowsInvalidData()
     {
         // Arrange: an image whose only occupied slot is changed to point far beyond the word block
         var data = TldImageBuilder.Build(["alpha"]);
-        var image = new DictionaryImage(ImageName, SetOccupiedSlot(data, TldImageBuilder.SlotsOffset(data), FarOffsetSlot));
+        SetOccupiedSlot(data, TldImageBuilder.SlotsOffset(data), FarOffsetSlot);
 
-        // Act: look the word up
-        var exception = Assert.Throws<InvalidDataException>(() => Contains(image, "alpha"));
-
-        // Assert: the error names the dictionary
-        Assert.Contains(ImageName, exception.Message);
+        // Act / Assert: the image is rejected
+        AssertRejected(data, "start of a word");
     }
 
     /// <summary>
-    ///     Test that a slot with case flags but no offset is reported as damage when it is read.
+    ///     Test that a slot with case flags but no offset is rejected when the image is loaded.
     /// </summary>
     [Fact]
-    public void DictionaryImage_Contains_SlotWithoutOffset_ThrowsInvalidData()
+    public void DictionaryImage_New_SlotWithoutOffset_ThrowsInvalidData()
     {
         // Arrange: an image whose only occupied slot has no offset
         var data = TldImageBuilder.Build(["alpha"]);
-        var image = new DictionaryImage(ImageName, SetOccupiedSlot(data, TldImageBuilder.SlotsOffset(data), NoOffsetSlot));
+        SetOccupiedSlot(data, TldImageBuilder.SlotsOffset(data), NoOffsetSlot);
 
-        // Act: look the word up
-        var exception = Assert.Throws<InvalidDataException>(() => Contains(image, "alpha"));
-
-        // Assert: the error names the dictionary
-        Assert.Contains(ImageName, exception.Message);
+        // Act / Assert: the image is rejected
+        AssertRejected(data, "start of a word");
     }
 
     /// <summary>
-    ///     Test that a table with no empty slot cannot make a lookup run forever.
+    ///     Test that a slot that points into the middle of a word is rejected when the image is loaded.
     /// </summary>
     [Fact]
-    public void DictionaryImage_Contains_TableWithoutEmptySlot_ReturnsFalse()
+    public void DictionaryImage_New_SlotInsideWord_ThrowsInvalidData()
     {
-        // Arrange: an image whose every slot is damaged to point at the one stored word
+        // Arrange: an image whose only occupied slot is changed to point at the second letter of its word
+        var data = TldImageBuilder.Build(["alpha"]);
+        SetOccupiedSlot(data, TldImageBuilder.SlotsOffset(data), SecondByteSlot);
+
+        // Act / Assert: the image is rejected
+        AssertRejected(data, "start of a word");
+    }
+
+    /// <summary>
+    ///     Test that a header word count that does not match the terminators of the word block is rejected.
+    /// </summary>
+    [Fact]
+    public void DictionaryImage_New_WordCountMismatchesBlob_ThrowsInvalidData()
+    {
+        // Arrange: a valid image whose header claims two words although the block holds one
+        var data = TldImageBuilder.Build(["alpha"], SmallSlotCount);
+        BinaryPrimitives.WriteUInt32LittleEndian(data.AsSpan(TldImageBuilder.WordCountOffset), 2);
+
+        // Act / Assert: the image is rejected
+        AssertRejected(data, "does not match its word block");
+    }
+
+    /// <summary>
+    ///     Test that a header that claims a word but has an empty word block is rejected, so it cannot pass as an empty image.
+    /// </summary>
+    [Fact]
+    public void DictionaryImage_New_WordCountWithoutBlob_ThrowsInvalidData()
+    {
+        // Arrange: a header of a hand-made image with one word claimed, no word block, and two empty slots
+        var data = new byte[TldImageBuilder.HeaderLength + (2 * TldImageBuilder.SlotSize)];
+        "TLD1"u8.CopyTo(data);
+        BinaryPrimitives.WriteUInt32LittleEndian(data.AsSpan(TldImageBuilder.WordCountOffset), 1);
+        BinaryPrimitives.WriteUInt32LittleEndian(data.AsSpan(TldImageBuilder.SlotCountOffset), 2);
+        BinaryPrimitives.WriteUInt32LittleEndian(data.AsSpan(TldImageBuilder.HashIdOffset), 1);
+
+        // Act / Assert: the image is rejected
+        AssertRejected(data, "does not match its word block");
+    }
+
+    /// <summary>
+    ///     Test that a slot table whose occupied slots do not match the word count is rejected.
+    /// </summary>
+    [Fact]
+    public void DictionaryImage_New_SlotTableMismatchesWordCount_ThrowsInvalidData()
+    {
+        // Arrange: an image of one word in which every slot is damaged to point at that word
         var data = TldImageBuilder.Build(["alpha"], SmallSlotCount);
         var slotsOffset = TldImageBuilder.SlotsOffset(data);
         for (var slot = 0; slot < SmallSlotCount; slot++)
@@ -274,13 +318,8 @@ public class DictionaryImageTests
             BinaryPrimitives.WriteUInt32LittleEndian(data.AsSpan(slotsOffset + (slot * TldImageBuilder.SlotSize)), FirstWordSlot);
         }
 
-        var image = new DictionaryImage(ImageName, data);
-
-        // Act: look up a word that is not stored
-        var found = Contains(image, "omega");
-
-        // Assert: the probe ends after one full cycle and reports the word as absent
-        Assert.False(found);
+        // Act / Assert: the image is rejected
+        AssertRejected(data, "does not match its slot table");
     }
 
     /// <summary>
@@ -576,8 +615,7 @@ public class DictionaryImageTests
     /// <param name="data">The image, which is changed in place.</param>
     /// <param name="slotsOffset">The offset at which the slot table starts.</param>
     /// <param name="value">The value to store in each occupied slot.</param>
-    /// <returns>The same image, for convenience.</returns>
-    private static byte[] SetOccupiedSlot(byte[] data, int slotsOffset, uint value)
+    private static void SetOccupiedSlot(byte[] data, int slotsOffset, uint value)
     {
         // Overwrite each slot that is not empty
         for (var offset = slotsOffset; offset < data.Length; offset += TldImageBuilder.SlotSize)
@@ -587,7 +625,5 @@ public class DictionaryImageTests
                 BinaryPrimitives.WriteUInt32LittleEndian(data.AsSpan(offset), value);
             }
         }
-
-        return data;
     }
 }

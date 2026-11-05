@@ -226,7 +226,7 @@ jobs:
       # id and metadata, third-party notices, embedded dictionaries). These run here, against the
       # real artifact, rather than inside the test suite - packing is a build activity. The
       # results are linked as evidence for the TextLint-System-Package,
-      # TextLint-System-ThirdPartyNotices, and TextLint-System-EmbeddedDictionaries requirements.
+      # TextLint-System-ThirdPartyNotices, and TextLint-System-SelfContainedLookup requirements.
       - name: Assert Library Package with FileAssert
         run: >
           dotnet fileassert

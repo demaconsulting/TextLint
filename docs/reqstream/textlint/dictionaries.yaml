@@ -15,8 +15,8 @@ sections:
         requirements:
           - id: TextLint-Dictionaries-WordLookup
             title: >-
-              The Dictionaries subsystem shall report a word as known when a dictionary of the
-              selection holds it, and as not known otherwise, whatever the text.
+              The Dictionaries subsystem shall report a word as known when it belongs to the
+              vocabulary of the selection, and as not known otherwise, whatever the text.
             justification: |
               This is the question the whole subsystem exists to answer. Text that cannot be a
               word (nothing at all, blanks, very long runs of letters) must get the answer "not
@@ -48,7 +48,7 @@ sections:
 
           - id: TextLint-Dictionaries-LanguageSelection
             title: >-
-              The Dictionaries subsystem shall select its English dictionaries by language name
+              The Dictionaries subsystem shall select its English vocabulary by language name
               (en, en-US, en-GB, or a combination), with American English as the default, and
               shall reject any other language by name.
             justification: |
@@ -85,17 +85,17 @@ sections:
               - DictionariesSubsystem_ForLanguages_SameSelection_ReturnsSameInstance
               - DictionariesSubsystem_IsKnown_ParallelCallers_ReturnConsistentAnswers
 
-          - id: TextLint-Dictionaries-EmbeddedContent
+          - id: TextLint-Dictionaries-ShippedData
             title: >-
-              The Dictionaries subsystem shall draw its words from dictionaries embedded in the
-              library assembly, one for each group of word lists.
+              The Dictionaries subsystem shall draw all of its vocabulary (common English, American,
+              British, and technical) from data that ships with the library, and shall report data
+              that is missing or unusable with an error that names it.
             justification: |
-              Embedding the dictionaries keeps the library self-contained, and one dictionary per
-              group (common English, American, British, technical) is what lets a selection
-              combine exactly the groups its languages need. A missing or unusable embedded
-              dictionary must be reported by name, because it means the library was built or
-              packaged incorrectly.
+              A lookup that depended on files found at run time would fail wherever they are not
+              found. Each part of the vocabulary must be present for the selections that need it,
+              and missing or unusable data means the library was built or packaged incorrectly, so
+              the person who must fix it needs to know which data it is.
             children:
-              - TextLint-Dictionaries-DictionaryImage-EmbeddedLoad
+              - TextLint-Dictionaries-DictionaryImage-LoadShippedData
             tests:
-              - DictionariesSubsystem_ForLanguages_EmbeddedDictionaries_ContainSampleWordsOfEachList
+              - DictionariesSubsystem_ForLanguages_ShippedVocabulary_ContainsSampleWordsOfEachPart

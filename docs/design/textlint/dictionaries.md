@@ -90,13 +90,14 @@ image is touched, which is how the subsystem satisfies the requirement that no t
 fold is the one defined by `DictionaryFormat` and shared with the builder, so a dictionary built from a list and
 a lookup of the same word can never disagree about case or the apostrophe.
 
-`DictionaryImage` owns the file. Its constructor validates the header in constant time: the identifier, the option
-flags and hash identifier the reader supports, the reserved bytes, the slot count being a power of two, the
-load factor, and the exact total length the header implies, and the word block ending with a terminator. Any
-violation is an `InvalidDataException` that names the dictionary. A lookup is then a hash-selected slot and a
-forward probe through a table of 32-bit slots, each holding the offset of a word in the word block; every read goes through
-a bounds-checked span and `BinaryPrimitives`, a slot that points outside the block is reported as damage, and the
-probe is capped at one cycle of the table, so a damaged file can only produce an exception and never an
+`DictionaryImage` owns the file. Its constructor validates the file in one linear pass over bytes that were just read:
+the identifier, the option flags and hash identifier the reader supports, the reserved bytes, the slot count being a
+power of two, the load factor, the exact total length the header implies, the word block ending with a terminator, the
+header's word count agreeing with the number of terminators in the block and with the number of occupied slots, and
+every occupied slot pointing at the start of a word. Any violation is an `InvalidDataException` that names the
+dictionary. A lookup is then a hash-selected slot and a forward probe through a table of 32-bit slots, each holding the
+offset of a word in the word block; every read goes through a bounds-checked span and `BinaryPrimitives`, and the probe
+is capped at one cycle of the table, so a damaged file can only produce an exception at load and never an
 out-of-range read or an endless loop.
 
 **Why a precomputed binary format.** The vocabulary is about two hundred thousand words, and a spell checker
@@ -106,7 +107,8 @@ allocation and start-up time proportional to the size of the vocabulary: in the 
 words) a precomputed index loaded in about 3 ms, against about 43 ms for a hash set and about 67 ms for a frozen
 set, and allocated 3 to 4 MB against 14 to 32 MB. On a projected 3,000-file, 36 MB repository with 3.5 million
 lookups on 16 cores that was about 19 ms of wall time against 55 ms and 78 ms. The implementation was re-measured
-with the safe loading described below: first use of the combined selection takes about 7 ms cold and allocates
+with the safe loading described below: first use of the combined selection, including the consistency pass over the
+data, takes about 9 ms cold and allocates
 about 3 MB (the one managed copy of the data), against about 31 ms and 23 MB to build a frozen set of the same
 words, and a lookup takes about 160 ns without allocating, which is slower than a hash set's lookup but costs no
 per-word memory. Generated source was rejected because compiling a source file of that size is slow, and
