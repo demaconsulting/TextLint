@@ -23,7 +23,10 @@ output folder by the test project, so no repository root has to be located.
 - All system tests pass with zero failures on every supported platform.
 - The exit code is 0 for valid lists, 1 for invalid lists or declarations, and 2 for an invalid command line.
 - No dictionary file exists after a run that reported a problem.
-- Every entry of every committed word list is found in the dictionary built from it.
+- Every entry of every committed word list is found in the dictionary built from it, except the stripped
+  spelling variants of the technical dictionary, which are not found.
+- A general technical variant spelling is removed unless a language list or the reviewed list has it.
+- A failure leaves every dictionary file as it was.
 - Two builds of the same lists are byte-identical, and CRLF lists build the same bytes as LF lists.
 
 ## Test Scenarios
@@ -38,10 +41,43 @@ scenario is tested by `DictionaryBuilder_Build_WordListFolders_WritesOneDictiona
 evidence for the platform requirements on each operating system and on .NET 10.
 
 **DictionaryBuilder_Build_RepositoryWordLists_BuildsAllDictionaries**: The four real dictionaries are built
-from the repository's lists; the run succeeds with empty standard error, the word count of each file equals
-the number of distinct folded entries of its lists, every entry is found as written, in lower case, and in upper
-case, American and British spellings land in their own dictionaries, and a common word and a technical term are
-found where expected. This scenario is tested by `DictionaryBuilder_Build_RepositoryWordLists_BuildsAllDictionaries`.
+from the repository's lists with the spelling-variant rule; the run succeeds with empty standard error, the
+word count of each ordinary dictionary equals the number of distinct folded entries of its lists, and that of the
+technical dictionary equals the distinct folded entries of the language lists, the keep list, and the general
+lists that the rule does not strip, computed independently of the builder. Every kept entry is found as written, in
+lower case, and in upper case; every stripped variant is not found; American and British spellings land in their
+own dictionaries; and `favorite` is stripped while `color`, `grey`, and `tokenizer` are known. This scenario is
+tested by `DictionaryBuilder_Build_RepositoryWordLists_BuildsAllDictionaries`.
+
+**DictionaryBuilder_Build_RepositoryVariantKeepList_ContainsOnlyOtherwiseStrippedVariants**: Every word of the
+repository's reviewed keep list is a variant spelling, is in a general list, and is in no language list, so the
+list contains only words whose reviewed status has an effect. This defensive scenario guards the curated data and
+is not linked to a requirement.
+
+**DictionaryBuilder_Build_GeneralListVariantSpelling_IsStripped**: In a small tree, `favorite` (American) and a British
+variant spelling appear only in the general list; neither is known in the technical dictionary, while the ordinary
+`kubernetes` is. This scenario is tested by `DictionaryBuilder_Build_GeneralListVariantSpelling_IsStripped`.
+
+**DictionaryBuilder_Build_LanguageListVariantSpelling_IsKept**: `color` (American) and `grey` (British) are in the
+language list and are both known in the technical dictionary. This scenario is tested by
+`DictionaryBuilder_Build_LanguageListVariantSpelling_IsKept`.
+
+**DictionaryBuilder_Build_KeepListVariantSpelling_IsKept**: `tokenizer` is a variant in the general list and is in
+the keep list, so it is known in the technical dictionary. This scenario is tested by
+`DictionaryBuilder_Build_KeepListVariantSpelling_IsKept`.
+
+**DictionaryBuilder_Build_KeepListWordNotVariant_FailsNamingWord**: An ordinary word added to the keep list fails
+the run with an error that names the word and writes nothing. This scenario is tested by
+`DictionaryBuilder_Build_KeepListWordNotVariant_FailsNamingWord`.
+
+**DictionaryBuilder_Build_TechnicalListOutsideKnownPlaces_FailsNamingFile**: A word list directly in the technical
+folder fails the run with an error that names the file and writes nothing. This scenario is tested by
+`DictionaryBuilder_Build_TechnicalListOutsideKnownPlaces_FailsNamingFile`.
+
+**DictionaryBuilder_Build_LaterOutputBlocked_LeavesEarlierOutputUntouched**: After a first build of one
+dictionary, its list changes, a second dictionary is added, and a folder occupies the second dictionary's file
+path; the run fails with exit code 1, the first dictionary file keeps its old content, and no temporary file is
+left. This scenario is tested by `DictionaryBuilder_Build_LaterOutputBlocked_LeavesEarlierOutputUntouched`.
 
 **DictionaryBuilder_Build_CaseVariantsAndDuplicates_StoresEachWordOnce**: A word in three cases, a repeated
 word, and a duplicate in a second file are stored as single lower-case words. This scenario is tested by

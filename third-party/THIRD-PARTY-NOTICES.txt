@@ -42,7 +42,8 @@ special lists in order to help improve the overall quality of SCOWL.
 2. TECHNICAL TERM LISTS: cspell-dicts
 -------------------------------------
 
-The technical term lists (dictionaries/technical, except additions.txt) are imported from the following
+The technical term lists (dictionaries/technical/language and dictionaries/technical/general, except
+additions.txt) are imported from the following
 packages of the cspell-dicts project, https://github.com/streetsidesoftware/cspell-dicts, as published on the
 npm registry. Each package is licensed under the MIT license that follows the list of packages.
 
@@ -58,6 +59,7 @@ npm registry. Each package is licensed under the MIT license that follows the li
   @cspell/dict-typescript 3.2.3       Copyright (c) 2017-2025 Street Side Software <support@streetsidesoftware.nl>
   @cspell/dict-html 4.0.16            Copyright (c) 2017-2025 Street Side Software <support@streetsidesoftware.nl>
   @cspell/dict-powershell 5.0.17      Copyright (c) 2017-2025 Street Side Software <support@streetsidesoftware.nl>
+  @cspell/dict-css 4.1.2              Copyright (c) 2017-2025 Street Side Software <support@streetsidesoftware.nl>
   @cspell/dict-k8s 1.0.13             Copyright (c) 2017-2022 Street Side Software <info@streetsidesoftware.nl>
 
 The MIT License (MIT)

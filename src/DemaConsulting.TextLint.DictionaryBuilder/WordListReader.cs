@@ -1,15 +1,15 @@
 // Copyright (c) DEMA Consulting
-// 
+//
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
 // in the Software without restriction, including without limitation the rights
 // to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 // copies of the Software, and to permit persons to whom the Software is
 // furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all
 // copies or substantial portions of the Software.
-// 
+//
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 // IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 // FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -118,11 +118,24 @@ internal static class WordListReader
     /// </remarks>
     /// <param name="folder">The dictionary folder. Must not be null.</param>
     /// <returns>The merged words and any problems; never null.</returns>
-    internal static WordListReadResult Read(string folder)
+    internal static WordListReadResult Read(string folder) => ReadFiles(FindWordListFiles(folder), folder);
+
+    /// <summary>
+    ///     Reads and merges an explicit list of word-list files.
+    /// </summary>
+    /// <remarks>
+    ///     Used when the files of a dictionary come from several places (the technical dictionary
+    ///     reads its general lists, its language lists, and its keep list separately), and by
+    ///     <see cref="Read"/> for a whole folder. The caps and the diagnostics behave exactly as for a
+    ///     folder. Reads the file system; thread-safe because it shares no state.
+    /// </remarks>
+    /// <param name="files">The full paths of the files, in the order to read them. Must not be null.</param>
+    /// <param name="summaryPath">The folder or file named by the cap summary diagnostic. Must not be null.</param>
+    /// <returns>The merged words and any problems; never null.</returns>
+    internal static WordListReadResult ReadFiles(IReadOnlyList<string> files, string summaryPath)
     {
-        var files = FindWordListFiles(folder);
         var words = new Dictionary<string, uint>(StringComparer.Ordinal);
-        var problems = new ProblemLog(folder);
+        var problems = new ProblemLog(summaryPath);
 
         // Merge the files one after another; duplicates across files collapse in the dictionary
         foreach (var file in files)

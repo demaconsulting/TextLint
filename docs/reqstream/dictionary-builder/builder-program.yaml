@@ -13,12 +13,14 @@ sections:
             title: >-
               BuilderProgram shall require an input folder, an output folder, and at least one dictionary
               name, and shall reject a missing part, an unknown option, an option without a value, a
-              repeated option, and a dictionary name that is repeated or is not a plain folder name, with
+              repeated option, a dictionary name that is repeated or is not a plain folder name, and a
+              technical-dictionary declaration that is incomplete or names an undeclared dictionary, with
               a usage message, the usage exit code, and no file read or written.
             justification: |
               The build supplies these inputs, so a malformed command line is a mistake in the build
               definition. Names become folder and file names, so a name that could climb out of the
-              input or output folder must be refused before anything is touched.
+              input or output folder must be refused before anything is touched, and the variant rule
+              needs both the technical dictionary and the dictionaries that define the variants.
             tests:
               - BuilderProgram_Run_MissingInput_ReturnsUsageError
               - BuilderProgram_Run_MissingOutput_ReturnsUsageError
@@ -28,6 +30,7 @@ sections:
               - BuilderProgram_Run_DuplicateOption_ReturnsUsageError
               - BuilderProgram_Run_NameWithPathSeparator_ReturnsUsageError
               - BuilderProgram_Run_DuplicateName_ReturnsUsageError
+              - BuilderProgram_Run_InconsistentTechnicalDeclaration_ReturnsUsageError
 
           - id: DictionaryBuilder-BuilderProgram-Dictionaries
             title: >-
@@ -39,6 +42,36 @@ sections:
               must be used exactly.
             tests:
               - BuilderProgram_Run_ValidLists_WritesFilesAndReturnsZero
+
+          - id: DictionaryBuilder-BuilderProgram-TechnicalDictionary
+            title: >-
+              BuilderProgram shall build the declared technical dictionary from the lists in its general
+              folder, its language folder, and its reviewed list, applying the spelling-variant rule with
+              the words of the declared variant dictionaries, while writing those variant dictionaries
+              with all their own words, and shall report how many variants were kept and stripped.
+            justification: |
+              The folder a technical list is in is its tag: language lists are exempt from the variant
+              rule, general lists are not. The variant dictionaries are the American-only and British-only
+              words, so they are both an input of the rule and products in their own right.
+            tests:
+              - BuilderProgram_Run_TechnicalDictionary_AppliesVariantRule
+              - BuilderProgram_Run_TechnicalDictionary_LeavesVariantDictionariesWhole
+              - BuilderProgram_Run_TechnicalWithoutKeepList_Succeeds
+
+          - id: DictionaryBuilder-BuilderProgram-TechnicalLists
+            title: >-
+              BuilderProgram shall return the failure exit code, naming the file or word at fault, when a
+              technical word list is outside the general folder, the language folder, and the reviewed
+              list, when the technical dictionary has no general or no language words, and when a word of
+              the reviewed list is not a spelling variant.
+            justification: |
+              A misplaced list would silently change which variants are exempt, and a stale reviewed-list
+              word would hide the rule's real effect; naming the file or word lets the maintainer fix it
+              at once.
+            tests:
+              - BuilderProgram_Run_TechnicalListOutsideKnownPlaces_ReturnsOneNamingFile
+              - BuilderProgram_Run_KeepWordNotVariant_ReturnsOneNamingWord
+              - BuilderProgram_Run_TechnicalWithoutLanguageLists_ReturnsOneNamingLists
 
           - id: DictionaryBuilder-BuilderProgram-Misconfiguration
             title: >-
@@ -66,6 +99,18 @@ sections:
             tests:
               - BuilderProgram_Run_InvalidEntry_WritesNothingAndReportsFileLine
               - BuilderProgram_Run_OutputPathIsAFile_ReportsErrorAndReturnsOne
+
+          - id: DictionaryBuilder-BuilderProgram-AllOrNothing
+            title: >-
+              BuilderProgram shall leave every existing dictionary file unchanged and create no new
+              dictionary file, and shall leave no temporary file behind, when any dictionary file cannot
+              be written.
+            justification: |
+              The dictionaries ship together, so a failure part-way through writing must not leave some
+              updated and others stale; the output folder must end as it began.
+            tests:
+              - BuilderProgram_Run_LaterOutputBlocked_LeavesEarlierOutputUntouched
+              - BuilderProgram_Run_LaterOutputBlockedWithNoPriorFiles_CreatesNothing
 
           - id: DictionaryBuilder-BuilderProgram-UnchangedOutput
             title: >-

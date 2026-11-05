@@ -34,6 +34,7 @@ input-files:
   - docs/verification/dictionary-builder.md
   - docs/verification/dictionary-builder/builder-program.md
   - docs/verification/dictionary-builder/word-list-reader.md
+  - docs/verification/dictionary-builder/variant-filter.md
   - docs/verification/dictionary-builder/dictionary-writer.md
   - docs/verification/dictionary-builder/dictionary-format.md
   - docs/verification/ots.md

@@ -37,6 +37,7 @@ This document covers the verification design for the following software items:
 - **DictionaryBuilder** — system and unit verification for the build-time dictionary builder:
   - **BuilderProgram** — command line, orchestration, and error reporting
   - **WordListReader** — word-list reading, validation, and merging
+  - **VariantFilter** — spelling-variant rule for the technical lists
   - **DictionaryWriter** — dictionary file serialization
   - **DictionaryFormat** — shared format definitions
 

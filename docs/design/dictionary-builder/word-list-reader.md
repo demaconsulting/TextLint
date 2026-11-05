@@ -45,6 +45,11 @@ skipping blank lines and lines whose first non-blank character is `#`.
   one summary diagnostic that states how many more were not shown, so a hopelessly broken list cannot flood the
   build log.
 
+**ReadFiles**: the same merge over an explicit list of files, used when the files of one dictionary come from
+several places (the technical dictionary reads its general lists, its language lists, and its keep list
+separately). `Read` is `FindWordListFiles` followed by `ReadFiles`, so the caps and the diagnostics behave
+identically.
+
 Each file is decoded strictly as UTF-8, so a file saved in another encoding is reported as one file-level
 problem instead of being misread; a byte order mark at the start is skipped. Lines are separated at the line
 feed and counted from one so that the reported line matches what an editor shows. A valid entry is folded
@@ -70,5 +75,5 @@ arguments are programming errors and are not defended against.
 
 ### Callers
 
-- **BuilderProgram** - reads each declared dictionary and uses `FindWordListFiles` to detect folders of word
-  lists that were not declared.
+- **BuilderProgram** - reads each declared dictionary, reads the three sources of the technical dictionary, and
+  uses `FindWordListFiles` to detect folders of word lists that were not declared and misplaced technical lists.

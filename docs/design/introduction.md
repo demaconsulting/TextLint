@@ -29,7 +29,8 @@ Local items:
 - **DictionaryBuilder**: system and unit design for the build-time program that converts the word
   lists under `dictionaries/` into the binary dictionary files embedded in the library. It is not
   packaged. Its units are **BuilderProgram** (command line and orchestration), **WordListReader**
-  (reads and validates word lists, with its result and diagnostic types), **DictionaryWriter**
+  (reads and validates word lists, with its result and diagnostic types), **VariantFilter** (the
+  spelling-variant rule for the technical lists, with its result type), **DictionaryWriter**
   (serializes a dictionary file), and **DictionaryFormat** (the definitions shared with the library).
 
 OTS items:
@@ -92,14 +93,15 @@ on nothing but the .NET base class library.
 
 ## Folder Layout
 
-- **dictionaries/** - plain-text word lists, one sub-folder per dictionary, and the script that
-  regenerates the imported lists (data, not a software item)
+- **dictionaries/** - plain-text word lists, one sub-folder per dictionary (the technical dictionary's
+  folder is split into `language/` and `general/` lists plus a reviewed `variant-keep.txt`), and the script
+  that regenerates the imported lists (data, not a software item)
 - **third-party/** - license notices for the third-party data in the word lists
 - **src/** - source files and projects
   - **DemaConsulting.TextLint/** - library source
     - **Configuration/** - settings and settings-file loading subsystem
     - **FileSelection/** - glob pattern and file selection subsystem
-  - **DemaConsulting.TextLint.DictionaryBuilder/** - build-time dictionary builder source (four units)
+  - **DemaConsulting.TextLint.DictionaryBuilder/** - build-time dictionary builder source (five units)
   - **DemaConsulting.TextLint.Tool/** - main application source
     - **Cli/** - command-line interface subsystem
     - **SelfTest/** - self-validation subsystem

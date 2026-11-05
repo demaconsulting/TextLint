@@ -1,6 +1,6 @@
 package DictionaryBuilder {
     part def BuilderProgram {
-        doc /* Entry point of the builder: parses the command line, drives the reader and the writer, and reports problems in the compiler's error format. */
+        doc /* Entry point of the builder: parses the command line, drives the reader, the variant filter, and the writer, writes the files all-or-nothing, and reports problems in the compiler's error format. */
 
         comment sourceRef /* Source: src/DemaConsulting.TextLint.DictionaryBuilder/BuilderProgram.cs */
         comment testRef /* Test: test/DemaConsulting.TextLint.DictionaryBuilder.Tests/BuilderProgramTests.cs */

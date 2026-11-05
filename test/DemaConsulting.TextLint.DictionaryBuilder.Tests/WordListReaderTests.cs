@@ -1,15 +1,15 @@
 // Copyright (c) DEMA Consulting
-// 
+//
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
 // in the Software without restriction, including without limitation the rights
 // to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 // copies of the Software, and to permit persons to whom the Software is
 // furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all
 // copies or substantial portions of the Software.
-// 
+//
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 // IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 // FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -123,6 +123,43 @@ public class WordListReaderTests
         Assert.Empty(result.Words);
         Assert.False(result.HasProblems);
         Assert.Equal(0, result.FileCount);
+    }
+
+    /// <summary>
+    ///     Test that an explicit list of files is merged without reading the other files of the folder.
+    /// </summary>
+    [Fact]
+    public void WordListReader_ReadFiles_ExplicitFiles_MergesOnlyThoseFiles()
+    {
+        // Arrange: three lists in one folder, of which only two are named
+        using var temp = new TempDirectory();
+        var first = temp.CreateFile("list/a.txt", "apple\n");
+        temp.CreateFile("list/b.txt", "banana\n");
+        var third = temp.CreateFile("list/c.txt", "Cherry\n");
+
+        // Act: read the two named files
+        var result = WordListReader.ReadFiles([first, third], temp.PathOf("list"));
+
+        // Assert: only their words are present, and both files are counted
+        Assert.Equal(["apple", "cherry"], result.Words.Keys.Order(StringComparer.Ordinal));
+        Assert.Equal(2, result.FileCount);
+    }
+
+    /// <summary>
+    ///     Test that no files read as an empty result without a problem.
+    /// </summary>
+    [Fact]
+    public void WordListReader_ReadFiles_NoFiles_ReturnsNoWordsAndNoProblems()
+    {
+        // Arrange: no files at all
+        using var temp = new TempDirectory();
+
+        // Act: read an empty list of files
+        var result = WordListReader.ReadFiles([], temp.PathOf("list"));
+
+        // Assert: nothing was read and nothing was reported
+        Assert.Empty(result.Words);
+        Assert.False(result.HasProblems);
     }
 
     /// <summary>

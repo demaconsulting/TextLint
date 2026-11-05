@@ -37,6 +37,11 @@ order. This scenario is tested by `WordListReader_FindWordListFiles_MixedExtensi
 **WordListReader_Read_MissingFolder_ReturnsNoWordsAndNoProblems**: a missing folder reads as empty without a
 problem. This scenario is tested by `WordListReader_Read_MissingFolder_ReturnsNoWordsAndNoProblems`.
 
+**WordListReader_ReadFiles_ExplicitFiles_MergesOnlyThoseFiles** and
+**WordListReader_ReadFiles_NoFiles_ReturnsNoWordsAndNoProblems**: of three lists in one folder only the two named
+files are merged and counted, and an empty list of files reads as empty without a problem. These scenarios are
+tested by the tests of the same names.
+
 **WordListReader_Read_SpaceInEntry_ReportsLine**, **WordListReader_Read_Digit_ReportsLine**,
 **WordListReader_Read_TypographicApostrophe_ReportsLine**, **WordListReader_Read_LeadingApostrophe_ReportsLine**,
 **WordListReader_Read_TrailingApostrophe_ReportsLine**, **WordListReader_Read_DoubleApostrophe_ReportsLine**, and

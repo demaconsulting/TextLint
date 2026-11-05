@@ -1,15 +1,15 @@
 // Copyright (c) DEMA Consulting
-// 
+//
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
 // in the Software without restriction, including without limitation the rights
 // to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 // copies of the Software, and to permit persons to whom the Software is
 // furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all
 // copies or substantial portions of the Software.
-// 
+//
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 // IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 // FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -22,19 +22,20 @@ namespace DemaConsulting.TextLint.DictionaryBuilder;
 
 /// <summary>
 ///     The entry point of the dictionary builder: parses the command line, converts each named
-///     dictionary's word lists into a binary dictionary file, and reports every problem in the
-///     compiler's error format.
+///     dictionary's word lists into a binary dictionary file, applies the spelling-variant rule to
+///     the technical dictionary, and reports every problem in the compiler's error format.
 /// </summary>
 /// <remarks>
 ///     The builder runs inside the build of the library, so its contract with the build is small
 ///     and strict: exit code 0 means every file was produced; exit code 1 means the word lists or
-///     the dictionary declarations are wrong and nothing was written; exit code 2 means the command
-///     line was wrong. Errors go to the error stream as <c>path(line): error: message</c>, which MSBuild
-///     turns into build errors that point at the offending line. All files are produced in memory
-///     before any is written, so a failure can never leave a half-updated set of dictionaries, and a
-///     file whose content would not change is left untouched so that incremental builds stay
-///     incremental. The class holds no state; <see cref="Run"/> is safe to call concurrently as long as
-///     the callers use different output folders.
+///     the dictionary declarations are wrong (or the files could not be written) and no output was
+///     changed; exit code 2 means the command line was wrong. Errors go to the error stream as
+///     <c>path(line): error: message</c>, which MSBuild turns into build errors that point at the
+///     offending line. All files are produced in memory first, then staged beside their targets and
+///     installed together with a rollback, so a failure at any point can never leave a half-updated
+///     set of dictionaries, and a file whose content would not change is left untouched so that
+///     incremental builds stay incremental. The class holds no state; <see cref="Run"/> is safe to
+///     call concurrently as long as the callers use different output folders.
 /// </remarks>
 internal static class BuilderProgram
 {
@@ -44,7 +45,8 @@ internal static class BuilderProgram
     internal const int ExitSuccess = 0;
 
     /// <summary>
-    ///     The exit code returned when the word lists or the dictionary declarations are invalid.
+    ///     The exit code returned when the word lists or the dictionary declarations are invalid, or
+    ///     the output cannot be written.
     /// </summary>
     internal const int ExitInvalidWordLists = 1;
 
@@ -59,6 +61,21 @@ internal static class BuilderProgram
     internal const string OutputExtension = ".tld";
 
     /// <summary>
+    ///     The name of the folder, inside the technical dictionary's folder, that holds the general technical lists.
+    /// </summary>
+    internal const string GeneralFolderName = "general";
+
+    /// <summary>
+    ///     The name of the folder, inside the technical dictionary's folder, that holds the programming-language lists.
+    /// </summary>
+    internal const string LanguageFolderName = "language";
+
+    /// <summary>
+    ///     The name of the reviewed list, inside the technical dictionary's folder, of spelling variants that are allowed.
+    /// </summary>
+    internal const string KeepListFileName = "variant-keep.txt";
+
+    /// <summary>
     ///     The command-line option that names the folder holding one sub-folder of word lists per dictionary.
     /// </summary>
     private const string InputOption = "--input";
@@ -69,15 +86,36 @@ internal static class BuilderProgram
     private const string OutputOption = "--output";
 
     /// <summary>
+    ///     The command-line option that names the declared dictionary that is the technical dictionary.
+    /// </summary>
+    private const string TechnicalOption = "--technical";
+
+    /// <summary>
+    ///     The command-line option that names a declared dictionary whose words are spelling variants; may be repeated.
+    /// </summary>
+    private const string VariantsOption = "--variants";
+
+    /// <summary>
     ///     The prefix that marks a command-line argument as an option.
     /// </summary>
     private const string OptionPrefix = "-";
 
     /// <summary>
+    ///     The extension of a staged output file that has not been installed yet.
+    /// </summary>
+    private const string StagedExtension = ".tmp";
+
+    /// <summary>
+    ///     The extension of the backup of an output file that is being replaced.
+    /// </summary>
+    private const string BackupExtension = ".bak";
+
+    /// <summary>
     ///     The usage text printed after a command-line error.
     /// </summary>
     private const string Usage =
-        "Usage: DemaConsulting.TextLint.DictionaryBuilder --input <word-list-folder> --output <folder> <name> [<name> ...]";
+        "Usage: DemaConsulting.TextLint.DictionaryBuilder --input <word-list-folder> --output <folder> <name> [<name> ...] " +
+        "[--technical <name> --variants <name> [--variants <name> ...]]";
 
     /// <summary>
     ///     The entry point of the builder process.
@@ -118,18 +156,18 @@ internal static class BuilderProgram
         ReportUndeclaredFolders(options, problems);
 
         // Serialize in memory so that a failure can never leave a half-updated set of files
-        var files = new List<(string Name, int WordCount, byte[] Content)>();
+        var files = new List<OutputFile>();
         if (problems.Count == 0)
         {
-            foreach (var (name, result) in dictionaries)
+            foreach (var dictionary in dictionaries)
             {
                 try
                 {
-                    files.Add((name, result.Words.Count, DictionaryWriter.Write(result.Words)));
+                    files.Add(new OutputFile(dictionary.Name, dictionary.Words.Count, dictionary.Detail, DictionaryWriter.Write(dictionary.Words)));
                 }
                 catch (InvalidOperationException exception)
                 {
-                    problems.Add(new WordListDiagnostic(Path.Combine(options.InputFolder, name), WordListDiagnostic.NoLine, $"dictionary '{name}' is too large: {exception.Message}"));
+                    problems.Add(new WordListDiagnostic(Path.Combine(options.InputFolder, dictionary.Name), WordListDiagnostic.NoLine, $"dictionary '{dictionary.Name}' is too large: {exception.Message}"));
                 }
             }
         }
@@ -164,61 +202,139 @@ internal static class BuilderProgram
         problem = null;
         string? input = null;
         string? outputFolder = null;
+        string? technical = null;
         var names = new List<string>();
+        var variants = new List<string>();
 
         var index = 0;
         while (index < args.Length)
         {
             var argument = args[index++];
-            if (argument is InputOption or OutputOption)
+
+            // A plain argument is a dictionary name
+            if (!argument.StartsWith(OptionPrefix, StringComparison.Ordinal))
             {
-                // An option needs a value that is not itself an option
-                if (index >= args.Length || args[index].StartsWith(OptionPrefix, StringComparison.Ordinal))
+                if (!IsValidName(argument) || names.Contains(argument, StringComparer.Ordinal))
                 {
-                    problem = $"the option {argument} needs a value";
+                    problem = $"'{argument}' is not a valid or unique dictionary name (use letters, digits, '-' and '_')";
                     return null;
                 }
 
-                var value = args[index++];
-                if (argument == InputOption ? input is not null : outputFolder is not null)
-                {
-                    problem = $"the option {argument} was given more than once";
-                    return null;
-                }
-
-                if (argument == InputOption)
-                {
-                    input = value;
-                }
-                else
-                {
-                    outputFolder = value;
-                }
+                names.Add(argument);
+                continue;
             }
-            else if (argument.StartsWith(OptionPrefix, StringComparison.Ordinal))
+
+            // Every option takes one value that is not itself an option
+            if (argument is not (InputOption or OutputOption or TechnicalOption or VariantsOption))
             {
                 problem = $"unknown option '{argument}'";
                 return null;
             }
-            else if (!IsValidName(argument) || names.Contains(argument, StringComparer.Ordinal))
+
+            if (index >= args.Length || args[index].StartsWith(OptionPrefix, StringComparison.Ordinal))
             {
-                problem = $"'{argument}' is not a valid or unique dictionary name (use letters, digits, '-' and '_')";
+                problem = $"the option {argument} needs a value";
                 return null;
             }
-            else
+
+            var value = args[index++];
+            var accepted = argument switch
             {
-                names.Add(argument);
+                InputOption => AssignOnce(ref input, value),
+                OutputOption => AssignOnce(ref outputFolder, value),
+                TechnicalOption => AssignOnce(ref technical, value),
+                _ => AddOnce(variants, value)
+            };
+            if (!accepted)
+            {
+                problem = $"the option {argument} was given more than once or with a repeated value";
+                return null;
             }
         }
 
-        // All three parts are required
+        // The three basic parts are required
         if (input is null || outputFolder is null || names.Count == 0)
         {
             problem = $"{InputOption}, {OutputOption}, and at least one dictionary name are required";
             return null;
         }
 
-        return new BuildOptions(Path.GetFullPath(input), Path.GetFullPath(outputFolder), names);
+        // The technical declaration is all or nothing and must refer to declared dictionaries
+        problem = FindTechnicalDeclarationProblem(names, technical, variants);
+        return problem is null ? new BuildOptions(Path.GetFullPath(input), Path.GetFullPath(outputFolder), names, technical, variants) : null;
+    }
+
+    /// <summary>
+    ///     Sets an option value that may be given only once.
+    /// </summary>
+    /// <remarks>
+    ///     Pure function over its arguments; thread-safe.
+    /// </remarks>
+    /// <param name="target">The option value so far; null until the option is seen.</param>
+    /// <param name="value">The value of the option occurrence being processed.</param>
+    /// <returns><see langword="true"/> when the value was stored; <see langword="false"/> when the option was already set.</returns>
+    private static bool AssignOnce(ref string? target, string value)
+    {
+        if (target is not null)
+        {
+            return false;
+        }
+
+        target = value;
+        return true;
+    }
+
+    /// <summary>
+    ///     Adds a value to a repeatable option's list unless it is already there.
+    /// </summary>
+    /// <remarks>
+    ///     Pure function over its arguments; thread-safe.
+    /// </remarks>
+    /// <param name="values">The values so far. Must not be null.</param>
+    /// <param name="value">The value of the option occurrence being processed.</param>
+    /// <returns><see langword="true"/> when the value was added; <see langword="false"/> when it was a repeat.</returns>
+    private static bool AddOnce(List<string> values, string value)
+    {
+        if (values.Contains(value, StringComparer.Ordinal))
+        {
+            return false;
+        }
+
+        values.Add(value);
+        return true;
+    }
+
+    /// <summary>
+    ///     Checks that the technical declaration is complete and refers to declared dictionaries.
+    /// </summary>
+    /// <remarks>
+    ///     The technical dictionary and the dictionaries of spelling variants only make sense
+    ///     together: the variant rule needs both, and each must be one of the declared dictionaries
+    ///     (the technical dictionary cannot be its own variant source). Pure function; thread-safe.
+    /// </remarks>
+    /// <param name="names">The declared dictionary names. Must not be null.</param>
+    /// <param name="technical">The technical dictionary name, or null.</param>
+    /// <param name="variants">The variant dictionary names. Must not be null.</param>
+    /// <returns>A description of the first problem, or <see langword="null"/> when the declaration is valid.</returns>
+    private static string? FindTechnicalDeclarationProblem(List<string> names, string? technical, List<string> variants)
+    {
+        if (technical is null)
+        {
+            return variants.Count > 0 ? $"{VariantsOption} needs {TechnicalOption}" : null;
+        }
+
+        if (!names.Contains(technical, StringComparer.Ordinal))
+        {
+            return $"the technical dictionary '{technical}' is not a declared dictionary name";
+        }
+
+        if (variants.Count == 0)
+        {
+            return $"{TechnicalOption} needs at least one {VariantsOption}";
+        }
+
+        var invalid = variants.FirstOrDefault(variant => string.Equals(variant, technical, StringComparison.Ordinal) || !names.Contains(variant, StringComparer.Ordinal));
+        return invalid is null ? null : $"the variant dictionary '{invalid}' must be a declared dictionary name other than the technical dictionary";
     }
 
     /// <summary>
@@ -237,17 +353,18 @@ internal static class BuilderProgram
     /// </summary>
     /// <remarks>
     ///     A declared dictionary whose folder is missing, or whose lists contain no words, is a
-    ///     misconfiguration and is reported like an invalid entry. Reads the file system.
+    ///     misconfiguration and is reported like an invalid entry. The technical dictionary is read
+    ///     last because the variant rule needs the words of the variant dictionaries. Reads the file
+    ///     system.
     /// </remarks>
     /// <param name="options">The parsed options. Must not be null.</param>
     /// <param name="problems">The list that receives every problem. Must not be null.</param>
     /// <returns>The successfully read dictionaries in declaration order (only meaningful when no problem was recorded).</returns>
-    private static List<(string Name, WordListReadResult Result)> ReadDictionaries(
-        BuildOptions options,
-        List<WordListDiagnostic> problems)
+    private static List<BuiltDictionary> ReadDictionaries(BuildOptions options, List<WordListDiagnostic> problems)
     {
-        var dictionaries = new List<(string Name, WordListReadResult Result)>();
-        foreach (var name in options.Names)
+        // Read every ordinary dictionary first
+        var read = new Dictionary<string, BuiltDictionary>(StringComparer.Ordinal);
+        foreach (var name in options.Names.Where(name => !IsTechnical(options, name)))
         {
             // A declared dictionary must have a folder
             var folder = Path.Combine(options.InputFolder, name);
@@ -260,16 +377,130 @@ internal static class BuilderProgram
             // Collect the reader's problems, and require at least one word when the lists were readable
             var result = WordListReader.Read(folder);
             problems.AddRange(result.Diagnostics);
-            if (!result.HasProblems && result.Words.Count == 0)
-            {
-                problems.Add(new WordListDiagnostic(folder, WordListDiagnostic.NoLine, $"dictionary '{name}' contains no words"));
-            }
-
-            dictionaries.Add((name, result));
+            ReportMissingWords(result, folder, $"dictionary '{name}'", problems);
+            read[name] = new BuiltDictionary(name, result.Words, string.Empty);
         }
 
-        return dictionaries;
+        // Then combine the technical dictionary, which depends on the variant dictionaries' words
+        if (options.TechnicalName is not null)
+        {
+            var folder = Path.Combine(options.InputFolder, options.TechnicalName);
+            var variantWords = options.VariantNames
+                .Where(read.ContainsKey)
+                .SelectMany(variant => read[variant].Words.Keys)
+                .ToHashSet(StringComparer.Ordinal);
+            var technical = ReadTechnicalDictionary(options.TechnicalName, folder, variantWords, problems);
+            if (technical is not null)
+            {
+                read[options.TechnicalName] = technical;
+            }
+        }
+
+        return [.. options.Names.Where(read.ContainsKey).Select(name => read[name])];
     }
+
+    /// <summary>
+    ///     Determines whether a declared dictionary is the technical dictionary.
+    /// </summary>
+    /// <remarks>
+    ///     Pure function; thread-safe.
+    /// </remarks>
+    /// <param name="options">The parsed options. Must not be null.</param>
+    /// <param name="name">The dictionary name. Must not be null.</param>
+    /// <returns><see langword="true"/> when the name is the declared technical dictionary.</returns>
+    private static bool IsTechnical(BuildOptions options, string name) =>
+        string.Equals(options.TechnicalName, name, StringComparison.Ordinal);
+
+    /// <summary>
+    ///     Records a problem when the lists of a dictionary were readable but contain no words.
+    /// </summary>
+    /// <remarks>
+    ///     An empty dictionary would ship silently and no later check could notice it. Pure
+    ///     function over its arguments apart from adding to the list.
+    /// </remarks>
+    /// <param name="result">The read result to check. Must not be null.</param>
+    /// <param name="folder">The folder the lists were read from, named by the problem. Must not be null.</param>
+    /// <param name="description">How the problem names the dictionary or list set. Must not be null.</param>
+    /// <param name="problems">The list that receives the problem. Must not be null.</param>
+    private static void ReportMissingWords(WordListReadResult result, string folder, string description, List<WordListDiagnostic> problems)
+    {
+        if (!result.HasProblems && result.Words.Count == 0)
+        {
+            problems.Add(new WordListDiagnostic(folder, WordListDiagnostic.NoLine, $"{description} contains no words"));
+        }
+    }
+
+    /// <summary>
+    ///     Reads the technical dictionary from its general lists, language lists, and keep list, applying the variant rule.
+    /// </summary>
+    /// <remarks>
+    ///     The folder is the tag: the lists under <c>language</c> are programming-language keyword and
+    ///     API lists, the lists under <c>general</c> are everything else, and <c>variant-keep.txt</c> is
+    ///     a reviewed list of variant spellings that are programming terms. A word list anywhere else
+    ///     in the folder is reported, so a misplaced list cannot silently drop out of the product. The
+    ///     rule itself is applied by <see cref="VariantFilter"/>. Reads the file system.
+    /// </remarks>
+    /// <param name="name">The technical dictionary name. Must not be null.</param>
+    /// <param name="folder">The technical dictionary folder. Must not be null.</param>
+    /// <param name="variantWords">The folded words of the variant dictionaries. Must not be null.</param>
+    /// <param name="problems">The list that receives every problem. Must not be null.</param>
+    /// <returns>The combined dictionary, or <see langword="null"/> when a problem prevented it.</returns>
+    private static BuiltDictionary? ReadTechnicalDictionary(string name, string folder, HashSet<string> variantWords, List<WordListDiagnostic> problems)
+    {
+        if (!Directory.Exists(folder))
+        {
+            problems.Add(new WordListDiagnostic(folder, WordListDiagnostic.NoLine, $"the word-list folder of dictionary '{name}' does not exist"));
+            return null;
+        }
+
+        var generalFolder = Path.Combine(folder, GeneralFolderName);
+        var languageFolder = Path.Combine(folder, LanguageFolderName);
+        var keepFile = Path.Combine(folder, KeepListFileName);
+        var problemsBefore = problems.Count;
+
+        // Every list must be in one of the three places the rule knows about
+        foreach (var file in WordListReader.FindWordListFiles(folder).Where(file => !IsUnder(file, generalFolder) && !IsUnder(file, languageFolder) && !string.Equals(file, keepFile, StringComparison.Ordinal)))
+        {
+            problems.Add(new WordListDiagnostic(file, WordListDiagnostic.NoLine, $"the word list is not in the '{GeneralFolderName}' or '{LanguageFolderName}' folder and is not {KeepListFileName}"));
+        }
+
+        // Read the three sources; the general and language lists must each hold words, the keep list is optional
+        var general = WordListReader.Read(generalFolder);
+        var language = WordListReader.Read(languageFolder);
+        var keep = WordListReader.ReadFiles(File.Exists(keepFile) ? [keepFile] : [], keepFile);
+        problems.AddRange(general.Diagnostics);
+        problems.AddRange(language.Diagnostics);
+        problems.AddRange(keep.Diagnostics);
+        ReportMissingWords(general, generalFolder, $"the general lists of dictionary '{name}'", problems);
+        ReportMissingWords(language, languageFolder, $"the language lists of dictionary '{name}'", problems);
+        if (problems.Count > problemsBefore)
+        {
+            return null;
+        }
+
+        // Apply the variant rule, and report keep-list words that are not variants so the list stays tight
+        var filtered = VariantFilter.Apply(general.Words, language.Words, keep.Words, variantWords);
+        foreach (var word in filtered.KeepWordsNotVariants)
+        {
+            problems.Add(new WordListDiagnostic(keepFile, WordListDiagnostic.NoLine, $"'{word}' is not a spelling variant, so it does not belong in the keep list"));
+        }
+
+        var detail = $" ({filtered.KeptViaLanguage} variants kept via language lists, {filtered.KeptViaKeepList} via {KeepListFileName}, {filtered.Stripped} stripped)";
+        return problems.Count > problemsBefore ? null : new BuiltDictionary(name, filtered.Words, detail);
+    }
+
+    /// <summary>
+    ///     Determines whether a file lies beneath a folder.
+    /// </summary>
+    /// <remarks>
+    ///     Compares full paths in ordinal order with the directory separator, so a folder whose name merely
+    ///     starts with another folder's name is not mistaken for a child. Pure function; thread-safe.
+    /// </remarks>
+    /// <param name="file">The full path of the file. Must not be null.</param>
+    /// <param name="folder">The full path of the folder. Must not be null.</param>
+    /// <returns><see langword="true"/> when the file is inside the folder or one of its sub-folders.</returns>
+    private static bool IsUnder(string file, string folder) =>
+        file.StartsWith(folder + Path.DirectorySeparatorChar, StringComparison.Ordinal);
 
     /// <summary>
     ///     Reports each folder that holds word lists but was not declared on the command line.
@@ -301,37 +532,60 @@ internal static class BuilderProgram
     }
 
     /// <summary>
-    ///     Writes the dictionary files, leaving a file untouched when its content would not change.
+    ///     Writes the dictionary files all-or-nothing, leaving a file untouched when its content would not change.
     /// </summary>
     /// <remarks>
-    ///     Not rewriting an identical file keeps its timestamp, so an incremental build that uses
-    ///     the files as outputs does not see a change. File system failures are reported as errors
-    ///     rather than thrown. Writes the file system.
+    ///     First a target path that is occupied by a folder is refused before anything is written.
+    ///     Then every changed file is written to a staged file beside its target; only when all of
+    ///     them are written are they installed, each by moving the old file aside and the staged file
+    ///     into place. If any step fails, the files already installed are removed or restored from
+    ///     their backups and the staged files are deleted, so the output folder ends as it began. Not
+    ///     rewriting an identical file keeps its timestamp, so an incremental build that uses the
+    ///     files as outputs does not see a change. File system failures are reported as errors rather
+    ///     than thrown. Writes the file system.
     /// </remarks>
     /// <param name="options">The parsed options. Must not be null.</param>
     /// <param name="files">The files to write. Must not be null.</param>
     /// <param name="output">The stream that receives the summary lines. Must not be null.</param>
     /// <param name="error">The stream that receives error messages. Must not be null.</param>
     /// <returns><see cref="ExitSuccess"/> or <see cref="ExitInvalidWordLists"/>.</returns>
-    private static int WriteFiles(
-        BuildOptions options,
-        List<(string Name, int WordCount, byte[] Content)> files,
-        TextWriter output,
-        TextWriter error)
+    private static int WriteFiles(BuildOptions options, List<OutputFile> files, TextWriter output, TextWriter error)
     {
+        var staged = new List<StagedFile>();
         try
         {
             Directory.CreateDirectory(options.OutputFolder);
-            foreach (var (name, wordCount, content) in files)
+
+            // Refuse up front when a target path is occupied by a folder, which no replacement could fix
+            var occupied = files.FirstOrDefault(file => Directory.Exists(TargetPath(options, file)));
+            if (occupied is not null)
             {
-                var path = Path.Combine(options.OutputFolder, name + OutputExtension);
-                var unchanged = File.Exists(path) && File.ReadAllBytes(path).AsSpan().SequenceEqual(content);
-                if (!unchanged)
+                throw new IOException($"'{TargetPath(options, occupied)}' is a folder");
+            }
+
+            // Stage every changed file beside its target; nothing is installed until all are written
+            var unchanged = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var file in files)
+            {
+                var path = TargetPath(options, file);
+                if (File.Exists(path) && File.ReadAllBytes(path).AsSpan().SequenceEqual(file.Content))
                 {
-                    File.WriteAllBytes(path, content);
+                    unchanged.Add(path);
+                    continue;
                 }
 
-                output.WriteLine($"{path}: {wordCount} words, {content.Length} bytes ({(unchanged ? "unchanged" : "written")})");
+                var stagedFile = new StagedFile(path);
+                staged.Add(stagedFile);
+                File.WriteAllBytes(stagedFile.StagedPath, file.Content);
+            }
+
+            Install(staged);
+
+            // Report what happened to each file
+            foreach (var file in files)
+            {
+                var path = TargetPath(options, file);
+                output.WriteLine($"{path}: {file.WordCount} words{file.Detail}, {file.Content.Length} bytes ({(unchanged.Contains(path) ? "unchanged" : "written")})");
             }
 
             return ExitSuccess;
@@ -341,7 +595,81 @@ internal static class BuilderProgram
             error.WriteLine($"{options.OutputFolder}: error: the dictionary files cannot be written: {exception.Message}");
             return ExitInvalidWordLists;
         }
+        finally
+        {
+            // Whatever happened, no staged file may be left behind
+            foreach (var stagedFile in staged)
+            {
+                stagedFile.DeleteStaged();
+            }
+        }
     }
+
+    /// <summary>
+    ///     Gets the full path of an output file.
+    /// </summary>
+    /// <remarks>
+    ///     Pure function; thread-safe.
+    /// </remarks>
+    /// <param name="options">The parsed options. Must not be null.</param>
+    /// <param name="file">The output file. Must not be null.</param>
+    /// <returns>The path of the dictionary file in the output folder.</returns>
+    private static string TargetPath(BuildOptions options, OutputFile file) =>
+        Path.Combine(options.OutputFolder, file.Name + OutputExtension);
+
+    /// <summary>
+    ///     Installs the staged files, restoring the previous state if any installation fails.
+    /// </summary>
+    /// <remarks>
+    ///     Each existing target is moved aside to a backup before the staged file takes its place.
+    ///     On failure the files installed so far are put back in reverse order (the new file is
+    ///     deleted and the backup restored); the original exception then propagates. The backups are
+    ///     deleted on success, on a best-effort basis, because a leftover backup is harmless and must
+    ///     not turn a completed installation into a reported failure. Writes the file system.
+    /// </remarks>
+    /// <param name="staged">The staged files to install. Must not be null.</param>
+    private static void Install(List<StagedFile> staged)
+    {
+        try
+        {
+            foreach (var file in staged)
+            {
+                file.MoveIntoPlace();
+            }
+        }
+        catch
+        {
+            // Put the output folder back as it was, then report the original failure
+            for (var i = staged.Count - 1; i >= 0; i--)
+            {
+                staged[i].Rollback();
+            }
+
+            throw;
+        }
+
+        foreach (var file in staged)
+        {
+            file.DeleteBackup();
+        }
+    }
+
+    /// <summary>
+    ///     A dictionary that has been read and combined, ready to be serialized.
+    /// </summary>
+    /// <param name="Name">The dictionary name.</param>
+    /// <param name="Words">The distinct folded words with their capitalization-form flags.</param>
+    /// <param name="Detail">Extra text for the summary line (the variant counts of the technical dictionary), or empty.</param>
+    private sealed record BuiltDictionary(string Name, IReadOnlyDictionary<string, uint> Words, string Detail);
+
+    /// <summary>
+    ///     A serialized dictionary file waiting to be written.
+    /// </summary>
+    /// <param name="Name">The dictionary name.</param>
+    /// <param name="WordCount">The number of words in the file.</param>
+    /// <param name="Detail">Extra text for the summary line, or empty.</param>
+    /// <param name="Content">The complete file content.</param>
+    private sealed record OutputFile(string Name, int WordCount, string Detail, byte[] Content);
 
     /// <summary>
     ///     The parsed command line.
@@ -349,5 +677,130 @@ internal static class BuilderProgram
     /// <param name="InputFolder">The absolute path of the folder holding one sub-folder of word lists per dictionary.</param>
     /// <param name="OutputFolder">The absolute path of the folder that receives the dictionary files.</param>
     /// <param name="Names">The declared dictionary names, in command-line order.</param>
-    private sealed record BuildOptions(string InputFolder, string OutputFolder, IReadOnlyList<string> Names);
+    /// <param name="TechnicalName">The declared dictionary that is the technical dictionary, or null.</param>
+    /// <param name="VariantNames">The declared dictionaries whose words are spelling variants; empty when there is no technical dictionary.</param>
+    private sealed record BuildOptions(
+        string InputFolder,
+        string OutputFolder,
+        IReadOnlyList<string> Names,
+        string? TechnicalName,
+        IReadOnlyList<string> VariantNames);
+
+    /// <summary>
+    ///     An output file that is written beside its target and then installed in place of it.
+    /// </summary>
+    /// <remarks>
+    ///     Keeps the three paths of one replacement together (target, staged file, backup) and
+    ///     remembers how far the installation got, so a rollback can undo exactly what was done. Not
+    ///     thread-safe; one instance belongs to one write.
+    /// </remarks>
+    private sealed class StagedFile
+    {
+        /// <summary>
+        ///     The path of the backup of the original file while it is being replaced.
+        /// </summary>
+        private readonly string _backupPath;
+
+        /// <summary>
+        ///     The path of the target file.
+        /// </summary>
+        private readonly string _targetPath;
+
+        /// <summary>
+        ///     Whether the original file was moved aside to the backup path.
+        /// </summary>
+        private bool _backedUp;
+
+        /// <summary>
+        ///     Whether the staged file was moved onto the target path.
+        /// </summary>
+        private bool _installed;
+
+        /// <summary>
+        ///     Initializes a new instance of the <see cref="StagedFile"/> class.
+        /// </summary>
+        /// <remarks>
+        ///     A random token in the staged and backup names keeps concurrent builds and stale
+        ///     leftovers from colliding.
+        /// </remarks>
+        /// <param name="targetPath">The full path of the file to replace. Must not be null.</param>
+        public StagedFile(string targetPath)
+        {
+            var token = Guid.NewGuid().ToString("N");
+            _targetPath = targetPath;
+            StagedPath = $"{targetPath}.{token}{StagedExtension}";
+            _backupPath = $"{targetPath}.{token}{BackupExtension}";
+        }
+
+        /// <summary>
+        ///     Gets the path the new content is written to before installation.
+        /// </summary>
+        public string StagedPath { get; }
+
+        /// <summary>
+        ///     Moves the original (if any) aside and the staged file into place.
+        /// </summary>
+        public void MoveIntoPlace()
+        {
+            if (File.Exists(_targetPath))
+            {
+                File.Move(_targetPath, _backupPath);
+                _backedUp = true;
+            }
+
+            File.Move(StagedPath, _targetPath);
+            _installed = true;
+        }
+
+        /// <summary>
+        ///     Undoes whatever part of the installation was done; best effort, never throws.
+        /// </summary>
+        public void Rollback()
+        {
+            try
+            {
+                if (_installed)
+                {
+                    File.Delete(_targetPath);
+                    _installed = false;
+                }
+
+                if (_backedUp)
+                {
+                    File.Move(_backupPath, _targetPath);
+                    _backedUp = false;
+                }
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+            {
+                // A failed rollback cannot be improved on; the original failure is what gets reported
+            }
+        }
+
+        /// <summary>
+        ///     Deletes the backup of the original; best effort, never throws.
+        /// </summary>
+        public void DeleteBackup() => DeleteQuietly(_backupPath);
+
+        /// <summary>
+        ///     Deletes the staged file if it is still there; best effort, never throws.
+        /// </summary>
+        public void DeleteStaged() => DeleteQuietly(StagedPath);
+
+        /// <summary>
+        ///     Deletes a file, ignoring file system errors.
+        /// </summary>
+        /// <param name="path">The file to delete. Must not be null.</param>
+        private static void DeleteQuietly(string path)
+        {
+            try
+            {
+                File.Delete(path);
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+            {
+                // A leftover temporary file is harmless and must not hide the real outcome
+            }
+        }
+    }
 }

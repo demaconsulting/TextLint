@@ -19,10 +19,13 @@ package DictionaryBuilder {
         part wordListReader : WordListReader;
         part dictionaryWriter : DictionaryWriter;
         part dictionaryFormat : DictionaryFormat;
+        part variantFilter : VariantFilter;
     }
 
-    // BuilderProgram drives the reader and the writer; both rely on the shared format definitions.
+    // BuilderProgram drives the reader, the variant filter, and the writer; the reader and the writer
+    // both rely on the shared format definitions.
     dependency BuilderProgramUsesWordListReader from BuilderProgram to WordListReader;
+    dependency BuilderProgramUsesVariantFilter from BuilderProgram to VariantFilter;
     dependency BuilderProgramUsesDictionaryWriter from BuilderProgram to DictionaryWriter;
     dependency WordListReaderUsesDictionaryFormat from WordListReader to DictionaryFormat;
     dependency DictionaryWriterUsesDictionaryFormat from DictionaryWriter to DictionaryFormat;

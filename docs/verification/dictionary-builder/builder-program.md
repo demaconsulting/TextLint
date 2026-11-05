@@ -69,6 +69,39 @@ tested by `BuilderProgram_Run_UnchangedOutput_IsNotRewritten`.
 **BuilderProgram_Run_ChangedList_RewritesOutput**: a list gains a word and the file is rewritten with the new
 count. This scenario is tested by `BuilderProgram_Run_ChangedList_RewritesOutput`.
 
+**BuilderProgram_Run_InconsistentTechnicalDeclaration_ReturnsUsageError**: six inconsistent technical
+declarations (`--technical` without `--variants`, `--variants` without `--technical`, an undeclared technical
+dictionary, an undeclared variant dictionary, a dictionary that is its own variant source, and a repeated
+`--technical`) each return the usage exit code and create no output. This scenario is tested by
+`BuilderProgram_Run_InconsistentTechnicalDeclaration_ReturnsUsageError`.
+
+**BuilderProgram_Run_TechnicalDictionary_AppliesVariantRule**: in a small tree the technical dictionary holds the
+language words, the keep-list word, and the non-variant general word, and the summary line states 2 variants kept
+via language lists, 1 via the keep list, and 2 stripped. This scenario is tested by
+`BuilderProgram_Run_TechnicalDictionary_AppliesVariantRule`.
+
+**BuilderProgram_Run_TechnicalDictionary_LeavesVariantDictionariesWhole**: the American-only and British-only
+dictionaries written in the same run hold all their own words. This scenario is tested by
+`BuilderProgram_Run_TechnicalDictionary_LeavesVariantDictionariesWhole`.
+
+**BuilderProgram_Run_TechnicalWithoutKeepList_Succeeds**: without a keep list the run succeeds and the word the
+keep list would have saved is stripped. This scenario is tested by
+`BuilderProgram_Run_TechnicalWithoutKeepList_Succeeds`.
+
+**BuilderProgram_Run_TechnicalListOutsideKnownPlaces_ReturnsOneNamingFile**, **BuilderProgram_Run_KeepWordNotVariant_ReturnsOneNamingWord**,
+and **BuilderProgram_Run_TechnicalWithoutLanguageLists_ReturnsOneNamingLists**: a stray list in the technical
+folder, an ordinary word in the keep list, and a missing language list each return exit code 1, name the file,
+word, or lists at fault, and write nothing. These scenarios are tested by the tests of the same names.
+
+**BuilderProgram_Run_LaterOutputBlocked_LeavesEarlierOutputUntouched**: the first dictionary was built earlier,
+its list then changes, and a folder occupies the second dictionary's file path; the run returns 1, the first file
+keeps its old bytes and timestamp, and the output folder holds nothing but the first file and the blocking
+folder. This scenario is tested by `BuilderProgram_Run_LaterOutputBlocked_LeavesEarlierOutputUntouched`.
+
+**BuilderProgram_Run_LaterOutputBlockedWithNoPriorFiles_CreatesNothing**: with no earlier output, a blocked second
+file leaves the first file uncreated. This scenario is tested by
+`BuilderProgram_Run_LaterOutputBlockedWithNoPriorFiles_CreatesNothing`.
+
 **BuilderProgram_Run_OutputPathIsAFile_ReportsErrorAndReturnsOne**: the output path is an existing file, so
 the folder cannot be created; the error names the path and the exit code is 1. This scenario is tested by
 `BuilderProgram_Run_OutputPathIsAFile_ReportsErrorAndReturnsOne`.

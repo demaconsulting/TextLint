@@ -139,3 +139,59 @@ sections:
           - DictionaryBuilder-BuilderProgram-UnchangedOutput
         tests:
           - DictionaryBuilder_Build_UnchangedLists_LeavesFilesUntouched
+
+      - id: DictionaryBuilder-System-AllOrNothing
+        title: >-
+          The builder shall change no dictionary file when any dictionary cannot be produced or any
+          dictionary file cannot be written.
+        tags: [system]
+        justification: |
+          The dictionaries ship together and a lookup that is correct for one dictionary but stale for
+          another is a wrong result nobody can notice. A build that fails must therefore leave every
+          dictionary file as it was, so that a later successful build starts from a consistent state.
+        children:
+          - DictionaryBuilder-BuilderProgram-AllOrNothing
+        tests:
+          - DictionaryBuilder_Build_LaterOutputBlocked_LeavesEarlierOutputUntouched
+          - DictionaryBuilder_Build_InvalidEntry_ReportsFileAndLineAndWritesNothing
+
+      - id: DictionaryBuilder-System-VariantSpellings
+        title: >-
+          The builder shall not let a general technical term make a US-only or GB-only spelling variant
+          known in the technical dictionary, unless the word is a programming-language keyword or API name
+          or is explicitly allowed by a reviewed list.
+        tags: [system]
+        justification: |
+          The language setting (en-US or en-GB) must decide ordinary spelling variants such as "favorite"
+          or "flavors", yet the imported general technical lists contain many of them and would make them
+          known in every language. Programming keywords and API names (for example the CSS "color" and
+          "grey") are fixed by the language and must stay known whatever dialect the user writes, and a
+          short human-reviewed list covers the remaining genuine programming terms such as "tokenizer".
+          The imported lists stay faithful to their upstream source, so the rule is applied when the
+          dictionaries are combined.
+        children:
+          - DictionaryBuilder-BuilderProgram-TechnicalDictionary
+          - DictionaryBuilder-VariantFilter-StripGeneralVariants
+          - DictionaryBuilder-VariantFilter-KeepLanguageAndAllowed
+        tests:
+          - DictionaryBuilder_Build_GeneralListVariantSpelling_IsStripped
+          - DictionaryBuilder_Build_LanguageListVariantSpelling_IsKept
+          - DictionaryBuilder_Build_KeepListVariantSpelling_IsKept
+          - DictionaryBuilder_Build_RepositoryWordLists_BuildsAllDictionaries
+
+      - id: DictionaryBuilder-System-TechnicalLists
+        title: >-
+          The builder shall fail when a technical word list is not in the place that classifies it as
+          general or programming-language, or when a word of the reviewed list is not a spelling variant.
+        tags: [system]
+        justification: |
+          The folder of a technical list decides whether its variant spellings are exempt from the rule, so
+          a misplaced list would silently change the product. A reviewed-list word that is not a variant is
+          a stale entry that would hide the rule's real effect; failing the build keeps the reviewed list
+          honest and short.
+        children:
+          - DictionaryBuilder-BuilderProgram-TechnicalLists
+          - DictionaryBuilder-VariantFilter-KeepListReport
+        tests:
+          - DictionaryBuilder_Build_TechnicalListOutsideKnownPlaces_FailsNamingFile
+          - DictionaryBuilder_Build_KeepListWordNotVariant_FailsNamingWord

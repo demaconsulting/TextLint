@@ -22,6 +22,8 @@ sections:
               - WordListReader_Read_CrLfAndBom_Handled
               - WordListReader_FindWordListFiles_MixedExtensions_ReturnsOnlyTxtFilesInOrdinalOrder
               - WordListReader_Read_MissingFolder_ReturnsNoWordsAndNoProblems
+              - WordListReader_ReadFiles_ExplicitFiles_MergesOnlyThoseFiles
+              - WordListReader_ReadFiles_NoFiles_ReturnsNoWordsAndNoProblems
 
           - id: DictionaryBuilder-WordListReader-Validation
             title: >-

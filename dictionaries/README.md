@@ -7,17 +7,38 @@ binary dictionary is ever committed.
 
 ## Layout
 
-One folder is one dictionary. The folder name is the dictionary name that the build passes to the builder.
+The folder is the tag; there is no manifest. Each top-level folder is one dictionary, and the folder name is the
+dictionary name that the build passes to the builder.
 
-| Folder | List files | Content |
-| ------ | ---------- | ------- |
-| `en-common/` | `common.txt` | English words spelled the same in American and British (-ise) English |
-| `en-US/` | `us.txt` | American-only spellings |
-| `en-GB/` | `gb.txt` | British (-ise)-only spellings |
-| `technical/` | 13 imported lists, `additions.txt` | Technical terms: software, companies, file types, licenses |
+| Folder | Content |
+| ------ | ------- |
+| `en-common/` | English words spelled the same in American and British (-ise) English |
+| `en-US/` | American-only spellings |
+| `en-GB/` | British (-ise)-only spellings |
+| `technical/language/` | Programming-language keyword and API lists (7 files) |
+| `technical/general/` | General technical lists and the project-owned additions (8 files) |
+| `technical/variant-keep.txt` | Reviewed spelling variants that are genuine programming terms |
 
-The builder reads every `.txt` file beneath a dictionary's folder. It fails the build if a folder holds
-word lists but is not declared to the builder, so a mistyped folder name cannot silently drop a list.
+The language lists are csharp, dotnet, typescript, node, html, css, and powershell. The general lists are
+software-terms, companies, filetypes, public-licenses, fullstack, npm, k8s, and additions.
+
+An ordinary dictionary reads every `.txt` file beneath its folder. The technical dictionary reads only the three
+places above and fails the build for a word list anywhere else in its folder. The builder also fails the build if
+a folder holds word lists but is not declared to it, so a mistyped folder name cannot silently drop a list.
+
+## Spelling Variants in the Technical Lists
+
+The language setting (American or British English) must decide ordinary spelling variants, so the technical
+dictionary must not make them known in every language. When it combines the technical lists, the builder
+removes from the `general` lists every word that is in the American-only or the British-only dictionary,
+unless the word is also in a `language` list or in `variant-keep.txt`. For example `favorite`, `flavors`, and
+`aluminum` are removed, while `color` and `grey` stay because the CSS list has them, and `tokenizer` stays because
+it is in the reviewed list. The imported lists themselves are never edited to apply this rule.
+
+`variant-keep.txt` is curated by hand. Add a word only after a reviewer has confirmed that it is a programming term
+and a variant spelling that would otherwise be removed; the builder fails the build for a word in it that is not a
+spelling variant, which keeps the list short, and the build output states how many variants were kept through the
+language lists, kept through `variant-keep.txt`, and removed.
 
 ## File Format
 
@@ -36,9 +57,11 @@ The format is enforced by the builder, which reports every violation with its fi
 
 ## Adding a Word
 
-Add genuine project-specific technical terms to `technical/additions.txt`, one per line. That file is
-owned by the project and is never overwritten by the refresh script. Do not edit the other files by hand,
-because the next refresh replaces them, and never add a misspelling to hide a spelling error.
+Add genuine project-specific technical terms to `technical/general/additions.txt`, one per line. That file is
+owned by the project and is never overwritten by the refresh script; a spelling variant added there is removed
+by the rule above, so a genuine programming term in a variant spelling belongs in `technical/variant-keep.txt`
+instead. Do not edit the imported files by hand, because the next refresh replaces them, and never add a
+misspelling to hide a spelling error.
 
 ## Provenance and Licenses
 
@@ -48,19 +71,20 @@ produced it. The upstream sources and their licenses are:
 | Lists | Source | Pinned to | License |
 | ----- | ------ | --------- | ------- |
 | `en-common`, `en-US`, `en-GB` | SCOWL, <https://github.com/en-wl/wordlist>, size 70, variant level 1 | tag `rel-2026.02.25` (commit `7e99edab8e32f9f9ea2b15f249ca8d4d67237410`) | SCOWL permissive notice |
-| `technical/software-terms.txt` | `@cspell/dict-software-terms` (default-on lists) | 5.4.8 | MIT |
-| `technical/companies.txt` | `@cspell/dict-companies` | 3.2.13 | MIT |
-| `technical/filetypes.txt` | `@cspell/dict-filetypes` | 3.0.18 | MIT |
-| `technical/public-licenses.txt` | `@cspell/dict-public-licenses` | 2.0.17 | MIT |
-| `technical/fullstack.txt` | `@cspell/dict-fullstack` | 3.2.9 | MIT |
-| `technical/dotnet.txt` | `@cspell/dict-dotnet` | 5.0.15 | MIT |
-| `technical/csharp.txt` | `@cspell/dict-csharp` | 4.0.8 | MIT |
-| `technical/node.txt` | `@cspell/dict-node` | 5.0.9 | MIT |
-| `technical/npm.txt` | `@cspell/dict-npm` | 5.2.55 | MIT |
-| `technical/typescript.txt` | `@cspell/dict-typescript` | 3.2.3 | MIT |
-| `technical/html.txt` | `@cspell/dict-html` | 4.0.16 | MIT |
-| `technical/powershell.txt` | `@cspell/dict-powershell` | 5.0.17 | MIT |
-| `technical/k8s.txt` | `@cspell/dict-k8s` | 1.0.13 | MIT |
+| `technical/general/software-terms.txt` | `@cspell/dict-software-terms` (default-on lists) | 5.4.8 | MIT |
+| `technical/general/companies.txt` | `@cspell/dict-companies` | 3.2.13 | MIT |
+| `technical/general/filetypes.txt` | `@cspell/dict-filetypes` | 3.0.18 | MIT |
+| `technical/general/public-licenses.txt` | `@cspell/dict-public-licenses` | 2.0.17 | MIT |
+| `technical/general/fullstack.txt` | `@cspell/dict-fullstack` | 3.2.9 | MIT |
+| `technical/general/npm.txt` | `@cspell/dict-npm` | 5.2.55 | MIT |
+| `technical/general/k8s.txt` | `@cspell/dict-k8s` | 1.0.13 | MIT |
+| `technical/language/dotnet.txt` | `@cspell/dict-dotnet` | 5.0.15 | MIT |
+| `technical/language/csharp.txt` | `@cspell/dict-csharp` | 4.0.8 | MIT |
+| `technical/language/node.txt` | `@cspell/dict-node` | 5.0.9 | MIT |
+| `technical/language/typescript.txt` | `@cspell/dict-typescript` | 3.2.3 | MIT |
+| `technical/language/html.txt` | `@cspell/dict-html` | 4.0.16 | MIT |
+| `technical/language/css.txt` | `@cspell/dict-css` | 4.1.2 | MIT |
+| `technical/language/powershell.txt` | `@cspell/dict-powershell` | 5.0.17 | MIT |
 
 The license notices are in `third-party/THIRD-PARTY-NOTICES.txt` at the root of the repository. Packages
 with other licenses (for example the LGPL cspell English dictionary and the CC BY-SA misspellings list) are
@@ -69,8 +93,7 @@ deliberately not used. The cspell `markdown` package is not imported because it 
 The English lists keep the common and the regional spellings apart: American is SCOWL spelling code `A`,
 British (-ise) is code `B`, and the three lists are the intersection and the two differences of those two
 sets. The technical lists are imported with their own filter and are not de-duplicated against the English
-lists, so a list stays faithful to its source. Spellings that exist in both American and British variants
-are not filtered out of the technical lists yet.
+lists, so a list stays faithful to its source; the spelling-variant rule above is applied by the builder.
 
 ## Refreshing the Lists
 

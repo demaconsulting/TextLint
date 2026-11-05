@@ -16,6 +16,9 @@ needs-review:
   - "docs/sysml2/**/*.sysml"      # SysML2 architecture model
   - "dictionaries/refresh.py"     # Word list import script (code that produces the builder's input data)
   - "dictionaries/README.md"      # Word list documentation: provenance, format rules, and refresh procedure
+  - "dictionaries/technical/variant-keep.txt"   # Curated list of reviewed spelling variants (human-reviewed data)
+  - "dictionaries/technical/general/additions.txt"   # Curated project-owned technical terms (human-reviewed data)
+  - "third-party/THIRD-PARTY-NOTICES.txt"   # Legal notices for the third-party word list data
   - "!**/obj/**"                  # Exclude build output
   - "!**/bin/**"                  # Exclude build output
   - "!node_modules/**"            # Exclude npm dependencies
@@ -439,6 +442,20 @@ reviews:
       - "src/**/DictionaryFormat.cs"
       - "test/**/DictionaryFormatTests.cs"
 
+  # DictionaryBuilder - VariantFilter
+  - id: DictionaryBuilder-VariantFilter
+    title: Review that DictionaryBuilder VariantFilter Implementation is Correct
+    context:
+      - docs/design/dictionary-builder.md
+      - docs/reqstream/dictionary-builder.yaml
+    paths:
+      - "docs/reqstream/dictionary-builder/variant-filter.yaml"
+      - "docs/design/dictionary-builder/variant-filter.md"
+      - "docs/verification/dictionary-builder/variant-filter.md"
+      - "src/**/VariantFilter.cs"
+      - "src/**/VariantFilterResult.cs"
+      - "test/**/VariantFilterTests.cs"
+
   # DictionaryBuilder - Word List Import (the script that produces the builder's input data)
   - id: DictionaryBuilder-WordListImport
     title: Review that DictionaryBuilder Word List Import Script is Correct
@@ -448,6 +465,25 @@ reviews:
     paths:
       - "dictionaries/refresh.py"
       - "dictionaries/README.md"
+
+  # DictionaryBuilder - Curated Lists (human-reviewed data that the variant rule depends on)
+  - id: DictionaryBuilder-CuratedLists
+    title: Review that DictionaryBuilder Curated Word Lists are Justified
+    context:
+      - docs/design/dictionary-builder/variant-filter.md
+      - dictionaries/README.md
+    paths:
+      - "dictionaries/technical/variant-keep.txt"
+      - "dictionaries/technical/general/additions.txt"
+
+  # DictionaryBuilder - Third-Party Notices (legal notices for the imported data)
+  - id: DictionaryBuilder-ThirdPartyNotices
+    title: Review that Third-Party Notices are Complete and Accurate
+    context:
+      - dictionaries/README.md
+      - dictionaries/refresh.py
+    paths:
+      - "third-party/THIRD-PARTY-NOTICES.txt"
 
   # DictionaryBuilder - Test Support (shared helpers used by the builder tests; not a software item)
   - id: DictionaryBuilder-TestSupport

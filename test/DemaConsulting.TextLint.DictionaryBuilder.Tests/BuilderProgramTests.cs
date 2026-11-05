@@ -1,15 +1,15 @@
 // Copyright (c) DEMA Consulting
-// 
+//
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
 // in the Software without restriction, including without limitation the rights
 // to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 // copies of the Software, and to permit persons to whom the Software is
 // furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all
 // copies or substantial portions of the Software.
-// 
+//
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 // IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 // FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -17,6 +17,8 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
+
+// cspell:ignore colour
 
 using DemaConsulting.TextLint.DictionaryBuilder.Tests.TestSupport;
 
@@ -28,8 +30,9 @@ namespace DemaConsulting.TextLint.DictionaryBuilder.Tests;
 /// <remarks>
 ///     The tests call <see cref="BuilderProgram.Run"/> in-process with in-memory output streams, so
 ///     no process is started and the console is not touched. The program's documented dependencies,
-///     the word-list reader and the dictionary writer, are used as they are, with real temporary
-///     folders.
+///     the word-list reader, the variant filter, and the dictionary writer, are used as they are,
+///     with real temporary folders; what was written is read back with the independent
+///     <see cref="TldReader"/> from the test support.
 /// </remarks>
 public class BuilderProgramTests
 {
@@ -376,5 +379,199 @@ public class BuilderProgramTests
         // Assert: exit code 1 and an error that names the output path
         Assert.Equal(BuilderProgram.ExitInvalidWordLists, exitCode);
         Assert.Contains($"{blockingFile}: error: the dictionary files cannot be written", error);
+    }
+
+    /// <summary>
+    ///     Test that a later output that cannot be written leaves an earlier, changed output untouched.
+    /// </summary>
+    [Fact]
+    public void BuilderProgram_Run_LaterOutputBlocked_LeavesEarlierOutputUntouched()
+    {
+        // Arrange: a first build, a changed first list, and a folder where the second output file must go
+        using var temp = new TempDirectory();
+        temp.CreateFile("input/alpha/words.txt", "apple\n");
+        var input = temp.PathOf("input");
+        Execute("--input", input, "--output", temp.PathOf("out"), "alpha");
+        var alphaFile = temp.PathOf("out/alpha.tld");
+        var pastTime = new DateTime(2001, 2, 3, 4, 5, 6, DateTimeKind.Utc);
+        File.SetLastWriteTimeUtc(alphaFile, pastTime);
+        var before = File.ReadAllBytes(alphaFile);
+        temp.CreateFile("input/alpha/words.txt", "apple\nbanana\n");
+        temp.CreateFile("input/beta/words.txt", "cherry\n");
+        Directory.CreateDirectory(temp.PathOf("out/beta.tld"));
+
+        // Act: build both dictionaries
+        var (exitCode, _, error) = Execute("--input", input, "--output", temp.PathOf("out"), "alpha", "beta");
+
+        // Assert: failure, the first file has its old bytes and timestamp, and no staged or backup file remains
+        Assert.Equal(BuilderProgram.ExitInvalidWordLists, exitCode);
+        Assert.Contains("the dictionary files cannot be written", error);
+        Assert.Equal(before, File.ReadAllBytes(alphaFile));
+        Assert.Equal(pastTime, File.GetLastWriteTimeUtc(alphaFile));
+        Assert.Equal(["alpha.tld", "beta.tld"], Directory.GetFileSystemEntries(temp.PathOf("out")).Select(Path.GetFileName).Order(StringComparer.Ordinal));
+    }
+
+    /// <summary>
+    ///     Test that a later output that cannot be written leaves no earlier output created.
+    /// </summary>
+    [Fact]
+    public void BuilderProgram_Run_LaterOutputBlockedWithNoPriorFiles_CreatesNothing()
+    {
+        // Arrange: valid lists and a folder where the second output file must go
+        using var temp = new TempDirectory();
+        temp.CreateFile("input/alpha/words.txt", "apple\n");
+        temp.CreateFile("input/beta/words.txt", "cherry\n");
+        Directory.CreateDirectory(temp.PathOf("out/beta.tld"));
+
+        // Act: build both dictionaries
+        var (exitCode, _, _) = Execute("--input", temp.PathOf("input"), "--output", temp.PathOf("out"), "alpha", "beta");
+
+        // Assert: failure and the output folder holds only the blocking folder
+        Assert.Equal(BuilderProgram.ExitInvalidWordLists, exitCode);
+        Assert.Equal(["beta.tld"], Directory.GetFileSystemEntries(temp.PathOf("out")).Select(Path.GetFileName));
+    }
+
+    /// <summary>
+    ///     Test that the technical dictionary is built from its general, language, and keep lists under the variant rule.
+    /// </summary>
+    [Fact]
+    public void BuilderProgram_Run_TechnicalDictionary_AppliesVariantRule()
+    {
+        // Arrange: the shared variant fixture
+        using var temp = new TempDirectory();
+        VariantFixture.Create(temp);
+
+        // Act: build the three dictionaries with the variant rule
+        var (exitCode, output, error) = Execute(VariantFixture.Arguments(temp));
+
+        // Assert: success, the summary counts the variants, and the technical words are the expected ones
+        Assert.Equal(BuilderProgram.ExitSuccess, exitCode);
+        Assert.Equal(string.Empty, error);
+        Assert.Contains("2 variants kept via language lists, 1 via variant-keep.txt, 2 stripped", output);
+        var technical = new TldReader(File.ReadAllBytes(temp.PathOf("out/technical.tld")));
+        Assert.Equal(["color", "grey", "kubernetes", "tokenizer", "void"], technical.Words);
+    }
+
+    /// <summary>
+    ///     Test that the variant dictionaries themselves are written unchanged by the rule.
+    /// </summary>
+    [Fact]
+    public void BuilderProgram_Run_TechnicalDictionary_LeavesVariantDictionariesWhole()
+    {
+        // Arrange: the shared variant fixture
+        using var temp = new TempDirectory();
+        VariantFixture.Create(temp);
+
+        // Act: build with the variant rule
+        Execute(VariantFixture.Arguments(temp));
+
+        // Assert: the American and British dictionaries hold all their own words
+        Assert.Equal(["color", "favorite", "tokenizer"], new TldReader(File.ReadAllBytes(temp.PathOf("out/en-US.tld"))).Words);
+        Assert.Equal(["colour", "grey"], new TldReader(File.ReadAllBytes(temp.PathOf("out/en-GB.tld"))).Words);
+    }
+
+    /// <summary>
+    ///     Test that a technical declaration with an unusable combination of options is a usage error.
+    /// </summary>
+    /// <param name="extra">The extra arguments to add to a valid command line, separated by spaces.</param>
+    [Theory]
+    [InlineData("--technical alpha")]
+    [InlineData("--variants alpha")]
+    [InlineData("--technical missing --variants alpha")]
+    [InlineData("--technical alpha --variants missing")]
+    [InlineData("--technical alpha --variants alpha")]
+    [InlineData("--technical alpha --technical alpha --variants beta")]
+    public void BuilderProgram_Run_InconsistentTechnicalDeclaration_ReturnsUsageError(string extra)
+    {
+        // Arrange: two valid dictionaries and an inconsistent technical declaration
+        using var temp = new TempDirectory();
+        temp.CreateFile("input/alpha/words.txt", "apple\n");
+        temp.CreateFile("input/beta/words.txt", "cherry\n");
+        string[] arguments = ["--input", temp.PathOf("input"), "--output", temp.PathOf("out"), "alpha", "beta", .. extra.Split(' ')];
+
+        // Act: run the builder
+        var (exitCode, _, _) = Execute(arguments);
+
+        // Assert: exit code 2 and nothing was created
+        Assert.Equal(BuilderProgram.ExitUsage, exitCode);
+        Assert.False(Directory.Exists(temp.PathOf("out")));
+    }
+
+    /// <summary>
+    ///     Test that a technical word list outside the general, language, and keep places is reported by file.
+    /// </summary>
+    [Fact]
+    public void BuilderProgram_Run_TechnicalListOutsideKnownPlaces_ReturnsOneNamingFile()
+    {
+        // Arrange: the fixture plus a list that sits directly in the technical folder
+        using var temp = new TempDirectory();
+        VariantFixture.Create(temp);
+        var stray = temp.CreateFile("input/technical/stray.txt", "nuget\n");
+
+        // Act: build with the variant rule
+        var (exitCode, _, error) = Execute(VariantFixture.Arguments(temp));
+
+        // Assert: exit code 1, the stray file is named, and nothing was written
+        Assert.Equal(BuilderProgram.ExitInvalidWordLists, exitCode);
+        Assert.Contains($"{stray}: error: the word list is not in the 'general' or 'language' folder", error);
+        Assert.False(Directory.Exists(temp.PathOf("out")));
+    }
+
+    /// <summary>
+    ///     Test that a keep-list word that is not a spelling variant is reported by word.
+    /// </summary>
+    [Fact]
+    public void BuilderProgram_Run_KeepWordNotVariant_ReturnsOneNamingWord()
+    {
+        // Arrange: the fixture with an ordinary word added to the keep list
+        using var temp = new TempDirectory();
+        VariantFixture.Create(temp);
+        var keepFile = temp.CreateFile("input/technical/variant-keep.txt", "tokenizer\nkubernetes\n");
+
+        // Act: build with the variant rule
+        var (exitCode, _, error) = Execute(VariantFixture.Arguments(temp));
+
+        // Assert: exit code 1 and the word and the keep list are named
+        Assert.Equal(BuilderProgram.ExitInvalidWordLists, exitCode);
+        Assert.Contains($"{keepFile}: error: 'kubernetes' is not a spelling variant", error);
+        Assert.False(Directory.Exists(temp.PathOf("out")));
+    }
+
+    /// <summary>
+    ///     Test that a technical dictionary without language lists is reported.
+    /// </summary>
+    [Fact]
+    public void BuilderProgram_Run_TechnicalWithoutLanguageLists_ReturnsOneNamingLists()
+    {
+        // Arrange: the fixture with the language list removed
+        using var temp = new TempDirectory();
+        VariantFixture.Create(temp);
+        File.Delete(temp.PathOf("input/technical/language/lang.txt"));
+
+        // Act: build with the variant rule
+        var (exitCode, _, error) = Execute(VariantFixture.Arguments(temp));
+
+        // Assert: exit code 1 and the language lists are named
+        Assert.Equal(BuilderProgram.ExitInvalidWordLists, exitCode);
+        Assert.Contains("the language lists of dictionary 'technical' contains no words", error);
+    }
+
+    /// <summary>
+    ///     Test that a technical dictionary without a keep list is accepted.
+    /// </summary>
+    [Fact]
+    public void BuilderProgram_Run_TechnicalWithoutKeepList_Succeeds()
+    {
+        // Arrange: the fixture with the keep list removed, so tokenizer is stripped
+        using var temp = new TempDirectory();
+        VariantFixture.Create(temp);
+        File.Delete(temp.PathOf("input/technical/variant-keep.txt"));
+
+        // Act: build with the variant rule
+        var (exitCode, _, _) = Execute(VariantFixture.Arguments(temp));
+
+        // Assert: success, with tokenizer stripped as well
+        Assert.Equal(BuilderProgram.ExitSuccess, exitCode);
+        Assert.Equal(["color", "grey", "kubernetes", "void"], new TldReader(File.ReadAllBytes(temp.PathOf("out/technical.tld"))).Words);
     }
 }
