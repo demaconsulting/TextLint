@@ -124,12 +124,13 @@ the colon, and with two colons, starts a disable-line directive that excludes th
 
 **DocumentDirectives_Scan_TextResemblingDirective_IsNotDirective**:
 Names continued by letters, digits, an underscore, or a
-hyphen, a prefix after a word character, a prefix without a colon, an enable alone, a prefix with no name, and an
+hyphen, names that only start like a directive (`locals`, `locales`, `languages`), a prefix after a word
+character, a prefix without a colon, an enable alone, a prefix with no name, and an
 unknown name return the empty scan.
 
-**DocumentDirectives_Scan_UnsupportedDirective_IsReportedAtItsName**: Each unsupported family (flag, forbid, locale,
-language, dictionary, ignoreRegExp, includeRegExp, and the compound-word and case-sensitivity switches), in several
-letter cases and prefix forms, is reported once, with a range that is exactly its name.
+**DocumentDirectives_Scan_UnsupportedDirective_IsReportedAtItsName**: Each unsupported family (flag, forbid, locale
+and its alias local, language, dictionary, ignoreRegExp, includeRegExp, and the compound-word and case-sensitivity
+switches), in several letter cases and prefix forms, is reported once, with a range that is exactly its name.
 
 **DocumentDirectives_Scan_UnsupportedDirective_HasNoOtherEffect**:
 An unsupported directive neither excludes text nor adds

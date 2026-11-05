@@ -53,7 +53,7 @@ public static class SpellChecker
     ///     lookup loads the language's dictionaries. Thread-safe.
     /// </remarks>
     /// <param name="settings">The settings that say what to check and how. Must not be null.</param>
-    /// <param name="rootDirectory">The directory the file patterns are relative to. Must name an existing directory.</param>
+    /// <param name="rootDirectory">The directory the file patterns are relative to. Must name a readable directory.</param>
     /// <param name="options">How to run; null means the defaults.</param>
     /// <param name="cancellationToken">Token that cancels the run.</param>
     /// <returns>
@@ -66,6 +66,10 @@ public static class SpellChecker
     ///     word-list entry of <paramref name="settings"/> is not usable.
     /// </exception>
     /// <exception cref="DirectoryNotFoundException">Thrown when <paramref name="rootDirectory"/> does not exist.</exception>
+    /// <exception cref="UnauthorizedAccessException">
+    ///     Thrown when the process may not read <paramref name="rootDirectory"/>; it is reported as such, not as missing.
+    /// </exception>
+    /// <exception cref="IOException">Thrown when <paramref name="rootDirectory"/> cannot be read for another reason.</exception>
     /// <exception cref="InvalidGlobPatternException">Thrown when a pattern of <paramref name="settings"/> is unsupported or malformed.</exception>
     /// <exception cref="InvalidDataException">Thrown when an embedded dictionary is missing or damaged, which indicates a defective build.</exception>
     /// <exception cref="OperationCanceledException">Thrown when <paramref name="cancellationToken"/> is cancelled.</exception>

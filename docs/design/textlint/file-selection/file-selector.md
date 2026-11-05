@@ -31,7 +31,8 @@ directory is never read from disk.
 - _Parameters_: `string rootDirectory`; `IReadOnlyList<string> includePatterns`; `IReadOnlyList<string>
   ignorePatterns`; `bool enableGlobDot` (default `false`).
 - _Returns_: a read-only list of `SelectedFile`, ordered by ordinal relative path.
-- _Preconditions_: no argument is null, the directory name is not empty, and the directory exists. The
+- _Preconditions_: no argument is null, the directory name is not empty, and the directory exists and can be
+  read. The
   pattern lists are read once during the call and are not retained, so the caller may change them afterwards.
 - _Postconditions_: the list is a snapshot; no file has been opened.
 
@@ -39,11 +40,22 @@ directory is never read from disk.
 recording directory to prove which directories are enumerated, which is deterministic where a timing test
 would not be. The public method validates the path and calls it.
 
+**ProbeRoot (internal)**: Reads the first entry of the root directory, after the patterns have been validated
+and before the walk, so a root that is missing or unreadable is reported instead of selecting nothing.
+
+- _Parameters_: `string rootDirectory` (for the message); `Func<IEnumerable<FileSystemInfo>> enumerateRoot`, the
+  listing of the real root directory. Passing the listing in is the test seam, so tests supply each failure on
+  every platform.
+- _Postconditions_: returns normally when the first entry can be read or the directory is empty; a
+  directory-not-found failure becomes `DirectoryNotFoundException` naming the root; every other failure
+  propagates unchanged.
+
 Steps: (1) expand every include and ignore pattern with `GlobPatternExpander`, so an invalid pattern
-fails first, even when nothing is included; (2) return an empty list when there are no include patterns,
-without reading any directory; (3) build a matcher with ordinal comparison and add the expanded include and
-exclude patterns; (4) unless `enableGlobDot` is set, walk through a `HiddenFilteringDirectory`; (5) run the
-matcher; (6) unless `enableGlobDot` is set, keep only the paths `HiddenPathPolicy` permits; (7) sort the
+fails first, even when nothing is included; (2) for the public method, probe the root directory with
+`ProbeRoot`; (3) return an empty list when there are no include patterns, without walking any directory; (4) build a
+matcher with ordinal comparison and add the expanded include and
+exclude patterns; (5) unless `enableGlobDot` is set, walk through a `HiddenFilteringDirectory`; (6) run the
+matcher; (7) unless `enableGlobDot` is set, keep only the paths `HiddenPathPolicy` permits; (8) sort the
 paths by ordinal comparison and create the `SelectedFile` entries, computing each full path from the root.
 
 The result is ordered with the ordinal comparer, not the file system's order, so it is identical on every
@@ -55,8 +67,13 @@ yields an exclude form that covers the whole subtree.
 
 A null argument throws `ArgumentNullException`; an empty or white-space root throws
 `ArgumentException`; a root that does not exist throws `DirectoryNotFoundException`; an unsupported pattern
-propagates `InvalidGlobPatternException` from the expander. Input/output errors raised by the file system
-while walking, such as a permission failure, propagate unchanged. Nothing is logged.
+propagates `InvalidGlobPatternException` from the expander. The root is probed by reading its first entry, not by
+asking whether it exists, because the existence check reports an unreadable directory as missing. Only a
+directory-not-found failure from that read becomes `DirectoryNotFoundException` (with the original failure as its
+inner exception); an access failure (`UnauthorizedAccessException`) or any other `IOException`, such as a root that
+names a file, propagates with its own type. Below the root, the matcher's directory wrapper treats a subdirectory
+that no longer exists when it is listed (removed while the walk runs) as empty; every other failure to list a
+subdirectory, such as a permission failure, propagates unchanged. Nothing is logged.
 
 #### Dependencies
 

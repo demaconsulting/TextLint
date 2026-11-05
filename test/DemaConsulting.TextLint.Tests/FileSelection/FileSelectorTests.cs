@@ -204,6 +204,113 @@ public class FileSelectorTests
     }
 
     /// <summary>
+    ///     Test that a missing root is reported even when no include pattern would read it.
+    /// </summary>
+    [Fact]
+    public void FileSelector_Select_RootDirectoryMissingNoIncludes_ThrowsDirectoryNotFound()
+    {
+        // Arrange: a root that does not exist and an empty include list
+        using var temp = new TempDirectory();
+        var missing = Path.Combine(temp.FullPath, "missing");
+
+        // Act / Assert: the root is still probed, so the caller error is not hidden by the empty selection
+        Assert.Throws<DirectoryNotFoundException>(() => FileSelector.Select(missing, [], []));
+    }
+
+    /// <summary>
+    ///     Test that a root that names a file is reported as an input/output failure and not as a selection.
+    /// </summary>
+    [Fact]
+    public void FileSelector_Select_RootIsFile_ThrowsIOException()
+    {
+        // Arrange: a root path that names a file
+        using var temp = new TempDirectory();
+        temp.CreateFile("file.txt");
+        var file = Path.Combine(temp.FullPath, "file.txt");
+
+        // Act / Assert: the file system's failure is reported (a directory-not-found failure is also an IOException)
+        Assert.ThrowsAny<IOException>(() => FileSelector.Select(file, ["**/*.md"], []));
+    }
+
+    /// <summary>
+    ///     Test that an existing empty root selects nothing without failing.
+    /// </summary>
+    [Fact]
+    public void FileSelector_Select_EmptyRootDirectory_ReturnsEmpty()
+    {
+        // Arrange: an existing directory with no entries
+        using var temp = new TempDirectory();
+
+        // Act: select from it
+        var paths = SelectPaths(temp, ["**/*.md"]);
+
+        // Assert: the probe of an empty directory is not a failure
+        Assert.Empty(paths);
+    }
+
+    /// <summary>
+    ///     Test that a directory-not-found failure from the probe is reported as a missing root that names the root.
+    /// </summary>
+    [Fact]
+    public void FileSelector_ProbeRoot_DirectoryNotFound_ThrowsDirectoryNotFoundNamingRoot()
+    {
+        // Arrange: a listing that fails because the directory does not exist
+        var original = new DirectoryNotFoundException("gone");
+
+        // Act: probe through the failing listing
+        var exception = Assert.Throws<DirectoryNotFoundException>(
+            () => FileSelector.ProbeRoot("some/root", () => throw original));
+
+        // Assert: the message names the root and the original failure is kept
+        Assert.Contains("some/root", exception.Message, StringComparison.Ordinal);
+        Assert.Same(original, exception.InnerException);
+    }
+
+    /// <summary>
+    ///     Test that an access failure from the probe is not reported as a missing root.
+    /// </summary>
+    [Fact]
+    public void FileSelector_ProbeRoot_AccessDenied_PropagatesUnauthorizedAccess()
+    {
+        // Arrange: a listing that fails because the process may not read the directory
+        var original = new UnauthorizedAccessException("denied");
+
+        // Act / Assert: the same exception reaches the caller, not a DirectoryNotFoundException
+        var exception = Assert.Throws<UnauthorizedAccessException>(
+            () => FileSelector.ProbeRoot("some/root", () => throw original));
+        Assert.Same(original, exception);
+    }
+
+    /// <summary>
+    ///     Test that a failure raised while stepping through the listing is reported as it is.
+    /// </summary>
+    [Fact]
+    public void FileSelector_ProbeRoot_LazyListingFails_PropagatesIOException()
+    {
+        // Arrange: a listing that fails only when its first entry is requested, as file system listings do
+        static IEnumerable<FileSystemInfo> FailingListing() =>
+            Enumerable.Range(0, 1).Select<int, FileSystemInfo>(_ => throw new IOException("device error"));
+
+        // Act / Assert: the input/output failure is neither swallowed nor turned into a missing root
+        var exception = Assert.Throws<IOException>(() => FileSelector.ProbeRoot("some/root", FailingListing));
+        Assert.IsNotType<DirectoryNotFoundException>(exception);
+    }
+
+    /// <summary>
+    ///     Test that the probe rejects null arguments.
+    /// </summary>
+    [Fact]
+    public void FileSelector_ProbeRoot_NullArguments_ThrowsArgumentNullException()
+    {
+        // Arrange: a valid listing and root
+        static IEnumerable<FileSystemInfo> Listing() => [];
+
+        // Act / Assert: each null argument is rejected
+        Assert.Throws<ArgumentNullException>(() => FileSelector.ProbeRoot(null!, Listing));
+        Assert.Throws<ArgumentNullException>(() => FileSelector.ProbeRoot("some/root", null!));
+    }
+
+    /// <summary>
     ///     Test that an invalid pattern is reported even when the root directory is also missing.
     /// </summary>
     [Fact]

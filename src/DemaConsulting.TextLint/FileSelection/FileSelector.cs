@@ -48,10 +48,13 @@ public static class FileSelector
     ///     The directory walk is synchronous because the underlying matcher is, and wrapping it in a
     ///     background task would only hide the blocking. Side effects: reads directory listings
     ///     beneath <paramref name="rootDirectory"/>; no file is opened. The result is a snapshot.
+    ///     A root that is missing or unreadable is reported (see the exceptions below). Below the root,
+    ///     a subdirectory that no longer exists when it is listed is treated by the matcher as empty, and
+    ///     any other failure to list a subdirectory propagates.
     ///     The pattern lists are only read during the call and must not be changed by another
     ///     thread while it runs.
     /// </remarks>
-    /// <param name="rootDirectory">The directory that patterns are relative to. Must name an existing directory.</param>
+    /// <param name="rootDirectory">The directory that patterns are relative to. Must name a readable directory.</param>
     /// <param name="includePatterns">The include glob patterns. Must not be null; an empty list selects nothing.</param>
     /// <param name="ignorePatterns">The exclude glob patterns, which win over include patterns. Must not be null.</param>
     /// <param name="enableGlobDot">
@@ -65,6 +68,12 @@ public static class FileSelector
     /// <exception cref="ArgumentNullException">Thrown when an argument is null.</exception>
     /// <exception cref="ArgumentException">Thrown when <paramref name="rootDirectory"/> is empty or white space.</exception>
     /// <exception cref="DirectoryNotFoundException">Thrown when <paramref name="rootDirectory"/> does not exist.</exception>
+    /// <exception cref="UnauthorizedAccessException">
+    ///     Thrown when the process is not allowed to read <paramref name="rootDirectory"/>; it is not reported as missing.
+    /// </exception>
+    /// <exception cref="IOException">
+    ///     Thrown when <paramref name="rootDirectory"/> cannot be read for another reason, for example when it names a file.
+    /// </exception>
     /// <exception cref="InvalidGlobPatternException">Thrown when a pattern is unsupported or malformed.</exception>
     public static IReadOnlyList<SelectedFile> Select(
         string rootDirectory,
@@ -80,14 +89,51 @@ public static class FileSelector
         var includes = ExpandAll(includePatterns);
         var excludes = ExpandAll(ignorePatterns);
 
-        // Only then probe the root directory
+        // Only then probe the root directory. Asking whether it exists would report an unreadable
+        // directory as missing, so the directory is read instead and the failure is reported as it is
         var root = new DirectoryInfo(rootDirectory);
-        if (!root.Exists)
-        {
-            throw new DirectoryNotFoundException($"The selection root directory '{rootDirectory}' does not exist.");
-        }
+        ProbeRoot(rootDirectory, root.EnumerateFileSystemInfos);
 
         return SelectExpanded(new DirectoryInfoWrapper(root), includes, excludes, enableGlobDot);
+    }
+
+    /// <summary>
+    ///     Reads the first entry of the selection root so a missing or unreadable root is reported as such.
+    /// </summary>
+    /// <remarks>
+    ///     The matcher's directory wrapper treats every failure to list a directory as an empty directory,
+    ///     so without this probe a missing root, or one the process may not read, would silently select
+    ///     nothing. Reading the real directory lets the file system say which failure it is: only a
+    ///     directory-not-found failure becomes <see cref="DirectoryNotFoundException"/>, and every other
+    ///     failure (for example <see cref="UnauthorizedAccessException"/> or a general
+    ///     <see cref="IOException"/>) propagates with its own type. Internal test seam: the enumeration is
+    ///     passed in so tests can supply each failure on every platform. Side effects: reads one directory
+    ///     entry. Stateless and thread-safe.
+    /// </remarks>
+    /// <param name="rootDirectory">The root path as the caller gave it, used in the error message. Must not be null.</param>
+    /// <param name="enumerateRoot">Lists the root directory. Must not be null.</param>
+    /// <exception cref="ArgumentNullException">Thrown when an argument is null.</exception>
+    /// <exception cref="DirectoryNotFoundException">
+    ///     Thrown when the listing fails because the directory does not exist; the original failure is the inner exception.
+    /// </exception>
+    /// <exception cref="UnauthorizedAccessException">Propagated when the process may not read the directory.</exception>
+    /// <exception cref="IOException">Propagated when the directory cannot be read for any other reason.</exception>
+    internal static void ProbeRoot(string rootDirectory, Func<IEnumerable<FileSystemInfo>> enumerateRoot)
+    {
+        ArgumentNullException.ThrowIfNull(rootDirectory);
+        ArgumentNullException.ThrowIfNull(enumerateRoot);
+
+        try
+        {
+            // The listing is lazy, so the first step is what reaches the file system
+            using var entries = enumerateRoot().GetEnumerator();
+            _ = entries.MoveNext();
+        }
+        catch (DirectoryNotFoundException exception)
+        {
+            throw new DirectoryNotFoundException(
+                $"The selection root directory '{rootDirectory}' does not exist.", exception);
+        }
     }
 
     /// <summary>

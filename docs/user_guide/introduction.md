@@ -336,7 +336,8 @@ letter case, and the prefix must not follow a letter, digit, or underscore. The 
 - `ignore` and `words` apply to the whole document, in any letter case, and the directive's own text is not checked.
 - `disabled`, `disable-lines`, and a prefix inside a longer word (`xcspell:disable`) are not directives.
 - A directive that cspell has and TextLint does not have is **reported**, at the position of its name, as an
-  unsupported directive, so you do not believe it is in force: `flag` and `forbid`, `locale` and `language`,
+  unsupported directive, so you do not believe it is in force: `flag` and `forbid`, `locale` (or its cspell alias
+  `local`) and `language`,
   `dictionary` and `dictionaries`, `ignoreRegExp`, `includeRegExp`, and the switches for compound words and case
   sensitivity. A directive inside a disabled region is not reported, and unknown directive names are ignored.
 
@@ -411,7 +412,9 @@ foreach (var problem in check.FileDiagnostics)
 Console.WriteLine($"{check.FilesChecked} checked, {check.FilesSkipped} skipped, problems: {check.HasProblems}");
 ```
 
-`SpellChecker.CheckAsync` throws `DirectoryNotFoundException` when the root does not exist,
+`SpellChecker.CheckAsync` throws `DirectoryNotFoundException` when the root does not exist (a root the process cannot
+read throws `UnauthorizedAccessException` or `IOException` instead, so a permission problem is not mistaken for a
+missing directory),
 `InvalidGlobPatternException` for an invalid pattern, `ArgumentException` for settings it cannot use (built in code;
 a loaded file was validated already), and `OperationCanceledException` when the token is cancelled; nothing is
 returned in that case. Everything about a single file is data in the result: `FileDiagnostic.Kind` is `Unreadable`,
@@ -478,7 +481,8 @@ from a command line. `TextLintSettings` is immutable: lists are copied when assi
 list you passed do not affect the settings), and `with` produces a modified copy. `SettingsLoadResult` is also
 immutable: its list of errors cannot be changed after it is returned.
 `FileSelector.Select` throws `InvalidGlobPatternException`, naming the pattern, if a pattern is unsupported,
-and `DirectoryNotFoundException` if the root does not exist. Selected files
+and `DirectoryNotFoundException` if the root does not exist (a root that cannot be read throws
+`UnauthorizedAccessException` or `IOException`). Selected files
 are ordered by ordinal relative path, so the order is the same on every platform.
 
 ## Word Lookup

@@ -52,7 +52,7 @@ namespace DemaConsulting.TextLint.TextScanning;
 ///         </item>
 ///     </list>
 ///     Directives that cspell supports and this engine does not (<c>flag</c> and <c>forbid</c>,
-///     <c>locale</c> and <c>language</c>, <c>dictionary</c>, <c>ignoreRegExp</c>, <c>includeRegExp</c>, and the
+///     <c>locale</c> (and its alias <c>local</c>) and <c>language</c>, <c>dictionary</c>, <c>ignoreRegExp</c>, <c>includeRegExp</c>, and the
 ///     compound-word and case-sensitivity switches) are reported so a user does not believe they are in force;
 ///     text that merely resembles a directive (<c>disabled</c>, <c>disable-lines</c>, <c>xcspell:disable</c>) and
 ///     unknown directive names are ignored. A directive inside a region where checking is switched off is not
@@ -379,8 +379,10 @@ internal static partial class DocumentDirectives
     /// <remarks>
     ///     The text is matched from its start; a name must be followed by something other than a letter, digit,
     ///     underscore, or hyphen, so <c>ignored</c> and <c>words-x</c> are not directives. The unsupported group
-    ///     lists the directives cspell has and this engine does not. The enable and disable forms are not
-    ///     listed because their effect is a range, which the other patterns produce.
+    ///     lists the directives cspell has and this engine does not. Each name is spelled out in full, so a name
+    ///     that merely starts like a directive (<c>locals</c>, <c>locales</c>) is not one; the only alias is
+    ///     <c>local</c> for <c>locale</c>, which cspell lists among its official directives. The enable and
+    ///     disable forms are not listed because their effect is a range, which the other patterns produce.
     /// </remarks>
     /// <returns>The generated regular expression.</returns>
     [GeneratedRegex(
@@ -389,7 +391,7 @@ internal static partial class DocumentDirectives
         "|(?:flag|forbid)(?:-?words?)?(?![A-Za-z0-9_-])" +
         "|ignore_?Reg_?Exp\\s+\\S" +
         "|include_?Reg_?Exp\\s+\\S" +
-        "|locale?(?![A-Za-z0-9_-])" +
+        "|(?:locale|local)(?![A-Za-z0-9_-])" +
         "|language\\s(?=[A-Za-z0-9_])" +
         "|dictionar(?:y|ies)(?![A-Za-z0-9_-]))" +
         "|(?<ignore>ignore(?:-?words?)?(?![A-Za-z0-9_-]))" +

@@ -85,7 +85,8 @@ The handling of each condition is:
   `CheckAsync`.
 - _Unsupported language or unusable word-list entry_: `ArgumentException` from the checker's constructor, before any
   file is touched.
-- _Root directory missing_: `DirectoryNotFoundException` from the file selector.
+- _Root directory missing or unreadable_: `DirectoryNotFoundException` for a missing root; `UnauthorizedAccessException`
+  or another `IOException` for a root that cannot be read, each from the file selector and unchanged.
 - _Invalid file or ignore pattern_: `InvalidGlobPatternException` from the file selector.
 - _File unreadable, binary, or too large_: a diagnostic in the result; the run continues.
 - _Pattern time-out while checking a file_: a timed-out diagnostic in the result; the run continues.

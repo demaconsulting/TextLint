@@ -15,11 +15,12 @@ sections:
                 title: >-
                   FileSelector shall return the files under the root that match an include pattern
                   and no ignore pattern, select nothing when there are no include patterns, and
-                  reject a missing root.
+                  report a root that is missing differently from one that cannot be read.
                 justification: |
                   This is the core selection behavior: includes choose, ignores win, and an empty
                   configuration selects nothing rather than everything. A missing root is a caller
-                  error that must be reported, not treated as an empty result.
+                  error that must be reported, not treated as an empty result, and a root the process
+                  may not read must not be mistaken for a missing one, because the remedy differs.
                 tests:
                   - FileSelector_Select_IncludePatterns_ReturnsMatchingFiles
                   - FileSelector_Select_IgnorePatterns_ExcludesMatches
@@ -29,6 +30,13 @@ sections:
                   - FileSelector_Select_NamesWithSpaces_AreSelected
                   - FileSelector_Select_BareDirectoryNameIgnored_ExcludesNestedSubtree
                   - FileSelector_Select_RootDirectoryMissing_ThrowsDirectoryNotFound
+                  - FileSelector_Select_RootDirectoryMissingNoIncludes_ThrowsDirectoryNotFound
+                  - FileSelector_Select_RootIsFile_ThrowsIOException
+                  - FileSelector_Select_EmptyRootDirectory_ReturnsEmpty
+                  - FileSelector_ProbeRoot_DirectoryNotFound_ThrowsDirectoryNotFoundNamingRoot
+                  - FileSelector_ProbeRoot_AccessDenied_PropagatesUnauthorizedAccess
+                  - FileSelector_ProbeRoot_LazyListingFails_PropagatesIOException
+                  - FileSelector_ProbeRoot_NullArguments_ThrowsArgumentNullException
                   - FileSelector_Select_NullIncludePatterns_ThrowsArgumentNullException
                   - FileSelector_Select_NullIgnorePatterns_ThrowsArgumentNullException
                   - FileSelector_Select_NullRoot_ThrowsArgumentNullException

@@ -28,7 +28,8 @@ does not read settings files; that belongs to the `Configuration` subsystem.
   operating-system path. The list is ordered by ordinal relative path. Empty include patterns select
   nothing.
 - _Constraints_: Throws `ArgumentNullException` or `ArgumentException` for a null or empty argument,
-  `DirectoryNotFoundException` when the root does not exist, and `InvalidGlobPatternException` when
+  `DirectoryNotFoundException` when the root does not exist (an unreadable root throws its own
+  `UnauthorizedAccessException` or `IOException`), and `InvalidGlobPatternException` when
   a pattern is unsupported or malformed. Matching is case-sensitive on every platform. The pattern
   lists are only read during the call.
 

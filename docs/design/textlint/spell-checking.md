@@ -44,7 +44,8 @@ verdict a gate should use.
   path; the number of files checked completely; the number skipped because they were binary or too large; and
   `HasProblems`, which is true when there is a finding or an error diagnostic.
 - _Constraints_: Throws `ArgumentNullException` and `ArgumentException` for bad arguments or unusable settings
-  (before any file is touched), `DirectoryNotFoundException` for a missing root, `InvalidGlobPatternException` for
+  (before any file is touched), `DirectoryNotFoundException` for a missing root (a root that cannot be read throws
+  `UnauthorizedAccessException` or `IOException` instead), `InvalidGlobPatternException` for
   a bad pattern, and `OperationCanceledException` when cancelled. Problems with a single file are never thrown.
 
 **Dependencies on other subsystems**: The subsystem consumes four others and none consumes it.

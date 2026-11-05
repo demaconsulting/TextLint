@@ -79,7 +79,8 @@ tested by `SpellChecker_CheckAsync_NullOptions_UsesDefaults`.
 scenario is tested by `SpellChecker_Options_Default_UsesProcessorCount`.
 
 **SpellChecker_Options_ZeroParallelism_ThrowsArgumentOutOfRangeException**: A degree of zero is rejected when the
-options are created. This scenario is tested by `SpellChecker_Options_ZeroParallelism_ThrowsArgumentOutOfRangeException`.
+options are created. This scenario is tested by
+`SpellChecker_Options_ZeroParallelism_ThrowsArgumentOutOfRangeException`.
 
 **SpellChecker_Options_NegativeParallelism_ThrowsArgumentOutOfRangeException**: A negative degree is rejected when the
 options are created. This scenario is tested by
@@ -98,7 +99,8 @@ give identical formatted results with one worker and with eight. This scenario i
 `SpellChecker_CheckAsync_DifferentParallelism_ReturnsIdenticalOrderedResults`.
 
 **SpellChecker_CheckFilesAsync_Parallelism_NeverExceedsOption**: With a limit of two, a check that records overlap
-never sees more than two at once. This scenario is tested by `SpellChecker_CheckFilesAsync_Parallelism_NeverExceedsOption`.
+never sees more than two at once. This scenario is tested by
+`SpellChecker_CheckFilesAsync_Parallelism_NeverExceedsOption`.
 
 **SpellChecker_CheckFilesAsync_ParallelismOne_ChecksOneFileAtATime**: With a limit of one the checks never overlap.
 This scenario is tested by `SpellChecker_CheckFilesAsync_ParallelismOne_ChecksOneFileAtATime`.

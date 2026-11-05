@@ -668,6 +668,10 @@ public class DocumentDirectivesTests
     [InlineData(Cspell)]
     [InlineData(Cspell + "enable")]
     [InlineData(Cspell + "mystery")]
+    [InlineData(Cspell + "locals en")]
+    [InlineData(Cspell + "locales en")]
+    [InlineData(Cspell + "locale-x en")]
+    [InlineData(Cspell + "languages en")]
     public void DocumentDirectives_Scan_TextResemblingDirective_IsNotDirective(string text)
     {
         // Arrange: the text is passed in by the theory data
@@ -690,6 +694,7 @@ public class DocumentDirectivesTests
     [InlineData("// " + Cspell + "forbid alpha", "forbid")]
     [InlineData("// " + Cspell + "forbid-word alpha", "forbid-word")]
     [InlineData("// " + Cspell + "locale en-GB", "locale")]
+    [InlineData("// " + Cspell + "local en-GB", "local")]
     [InlineData("// " + Cspell + "language en-GB", "language")]
     [InlineData("// " + Cspell + "dictionary custom", "dictionary")]
     [InlineData("// " + Cspell + "dictionaries custom", "dictionaries")]

@@ -38,11 +38,11 @@ underscore, so a prefix glued to the end of another word is not a directive. The
   listed words, separated by commas, semicolons, or white space, for the whole document. The text of the directive
   is not itself checked.
 - Directives that cspell supports and this library does not are recognized and reported: `flag` and `forbid` (and
-  their word forms), `locale` and `language`, `dictionary` and `dictionaries`, `ignoreRegExp`, `includeRegExp`, and the
-  compound-word and case-sensitivity switches.
+  their word forms), `locale` (also written `local`) and `language`, `dictionary` and `dictionaries`, `ignoreRegExp`,
+  `includeRegExp`, and the compound-word and case-sensitivity switches.
 
 Text that merely resembles a directive (`disabled`, `disable-lines`, a prefix inside another word) and unknown names are
-ignored.
+ignored. A directive name must match in full, so a name that only starts like one (`locals`, `locales`) is unknown.
 
 #### Key Methods
 
