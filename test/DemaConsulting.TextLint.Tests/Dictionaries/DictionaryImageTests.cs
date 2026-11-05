@@ -69,14 +69,24 @@ public class DictionaryImageTests
     private const uint NoOffsetSlot = 1u << 28;
 
     /// <summary>
-    ///     A slot value that points at the first word of the block.
-    /// </summary>
-    private const uint FirstWordSlot = 1;
-
-    /// <summary>
     ///     A slot value that points at the second byte of the first word, which is not the start of a word.
     /// </summary>
     private const uint SecondByteSlot = 2;
+
+    /// <summary>
+    ///     The word-block offset of "beta" in an image of "alpha" and "beta" (after "alpha" and its terminator).
+    /// </summary>
+    private const uint BetaOffset = 6;
+
+    /// <summary>
+    ///     The word-block offset of "gamma" in an image of "alpha", "beta", and "gamma".
+    /// </summary>
+    private const uint GammaOffset = 11;
+
+    /// <summary>
+    ///     The mask of the slot bits that hold the word-block offset plus one.
+    /// </summary>
+    private const uint OffsetBitsMask = 0x0FFFFFFF;
 
     /// <summary>
     ///     A blob length beyond what the format allows.
@@ -310,16 +320,41 @@ public class DictionaryImageTests
     [Fact]
     public void DictionaryImage_New_SlotTableMismatchesWordCount_ThrowsInvalidData()
     {
-        // Arrange: an image of one word in which every slot is damaged to point at that word
-        var data = TldImageBuilder.Build(["alpha"], SmallSlotCount);
-        var slotsOffset = TldImageBuilder.SlotsOffset(data);
-        for (var slot = 0; slot < SmallSlotCount; slot++)
-        {
-            BinaryPrimitives.WriteUInt32LittleEndian(data.AsSpan(slotsOffset + (slot * TldImageBuilder.SlotSize)), FirstWordSlot);
-        }
+        // Arrange: a two-word image in which the slot of the second word is emptied, so only one slot is occupied
+        var data = TldImageBuilder.Build(["alpha", "beta"]);
+        BinaryPrimitives.WriteUInt32LittleEndian(data.AsSpan(FindSlot(data, BetaOffset)), 0);
 
         // Act / Assert: the image is rejected
         AssertRejected(data, "does not match its slot table");
+    }
+
+    /// <summary>
+    ///     Test that two slots that hold the same offset are rejected, even though the counts all agree.
+    /// </summary>
+    [Fact]
+    public void DictionaryImage_New_DuplicateSlotOffset_ThrowsInvalidData()
+    {
+        // Arrange: a two-word image in which the slot of the second word is overwritten with the slot of the first
+        var data = TldImageBuilder.Build(["alpha", "beta"]);
+        CopySlot(data, fromOffset: 0, toOffset: BetaOffset);
+
+        // Act / Assert: the image is rejected
+        AssertRejected(data, "same word");
+    }
+
+    /// <summary>
+    ///     Test that a word that no slot references is rejected, which a duplicated slot elsewhere would otherwise hide.
+    /// </summary>
+    [Fact]
+    public void DictionaryImage_New_WordWithoutSlot_ThrowsInvalidData()
+    {
+        // Arrange: a three-word image in which the slot of the last word is redirected to the first word, so the
+        // last word is unreferenced while every count and every offset is still valid
+        var data = TldImageBuilder.Build(["alpha", "beta", "gamma"]);
+        CopySlot(data, fromOffset: 0, toOffset: GammaOffset);
+
+        // Act / Assert: the image is rejected
+        AssertRejected(data, "another word has no slot");
     }
 
     /// <summary>
@@ -607,6 +642,40 @@ public class DictionaryImageTests
 
         // Act / Assert: a null resource name is rejected
         Assert.Throws<ArgumentNullException>(() => DictionaryImage.LoadEmbedded(typeof(DictionaryImage).Assembly, null!));
+    }
+
+    /// <summary>
+    ///     Copies the whole value of the slot that references one word over the slot that references another.
+    /// </summary>
+    /// <param name="data">The image, which is changed in place.</param>
+    /// <param name="fromOffset">The word-block offset of the word whose slot is copied.</param>
+    /// <param name="toOffset">The word-block offset of the word whose slot is overwritten.</param>
+    private static void CopySlot(byte[] data, uint fromOffset, uint toOffset)
+    {
+        var from = FindSlot(data, fromOffset);
+        var to = FindSlot(data, toOffset);
+        BinaryPrimitives.WriteUInt32LittleEndian(data.AsSpan(to), BinaryPrimitives.ReadUInt32LittleEndian(data.AsSpan(from)));
+    }
+
+    /// <summary>
+    ///     Finds the position of the slot that references the word at a word-block offset.
+    /// </summary>
+    /// <param name="data">The image.</param>
+    /// <param name="wordOffset">The word-block offset of the word.</param>
+    /// <returns>The byte position of its slot within the image.</returns>
+    private static int FindSlot(byte[] data, uint wordOffset)
+    {
+        // Search the slot table for the slot that holds the offset plus one in its low bits
+        for (var position = TldImageBuilder.SlotsOffset(data); position < data.Length; position += TldImageBuilder.SlotSize)
+        {
+            var slot = BinaryPrimitives.ReadUInt32LittleEndian(data.AsSpan(position));
+            if (slot != 0 && (slot & OffsetBitsMask) - 1 == wordOffset)
+            {
+                return position;
+            }
+        }
+
+        throw new InvalidOperationException($"No slot references the word at offset {wordOffset}.");
     }
 
     /// <summary>

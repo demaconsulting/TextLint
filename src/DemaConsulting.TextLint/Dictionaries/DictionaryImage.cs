@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 using System.Buffers.Binary;
+using System.Collections;
 using System.Numerics;
 using System.Reflection;
 
@@ -87,8 +88,9 @@ internal sealed class DictionaryImage
     ///     the wrong identifier, uses an unsupported option or hash, has non-zero reserved bytes, has a
     ///     slot count that is zero or not a power of two, is loaded beyond the load limit, does not
     ///     have exactly the length that the header implies, has a word block that is not terminated, or
-    ///     has a word count that disagrees with the word block or the slot table, or a slot that does not
-    ///     point at the start of a word.
+    ///     has a word count that disagrees with the word block or the slot table, a slot that does not
+    ///     point at the start of a word, or two slots that point at the same word (which leaves another
+    ///     word without a slot).
     /// </exception>
     internal DictionaryImage(string name, byte[] data)
     {
@@ -163,7 +165,8 @@ internal sealed class DictionaryImage
         }
 
         // The header's word count must agree with the word block (one terminator per word) and with the slot
-        // table (one occupied slot per word), and every occupied slot must point at the start of a word. A
+        // table (one occupied slot per word), every occupied slot must point at the start of a word, and each
+        // word must be referenced by exactly one slot. A
         // header that disagrees with its content is damage even when each field looks plausible, and checking
         // it here means that lookups can trust every offset they read. The scan is one linear pass over data
         // that has already been read into memory.
@@ -271,11 +274,16 @@ internal sealed class DictionaryImage
     /// </summary>
     /// <remarks>
     ///     Every occupied slot must hold an offset that lies inside the word block and falls at the start
-    ///     of a word (the first byte of the block, or the byte after a terminator), and the number of
-    ///     occupied slots must equal the word count. Together with the terminator count this ties the
-    ///     header, the block, and the table to one another. It does not prove that the words are sorted,
-    ///     distinct, or reachable from their hash, which the builder guarantees and its tests verify.
-    ///     Reads only; thread-safe.
+    ///     of a word (the first byte of the block, or the byte after a terminator), no two slots may hold the
+    ///     same offset, and the number of occupied slots must equal the word count. A word block with a
+    ///     given terminator count has exactly that many word starts, so when the word count equals the
+    ///     terminator count, distinct valid offsets in exactly that many slots mean that every word is
+    ///     referenced by exactly one slot: a corrupted slot that duplicates another word's offset therefore
+    ///     cannot load, and cannot leave a word that can never be found. The pass is linear in the size of the data and
+    ///     uses a temporary bit array with one bit per byte of the word block (about 190 KB for the
+    ///     largest dictionary), which is garbage once loading ends. It does not prove that the words are
+    ///     sorted, distinct, or reachable from their hash, which the builder guarantees and its tests verify.
+    ///     Thread-safe, as it only reads the image.
     /// </remarks>
     /// <param name="wordCount">The word count from the header.</param>
     /// <exception cref="InvalidDataException">Thrown, naming the dictionary, when a slot or the slot count is inconsistent.</exception>
@@ -283,6 +291,7 @@ internal sealed class DictionaryImage
     {
         var blob = _data.AsSpan(DictionaryFormat.HeaderLength, _blobLength);
         var slots = _data.AsSpan(_slotsOffset);
+        var referenced = new BitArray(_blobLength);
         uint occupied = 0;
         for (var position = 0; position < slots.Length; position += DictionaryFormat.SlotSize)
         {
@@ -299,6 +308,14 @@ internal sealed class DictionaryImage
             {
                 throw Invalid("a slot does not point at the start of a word");
             }
+
+            // A word may be referenced once; a second reference means another word has no slot
+            if (referenced[offset])
+            {
+                throw Invalid("two slots point at the same word, so another word has no slot");
+            }
+
+            referenced[offset] = true;
         }
 
         if (occupied != wordCount)

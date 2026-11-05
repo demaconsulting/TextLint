@@ -94,7 +94,8 @@ a lookup of the same word can never disagree about case or the apostrophe.
 the identifier, the option flags and hash identifier the reader supports, the reserved bytes, the slot count being a
 power of two, the load factor, the exact total length the header implies, the word block ending with a terminator, the
 header's word count agreeing with the number of terminators in the block and with the number of occupied slots, and
-every occupied slot pointing at the start of a word. Any violation is an `InvalidDataException` that names the
+every occupied slot pointing at the start of a word, with each word referenced by exactly one slot. Any violation is an
+`InvalidDataException` that names the
 dictionary. A lookup is then a hash-selected slot and a forward probe through a table of 32-bit slots, each holding the
 offset of a word in the word block; every read goes through a bounds-checked span and `BinaryPrimitives`, and the probe
 is capped at one cycle of the table, so a damaged file can only produce an exception at load and never an

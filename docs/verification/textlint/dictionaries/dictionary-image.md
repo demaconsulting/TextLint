@@ -32,7 +32,8 @@ N/A - standard test environment.
 - Every kind of header damage (length, identifier, options, hash, reserved bytes, slot count, load, word block size,
   total length, terminator) is rejected with an `InvalidDataException` that names the dictionary.
 - A header whose word count disagrees with the word block or the slot table, including a header that claims words
-  but has none, and a slot that does not point at the start of a word, are rejected when the image is loaded.
+  but has none, a slot that does not point at the start of a word, and two slots that point at the same word (which
+  leaves another word without a slot), are rejected when the image is loaded.
 - A real embedded dictionary loads and answers, and a missing or damaged embedded resource is rejected naming the
   resource.
 
@@ -79,9 +80,18 @@ scenario is tested by `DictionaryImage_New_WordCountMismatchesBlob_ThrowsInvalid
 empty word block is loaded; it is rejected and cannot pass as an empty image. This scenario is tested by
 `DictionaryImage_New_WordCountWithoutBlob_ThrowsInvalidData`.
 
-**DictionaryImage_New_SlotTableMismatchesWordCount_ThrowsInvalidData**: Every slot of a one-word image is damaged to
-point at the word; loading throws `InvalidDataException` saying the count does not match the slot table. This
+**DictionaryImage_New_SlotTableMismatchesWordCount_ThrowsInvalidData**: The slot of the second word of a two-word image
+is emptied; loading throws `InvalidDataException` saying the count does not match the slot table. This
 scenario is tested by `DictionaryImage_New_SlotTableMismatchesWordCount_ThrowsInvalidData`.
+
+**DictionaryImage_New_DuplicateSlotOffset_ThrowsInvalidData**: In a two-word image the slot of the second word is
+overwritten with the slot of the first, so every count and offset is valid but two slots hold the same offset; loading
+throws `InvalidDataException` saying two slots point at the same word. This scenario is tested by
+`DictionaryImage_New_DuplicateSlotOffset_ThrowsInvalidData`.
+
+**DictionaryImage_New_WordWithoutSlot_ThrowsInvalidData**: In a three-word image the slot of the last word is
+redirected to the first word, leaving the last word unreferenced; loading throws `InvalidDataException`. This scenario
+is tested by `DictionaryImage_New_WordWithoutSlot_ThrowsInvalidData`.
 
 **DictionaryImage_New_ValidImage_IsAccepted**: A valid image passes validation and answers a lookup. This scenario
 is tested by `DictionaryImage_New_ValidImage_IsAccepted`.

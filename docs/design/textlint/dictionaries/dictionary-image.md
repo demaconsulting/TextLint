@@ -42,7 +42,11 @@ the slot count; the word block is no larger than the format allows; the total le
 implies (header, padded word block, and slot table); and a non-empty word block ends with a terminator. Two linear
 passes over the data already in memory then tie the header to the content: the number of terminators in the word
 block must equal the word count, and a scan of the slot table must find exactly that many occupied slots, each holding
-an offset that lies inside the word block at the start of a word (the first byte, or the byte after a terminator).
+an offset that lies inside the word block at the start of a word (the first byte, or the byte after a terminator), and
+no two slots may hold the same offset. A word block has exactly as many word starts as terminators, so distinct valid
+offsets in exactly that many slots mean every word is referenced by exactly one slot; a corrupted slot that duplicates
+another word's offset is rejected instead of leaving the other word impossible to find. Distinctness is tracked in a temporary
+bit array with one bit per byte of the word block (about 190 KB for the largest dictionary), released after loading.
 This rejects a header that claims words the block does not hold, which would otherwise load as a valid but wrong
 dictionary, and it means a lookup can trust every offset it reads. The scans do not prove that the words are sorted,
 distinct, or reachable from their hash position; the builder guarantees those properties and its tests verify them with
@@ -75,7 +79,8 @@ and stop after one full cycle of the table, which makes the loop finite.
 
 Every failure is an `InvalidDataException` whose message names the dictionary and gives the reason: a missing
 resource, a resource that is too large to read, or a file that fails validation (a damaged header, a word count that
-disagrees with the content, or a slot that does not point at a word). All of them are raised when the image is created;
+disagrees with the content, a slot that does not point at a word, or two slots that point at the same word). All of them
+are raised when the image is created;
 a lookup of a validated image does not throw. Null arguments throw `ArgumentNullException`. Nothing is caught: a damaged
 dictionary means a defective build, and it is propagated to the caller with its name so that the file that must be
 rebuilt can be identified. A missing resource is reported the same way as a damaged one, because no caller can
