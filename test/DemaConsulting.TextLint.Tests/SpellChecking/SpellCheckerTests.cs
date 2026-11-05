@@ -117,7 +117,7 @@ public class SpellCheckerTests
     /// <param name="temp">The tree.</param>
     /// <returns>The selected files.</returns>
     private static IReadOnlyList<SelectedFile> SelectAll(TempDirectory temp) =>
-        FileSelector.Select(temp.FullPath, ["**/*"], [], true);
+        FileSelector.Select(temp.FullPath, ["**/*"], [], true, TestContext.Current.CancellationToken);
 
     /// <summary>
     ///     Builds a function that checks text with a default checker, for use with the seam.
@@ -966,6 +966,66 @@ public class SpellCheckerTests
         await Assert.ThrowsAnyAsync<OperationCanceledException>(
             () => SpellChecker.CheckFilesAsync(files, 0, Check, new SpellCheckOptions { MaxDegreeOfParallelism = 1 }, source.Token));
         Assert.True(calls < files.Count);
+    }
+
+    /// <summary>
+    ///     Test that the caller's token is handed to the file selection, so that cancelling stops a directory walk.
+    /// </summary>
+    [Fact]
+    public async Task SpellChecker_CheckWithSelectionAsync_Selection_ReceivesCallersToken()
+    {
+        // Arrange: a selection that records the token it is given and selects nothing
+        using var source = new CancellationTokenSource();
+        var received = CancellationToken.None;
+        IReadOnlyList<SelectedFile> SelectNothing(CancellationToken token)
+        {
+            received = token;
+            return [];
+        }
+
+        // Act: run with the caller's token
+        var result = await SpellChecker.CheckWithSelectionAsync(Select("**/*.md"), SelectNothing, null, source.Token);
+
+        // Assert: the selection got that very token, and the run completed with no files
+        Assert.Equal(source.Token, received);
+        Assert.Equal(0, result.FilesChecked);
+    }
+
+    /// <summary>
+    ///     Test that a selection that is cancelled while it runs stops the call with a cancellation and no result.
+    /// </summary>
+    [Fact]
+    public async Task SpellChecker_CheckWithSelectionAsync_SelectionCancelled_ThrowsOperationCanceledException()
+    {
+        // Arrange: a selection that cancels the token while it runs, as a cancelled directory walk does
+        using var source = new CancellationTokenSource();
+        var checkedAfterSelection = false;
+        IReadOnlyList<SelectedFile> SelectAndCancel(CancellationToken token)
+        {
+            source.Cancel();
+            token.ThrowIfCancellationRequested();
+            checkedAfterSelection = true;
+            return [];
+        }
+
+        // Act / Assert: the call ends with a cancellation and does not go on to check anything
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            () => SpellChecker.CheckWithSelectionAsync(Select("**/*.md"), SelectAndCancel, null, source.Token));
+        Assert.False(checkedAfterSelection);
+    }
+
+    /// <summary>
+    ///     Test that a null selection function is rejected.
+    /// </summary>
+    [Fact]
+    public async Task SpellChecker_CheckWithSelectionAsync_NullSelection_ThrowsArgumentNullException()
+    {
+        // Arrange: no selection function
+
+        // Act / Assert: the call throws and names the parameter
+        var exception = await Assert.ThrowsAsync<ArgumentNullException>(
+            () => SpellChecker.CheckWithSelectionAsync(Select("**/*.md"), null!, null, TestContext.Current.CancellationToken));
+        Assert.Equal("selectFiles", exception.ParamName);
     }
 
     /// <summary>

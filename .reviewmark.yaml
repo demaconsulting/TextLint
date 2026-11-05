@@ -203,6 +203,7 @@ reviews:
       - "src/DemaConsulting.TextLint/FileSelection/FileSelector.cs"
       - "src/DemaConsulting.TextLint/FileSelection/SelectedFile.cs"
       - "src/DemaConsulting.TextLint/FileSelection/HiddenFilteringDirectory.cs"
+      - "src/DemaConsulting.TextLint/FileSelection/CancellableDirectory.cs"
       - "test/**/FileSelection/FileSelectorTests.cs"
 
   # TextLint - Dictionaries

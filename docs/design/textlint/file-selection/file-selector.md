@@ -7,8 +7,8 @@
 `FileSelector` applies include and ignore glob patterns to a root directory and returns the files to check. It is
 the one place that turns glob patterns into a file list, so every consumer selects files identically. It takes
 its inputs as plain parameters, so it has no dependency on the Configuration subsystem. It also defines the
-supporting type `SelectedFile` and an internal directory view, `HiddenFilteringDirectory`, which has no unit of
-its own.
+supporting type `SelectedFile` and two internal directory views, `HiddenFilteringDirectory` and
+`CancellableDirectory`, which have no unit of their own.
 
 #### Data Model
 
@@ -24,21 +24,29 @@ subdirectory it keeps so the filter applies at every depth. Files and non-hidden
 through unchanged. The matcher only descends into what a directory enumerates, so a dropped
 directory is never read from disk.
 
+**CancellableDirectory** is an internal view over the matcher's directory abstraction. It holds the wrapped
+directory and the caller's cancellation token. Before it lists a directory, and before it hands each entry of the
+listing to the matcher, it checks the token and throws `OperationCanceledException` when it is cancelled; it wraps
+every subdirectory so the check applies at every depth. The matcher is synchronous and has no cancellation of
+its own, so the only place the walk can be interrupted is inside the directory abstraction it reads.
+
 #### Key Methods
 
 **Select (public)**: Selects files beneath a directory path.
 
 - _Parameters_: `string rootDirectory`; `IReadOnlyList<string> includePatterns`; `IReadOnlyList<string>
-  ignorePatterns`; `bool enableGlobDot` (default `false`).
+  ignorePatterns`; `bool enableGlobDot` (default `false`); `CancellationToken cancellationToken` (default none).
 - _Returns_: a read-only list of `SelectedFile`, ordered by ordinal relative path.
 - _Preconditions_: no argument is null, the directory name is not empty, and the directory exists and can be
   read. The
   pattern lists are read once during the call and are not retained, so the caller may change them afterwards.
-- _Postconditions_: the list is a snapshot; no file has been opened.
+- _Postconditions_: the list is a snapshot; no file has been opened. When the token is cancelled the call throws
+  and returns no list.
 
 **Select (internal)**: The same selection over an abstract directory. It is a test seam: tests pass a
 recording directory to prove which directories are enumerated, which is deterministic where a timing test
-would not be. The public method validates the path and calls it.
+would not be, and a recording directory that cancels the token at a chosen point of the walk, to prove that a
+cancellation stops the walk. The public method validates the path and calls it.
 
 **ProbeRoot (internal)**: Reads the first entry of the root directory, after the patterns have been validated
 and before the walk, so a root that is missing or unreadable is reported instead of selecting nothing.
@@ -51,10 +59,12 @@ and before the walk, so a root that is missing or unreadable is reported instead
   propagates unchanged.
 
 Steps: (1) expand every include and ignore pattern with `GlobPatternExpander`, so an invalid pattern
-fails first, even when nothing is included; (2) for the public method, probe the root directory with
+fails first, even when nothing is included; (2) for the public method, throw when the token is already cancelled and
+probe the root directory with
 `ProbeRoot`; (3) return an empty list when there are no include patterns, without walking any directory; (4) build a
 matcher with ordinal comparison and add the expanded include and
-exclude patterns; (5) unless `enableGlobDot` is set, walk through a `HiddenFilteringDirectory`; (6) run the
+exclude patterns; (5) unless `enableGlobDot` is set, wrap the root in a `HiddenFilteringDirectory`, and always wrap
+the result in a `CancellableDirectory`, then walk it; (6) run the
 matcher; (7) unless `enableGlobDot` is set, keep only the paths `HiddenPathPolicy` permits; (8) sort the
 paths by ordinal comparison and create the `SelectedFile` entries, computing each full path from the root.
 
@@ -73,7 +83,9 @@ directory-not-found failure from that read becomes `DirectoryNotFoundException` 
 inner exception); an access failure (`UnauthorizedAccessException`) or any other `IOException`, such as a root that
 names a file, propagates with its own type. Below the root, the matcher's directory wrapper treats a subdirectory
 that no longer exists when it is listed (removed while the walk runs) as empty; every other failure to list a
-subdirectory, such as a permission failure, propagates unchanged. Nothing is logged.
+subdirectory, such as a permission failure, propagates unchanged. A cancelled token throws
+`OperationCanceledException`, from the check before the probe or from the `CancellableDirectory` during the walk;
+no partial selection is returned. Nothing is logged.
 
 #### Dependencies
 

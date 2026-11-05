@@ -596,6 +596,7 @@ sections:
           that looks complete.
         children:
           - TextLint-SpellChecking-ParallelDeterminism
+          - TextLint-FileSelection-Cancellation
         tests:
           - TextLint_SpellCheck_CancelledToken_ThrowsOperationCanceled
 

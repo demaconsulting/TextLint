@@ -50,12 +50,14 @@ public static class SpellChecker
     ///     so the call does not block its caller while it walks the directory tree. Memory use is bounded by
     ///     the number of concurrent checks times the size of a file and its text. Side effects: reads
     ///     directories and files beneath <paramref name="rootDirectory"/>; nothing is written. The first
-    ///     lookup loads the language's dictionaries. Thread-safe.
+    ///     lookup loads the language's dictionaries. Cancellation is honored during the directory walk, between
+    ///     the files being read, and while files are read; a cancelled call throws and returns no partial result.
+    ///     Thread-safe.
     /// </remarks>
     /// <param name="settings">The settings that say what to check and how. Must not be null.</param>
     /// <param name="rootDirectory">The directory the file patterns are relative to. Must name a readable directory.</param>
     /// <param name="options">How to run; null means the defaults.</param>
-    /// <param name="cancellationToken">Token that cancels the run.</param>
+    /// <param name="cancellationToken">Token that cancels the run, including the directory walk.</param>
     /// <returns>
     ///     The result, ordered by file path (ordinal), then line, then column; never null. Files that could
     ///     not be checked completely are listed in its file diagnostics.
@@ -79,15 +81,49 @@ public static class SpellChecker
         SpellCheckOptions? options = null,
         CancellationToken cancellationToken = default)
     {
-        // Reject bad arguments and unusable settings before touching the file system
+        // Reject a bad directory argument before touching the file system; the settings are validated by the
+        // shared implementation, which also does so before any file is touched
         ArgumentNullException.ThrowIfNull(settings);
         ArgumentException.ThrowIfNullOrWhiteSpace(rootDirectory);
+
+        // The token is handed to the selector so that cancelling stops a long directory walk and not only the checks after it
+        return await CheckWithSelectionAsync(
+            settings,
+            token => FileSelector.Select(rootDirectory, settings.Files, settings.IgnorePaths, settings.EnableGlobDot, token),
+            options,
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    ///     Selects the files with the given function and checks the spelling of each.
+    /// </summary>
+    /// <remarks>
+    ///     Internal test seam: the selection is a parameter, so tests can prove that the caller's token reaches the
+    ///     file selection, which a real directory cannot show deterministically. The public method passes the
+    ///     file selector. The selection runs on a thread-pool thread, because it is synchronous and may take long.
+    ///     Thread-safe.
+    /// </remarks>
+    /// <param name="settings">The settings that say what to check and how. Must not be null.</param>
+    /// <param name="selectFiles">Selects the files, given the token it must honor. Must not be null.</param>
+    /// <param name="options">How to run; null means the defaults.</param>
+    /// <param name="cancellationToken">Token that cancels the run, including the selection.</param>
+    /// <returns>The result, ordered by file path (ordinal), then line, then column.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="settings"/> or <paramref name="selectFiles"/> is null.</exception>
+    /// <exception cref="ArgumentException">Thrown when the language or a word-list entry of the settings is not usable.</exception>
+    /// <exception cref="OperationCanceledException">Thrown when <paramref name="cancellationToken"/> is cancelled.</exception>
+    internal static async Task<SpellCheckResult> CheckWithSelectionAsync(
+        TextLintSettings settings,
+        Func<CancellationToken, IReadOnlyList<SelectedFile>> selectFiles,
+        SpellCheckOptions? options,
+        CancellationToken cancellationToken)
+    {
+        // Reject unusable settings before touching the file system
+        ArgumentNullException.ThrowIfNull(settings);
+        ArgumentNullException.ThrowIfNull(selectFiles);
         var checker = new TextChecker(settings);
 
-        // Select the files off the caller's thread; the selector's exceptions (missing root, bad pattern) propagate
-        var files = await Task.Run(
-            () => FileSelector.Select(rootDirectory, settings.Files, settings.IgnorePaths, settings.EnableGlobDot),
-            cancellationToken).ConfigureAwait(false);
+        // Select the files off the caller's thread; the selection's exceptions (missing root, bad pattern) propagate
+        var files = await Task.Run(() => selectFiles(cancellationToken), cancellationToken).ConfigureAwait(false);
 
         return await CheckFilesAsync(files, settings.MaxFileSize, checker.Check, options ?? new SpellCheckOptions(), cancellationToken)
             .ConfigureAwait(false);

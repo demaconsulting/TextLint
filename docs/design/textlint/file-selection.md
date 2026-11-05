@@ -22,15 +22,18 @@ does not read settings files; that belongs to the `Configuration` subsystem.
 
 - _Type_: In-process .NET static method.
 - _Role_: Provider.
-- _Contract_: Accepts a root directory path, a list of include patterns, a list of ignore patterns, and
-  a hidden-file switch (`enableGlobDot`, default `false`), and returns the selected files as a
+- _Contract_: Accepts a root directory path, a list of include patterns, a list of ignore patterns, a
+  hidden-file switch (`enableGlobDot`, default `false`), and an optional cancellation token (default none), and
+  returns the selected files as a
   read-only list of `SelectedFile`, each with a root-relative path using forward slashes and the full
   operating-system path. The list is ordered by ordinal relative path. Empty include patterns select
   nothing.
 - _Constraints_: Throws `ArgumentNullException` or `ArgumentException` for a null or empty argument,
   `DirectoryNotFoundException` when the root does not exist (an unreadable root throws its own
   `UnauthorizedAccessException` or `IOException`), and `InvalidGlobPatternException` when
-  a pattern is unsupported or malformed. Matching is case-sensitive on every platform. The pattern
+  a pattern is unsupported or malformed. Throws `OperationCanceledException`, with no partial selection, when the
+  token is cancelled before the call or while the directory tree is read; the walk stops at the next directory or
+  directory entry. Matching is case-sensitive on every platform. The pattern
   lists are only read during the call.
 
 **Supported pattern forms**: Patterns use `/` as the separator and `*` and `**` as wildcards.

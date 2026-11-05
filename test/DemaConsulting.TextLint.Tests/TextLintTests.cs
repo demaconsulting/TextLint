@@ -123,7 +123,7 @@ public class TextLintTests
     /// <param name="settings">The settings whose patterns and hidden-file switch are passed on.</param>
     /// <returns>The selected files.</returns>
     private static IReadOnlyList<SelectedFile> SelectFiles(string root, TextLintSettings settings) =>
-        FileSelector.Select(root, settings.Files, settings.IgnorePaths, settings.EnableGlobDot);
+        FileSelector.Select(root, settings.Files, settings.IgnorePaths, settings.EnableGlobDot, TestContext.Current.CancellationToken);
 
     /// <summary>
     ///     Test that the library assembly loads and carries the NuGet package name.
@@ -516,7 +516,7 @@ public class TextLintTests
         var settings = new TextLintSettings { Files = ["**/*.md"], IgnorePaths = ["node_modules"] };
 
         // Act: select files
-        var files = FileSelector.Select(recording, settings.Files, settings.IgnorePaths, settings.EnableGlobDot);
+        var files = FileSelector.Select(recording, settings.Files, settings.IgnorePaths, settings.EnableGlobDot, TestContext.Current.CancellationToken);
 
         // Assert: the ignored directory was never read, and the visible file was still found
         Assert.Multiple(

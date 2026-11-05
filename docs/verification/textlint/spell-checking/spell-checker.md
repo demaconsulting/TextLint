@@ -35,7 +35,8 @@ ordering scenario uses an upper-case and a lower-case first letter in different 
 - Findings are ordered by ordinal path, line, and column, diagnostics by path, whatever order files finish in.
 - The degree of parallelism defaults to the processor count, is validated when the options are created, is never
   exceeded, and does not change the result.
-- Cancellation before or during the run throws and returns no result; bad arguments and unusable settings throw the
+- Cancellation before or during the run, including the selection of the files, throws and returns no result; bad
+  arguments and unusable settings throw the
   documented exceptions, the settings before any file is touched.
 - Results cannot be changed by the caller and copy the collections they are built from.
 
@@ -173,6 +174,18 @@ and the check function is never called. This scenario is tested by
 **SpellChecker_CheckFilesAsync_CancelledDuringRun_ThrowsOperationCanceledException**: A check that cancels the run
 makes it throw before every file was checked, and no result is returned. This scenario is tested by
 `SpellChecker_CheckFilesAsync_CancelledDuringRun_ThrowsOperationCanceledException`.
+
+**SpellChecker_CheckWithSelectionAsync_Selection_ReceivesCallersToken**: The selection function is given the caller's
+own token, so a cancellation reaches the directory walk. This scenario is tested by
+`SpellChecker_CheckWithSelectionAsync_Selection_ReceivesCallersToken`.
+
+**SpellChecker_CheckWithSelectionAsync_SelectionCancelled_ThrowsOperationCanceledException**: A selection that is
+cancelled while it runs ends the call with a cancellation, and nothing is checked afterwards. This scenario is tested
+by `SpellChecker_CheckWithSelectionAsync_SelectionCancelled_ThrowsOperationCanceledException`.
+
+**SpellChecker_CheckWithSelectionAsync_NullSelection_ThrowsArgumentNullException**: A null selection function throws and
+the exception names the parameter. This scenario is tested by
+`SpellChecker_CheckWithSelectionAsync_NullSelection_ThrowsArgumentNullException`.
 
 **SpellChecker_CheckAsync_NullSettings_ThrowsArgumentNullException**: Null settings throw and the exception names the
 parameter. This scenario is tested by `SpellChecker_CheckAsync_NullSettings_ThrowsArgumentNullException`.

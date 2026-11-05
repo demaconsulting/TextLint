@@ -50,11 +50,19 @@ completely; it is the content of one slot of the result array.
 - _Preconditions_: the settings are not null, the root is not null, empty, or white space, and it exists.
 - _Postconditions_: nothing was written; every selected file was read once.
 
-Steps: (1) validate the arguments; (2) create the `TextChecker`, which validates the language and the word lists, so
-unusable settings fail before any file or directory is touched; (3) select the files with the file selector, on a
+Steps: (1) validate the arguments; (2) call `CheckWithSelectionAsync`, passing a selection that calls the file
+selector with the settings' patterns and the caller's token; that method creates the `TextChecker`, which validates
+the language and the word lists, so
+unusable settings fail before any file or directory is touched; (3) select the files, on a
 thread-pool thread, because the selector is synchronous and the call should not block its caller while it walks the
-directory tree, and so that the token cancels the wait; (4) call `CheckFilesAsync` with the selection, the maximum
+directory tree, with the token passed to the selector so that cancelling stops the walk itself and not only the
+wait for it; (4) call `CheckFilesAsync` with the selection, the maximum
 file size of the settings, the checker's method, and the options.
+
+**CheckWithSelectionAsync (internal)**: Selects the files with a given function and checks them.
+
+It is a test seam: the selection is a parameter, so tests can prove that the caller's token reaches the file selection,
+which a real directory tree cannot show deterministically. The public method passes the file selector.
 
 **CheckFilesAsync (internal)**: Checks the given files and assembles the result.
 

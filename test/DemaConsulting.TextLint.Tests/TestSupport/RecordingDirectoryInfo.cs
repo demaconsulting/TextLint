@@ -54,11 +54,21 @@ internal sealed class RecordingDirectoryInfo : DirectoryInfoBase
     private readonly List<string> _enumerated;
 
     /// <summary>
+    ///     The callback, shared by every wrapper of the tree, that is told the relative path of each directory
+    ///     as its enumeration starts; null when there is none.
+    /// </summary>
+    private readonly Action<string>? _onEnumerate;
+
+    /// <summary>
     ///     Initializes a new instance of the <see cref="RecordingDirectoryInfo"/> class for a root directory.
     /// </summary>
     /// <param name="root">The directory to wrap.</param>
-    public RecordingDirectoryInfo(DirectoryInfoBase root)
-        : this(root, string.Empty, [])
+    /// <param name="onEnumerate">
+    ///     Called with the relative path of each directory as its enumeration starts (after it is recorded),
+    ///     so a test can act at a precise point of the walk; null for none.
+    /// </param>
+    public RecordingDirectoryInfo(DirectoryInfoBase root, Action<string>? onEnumerate = null)
+        : this(root, string.Empty, [], onEnumerate)
     {
     }
 
@@ -68,11 +78,17 @@ internal sealed class RecordingDirectoryInfo : DirectoryInfoBase
     /// <param name="inner">The directory to wrap.</param>
     /// <param name="relativePath">The directory's path relative to the root.</param>
     /// <param name="enumerated">The list shared by the whole tree.</param>
-    private RecordingDirectoryInfo(DirectoryInfoBase inner, string relativePath, List<string> enumerated)
+    /// <param name="onEnumerate">The callback shared by the whole tree, or null.</param>
+    private RecordingDirectoryInfo(
+        DirectoryInfoBase inner,
+        string relativePath,
+        List<string> enumerated,
+        Action<string>? onEnumerate)
     {
         _inner = inner;
         _relativePath = relativePath;
         _enumerated = enumerated;
+        _onEnumerate = onEnumerate;
     }
 
     /// <summary>
@@ -94,12 +110,13 @@ internal sealed class RecordingDirectoryInfo : DirectoryInfoBase
     {
         // Record this directory, then wrap each subdirectory so its enumeration is recorded too
         _enumerated.Add(_relativePath);
+        _onEnumerate?.Invoke(_relativePath);
         foreach (var entry in _inner.EnumerateFileSystemInfos())
         {
             if (entry is DirectoryInfoBase directory)
             {
                 var relative = _relativePath.Length == 0 ? directory.Name : _relativePath + Separator + directory.Name;
-                yield return new RecordingDirectoryInfo(directory, relative, _enumerated);
+                yield return new RecordingDirectoryInfo(directory, relative, _enumerated, _onEnumerate);
             }
             else
             {

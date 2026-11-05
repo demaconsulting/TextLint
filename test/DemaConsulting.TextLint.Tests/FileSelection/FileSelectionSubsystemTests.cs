@@ -47,7 +47,7 @@ public class FileSelectionSubsystemTests
         string[] files,
         string[]? ignorePaths = null,
         bool enableGlobDot = false) =>
-        [.. FileSelector.Select(temp.FullPath, files, ignorePaths ?? [], enableGlobDot).Select(file => file.RelativePath)];
+        [.. FileSelector.Select(temp.FullPath, files, ignorePaths ?? [], enableGlobDot, TestContext.Current.CancellationToken).Select(file => file.RelativePath)];
 
     /// <summary>
     ///     Test that include and ignore patterns together select the expected files.
@@ -135,7 +135,8 @@ public class FileSelectionSubsystemTests
         using var temp = new TempDirectory();
 
         // Act / Assert: selection throws an exception that names the pattern
-        var exception = Assert.Throws<InvalidGlobPatternException>(() => FileSelector.Select(temp.FullPath, ["!docs/**"], []));
+        var exception = Assert.Throws<InvalidGlobPatternException>(
+            () => FileSelector.Select(temp.FullPath, ["!docs/**"], [], false, TestContext.Current.CancellationToken));
         Assert.Contains("'!docs/**'", exception.Message);
     }
 
@@ -149,8 +150,10 @@ public class FileSelectionSubsystemTests
         using var temp = new TempDirectory();
 
         // Act / Assert: each is rejected with an error that names the pattern and says it is absolute
-        var drive = Assert.Throws<InvalidGlobPatternException>(() => FileSelector.Select(temp.FullPath, ["C:/docs/**"], []));
-        var network = Assert.Throws<InvalidGlobPatternException>(() => FileSelector.Select(temp.FullPath, ["//server/share/**"], []));
+        var drive = Assert.Throws<InvalidGlobPatternException>(
+            () => FileSelector.Select(temp.FullPath, ["C:/docs/**"], [], false, TestContext.Current.CancellationToken));
+        var network = Assert.Throws<InvalidGlobPatternException>(
+            () => FileSelector.Select(temp.FullPath, ["//server/share/**"], [], false, TestContext.Current.CancellationToken));
         Assert.Multiple(
             () => Assert.Contains("'C:/docs/**'", drive.Message),
             () => Assert.Contains("absolute paths", drive.Message),
@@ -230,10 +233,36 @@ public class FileSelectionSubsystemTests
         var recording = new RecordingDirectoryInfo(new DirectoryInfoWrapper(new DirectoryInfo(temp.FullPath)));
 
         // Act: select while ignoring node_modules
-        _ = FileSelector.Select(recording, ["**/*.md"], ["node_modules"], enableGlobDot: false);
+        _ = FileSelector.Select(recording, ["**/*.md"], ["node_modules"], enableGlobDot: false, TestContext.Current.CancellationToken);
 
         // Assert: only the visible directory was read besides the root
         Assert.Equal([string.Empty, "docs"], recording.EnumeratedDirectories.Order(StringComparer.Ordinal));
+    }
+
+    /// <summary>
+    ///     Test that cancelling while the directory tree is read stops the selection and returns no selection.
+    /// </summary>
+    [Fact]
+    public void FileSelectionSubsystem_Select_CancelledDuringWalk_StopsAndThrows()
+    {
+        // Arrange: several directories, and a recording directory that cancels the token when the first
+        // subdirectory starts to be read
+        using var temp = new TempDirectory();
+        temp.CreateFile("a/one.md");
+        temp.CreateFile("b/two.md");
+        temp.CreateFile("c/three.md");
+        using var cancellation = new CancellationTokenSource();
+        var recording = new RecordingDirectoryInfo(
+            new DirectoryInfoWrapper(new DirectoryInfo(temp.FullPath)),
+            relative => { if (relative.Length > 0) { cancellation.Cancel(); } });
+
+        // Act: select through the recording directory
+        var exception = Record.Exception(
+            () => FileSelector.Select(recording, ["**/*.md"], [], enableGlobDot: false, cancellation.Token));
+
+        // Assert: the selection ended with a cancellation, having read only the root and one subdirectory
+        Assert.IsType<OperationCanceledException>(exception);
+        Assert.Equal(2, recording.EnumeratedDirectories.Count);
     }
 
     /// <summary>
