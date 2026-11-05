@@ -1,0 +1,74 @@
+## WordListReader
+
+![DictionaryBuilder Structure](DictionaryBuilderView.svg)
+
+### Purpose
+
+`WordListReader` reads the plain-text word lists of one dictionary, validates every entry, and merges the
+entries into one set of distinct, case-folded words. It exists because word lists are edited by hand and
+imported from third-party sources, so the builder cannot trust them: one strict rule applied in one place,
+with every violation reported by file and line, is what stands between a stray character and a wrong
+dictionary in the product. It also defines which files belong to a dictionary.
+
+### Data Model
+
+`WordListReader` is an internal static class with no state. Its results are carried by two supporting types
+that are documented here because they have no behavior of their own:
+
+- **WordListReadResult** holds the merged words (each distinct folded word mapped to the capitalization-form
+  flags OR-ed over every spelling it had in the lists), the diagnostics found, the total number of problems, and
+  the number of files read. The diagnostics are copied into an immutable array when the result is created.
+- **WordListDiagnostic** holds the path, the 1-based line (zero for a problem about a whole file or folder),
+  and the message of one problem, and formats itself as `path(line): error: message` or
+  `path: error: message`. The builder's other units reuse it for folder-level problems.
+
+The entry rule is: 1 to 64 characters; only ASCII letters, Latin-1 letters (U+00C0 to U+00FF except the
+multiplication and division signs), and the straight apostrophe; the first and last characters are letters; no
+two apostrophes in a row. The rule is applied after trimming spaces, tabs, and carriage returns, and after
+skipping blank lines and lines whose first non-blank character is `#`.
+
+### Key Methods
+
+**FindWordListFiles**: lists the files of a dictionary folder.
+
+- _Parameters_: the dictionary folder.
+- _Returns_: the full paths of the files beneath the folder (at any depth) whose extension is exactly `.txt`,
+  sorted in ordinal order; empty when the folder does not exist.
+- _Postconditions_: the extension test is ordinal and case-sensitive and the sort is ordinal, so the same files
+  are found in the same order on every operating system.
+
+**Read**: reads and merges the files of a dictionary folder.
+
+- _Parameters_: the dictionary folder.
+- _Returns_: a `WordListReadResult`.
+- _Postconditions_: every problem in every file has been counted; the first 100 are kept in detail, followed by
+  one summary diagnostic that states how many more were not shown, so a hopelessly broken list cannot flood the
+  build log.
+
+Each file is decoded strictly as UTF-8, so a file saved in another encoding is reported as one file-level
+problem instead of being misread; a byte order mark at the start is skipped. Lines are separated at the line
+feed and counted from one so that the reported line matches what an editor shows. A valid entry is folded
+character by character with `DictionaryFormat.Fold` into a small array, and is merged into the result
+under its folded key; the capitalization form of the spelling as written is classified by
+`DictionaryFormat.ClassifyCase` and OR-ed into the key's flags. Merging by folded key is what makes the
+dictionary case-insensitive and free of duplicates across case, across lines, and across files. Because the
+result is a set and the writer imposes the final order, the order in which files are read never changes the
+output.
+
+### Error Handling
+
+Invalid entries, files that are not valid UTF-8, and files that cannot be read (an I/O or access error) are
+collected as diagnostics and never thrown, so the caller can report all of them at once. A missing folder is
+not a problem for the reader: it simply has no files, and the caller decides that this is an error. Null
+arguments are programming errors and are not defended against.
+
+### Dependencies
+
+- **DictionaryFormat** - the alphabet test, the fold, the maximum word length, and the capitalization
+  classification.
+- **.NET BCL** - file system access, strict UTF-8 decoding, and collections.
+
+### Callers
+
+- **BuilderProgram** - reads each declared dictionary and uses `FindWordListFiles` to detect folders of word
+  lists that were not declared.

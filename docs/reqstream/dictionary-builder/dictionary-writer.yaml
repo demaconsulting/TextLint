@@ -1,0 +1,48 @@
+---
+# Software Unit Requirements for the DictionaryWriter Class
+#
+# The DictionaryWriter unit serializes a set of folded words into the binary dictionary format.
+
+sections:
+  - title: DictionaryBuilder Requirements
+    sections:
+      - title: DictionaryWriter Requirements
+        requirements:
+          - id: DictionaryBuilder-DictionaryWriter-Layout
+            title: >-
+              DictionaryWriter shall write a file that holds a header, every word in sorted order, and a
+              lookup table through which every word can be found, with the table sparse enough that
+              lookups stay short.
+            justification: |
+              The library finds a word without building any data structure at load time, which depends
+              on the file having exactly this shape: sorted words so that a hit can be verified, and a
+              table that is sparse enough for lookups to stay short. The design document defines the
+              byte-level layout.
+            tests:
+              - DictionaryWriter_Write_FewWords_ProducesExpectedHeaderAndBlob
+              - DictionaryWriter_Write_ManyWords_EveryKeyReachableByProbing
+              - DictionaryWriter_Write_SlotCount_PowerOfTwoWithinLoadLimit
+              - DictionaryWriter_Write_Padding_IsZero
+              - DictionaryWriter_Write_Latin1Word_EncodedAsUtf8
+
+          - id: DictionaryBuilder-DictionaryWriter-Determinism
+            title: >-
+              DictionaryWriter shall produce identical bytes for the same set of words, whatever order
+              the words were added in.
+            justification: |
+              Identical output lets a rebuild be recognized as unchanged and lets builds on different
+              machines be compared by hash; any dependence on insertion order or machine state would
+              break both.
+            tests:
+              - DictionaryWriter_Write_SameInput_SameBytes
+              - DictionaryWriter_Write_DifferentInsertionOrder_SameBytes
+
+          - id: DictionaryBuilder-DictionaryWriter-CaseForms
+            title: >-
+              DictionaryWriter shall store the capitalization forms of each word in the high bits of the
+              word's slot.
+            justification: |
+              The forms must travel with the word in the dictionary file so that a later case-sensitive
+              check can read them, at no cost in file size.
+            tests:
+              - DictionaryWriter_Write_CaseForms_StoredInSlotBits

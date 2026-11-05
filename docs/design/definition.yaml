@@ -8,6 +8,7 @@ resource-path:
   - docs/design/textlint-tool/cli
   - docs/design/textlint-tool/self-test
   - docs/design/textlint-tool/utilities
+  - docs/design/dictionary-builder
   - docs/design/ots
   - docs/template
 
@@ -30,6 +31,11 @@ input-files:
   - docs/design/textlint-tool/self-test/validation.md
   - docs/design/textlint-tool/utilities.md
   - docs/design/textlint-tool/utilities/path-helpers.md
+  - docs/design/dictionary-builder.md
+  - docs/design/dictionary-builder/builder-program.md
+  - docs/design/dictionary-builder/word-list-reader.md
+  - docs/design/dictionary-builder/dictionary-writer.md
+  - docs/design/dictionary-builder/dictionary-format.md
   - docs/design/ots.md
   - docs/design/ots/buildmark.md
   - docs/design/ots/fileassert.md

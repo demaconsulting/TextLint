@@ -1,0 +1,79 @@
+---
+# Software Unit Requirements for the BuilderProgram Class
+#
+# The BuilderProgram unit is the entry point of the dictionary builder: it parses the command line,
+# drives the reader and the writer, and reports problems in the compiler's error format.
+
+sections:
+  - title: DictionaryBuilder Requirements
+    sections:
+      - title: BuilderProgram Requirements
+        requirements:
+          - id: DictionaryBuilder-BuilderProgram-Arguments
+            title: >-
+              BuilderProgram shall require an input folder, an output folder, and at least one dictionary
+              name, and shall reject a missing part, an unknown option, an option without a value, a
+              repeated option, and a dictionary name that is repeated or is not a plain folder name, with
+              a usage message, the usage exit code, and no file read or written.
+            justification: |
+              The build supplies these inputs, so a malformed command line is a mistake in the build
+              definition. Names become folder and file names, so a name that could climb out of the
+              input or output folder must be refused before anything is touched.
+            tests:
+              - BuilderProgram_Run_MissingInput_ReturnsUsageError
+              - BuilderProgram_Run_MissingOutput_ReturnsUsageError
+              - BuilderProgram_Run_NoDictionaryNames_ReturnsUsageError
+              - BuilderProgram_Run_UnknownOption_ReturnsUsageError
+              - BuilderProgram_Run_OptionWithoutValue_ReturnsUsageError
+              - BuilderProgram_Run_DuplicateOption_ReturnsUsageError
+              - BuilderProgram_Run_NameWithPathSeparator_ReturnsUsageError
+              - BuilderProgram_Run_DuplicateName_ReturnsUsageError
+
+          - id: DictionaryBuilder-BuilderProgram-Dictionaries
+            title: >-
+              BuilderProgram shall write one dictionary file per declared name, built from the word lists
+              in the folder of that name, and return the success exit code.
+            justification: |
+              One folder per dictionary lets the lists be organized for people while each dictionary
+              reaches the library as one file; the folder name is the only link between the two, so it
+              must be used exactly.
+            tests:
+              - BuilderProgram_Run_ValidLists_WritesFilesAndReturnsZero
+
+          - id: DictionaryBuilder-BuilderProgram-Misconfiguration
+            title: >-
+              BuilderProgram shall return the failure exit code, naming the dictionary or folder at
+              fault, when a declared dictionary has no folder or no words, and when a folder that holds
+              word lists is not declared.
+            justification: |
+              A mistyped or forgotten name would otherwise silently drop a list or ship an empty
+              dictionary; naming the dictionary or folder lets the maintainer fix it at once.
+            tests:
+              - BuilderProgram_Run_UndeclaredFolder_ReturnsOneNamingFolder
+              - BuilderProgram_Run_EmptyDictionary_ReturnsOneNamingDictionary
+              - BuilderProgram_Run_MissingDictionaryFolder_ReturnsOneNamingDictionary
+              - BuilderProgram_Run_MissingInputFolder_ReturnsOne
+
+          - id: DictionaryBuilder-BuilderProgram-ErrorReporting
+            title: >-
+              BuilderProgram shall report every problem on the error stream as "path(line): error:
+              message" (without the line part for a problem that has no line), return the failure exit
+              code, and write no dictionary file when any problem exists.
+            justification: |
+              MSBuild and editors turn this format into clickable errors, and the author must see every
+              problem at once. Writing nothing on failure keeps a half-updated set of dictionaries from
+              reaching the product.
+            tests:
+              - BuilderProgram_Run_InvalidEntry_WritesNothingAndReportsFileLine
+              - BuilderProgram_Run_OutputPathIsAFile_ReportsErrorAndReturnsOne
+
+          - id: DictionaryBuilder-BuilderProgram-UnchangedOutput
+            title: >-
+              BuilderProgram shall leave an existing dictionary file untouched when its content would be
+              identical, and shall rewrite it when the content differs.
+            justification: |
+              Incremental builds decide what to rebuild from file timestamps, so an identical file must
+              keep its timestamp while a changed one must be updated.
+            tests:
+              - BuilderProgram_Run_UnchangedOutput_IsNotRewritten
+              - BuilderProgram_Run_ChangedList_RewritesOutput

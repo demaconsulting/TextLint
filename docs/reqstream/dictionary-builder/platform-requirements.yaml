@@ -1,0 +1,57 @@
+---
+# DictionaryBuilder System-Level Platform Requirements
+#
+# These requirements specify the platforms and runtimes the dictionary builder must support. The
+# builder runs inside the library's build, which runs on all three major platforms.
+#
+# Test links include a source filter prefix (e.g. "windows@", "ubuntu@", "net10.0@") to restrict
+# which test results count as evidence for a requirement. This is critical for platform and framework
+# requirements - removing these filters invalidates the evidence-based proof. The prefix is matched
+# against the name of the test-result file, which build.yaml names "<os>_<assembly>_<tfm>_<arch>.trx".
+#
+# Source filter prefixes:
+#   windows@TestName  - proves the test passed on a Windows platform
+#   ubuntu@TestName   - proves the test passed on a Linux (Ubuntu) platform
+#   macos@TestName    - proves the test passed on a macOS platform
+#   net10.0@TestName  - proves the test passed under the .NET 10 runtime
+
+sections:
+  - title: DictionaryBuilder Requirements
+    requirements:
+      - id: DictionaryBuilder-Platform-Windows
+        title: The builder shall build and run on Windows platforms.
+        tags: [system]
+        justification: |
+          The library is built on Windows by DEMA Consulting developers, so the dictionaries must be
+          produced there.
+        tests:
+          # Tests link to "windows" to ensure results come from Windows platform
+          - "windows@DictionaryBuilder_Build_WordListFolders_WritesOneDictionaryPerFolder"
+
+      - id: DictionaryBuilder-Platform-Linux
+        title: The builder shall build and run on Linux platforms.
+        tags: [system]
+        justification: |
+          The library is built on Linux in CI and in containerized environments, so the dictionaries must
+          be produced there.
+        tests:
+          # Tests link to "ubuntu" to ensure results come from Linux platform
+          - "ubuntu@DictionaryBuilder_Build_WordListFolders_WritesOneDictionaryPerFolder"
+
+      - id: DictionaryBuilder-Platform-MacOS
+        title: The builder shall build and run on macOS platforms.
+        tags: [system]
+        justification: |
+          The library is built on macOS by developers using Apple platforms, so the dictionaries must be
+          produced there.
+        tests:
+          # Tests link to "macos" to ensure results come from macOS platform
+          - "macos@DictionaryBuilder_Build_WordListFolders_WritesOneDictionaryPerFolder"
+
+      - id: DictionaryBuilder-Platform-Net10
+        title: The builder shall support .NET 10 runtime.
+        tags: [system]
+        justification: |
+          The builder runs on the same runtime as the build that starts it, which is .NET 10.
+        tests:
+          - "net10.0@DictionaryBuilder_Build_WordListFolders_WritesOneDictionaryPerFolder"

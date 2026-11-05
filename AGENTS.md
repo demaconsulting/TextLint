@@ -23,6 +23,7 @@ the library never depends on the tool. Never add linting logic to the tool.
 # Project Structure
 
 ```text
+├── dictionaries/
 ├── docs/
 │   ├── build_notes/
 │   ├── code_quality/
@@ -37,10 +38,13 @@ the library never depends on the tool. Never add linting logic to the tool.
 │   └── verification/
 ├── src/
 │   ├── DemaConsulting.TextLint/
+│   ├── DemaConsulting.TextLint.DictionaryBuilder/
 │   └── DemaConsulting.TextLint.Tool/
-└── test/
-    ├── DemaConsulting.TextLint.Tests/
-    └── DemaConsulting.TextLint.Tool.Tests/
+├── test/
+│   ├── DemaConsulting.TextLint.Tests/
+│   ├── DemaConsulting.TextLint.DictionaryBuilder.Tests/
+│   └── DemaConsulting.TextLint.Tool.Tests/
+└── third-party/
 ```
 
 # Language and Spelling (ALL Agents)

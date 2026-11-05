@@ -1,0 +1,52 @@
+---
+# Software Unit Requirements for the DictionaryFormat Class
+#
+# The DictionaryFormat unit holds the definitions that the builder and the library share: the case
+# fold, the key hash, and the capitalization classification.
+
+sections:
+  - title: DictionaryBuilder Requirements
+    sections:
+      - title: DictionaryFormat Requirements
+        requirements:
+          - id: DictionaryBuilder-DictionaryFormat-Folding
+            title: >-
+              DictionaryFormat shall fold a word to its lookup key by lowering the ASCII and Latin-1
+              capital letters and straightening the typographic apostrophe, encode the key as UTF-8, and
+              report a word as not representable when it is empty, longer than 64 characters, or contains
+              a character above Latin-1.
+            justification: |
+              The key is what the builder stores and what the library looks up, so one definition of
+              "the same word in a different case" must exist, independent of the operating system's
+              culture, and words that can never be stored must be recognizable without an error.
+            tests:
+              - DictionaryFormat_TryFold_UpperAscii_Lowered
+              - DictionaryFormat_TryFold_Latin1Capital_Lowered
+              - DictionaryFormat_TryFold_TypographicApostrophe_Straightened
+              - DictionaryFormat_TryFold_MultiplicationSign_Unchanged
+              - DictionaryFormat_TryFold_AboveLatin1_ReturnsFalse
+              - DictionaryFormat_TryFold_Empty_ReturnsFalse
+              - DictionaryFormat_TryFold_MaximumLength_ReturnsTrue
+              - DictionaryFormat_TryFold_65Chars_ReturnsFalse
+
+          - id: DictionaryBuilder-DictionaryFormat-Hash
+            title: >-
+              DictionaryFormat shall compute a 32-bit hash of a key that is identical on every platform
+              and equal to the fixed reference values for the reference keys.
+            justification: |
+              The hash chooses the slot of every word, so builder and library must compute exactly the
+              same value; fixed reference values make any change to it a visible, deliberate decision.
+            tests:
+              - DictionaryFormat_Hash_KnownVectors_Match
+              - DictionaryFormat_Hash_SameBytes_SameValue
+
+          - id: DictionaryBuilder-DictionaryFormat-CaseForms
+            title: >-
+              DictionaryFormat shall classify a word as lower case, capitalized, upper case, or mixed
+              from the capitalization it was written with, treating a single upper-case letter as
+              capitalized and ignoring apostrophes.
+            justification: |
+              The classification is what is recorded for a later case-sensitive check, so each form must
+              be defined precisely, including the single-letter and apostrophe edge cases.
+            tests:
+              - DictionaryFormat_ClassifyCase_CapitalizationForms_ReturnsExpectedFlag

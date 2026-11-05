@@ -1,0 +1,61 @@
+---
+# Software Unit Requirements for the WordListReader Class
+#
+# The WordListReader unit reads the plain-text word lists of one dictionary, validates every entry,
+# and merges the entries into one set of distinct, case-folded words.
+
+sections:
+  - title: DictionaryBuilder Requirements
+    sections:
+      - title: WordListReader Requirements
+        requirements:
+          - id: DictionaryBuilder-WordListReader-EntryParsing
+            title: >-
+              WordListReader shall read every .txt file beneath a dictionary's folder, ignoring blank
+              lines, comment lines, and the spaces, tabs, and line-ending style around entries, and
+              tolerating a byte order mark.
+            justification: |
+              Word lists are plain text edited by people on different operating systems, so formatting
+              that carries no meaning must not change the result or cause an error.
+            tests:
+              - WordListReader_Read_CommentsAndBlankLines_AreIgnored
+              - WordListReader_Read_CrLfAndBom_Handled
+              - WordListReader_FindWordListFiles_MixedExtensions_ReturnsOnlyTxtFilesInOrdinalOrder
+              - WordListReader_Read_MissingFolder_ReturnsNoWordsAndNoProblems
+
+          - id: DictionaryBuilder-WordListReader-Validation
+            title: >-
+              WordListReader shall reject an entry that is longer than 64 characters, contains anything
+              other than letters of the supported alphabet and internal straight apostrophes, or does not
+              start and end with a letter, and a file that is not valid UTF-8, reporting each problem with
+              its file and line, up to a cap, with a count of the problems not shown.
+            justification: |
+              Every word in a list ends up in the shipped dictionary, so an entry that is not a valid
+              word must be found where it was written and not be silently dropped or guessed at, while a
+              hopelessly broken list must not flood the build log.
+            tests:
+              - WordListReader_Read_SpaceInEntry_ReportsLine
+              - WordListReader_Read_Digit_ReportsLine
+              - WordListReader_Read_TypographicApostrophe_ReportsLine
+              - WordListReader_Read_LeadingApostrophe_ReportsLine
+              - WordListReader_Read_TrailingApostrophe_ReportsLine
+              - WordListReader_Read_DoubleApostrophe_ReportsLine
+              - WordListReader_Read_OtherScript_ReportsLine
+              - WordListReader_Read_TooLong_ReportsLine
+              - WordListReader_Read_InvalidUtf8_ReportsFile
+              - WordListReader_Read_ManyProblems_CappedAtLimit
+              - WordListReader_Read_ProblemsInSeveralFiles_AllReported
+              - WordListReader_Read_Diagnostics_FormatAsCompilerErrors
+
+          - id: DictionaryBuilder-WordListReader-Normalization
+            title: >-
+              WordListReader shall merge the entries of all of a dictionary's files into one set in which
+              each distinct word appears once in folded (lower-case) form, together with the
+              capitalization forms it had.
+            justification: |
+              Spell checking ignores letter case and the lists repeat each other, so entries that differ
+              only in case, or that occur in several files, are one word; keeping the forms preserves
+              what the lists said about capitalization.
+            tests:
+              - WordListReader_Read_CaseVariants_MergedWithForms
+              - WordListReader_Read_DuplicateAcrossFiles_Merged
