@@ -88,24 +88,39 @@ internal static class WordListReader
     /// <remarks>
     ///     Searches the folder and all folders beneath it. The extension test is ordinal and
     ///     case-sensitive and the result is sorted in ordinal order, so the same files are found in the
-    ///     same order on every operating system. Reads the file system; thread-safe.
+    ///     same order on every operating system. A folder that cannot be searched (access denied or an
+    ///     I/O error, possibly part-way through) is reported through <paramref name="problem"/> and
+    ///     yields no files, so the caller can never mistake a failed search for an empty folder. Reads
+    ///     the file system; thread-safe.
     /// </remarks>
     /// <param name="folder">The dictionary folder. Must not be null.</param>
-    /// <returns>The full paths of the word-list files in ordinal order; empty when the folder is missing or holds none.</returns>
-    internal static IReadOnlyList<string> FindWordListFiles(string folder)
+    /// <param name="problem">Receives the problem when the folder could not be searched; otherwise null.</param>
+    /// <param name="operations">The file system operations to use; null for the real file system.</param>
+    /// <returns>The full paths of the word-list files in ordinal order; empty when the folder is missing, holds none, or could not be searched.</returns>
+    internal static IReadOnlyList<string> FindWordListFiles(string folder, out WordListDiagnostic? problem, FileOperations? operations = null)
     {
+        problem = null;
+
         // A missing folder simply has no files; the caller decides whether that is an error
         if (!Directory.Exists(folder))
         {
             return [];
         }
 
-        // Keep only files with the exact extension and fix the order
-        var files = Directory.EnumerateFiles(folder, "*", SearchOption.AllDirectories)
-            .Where(file => string.Equals(Path.GetExtension(file), FileExtension, StringComparison.Ordinal))
-            .ToList();
-        files.Sort(StringComparer.Ordinal);
-        return files;
+        // Keep only files with the exact extension and fix the order; the lazy enumeration can fail at any point
+        try
+        {
+            var files = (operations ?? FileOperations.Default).EnumerateFiles(folder)
+                .Where(file => string.Equals(Path.GetExtension(file), FileExtension, StringComparison.Ordinal))
+                .ToList();
+            files.Sort(StringComparer.Ordinal);
+            return files;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            problem = new WordListDiagnostic(folder, WordListDiagnostic.NoLine, $"the folder cannot be searched for word lists: {exception.Message}");
+            return [];
+        }
     }
 
     /// <summary>
@@ -113,12 +128,18 @@ internal static class WordListReader
     /// </summary>
     /// <remarks>
     ///     Every problem found in every file is collected, up to <see cref="MaxDiagnostics"/> in
-    ///     detail, so the author can fix a whole list in one pass. Reads the file system and
-    ///     allocates the merged set; thread-safe because it shares no state.
+    ///     detail, so the author can fix a whole list in one pass. A folder that cannot be searched is
+    ///     one such problem. Reads the file system and allocates the merged set; thread-safe because it
+    ///     shares no state.
     /// </remarks>
     /// <param name="folder">The dictionary folder. Must not be null.</param>
+    /// <param name="operations">The file system operations to use; null for the real file system.</param>
     /// <returns>The merged words and any problems; never null.</returns>
-    internal static WordListReadResult Read(string folder) => ReadFiles(FindWordListFiles(folder), folder);
+    internal static WordListReadResult Read(string folder, FileOperations? operations = null)
+    {
+        var files = FindWordListFiles(folder, out var searchProblem, operations);
+        return ReadFiles(files, folder, searchProblem);
+    }
 
     /// <summary>
     ///     Reads and merges an explicit list of word-list files.
@@ -131,11 +152,16 @@ internal static class WordListReader
     /// </remarks>
     /// <param name="files">The full paths of the files, in the order to read them. Must not be null.</param>
     /// <param name="summaryPath">The folder or file named by the cap summary diagnostic. Must not be null.</param>
+    /// <param name="earlierProblem">A problem found before the files were listed, to report first; null for none.</param>
     /// <returns>The merged words and any problems; never null.</returns>
-    internal static WordListReadResult ReadFiles(IReadOnlyList<string> files, string summaryPath)
+    internal static WordListReadResult ReadFiles(IReadOnlyList<string> files, string summaryPath, WordListDiagnostic? earlierProblem = null)
     {
         var words = new Dictionary<string, uint>(StringComparer.Ordinal);
         var problems = new ProblemLog(summaryPath);
+        if (earlierProblem is not null)
+        {
+            problems.Add(earlierProblem.Path, earlierProblem.Line, earlierProblem.Message);
+        }
 
         // Merge the files one after another; duplicates across files collapse in the dictionary
         foreach (var file in files)

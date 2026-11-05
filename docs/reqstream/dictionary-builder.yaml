@@ -143,12 +143,19 @@ sections:
       - id: DictionaryBuilder-System-AllOrNothing
         title: >-
           The builder shall change no dictionary file when any dictionary cannot be produced or any
-          dictionary file cannot be written.
+          dictionary file cannot be written, and when the file system also prevents restoring the previous
+          files it shall report that fatal condition with a distinct exit code, naming the affected files
+          and the backups that hold their previous content.
         tags: [system]
         justification: |
           The dictionaries ship together and a lookup that is correct for one dictionary but stale for
           another is a wrong result nobody can notice. A build that fails must therefore leave every
           dictionary file as it was, so that a later successful build starts from a consistent state.
+          A file system cannot be forced to undo a change, so when restoration itself fails the build
+          must say so plainly and preserve the previous content, instead of hiding an inconsistent
+          output behind an ordinary failure. The system-level test covers the failed-write guarantee;
+          the fatal report is verified by the unit tests of the child requirement, because it needs a
+          file system failure that cannot be provoked portably from outside the process.
         children:
           - DictionaryBuilder-BuilderProgram-AllOrNothing
         tests:

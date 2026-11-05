@@ -98,13 +98,57 @@ public class WordListReaderTests
         temp.CreateFile("list/upper.TXT", "x\n");
 
         // Act: find the files
-        var files = WordListReader.FindWordListFiles(temp.PathOf("list"));
+        var files = WordListReader.FindWordListFiles(temp.PathOf("list"), out var problem);
 
-        // Assert: exactly the three .txt files, sorted in ordinal order by full path
+        // Assert: exactly the three .txt files, sorted in ordinal order by full path, and no problem
+        Assert.Null(problem);
         Assert.Equal(
             [temp.PathOf("list/a.txt"), temp.PathOf("list/b.txt"), temp.PathOf("list/sub/c.txt")],
             files.Order(StringComparer.Ordinal));
         Assert.Equal(files.Order(StringComparer.Ordinal), files);
+    }
+
+    /// <summary>
+    ///     Test that a search that fails part-way is reported as a problem and yields no files.
+    /// </summary>
+    [Fact]
+    public void WordListReader_FindWordListFiles_SearchFails_ReportsProblemAndNoFiles()
+    {
+        // Arrange: a folder with lists whose search is denied after the first entry
+        using var temp = new TempDirectory();
+        temp.CreateFile("list/a.txt", "apple\n");
+        temp.CreateFile("list/b.txt", "banana\n");
+        var operations = new FaultingFileOperations { FailEnumerateFiles = _ => true };
+
+        // Act: find the files
+        var files = WordListReader.FindWordListFiles(temp.PathOf("list"), out var problem, operations);
+
+        // Assert: no files are returned and the folder is named in a no-line problem
+        Assert.Empty(files);
+        Assert.NotNull(problem);
+        Assert.Equal(temp.PathOf("list"), problem.Path);
+        Assert.Equal(WordListDiagnostic.NoLine, problem.Line);
+        Assert.Contains("cannot be searched", problem.Message);
+    }
+
+    /// <summary>
+    ///     Test that a folder whose search fails reads as a failed read, not as an empty dictionary.
+    /// </summary>
+    [Fact]
+    public void WordListReader_Read_SearchFails_ReturnsProblemAndNoWords()
+    {
+        // Arrange: a folder with lists whose search is denied
+        using var temp = new TempDirectory();
+        temp.CreateFile("list/a.txt", "apple\n");
+        var operations = new FaultingFileOperations { FailEnumerateFiles = _ => true };
+
+        // Act: read the folder
+        var result = WordListReader.Read(temp.PathOf("list"), operations);
+
+        // Assert: the result carries the problem and no words, so a caller cannot mistake it for success
+        Assert.True(result.HasProblems);
+        Assert.Empty(result.Words);
+        Assert.Equal(temp.PathOf("list"), Assert.Single(result.Diagnostics).Path);
     }
 
     /// <summary>

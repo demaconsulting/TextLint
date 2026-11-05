@@ -29,12 +29,14 @@ sections:
             title: >-
               WordListReader shall reject an entry that is longer than 64 characters, contains anything
               other than letters of the supported alphabet and internal straight apostrophes, or does not
-              start and end with a letter, and a file that is not valid UTF-8, reporting each problem with
-              its file and line, up to a cap, with a count of the problems not shown.
+              start and end with a letter, a file that is not valid UTF-8, and a folder that cannot be
+              searched, reporting each problem with its file and line (or its folder), up to a cap, with a
+              count of the problems not shown.
             justification: |
               Every word in a list ends up in the shipped dictionary, so an entry that is not a valid
               word must be found where it was written and not be silently dropped or guessed at, while a
-              hopelessly broken list must not flood the build log.
+              hopelessly broken list must not flood the build log. A folder that cannot be searched must
+              never read as an empty folder, which would silently drop its words.
             tests:
               - WordListReader_Read_SpaceInEntry_ReportsLine
               - WordListReader_Read_Digit_ReportsLine
@@ -48,6 +50,8 @@ sections:
               - WordListReader_Read_ManyProblems_CappedAtLimit
               - WordListReader_Read_ProblemsInSeveralFiles_AllReported
               - WordListReader_Read_Diagnostics_FormatAsCompilerErrors
+              - WordListReader_FindWordListFiles_SearchFails_ReportsProblemAndNoFiles
+              - WordListReader_Read_SearchFails_ReturnsProblemAndNoWords
 
           - id: DictionaryBuilder-WordListReader-Normalization
             title: >-

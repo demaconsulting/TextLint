@@ -3,7 +3,9 @@
 ### Verification Approach
 
 `WordListReader` is verified with unit tests in `WordListReaderTests.cs`. The reader works on real files, so each
-test writes its lists into its own temporary folder and calls the reader on it. The reader's one dependency,
+test writes its lists into its own temporary folder and calls the reader on it. Folder-search failures, which cannot
+be provoked portably, are injected through the `FileOperations` seam with `FaultingFileOperations` from the test
+support. The reader's one other dependency,
 `DictionaryFormat`, is used as it is; the expected merged keys and capitalization flags are written out
 literally in the tests so that a change of the fold or the classification shows up as a failing expectation.
 
@@ -36,6 +38,12 @@ order. This scenario is tested by `WordListReader_FindWordListFiles_MixedExtensi
 
 **WordListReader_Read_MissingFolder_ReturnsNoWordsAndNoProblems**: a missing folder reads as empty without a
 problem. This scenario is tested by `WordListReader_Read_MissingFolder_ReturnsNoWordsAndNoProblems`.
+
+**WordListReader_FindWordListFiles_SearchFails_ReportsProblemAndNoFiles** and
+**WordListReader_Read_SearchFails_ReturnsProblemAndNoWords**: with file operations whose search is denied after the
+first entry, the file search returns no files and a no-line problem naming the folder, and reading the folder
+returns that problem and no words, so a failed search cannot be mistaken for an empty dictionary. These scenarios
+are tested by the tests of the same names.
 
 **WordListReader_ReadFiles_ExplicitFiles_MergesOnlyThoseFiles** and
 **WordListReader_ReadFiles_NoFiles_ReturnsNoWordsAndNoProblems**: of three lists in one folder only the two named

@@ -29,13 +29,17 @@ namespace DemaConsulting.TextLint.DictionaryBuilder;
 ///     The builder runs inside the build of the library, so its contract with the build is small
 ///     and strict: exit code 0 means every file was produced; exit code 1 means the word lists or
 ///     the dictionary declarations are wrong (or the files could not be written) and no output was
-///     changed; exit code 2 means the command line was wrong. Errors go to the error stream as
-///     <c>path(line): error: message</c>, which MSBuild turns into build errors that point at the
-///     offending line. All files are produced in memory first, then staged beside their targets and
-///     installed together with a rollback, so a failure at any point can never leave a half-updated
-///     set of dictionaries, and a file whose content would not change is left untouched so that
-///     incremental builds stay incremental. The class holds no state; <see cref="Run"/> is safe to
-///     call concurrently as long as the callers use different output folders.
+///     changed; exit code 2 means the command line was wrong; exit code 3 means a write failed and the
+///     file system also prevented restoring the previous files, so the output may be inconsistent (the
+///     error stream then names the affected files and the backups that were kept). Errors go to the
+///     error stream as <c>path(line): error: message</c>, which MSBuild turns into build errors that
+///     point at the offending line. All files are produced in memory first, then staged beside their
+///     targets and installed together with a rollback, so a failed write leaves the previous set of
+///     dictionaries in place; only when the file system itself prevents the rollback is the result
+///     inconsistent, and that is then reported as a fatal condition rather than hidden. A file whose
+///     content would not change is left untouched so that incremental builds stay incremental. The
+///     class holds no state; <see cref="Run"/> is safe to call concurrently as long as the callers
+///     use different output folders.
 /// </remarks>
 internal static class BuilderProgram
 {
@@ -54,6 +58,13 @@ internal static class BuilderProgram
     ///     The exit code returned when the command line is invalid.
     /// </summary>
     internal const int ExitUsage = 2;
+
+    /// <summary>
+    ///     The exit code returned when writing the dictionary files failed and the file system also
+    ///     prevented restoring the previous files, so the output folder may be inconsistent. The error
+    ///     stream names every affected file and every backup that was kept.
+    /// </summary>
+    internal const int ExitOutputInconsistent = 3;
 
     /// <summary>
     ///     The extension of a produced dictionary file.
@@ -132,23 +143,31 @@ internal static class BuilderProgram
     /// </summary>
     /// <remarks>
     ///     Taking the streams as parameters makes the builder testable without redirecting the
-    ///     process's console. Reads the word-list folders and, on success, writes the dictionary
-    ///     files; writes progress to <paramref name="output"/> and errors to <paramref name="error"/>.
+    ///     process's console, and the optional file operations let tests provoke file system failures
+    ///     that cannot be created portably. Reads the word-list folders and, on success, writes the
+    ///     dictionary files; writes progress to <paramref name="output"/> and errors to
+    ///     <paramref name="error"/>.
     /// </remarks>
     /// <param name="args">The command-line arguments. Must not be null.</param>
     /// <param name="output">The stream that receives the summary of what was produced. Must not be null.</param>
     /// <param name="error">The stream that receives error messages. Must not be null.</param>
-    /// <returns><see cref="ExitSuccess"/>, <see cref="ExitInvalidWordLists"/>, or <see cref="ExitUsage"/>.</returns>
-    internal static int Run(string[] args, TextWriter output, TextWriter error)
+    /// <param name="operations">The file system operations to use; null for the real file system.</param>
+    /// <returns>
+    ///     <see cref="ExitSuccess"/>, <see cref="ExitInvalidWordLists"/>, <see cref="ExitUsage"/>, or
+    ///     <see cref="ExitOutputInconsistent"/>.
+    /// </returns>
+    internal static int Run(string[] args, TextWriter output, TextWriter error, FileOperations? operations = null)
     {
         // Reject a malformed command line before touching the file system
-        var options = ParseArguments(args, out var argumentProblem);
-        if (options is null)
+        var parsed = ParseArguments(args, out var argumentProblem);
+        if (parsed is null)
         {
             error.WriteLine($"DictionaryBuilder: error: {argumentProblem}");
             error.WriteLine(Usage);
             return ExitUsage;
         }
+
+        var options = operations is null ? parsed : parsed with { Operations = operations };
 
         // Read and validate every declared dictionary, collecting every problem before deciding
         var problems = new List<WordListDiagnostic>();
@@ -224,16 +243,16 @@ internal static class BuilderProgram
                 continue;
             }
 
-            // Every option takes one value that is not itself an option
+            // Every option takes one value that is present, not blank, and not itself an option
             if (argument is not (InputOption or OutputOption or TechnicalOption or VariantsOption))
             {
                 problem = $"unknown option '{argument}'";
                 return null;
             }
 
-            if (index >= args.Length || args[index].StartsWith(OptionPrefix, StringComparison.Ordinal))
+            if (index >= args.Length || string.IsNullOrWhiteSpace(args[index]) || args[index].StartsWith(OptionPrefix, StringComparison.Ordinal))
             {
-                problem = $"the option {argument} needs a value";
+                problem = $"the option {argument} needs a non-empty value";
                 return null;
             }
 
@@ -261,7 +280,7 @@ internal static class BuilderProgram
 
         // The technical declaration is all or nothing and must refer to declared dictionaries
         problem = FindTechnicalDeclarationProblem(names, technical, variants);
-        return problem is null ? new BuildOptions(Path.GetFullPath(input), Path.GetFullPath(outputFolder), names, technical, variants) : null;
+        return problem is null ? new BuildOptions(Path.GetFullPath(input), Path.GetFullPath(outputFolder), names, technical, variants, FileOperations.Default) : null;
     }
 
     /// <summary>
@@ -375,7 +394,7 @@ internal static class BuilderProgram
             }
 
             // Collect the reader's problems, and require at least one word when the lists were readable
-            var result = WordListReader.Read(folder);
+            var result = WordListReader.Read(folder, options.Operations);
             problems.AddRange(result.Diagnostics);
             ReportMissingWords(result, folder, $"dictionary '{name}'", problems);
             read[name] = new BuiltDictionary(name, result.Words, string.Empty);
@@ -389,7 +408,7 @@ internal static class BuilderProgram
                 .Where(read.ContainsKey)
                 .SelectMany(variant => read[variant].Words.Keys)
                 .ToHashSet(StringComparer.Ordinal);
-            var technical = ReadTechnicalDictionary(options.TechnicalName, folder, variantWords, problems);
+            var technical = ReadTechnicalDictionary(options.TechnicalName, folder, variantWords, options.Operations, problems);
             if (technical is not null)
             {
                 read[options.TechnicalName] = technical;
@@ -443,9 +462,10 @@ internal static class BuilderProgram
     /// <param name="name">The technical dictionary name. Must not be null.</param>
     /// <param name="folder">The technical dictionary folder. Must not be null.</param>
     /// <param name="variantWords">The folded words of the variant dictionaries. Must not be null.</param>
+    /// <param name="operations">The file system operations to use. Must not be null.</param>
     /// <param name="problems">The list that receives every problem. Must not be null.</param>
     /// <returns>The combined dictionary, or <see langword="null"/> when a problem prevented it.</returns>
-    private static BuiltDictionary? ReadTechnicalDictionary(string name, string folder, HashSet<string> variantWords, List<WordListDiagnostic> problems)
+    private static BuiltDictionary? ReadTechnicalDictionary(string name, string folder, HashSet<string> variantWords, FileOperations operations, List<WordListDiagnostic> problems)
     {
         if (!Directory.Exists(folder))
         {
@@ -459,14 +479,20 @@ internal static class BuilderProgram
         var problemsBefore = problems.Count;
 
         // Every list must be in one of the three places the rule knows about
-        foreach (var file in WordListReader.FindWordListFiles(folder).Where(file => !IsUnder(file, generalFolder) && !IsUnder(file, languageFolder) && !string.Equals(file, keepFile, StringComparison.Ordinal)))
+        var allFiles = WordListReader.FindWordListFiles(folder, out var searchProblem, operations);
+        if (searchProblem is not null)
+        {
+            problems.Add(searchProblem);
+        }
+
+        foreach (var file in allFiles.Where(file => !IsUnder(file, generalFolder) && !IsUnder(file, languageFolder) && !string.Equals(file, keepFile, StringComparison.Ordinal)))
         {
             problems.Add(new WordListDiagnostic(file, WordListDiagnostic.NoLine, $"the word list is not in the '{GeneralFolderName}' or '{LanguageFolderName}' folder and is not {KeepListFileName}"));
         }
 
         // Read the three sources; the general and language lists must each hold words, the keep list is optional
-        var general = WordListReader.Read(generalFolder);
-        var language = WordListReader.Read(languageFolder);
+        var general = WordListReader.Read(generalFolder, operations);
+        var language = WordListReader.Read(languageFolder, operations);
         var keep = WordListReader.ReadFiles(File.Exists(keepFile) ? [keepFile] : [], keepFile);
         problems.AddRange(general.Diagnostics);
         problems.AddRange(language.Diagnostics);
@@ -519,12 +545,34 @@ internal static class BuilderProgram
             return;
         }
 
-        var folders = Directory.EnumerateDirectories(options.InputFolder).ToList();
+        // List the folders; a listing failure is a problem, not a crash and not an empty input
+        List<string> folders;
+        try
+        {
+            folders = [.. options.Operations.EnumerateDirectories(options.InputFolder)];
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            problems.Add(new WordListDiagnostic(options.InputFolder, WordListDiagnostic.NoLine, $"the input folder cannot be listed: {exception.Message}"));
+            return;
+        }
+
         folders.Sort(StringComparer.Ordinal);
         foreach (var folder in folders)
         {
             var name = Path.GetFileName(folder);
-            if (!options.Names.Contains(name, StringComparer.Ordinal) && WordListReader.FindWordListFiles(folder).Count > 0)
+            if (options.Names.Contains(name, StringComparer.Ordinal))
+            {
+                continue;
+            }
+
+            // An undeclared folder is a problem when it holds word lists, or when it cannot be searched to find out
+            var lists = WordListReader.FindWordListFiles(folder, out var searchProblem, options.Operations);
+            if (searchProblem is not null)
+            {
+                problems.Add(searchProblem);
+            }
+            else if (lists.Count > 0)
             {
                 problems.Add(new WordListDiagnostic(folder, WordListDiagnostic.NoLine, $"the folder holds word lists but '{name}' is not a declared dictionary"));
             }
@@ -539,7 +587,10 @@ internal static class BuilderProgram
     ///     Then every changed file is written to a staged file beside its target; only when all of
     ///     them are written are they installed, each by moving the old file aside and the staged file
     ///     into place. If any step fails, the files already installed are removed or restored from
-    ///     their backups and the staged files are deleted, so the output folder ends as it began. Not
+    ///     their backups and the staged files are deleted, so the output folder ends as it began. If
+    ///     the file system also prevents that restoration, the run reports a fatal condition with its
+    ///     own exit code, names every file left inconsistent and every backup that was kept, and
+    ///     deletes none of those backups. Not
     ///     rewriting an identical file keeps its timestamp, so an incremental build that uses the
     ///     files as outputs does not see a change. File system failures are reported as errors rather
     ///     than thrown. Writes the file system.
@@ -548,7 +599,7 @@ internal static class BuilderProgram
     /// <param name="files">The files to write. Must not be null.</param>
     /// <param name="output">The stream that receives the summary lines. Must not be null.</param>
     /// <param name="error">The stream that receives error messages. Must not be null.</param>
-    /// <returns><see cref="ExitSuccess"/> or <see cref="ExitInvalidWordLists"/>.</returns>
+    /// <returns><see cref="ExitSuccess"/>, <see cref="ExitInvalidWordLists"/>, or <see cref="ExitOutputInconsistent"/>.</returns>
     private static int WriteFiles(BuildOptions options, List<OutputFile> files, TextWriter output, TextWriter error)
     {
         var staged = new List<StagedFile>();
@@ -574,12 +625,29 @@ internal static class BuilderProgram
                     continue;
                 }
 
-                var stagedFile = new StagedFile(path);
+                var stagedFile = new StagedFile(path, options.Operations);
                 staged.Add(stagedFile);
                 File.WriteAllBytes(stagedFile.StagedPath, file.Content);
             }
 
-            Install(staged);
+            // Install them together; a failure is rolled back, and a rollback that fails is a fatal report
+            var failure = Install(staged, out var inconsistencies);
+            if (inconsistencies.Count > 0)
+            {
+                error.WriteLine($"{options.OutputFolder}: error: the dictionary files cannot be written ({failure?.Message}) and the previous files could not be restored; the output folder is inconsistent");
+                foreach (var inconsistency in inconsistencies)
+                {
+                    error.WriteLine(inconsistency);
+                }
+
+                return ExitOutputInconsistent;
+            }
+
+            if (failure is not null)
+            {
+                error.WriteLine($"{options.OutputFolder}: error: the dictionary files cannot be written: {failure.Message}");
+                return ExitInvalidWordLists;
+            }
 
             // Report what happened to each file
             foreach (var file in files)
@@ -622,14 +690,20 @@ internal static class BuilderProgram
     /// </summary>
     /// <remarks>
     ///     Each existing target is moved aside to a backup before the staged file takes its place.
-    ///     On failure the files installed so far are put back in reverse order (the new file is
-    ///     deleted and the backup restored); the original exception then propagates. The backups are
+    ///     On failure the files touched so far are put back in reverse order (the new file is deleted
+    ///     and the backup restored). If the file system prevents a restoration, the description of
+    ///     what is left behind, including where the backup remains, is returned in
+    ///     <paramref name="inconsistencies"/> and that backup is never deleted. The backups are
     ///     deleted on success, on a best-effort basis, because a leftover backup is harmless and must
-    ///     not turn a completed installation into a reported failure. Writes the file system.
+    ///     not turn a completed installation into a reported failure. An exception that is not a file
+    ///     system failure is rethrown after a clean rollback. Writes the file system.
     /// </remarks>
     /// <param name="staged">The staged files to install. Must not be null.</param>
-    private static void Install(List<StagedFile> staged)
+    /// <param name="inconsistencies">Receives one description per file that could not be restored; empty when the previous state is intact.</param>
+    /// <returns>The failure that stopped the installation, or <see langword="null"/> when every file was installed.</returns>
+    private static Exception? Install(List<StagedFile> staged, out List<string> inconsistencies)
     {
+        inconsistencies = [];
         try
         {
             foreach (var file in staged)
@@ -637,21 +711,32 @@ internal static class BuilderProgram
                 file.MoveIntoPlace();
             }
         }
-        catch
+        catch (Exception exception)
         {
-            // Put the output folder back as it was, then report the original failure
+            // Put the output folder back as it was, and remember every file that could not be put back
             for (var i = staged.Count - 1; i >= 0; i--)
             {
-                staged[i].Rollback();
+                var unresolved = staged[i].Rollback();
+                if (unresolved is not null)
+                {
+                    inconsistencies.Add(unresolved);
+                }
             }
 
-            throw;
+            if (inconsistencies.Count == 0 && exception is not (IOException or UnauthorizedAccessException))
+            {
+                throw;
+            }
+
+            return exception;
         }
 
         foreach (var file in staged)
         {
             file.DeleteBackup();
         }
+
+        return null;
     }
 
     /// <summary>
@@ -679,12 +764,14 @@ internal static class BuilderProgram
     /// <param name="Names">The declared dictionary names, in command-line order.</param>
     /// <param name="TechnicalName">The declared dictionary that is the technical dictionary, or null.</param>
     /// <param name="VariantNames">The declared dictionaries whose words are spelling variants; empty when there is no technical dictionary.</param>
+    /// <param name="Operations">The file system operations to use.</param>
     private sealed record BuildOptions(
         string InputFolder,
         string OutputFolder,
         IReadOnlyList<string> Names,
         string? TechnicalName,
-        IReadOnlyList<string> VariantNames);
+        IReadOnlyList<string> VariantNames,
+        FileOperations Operations);
 
     /// <summary>
     ///     An output file that is written beside its target and then installed in place of it.
@@ -700,6 +787,11 @@ internal static class BuilderProgram
         ///     The path of the backup of the original file while it is being replaced.
         /// </summary>
         private readonly string _backupPath;
+
+        /// <summary>
+        ///     The file system operations to use.
+        /// </summary>
+        private readonly FileOperations _operations;
 
         /// <summary>
         ///     The path of the target file.
@@ -724,10 +816,12 @@ internal static class BuilderProgram
         ///     leftovers from colliding.
         /// </remarks>
         /// <param name="targetPath">The full path of the file to replace. Must not be null.</param>
-        public StagedFile(string targetPath)
+        /// <param name="operations">The file system operations to use. Must not be null.</param>
+        public StagedFile(string targetPath, FileOperations operations)
         {
             var token = Guid.NewGuid().ToString("N");
             _targetPath = targetPath;
+            _operations = operations;
             StagedPath = $"{targetPath}.{token}{StagedExtension}";
             _backupPath = $"{targetPath}.{token}{BackupExtension}";
         }
@@ -744,36 +838,54 @@ internal static class BuilderProgram
         {
             if (File.Exists(_targetPath))
             {
-                File.Move(_targetPath, _backupPath);
+                _operations.Move(_targetPath, _backupPath);
                 _backedUp = true;
             }
 
-            File.Move(StagedPath, _targetPath);
+            _operations.Move(StagedPath, _targetPath);
             _installed = true;
         }
 
         /// <summary>
-        ///     Undoes whatever part of the installation was done; best effort, never throws.
+        ///     Undoes whatever part of the installation was done, and says so when it cannot.
         /// </summary>
-        public void Rollback()
+        /// <remarks>
+        ///     Never throws. When the new file cannot be deleted the original cannot be put back
+        ///     either, so it stays in its backup; when the original cannot be moved back it also stays
+        ///     in its backup. In both cases the backup is kept and named in the returned description.
+        /// </remarks>
+        /// <returns>A description of the file's inconsistent state in the compiler's error format, or <see langword="null"/> when the previous state was restored.</returns>
+        public string? Rollback()
         {
-            try
+            if (_installed)
             {
-                if (_installed)
+                try
                 {
-                    File.Delete(_targetPath);
+                    _operations.Delete(_targetPath);
                     _installed = false;
                 }
-
-                if (_backedUp)
+                catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
                 {
-                    File.Move(_backupPath, _targetPath);
-                    _backedUp = false;
+                    return _backedUp
+                        ? $"{_targetPath}: error: it holds the new content and could not be deleted ({exception.Message}); the previous content is kept in the backup '{_backupPath}'"
+                        : $"{_targetPath}: error: it holds the new content and could not be deleted ({exception.Message}); it did not exist before";
                 }
+            }
+
+            if (!_backedUp)
+            {
+                return null;
+            }
+
+            try
+            {
+                _operations.Move(_backupPath, _targetPath);
+                _backedUp = false;
+                return null;
             }
             catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
             {
-                // A failed rollback cannot be improved on; the original failure is what gets reported
+                return $"{_targetPath}: error: the previous content could not be restored ({exception.Message}); it is kept in the backup '{_backupPath}'";
             }
         }
 
@@ -791,11 +903,11 @@ internal static class BuilderProgram
         ///     Deletes a file, ignoring file system errors.
         /// </summary>
         /// <param name="path">The file to delete. Must not be null.</param>
-        private static void DeleteQuietly(string path)
+        private void DeleteQuietly(string path)
         {
             try
             {
-                File.Delete(path);
+                _operations.Delete(path);
             }
             catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
             {

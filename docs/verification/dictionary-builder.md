@@ -21,7 +21,9 @@ output folder by the test project, so no repository root has to be located.
 ## Acceptance Criteria
 
 - All system tests pass with zero failures on every supported platform.
-- The exit code is 0 for valid lists, 1 for invalid lists or declarations, and 2 for an invalid command line.
+- The exit code is 0 for valid lists, 1 for invalid lists or declarations, and 2 for an invalid command line. The
+  fatal exit code 3, for a write failure whose restoration also fails, needs an injected file system failure and
+  is verified by the unit tests of `BuilderProgram`.
 - No dictionary file exists after a run that reported a problem.
 - Every entry of every committed word list is found in the dictionary built from it, except the stripped
   spelling variants of the technical dictionary, which are not found.

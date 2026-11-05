@@ -41,11 +41,20 @@ public class BuilderProgramTests
     /// </summary>
     /// <param name="arguments">The command-line arguments.</param>
     /// <returns>The exit code, standard output text, and standard error text.</returns>
-    private static (int ExitCode, string Output, string Error) Execute(params string[] arguments)
+    private static (int ExitCode, string Output, string Error) Execute(params string[] arguments) =>
+        ExecuteWith(null, arguments);
+
+    /// <summary>
+    ///     Runs the builder in-process with substituted file operations and captures its exit code and both streams.
+    /// </summary>
+    /// <param name="operations">The file operations to use; null for the real file system.</param>
+    /// <param name="arguments">The command-line arguments.</param>
+    /// <returns>The exit code, standard output text, and standard error text.</returns>
+    private static (int ExitCode, string Output, string Error) ExecuteWith(FileOperations? operations, params string[] arguments)
     {
         using var output = new StringWriter();
         using var error = new StringWriter();
-        var exitCode = BuilderProgram.Run(arguments, output, error);
+        var exitCode = BuilderProgram.Run(arguments, output, error, operations);
         return (exitCode, output.ToString(), error.ToString());
     }
 
@@ -573,5 +582,219 @@ public class BuilderProgramTests
         // Assert: success, with tokenizer stripped as well
         Assert.Equal(BuilderProgram.ExitSuccess, exitCode);
         Assert.Equal(["color", "grey", "kubernetes", "void"], new TldReader(File.ReadAllBytes(temp.PathOf("out/technical.tld"))).Words);
+    }
+
+    /// <summary>
+    ///     Test that an empty or blank option value is a usage error and creates nothing.
+    /// </summary>
+    /// <param name="option">The option that is given an empty value.</param>
+    /// <param name="value">The empty or blank value.</param>
+    [Theory]
+    [InlineData("--input", "")]
+    [InlineData("--output", "")]
+    [InlineData("--output", "   ")]
+    [InlineData("--technical", "")]
+    [InlineData("--variants", " ")]
+    public void BuilderProgram_Run_EmptyOptionValue_ReturnsUsageError(string option, string value)
+    {
+        // Arrange: valid lists, with one option given an empty value (the output folder is the one that must never default to the working folder)
+        using var temp = new TempDirectory();
+        var input = CreateValidInput(temp);
+        var arguments = new List<string> { "--input", input, "--output", temp.PathOf("out"), "alpha" };
+        var index = arguments.IndexOf(option);
+        if (index >= 0)
+        {
+            arguments[index + 1] = value;
+        }
+        else
+        {
+            arguments.AddRange([option, value]);
+        }
+
+        // Act: run the builder
+        var (exitCode, _, error) = Execute([.. arguments]);
+
+        // Assert: exit code 2, the option is named, and nothing was created
+        Assert.Equal(BuilderProgram.ExitUsage, exitCode);
+        Assert.Contains($"{option} needs a non-empty value", error);
+        Assert.False(Directory.Exists(temp.PathOf("out")));
+    }
+
+    /// <summary>
+    ///     Creates two dictionaries, builds the first, and then prepares a change that needs both files written.
+    /// </summary>
+    /// <param name="temp">The temporary directory to work in.</param>
+    /// <returns>The input folder, the path of the first output file, and the first output file's original bytes.</returns>
+    private static (string Input, string AlphaFile, byte[] OriginalBytes) PrepareChangedFirstAndNewSecond(TempDirectory temp)
+    {
+        temp.CreateFile("input/alpha/words.txt", "apple\n");
+        var input = temp.PathOf("input");
+        Execute("--input", input, "--output", temp.PathOf("out"), "alpha");
+        var alphaFile = temp.PathOf("out/alpha.tld");
+        var original = File.ReadAllBytes(alphaFile);
+        temp.CreateFile("input/alpha/words.txt", "apple\nbanana\n");
+        temp.CreateFile("input/beta/words.txt", "cherry\n");
+        return (input, alphaFile, original);
+    }
+
+    /// <summary>
+    ///     Test that a failure while installing the second file restores the first file's previous content.
+    /// </summary>
+    [Fact]
+    public void BuilderProgram_Run_InstallFails_RestoresPreviousFiles()
+    {
+        // Arrange: a changed first file and a second file whose installation fails
+        using var temp = new TempDirectory();
+        var (input, alphaFile, original) = PrepareChangedFirstAndNewSecond(temp);
+        var operations = new FaultingFileOperations { FailMove = (source, destination) => source.EndsWith(".tmp", StringComparison.Ordinal) && destination.EndsWith("beta.tld", StringComparison.Ordinal) };
+
+        // Act: build both dictionaries
+        var (exitCode, _, error) = ExecuteWith(operations, "--input", input, "--output", temp.PathOf("out"), "alpha", "beta");
+
+        // Assert: an ordinary failure, the first file has its original content, and nothing else is left
+        Assert.Equal(BuilderProgram.ExitInvalidWordLists, exitCode);
+        Assert.Contains("the dictionary files cannot be written", error);
+        Assert.DoesNotContain("inconsistent", error);
+        Assert.Equal(original, File.ReadAllBytes(alphaFile));
+        Assert.Equal(["alpha.tld"], Directory.GetFileSystemEntries(temp.PathOf("out")).Select(Path.GetFileName));
+    }
+
+    /// <summary>
+    ///     Test that a failure to restore a backup is reported as a distinct fatal condition and keeps the backup.
+    /// </summary>
+    [Fact]
+    public void BuilderProgram_Run_RestoreFails_ReportsInconsistentOutputAndKeepsBackup()
+    {
+        // Arrange: the second installation fails, and the first file's backup cannot be moved back
+        using var temp = new TempDirectory();
+        var (input, alphaFile, original) = PrepareChangedFirstAndNewSecond(temp);
+        var operations = new FaultingFileOperations
+        {
+            FailMove = (source, destination) =>
+                (source.EndsWith(".tmp", StringComparison.Ordinal) && destination.EndsWith("beta.tld", StringComparison.Ordinal)) ||
+                (source.EndsWith(".bak", StringComparison.Ordinal) && destination.EndsWith("alpha.tld", StringComparison.Ordinal))
+        };
+
+        // Act: build both dictionaries
+        var (exitCode, _, error) = ExecuteWith(operations, "--input", input, "--output", temp.PathOf("out"), "alpha", "beta");
+
+        // Assert: the fatal exit code, the file and its backup are named, and the backup still holds the original
+        Assert.Equal(BuilderProgram.ExitOutputInconsistent, exitCode);
+        Assert.Contains("the output folder is inconsistent", error);
+        Assert.Contains($"{alphaFile}: error: the previous content could not be restored", error);
+        var backup = Assert.Single(Directory.GetFiles(temp.PathOf("out"), "*.bak"));
+        Assert.Contains(backup, error);
+        Assert.Equal(original, File.ReadAllBytes(backup));
+        Assert.Empty(Directory.GetFiles(temp.PathOf("out"), "*.tmp"));
+    }
+
+    /// <summary>
+    ///     Test that a failure to delete a newly installed file is reported as a distinct fatal condition and keeps the backup.
+    /// </summary>
+    [Fact]
+    public void BuilderProgram_Run_NewFileCannotBeDeleted_ReportsInconsistentOutputAndKeepsBackup()
+    {
+        // Arrange: the second installation fails, and the first file's new content cannot be deleted
+        using var temp = new TempDirectory();
+        var (input, alphaFile, original) = PrepareChangedFirstAndNewSecond(temp);
+        var operations = new FaultingFileOperations
+        {
+            FailMove = (source, destination) => source.EndsWith(".tmp", StringComparison.Ordinal) && destination.EndsWith("beta.tld", StringComparison.Ordinal),
+            FailDelete = path => string.Equals(path, alphaFile, StringComparison.Ordinal)
+        };
+
+        // Act: build both dictionaries
+        var (exitCode, _, error) = ExecuteWith(operations, "--input", input, "--output", temp.PathOf("out"), "alpha", "beta");
+
+        // Assert: the fatal exit code, the file holds the new content, and the backup that keeps the original is named
+        Assert.Equal(BuilderProgram.ExitOutputInconsistent, exitCode);
+        Assert.Contains($"{alphaFile}: error: it holds the new content and could not be deleted", error);
+        var backup = Assert.Single(Directory.GetFiles(temp.PathOf("out"), "*.bak"));
+        Assert.Contains(backup, error);
+        Assert.Equal(original, File.ReadAllBytes(backup));
+        Assert.NotEqual(original, File.ReadAllBytes(alphaFile));
+    }
+
+    /// <summary>
+    ///     Test that a dictionary folder whose search fails is reported by name and nothing is written.
+    /// </summary>
+    [Fact]
+    public void BuilderProgram_Run_FolderCannotBeSearched_ReturnsOneNamingFolder()
+    {
+        // Arrange: valid lists whose folder search is denied
+        using var temp = new TempDirectory();
+        var input = CreateValidInput(temp);
+        var folder = temp.PathOf("input/alpha");
+        var operations = new FaultingFileOperations { FailEnumerateFiles = path => string.Equals(path, folder, StringComparison.Ordinal) };
+
+        // Act: build
+        var (exitCode, _, error) = ExecuteWith(operations, "--input", input, "--output", temp.PathOf("out"), "alpha");
+
+        // Assert: exit code 1, the folder is named, and no output exists
+        Assert.Equal(BuilderProgram.ExitInvalidWordLists, exitCode);
+        Assert.Contains($"{folder}: error: the folder cannot be searched for word lists", error);
+        Assert.False(Directory.Exists(temp.PathOf("out")));
+    }
+
+    /// <summary>
+    ///     Test that an input folder that cannot be listed is reported and nothing is written.
+    /// </summary>
+    [Fact]
+    public void BuilderProgram_Run_InputFolderCannotBeListed_ReturnsOne()
+    {
+        // Arrange: valid lists whose input folder cannot be listed
+        using var temp = new TempDirectory();
+        var input = CreateValidInput(temp);
+        var operations = new FaultingFileOperations { FailEnumerateDirectories = _ => true };
+
+        // Act: build
+        var (exitCode, _, error) = ExecuteWith(operations, "--input", input, "--output", temp.PathOf("out"), "alpha");
+
+        // Assert: exit code 1 and the input folder is named
+        Assert.Equal(BuilderProgram.ExitInvalidWordLists, exitCode);
+        Assert.Contains($"{input}: error: the input folder cannot be listed", error);
+        Assert.False(Directory.Exists(temp.PathOf("out")));
+    }
+
+    /// <summary>
+    ///     Test that an undeclared folder that cannot be searched is reported rather than assumed empty.
+    /// </summary>
+    [Fact]
+    public void BuilderProgram_Run_UndeclaredFolderCannotBeSearched_ReturnsOneNamingFolder()
+    {
+        // Arrange: a declared dictionary and another folder whose search is denied
+        using var temp = new TempDirectory();
+        var input = CreateValidInput(temp);
+        var other = temp.PathOf("input/other");
+        Directory.CreateDirectory(other);
+        var operations = new FaultingFileOperations { FailEnumerateFiles = path => string.Equals(path, other, StringComparison.Ordinal) };
+
+        // Act: build only the declared dictionary
+        var (exitCode, _, error) = ExecuteWith(operations, "--input", input, "--output", temp.PathOf("out"), "alpha");
+
+        // Assert: exit code 1 and the unsearchable folder is named
+        Assert.Equal(BuilderProgram.ExitInvalidWordLists, exitCode);
+        Assert.Contains($"{other}: error: the folder cannot be searched for word lists", error);
+    }
+
+    /// <summary>
+    ///     Test that a technical folder whose search fails is reported and nothing is written.
+    /// </summary>
+    [Fact]
+    public void BuilderProgram_Run_TechnicalFolderCannotBeSearched_ReturnsOneNamingFolder()
+    {
+        // Arrange: the shared variant fixture with the technical folder's search denied
+        using var temp = new TempDirectory();
+        VariantFixture.Create(temp);
+        var technical = temp.PathOf("input/technical");
+        var operations = new FaultingFileOperations { FailEnumerateFiles = path => string.Equals(path, technical, StringComparison.Ordinal) };
+
+        // Act: build with the variant rule
+        var (exitCode, _, error) = ExecuteWith(operations, VariantFixture.Arguments(temp));
+
+        // Assert: exit code 1, the folder is named, and no output exists
+        Assert.Equal(BuilderProgram.ExitInvalidWordLists, exitCode);
+        Assert.Contains($"{technical}: error: the folder cannot be searched for word lists", error);
+        Assert.False(Directory.Exists(temp.PathOf("out")));
     }
 }

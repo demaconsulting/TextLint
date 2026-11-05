@@ -12,7 +12,8 @@ sections:
           - id: DictionaryBuilder-BuilderProgram-Arguments
             title: >-
               BuilderProgram shall require an input folder, an output folder, and at least one dictionary
-              name, and shall reject a missing part, an unknown option, an option without a value, a
+              name, and shall reject a missing part, an unknown option, an option without a value or with
+              an empty or blank value, a
               repeated option, a dictionary name that is repeated or is not a plain folder name, and a
               technical-dictionary declaration that is incomplete or names an undeclared dictionary, with
               a usage message, the usage exit code, and no file read or written.
@@ -20,13 +21,16 @@ sections:
               The build supplies these inputs, so a malformed command line is a mistake in the build
               definition. Names become folder and file names, so a name that could climb out of the
               input or output folder must be refused before anything is touched, and the variant rule
-              needs both the technical dictionary and the dictionaries that define the variants.
+              needs both the technical dictionary and the dictionaries that define the variants. An empty
+              value must never be accepted as the working folder, where a build would silently read or
+              write the wrong place.
             tests:
               - BuilderProgram_Run_MissingInput_ReturnsUsageError
               - BuilderProgram_Run_MissingOutput_ReturnsUsageError
               - BuilderProgram_Run_NoDictionaryNames_ReturnsUsageError
               - BuilderProgram_Run_UnknownOption_ReturnsUsageError
               - BuilderProgram_Run_OptionWithoutValue_ReturnsUsageError
+              - BuilderProgram_Run_EmptyOptionValue_ReturnsUsageError
               - BuilderProgram_Run_DuplicateOption_ReturnsUsageError
               - BuilderProgram_Run_NameWithPathSeparator_ReturnsUsageError
               - BuilderProgram_Run_DuplicateName_ReturnsUsageError
@@ -90,27 +94,41 @@ sections:
           - id: DictionaryBuilder-BuilderProgram-ErrorReporting
             title: >-
               BuilderProgram shall report every problem on the error stream as "path(line): error:
-              message" (without the line part for a problem that has no line), return the failure exit
-              code, and write no dictionary file when any problem exists.
+              message" (without the line part for a problem that has no line), including a folder that
+              cannot be searched or listed, return the failure exit code, and write no dictionary file
+              when any problem exists.
             justification: |
               MSBuild and editors turn this format into clickable errors, and the author must see every
-              problem at once. Writing nothing on failure keeps a half-updated set of dictionaries from
-              reaching the product.
+              problem at once. A folder that cannot be read must be a reported problem and never be
+              mistaken for an empty folder, which would silently drop its words from the product. Writing
+              nothing on failure keeps a half-updated set of dictionaries from reaching the product.
             tests:
               - BuilderProgram_Run_InvalidEntry_WritesNothingAndReportsFileLine
               - BuilderProgram_Run_OutputPathIsAFile_ReportsErrorAndReturnsOne
+              - BuilderProgram_Run_FolderCannotBeSearched_ReturnsOneNamingFolder
+              - BuilderProgram_Run_InputFolderCannotBeListed_ReturnsOne
+              - BuilderProgram_Run_UndeclaredFolderCannotBeSearched_ReturnsOneNamingFolder
+              - BuilderProgram_Run_TechnicalFolderCannotBeSearched_ReturnsOneNamingFolder
 
           - id: DictionaryBuilder-BuilderProgram-AllOrNothing
             title: >-
               BuilderProgram shall leave every existing dictionary file unchanged and create no new
               dictionary file, and shall leave no temporary file behind, when any dictionary file cannot
-              be written.
+              be written, and shall, when the file system also prevents restoring the previous files,
+              return a distinct exit code, name every file left inconsistent and the backup that holds its
+              previous content, and keep those backups.
             justification: |
               The dictionaries ship together, so a failure part-way through writing must not leave some
-              updated and others stale; the output folder must end as it began.
+              updated and others stale; the output folder must end as it began. When the file system
+              itself prevents restoration the guarantee cannot be kept, so the failure must be reported as
+              a fatal condition that says exactly what state each file is in and where its previous
+              content is, instead of being reported as an ordinary failure.
             tests:
               - BuilderProgram_Run_LaterOutputBlocked_LeavesEarlierOutputUntouched
               - BuilderProgram_Run_LaterOutputBlockedWithNoPriorFiles_CreatesNothing
+              - BuilderProgram_Run_InstallFails_RestoresPreviousFiles
+              - BuilderProgram_Run_RestoreFails_ReportsInconsistentOutputAndKeepsBackup
+              - BuilderProgram_Run_NewFileCannotBeDeleted_ReportsInconsistentOutputAndKeepsBackup
 
           - id: DictionaryBuilder-BuilderProgram-UnchangedOutput
             title: >-

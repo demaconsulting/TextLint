@@ -31,19 +31,22 @@ skipping blank lines and lines whose first non-blank character is `#`.
 
 **FindWordListFiles**: lists the files of a dictionary folder.
 
-- _Parameters_: the dictionary folder.
+- _Parameters_: the dictionary folder, an output for the problem found while searching, and optionally the file
+  operations to use.
 - _Returns_: the full paths of the files beneath the folder (at any depth) whose extension is exactly `.txt`,
-  sorted in ordinal order; empty when the folder does not exist.
+  sorted in ordinal order; empty when the folder does not exist, holds none, or could not be searched.
 - _Postconditions_: the extension test is ordinal and case-sensitive and the sort is ordinal, so the same files
-  are found in the same order on every operating system.
+  are found in the same order on every operating system. A search that fails (access denied or an I/O error,
+  possibly part-way through the lazy enumeration) yields no files and sets the problem output, so a failed search
+  can never be mistaken for an empty folder; the callers add that problem to their diagnostics.
 
 **Read**: reads and merges the files of a dictionary folder.
 
-- _Parameters_: the dictionary folder.
+- _Parameters_: the dictionary folder and optionally the file operations to use.
 - _Returns_: a `WordListReadResult`.
 - _Postconditions_: every problem in every file has been counted; the first 100 are kept in detail, followed by
   one summary diagnostic that states how many more were not shown, so a hopelessly broken list cannot flood the
-  build log.
+  build log. A folder that could not be searched is the first problem of the result.
 
 **ReadFiles**: the same merge over an explicit list of files, used when the files of one dictionary come from
 several places (the technical dictionary reads its general lists, its language lists, and its keep list
@@ -62,8 +65,9 @@ output.
 
 ### Error Handling
 
-Invalid entries, files that are not valid UTF-8, and files that cannot be read (an I/O or access error) are
-collected as diagnostics and never thrown, so the caller can report all of them at once. A missing folder is
+Invalid entries, files that are not valid UTF-8, files that cannot be read, and folders that cannot be searched
+(each an I/O or access error) are collected as diagnostics and never thrown, so the caller can report all of them
+at once. A missing folder is
 not a problem for the reader: it simply has no files, and the caller decides that this is an error. Null
 arguments are programming errors and are not defended against.
 
@@ -71,7 +75,8 @@ arguments are programming errors and are not defended against.
 
 - **DictionaryFormat** - the alphabet test, the fold, the maximum word length, and the capitalization
   classification.
-- **.NET BCL** - file system access, strict UTF-8 decoding, and collections.
+- **.NET BCL** - file system access, strict UTF-8 decoding, and collections. The folder search goes through
+  `FileOperations` (part of the _BuilderProgram_ unit), so tests can make it fail.
 
 ### Callers
 

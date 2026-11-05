@@ -45,7 +45,7 @@ package TextLint {
 }
 
 // The DictionaryBuilder is a third system: the build-time converter that turns the word lists into
-// the binary dictionary files the library embeds. Its four units sit directly under the system, so
+// the binary dictionary files the library embeds. Its five units sit directly under the system, so
 // the one view shows all of them.
 package DictionaryBuilder {
     view DictionaryBuilderView {

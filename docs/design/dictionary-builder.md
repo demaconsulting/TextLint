@@ -58,7 +58,9 @@ below and in the _VariantFilter_ design.
   dictionary, and each `--variants` names a declared dictionary whose words are regional spelling variants
   (the American-only and the British-only dictionaries); the two options must be given together.
 - _Constraints_: exit code 0 on success, 1 when the word lists or the declarations are invalid or the files
-  cannot be written (nothing is changed), 2 when the command line is invalid.
+  cannot be written (nothing is changed), 2 when the command line is invalid (including an option with an
+  empty value), and 3 when a write failed and the file system also prevented restoring the previous files,
+  so the output may be inconsistent (a fatal condition, reported with the affected files and the backups).
 
 **Word Lists**: the input data.
 
@@ -86,7 +88,8 @@ apply the variant rule; the rule is applied here, when the technical dictionary 
 - _Contract_: the layout defined in the _DictionaryFormat_ design. The files are deterministic and
   contain no timestamp or machine data.
 - _Constraints_: a file whose content would not change is not rewritten; either every changed file is
-  installed or none is.
+  installed or none is, except when the file system prevents the restoration after a failed write, which is a
+  reported fatal condition and never silent.
 
 **Standard Output and Standard Error**: progress and diagnostics.
 
@@ -97,7 +100,8 @@ apply the variant rule; the rule is applied here, when the technical dictionary 
   spelling variants were kept through language lists, kept through the reviewed list, and stripped.
   Standard error receives each problem as `path(line): error: message`, or `path: error: message` when the
   problem has no line, which MSBuild and editors turn into clickable errors.
-- _Constraints_: on any problem the output folder is left as it was.
+- _Constraints_: on any problem the output folder is left as it was; if it cannot be left as it was, the
+  error stream says so, names every affected file, and names every backup that holds a previous version.
 
 ## Dependencies
 
@@ -129,8 +133,10 @@ change any output when a problem exists protect the data quality of the product,
 6. If any problem was collected, all of them are written to standard error and the run ends with exit
    code 1, having written nothing.
 7. Otherwise `DictionaryWriter` serializes each set in memory. `BuilderProgram` stages each changed file
-   beside its target, installs them together (restoring the previous state if any step fails), prints the
-   summary lines, and ends with exit code 0.
+   beside its target and installs them together. If an installation step fails, the files already installed are
+   restored and the run ends with exit code 1. If the restoration itself fails, the backups that hold the
+   previous versions are kept, the affected files and backups are reported, and the run ends with exit code 3.
+   When every file is installed the summary lines are printed and the run ends with exit code 0.
 
 ## Design Constraints
 
@@ -140,7 +146,16 @@ change any output when a problem exists protect the data quality of the product,
   than culture-sensitive library behavior, byte order is fixed, padding is zero, and nothing
   machine-dependent is written.
 - All-or-nothing: every file is produced in memory before any file is written, and the files are then
-  installed together with a rollback, so a failure never leaves a half-updated set of dictionaries.
+  installed together with a rollback, so a failed write leaves the previous set of dictionaries in place.
+  The guarantee is stated honestly: a file system cannot be made to undo anything on demand, so when the
+  rollback itself fails (for example a backup cannot be moved back, or a newly installed file cannot be
+  deleted) the builder does not pretend otherwise. It keeps the backups, ends with a distinct exit code, and
+  names every file left inconsistent and the backup that holds its previous version, so the build fails
+  loudly and the maintainer can restore by hand.
+- File system seam: the few file system calls whose failures cannot be provoked portably in tests (searching
+  folders, moving files, and deleting files) go through one small class, `FileOperations`, which production
+  code uses in its real form and tests replace with a version that fails on demand. It is part of the
+  `BuilderProgram` unit.
 - Strictness: the builder rejects what it does not understand instead of guessing, because the lists
   are edited by hand and imported from third-party sources and a silent skip would be a wrong dictionary
   in the product.

@@ -399,6 +399,7 @@ reviews:
       - "docs/design/dictionary-builder/builder-program.md"
       - "docs/verification/dictionary-builder/builder-program.md"
       - "src/**/BuilderProgram.cs"
+      - "src/**/FileOperations.cs"
       - "test/**/BuilderProgramTests.cs"
 
   # DictionaryBuilder - WordListReader

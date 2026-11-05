@@ -4,9 +4,13 @@
 
 `BuilderProgram` is verified with unit tests in `BuilderProgramTests.cs`. The tests call `BuilderProgram.Run`
 in-process with `StringWriter` instances for the output and error streams, so no process is started and the
-console is not touched. The unit's dependencies, `WordListReader` and `DictionaryWriter`, are used as they are
-and not replaced by doubles, because the behavior under test (which dictionaries are produced and which problems
-are reported) is their combined effect; each test works with real, temporary folders.
+console is not touched. The unit's dependencies, `WordListReader`, `VariantFilter`, and `DictionaryWriter`, are used
+as they are and not replaced by doubles, because the behavior under test (which dictionaries are produced and
+which problems are reported) is their combined effect; each test works with real, temporary folders. The one
+substitution is the unit's own file system seam, `FileOperations`: failures that cannot be provoked portably
+(a denied folder, a locked file, a backup that cannot be moved back) are injected with `FaultingFileOperations`
+from the test support, which performs every other operation for real, so the effect of an injected failure is
+observed on a real output folder.
 
 ### Test Environment
 
@@ -15,9 +19,13 @@ N/A - standard test environment. Each test creates and removes its own temporary
 ### Acceptance Criteria
 
 - All unit tests pass with zero failures.
-- Every malformed command line returns the usage exit code, prints the usage text, and creates no file.
+- Every malformed command line, including an option with an empty or blank value, returns the usage exit code,
+  prints the usage text, and creates no file.
 - Valid lists return exit code 0 and one file per declared name.
-- Any problem returns exit code 1, names its file or folder, and leaves the output folder uncreated.
+- Any problem, including a folder that cannot be searched, returns exit code 1, names its file or folder, and
+  leaves the output folder uncreated.
+- A failed write restores the previous files; when the restoration itself fails, exit code 3 is returned, every
+  inconsistent file and its backup are named, and the backups still hold the previous content.
 - An unchanged file keeps its timestamp and a changed one is rewritten.
 
 ### Test Scenarios
@@ -101,6 +109,34 @@ folder. This scenario is tested by `BuilderProgram_Run_LaterOutputBlocked_Leaves
 **BuilderProgram_Run_LaterOutputBlockedWithNoPriorFiles_CreatesNothing**: with no earlier output, a blocked second
 file leaves the first file uncreated. This scenario is tested by
 `BuilderProgram_Run_LaterOutputBlockedWithNoPriorFiles_CreatesNothing`.
+
+**BuilderProgram_Run_EmptyOptionValue_ReturnsUsageError**: an empty or blank value for `--input`, `--output`,
+`--technical`, or `--variants` returns the usage exit code, names the option, and creates nothing (in particular
+an empty `--output` does not fall back to the working folder). This scenario is tested by
+`BuilderProgram_Run_EmptyOptionValue_ReturnsUsageError`.
+
+**BuilderProgram_Run_InstallFails_RestoresPreviousFiles**: file operations that fail when the second staged file is
+moved into place make the run return 1 after the first file, already replaced, is restored to its original
+content, with no other file left in the output folder. This scenario is tested by
+`BuilderProgram_Run_InstallFails_RestoresPreviousFiles`.
+
+**BuilderProgram_Run_RestoreFails_ReportsInconsistentOutputAndKeepsBackup**: as above, but moving the first file's
+backup back also fails; the run returns the distinct fatal exit code 3, the error stream says the output folder is
+inconsistent and names the first file and its backup, and the backup still holds the original content. This
+scenario is tested by `BuilderProgram_Run_RestoreFails_ReportsInconsistentOutputAndKeepsBackup`.
+
+**BuilderProgram_Run_NewFileCannotBeDeleted_ReportsInconsistentOutputAndKeepsBackup**: as above, but deleting the
+first file's new content fails; the run returns exit code 3, names the file as holding the new content and names
+the backup that keeps the original, which is not deleted. This scenario is tested by
+`BuilderProgram_Run_NewFileCannotBeDeleted_ReportsInconsistentOutputAndKeepsBackup`.
+
+**BuilderProgram_Run_FolderCannotBeSearched_ReturnsOneNamingFolder**,
+**BuilderProgram_Run_InputFolderCannotBeListed_ReturnsOne**,
+**BuilderProgram_Run_UndeclaredFolderCannotBeSearched_ReturnsOneNamingFolder**, and
+**BuilderProgram_Run_TechnicalFolderCannotBeSearched_ReturnsOneNamingFolder**: injected access-denied failures while
+searching a dictionary folder, listing the input folder, searching an undeclared folder, and searching the
+technical folder are each reported as a problem naming the folder, return exit code 1, and create no output. These
+scenarios are tested by the tests of the same names.
 
 **BuilderProgram_Run_OutputPathIsAFile_ReportsErrorAndReturnsOne**: the output path is an existing file, so
 the folder cannot be created; the error names the path and the exit code is 1. This scenario is tested by
