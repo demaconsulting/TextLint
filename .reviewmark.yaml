@@ -51,6 +51,7 @@ reviews:
       - "docs/user_guide/**/*.md"
     paths:
       - requirements.yaml
+      - docs/reqstream/quality.yaml
       - docs/design/introduction.md
       - "docs/sysml2/**/*.sysml"
 
@@ -218,6 +219,8 @@ reviews:
       - "docs/verification/introduction.md"
       - "docs/verification/textlint-tool.md"
       - "test/**/IntegrationTests.cs"
+      - "test/DemaConsulting.TextLint.Tool.Tests/Runner.cs"
+      - "test/DemaConsulting.TextLint.Tool.Tests/AssemblyInfo.cs"
 
   - id: TextLintTool-Design
     title: Review that TextLintTool Design is Consistent and Complete
