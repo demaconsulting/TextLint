@@ -430,11 +430,17 @@ THE SOFTWARE.
 -----------------------------------
 
 The default list of text that is never spell-checked (URLs, email addresses, hexadecimal values, UUIDs, hashes,
-and encoded data), the patterns that recognize the in-document directives, and the word-splitting rules of the
+and encoded data), the other predefined patterns that a configuration can list (hexadecimal values and escapes,
+public keys, quoted strings, comments, here-documents, and so on), the patterns that recognize the in-document
+directives, the rule that skips strings that look like random data, and the word-splitting rules of the
 spell checker are ported from cspell-lib, a package of the cspell project,
 https://github.com/streetsidesoftware/cspell (cspell-lib 10.1.1, packages/cspell-lib). The regular expressions
 were rewritten for the .NET regular-expression engine, and the rules are implemented in new code. The copyright
 notice of cspell-lib and its MIT license follow verbatim.
+
+The patterns that exclude link targets, link reference labels, and anchors in Markdown files are ported from
+@cspell/dict-markdown 2.0.18, Copyright (c) 2017-2022 Street Side Software <support@streetsidesoftware.nl>,
+which is licensed under the MIT license that follows the list of packages in section 4.
 
 MIT License
 

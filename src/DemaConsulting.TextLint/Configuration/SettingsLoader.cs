@@ -44,8 +44,11 @@ namespace DemaConsulting.TextLint.Configuration;
 ///     checker does (see <see cref="WordTokenizer"/>), so a bad value is reported with the line and
 ///     column of the offending node. Only the keys <c>version</c>, <c>files</c>, <c>ignorePaths</c>,
 ///     <c>enableGlobDot</c>, <c>language</c>, <c>words</c>, <c>ignoreWords</c>, <c>flagWords</c>,
-///     <c>minWordLength</c>, and <c>maxFileSize</c> are supported; any other key is an error until the
-///     feature that needs it exists. The class is stateless and thread-safe.
+///     <c>minWordLength</c>, <c>maxFileSize</c>, <c>ignoreRegExpList</c>, <c>patterns</c>,
+///     <c>ignoreRandomStrings</c>, and <c>minRandomLength</c> are supported; any other key is an error until
+///     the feature that needs it exists. Patterns are parsed at load time with <see cref="PatternParser"/>,
+///     so an unsupported flag or construct, an invalid regular expression, and an unknown pattern name are
+///     reported at the entry that holds them. The class is stateless and thread-safe.
 /// </remarks>
 public static class SettingsLoader
 {
@@ -98,6 +101,41 @@ public static class SettingsLoader
     ///     The key that carries the maximum file size.
     /// </summary>
     private const string MaxFileSizeKey = "maxFileSize";
+
+    /// <summary>
+    ///     The key that carries the patterns whose matches are not checked.
+    /// </summary>
+    private const string IgnoreRegExpListKey = "ignoreRegExpList";
+
+    /// <summary>
+    ///     The key that carries the named patterns.
+    /// </summary>
+    private const string PatternsKey = "patterns";
+
+    /// <summary>
+    ///     The key that carries the switch for skipping random-looking strings.
+    /// </summary>
+    private const string IgnoreRandomStringsKey = "ignoreRandomStrings";
+
+    /// <summary>
+    ///     The key that carries the length from which a string is judged to be random.
+    /// </summary>
+    private const string MinRandomLengthKey = "minRandomLength";
+
+    /// <summary>
+    ///     The key of a named pattern that carries its name.
+    /// </summary>
+    private const string PatternNameKey = "name";
+
+    /// <summary>
+    ///     The key of a named pattern that carries its expression.
+    /// </summary>
+    private const string PatternExpressionKey = "pattern";
+
+    /// <summary>
+    ///     The key of a named pattern that carries a description, which is documentation only.
+    /// </summary>
+    private const string PatternDescriptionKey = "description";
 
     /// <summary>
     ///     The number of bytes in a kilobyte, as cspell counts them (binary multiples).
@@ -261,14 +299,51 @@ public static class SettingsLoader
             return new TextLintSettings();
         }
 
-        // Apply each key in document order so diagnostics come out in source order
+        // Apply each key in document order so diagnostics come out in source order; the names that the patterns
+        // setting defines are collected first, because ignoreRegExpList may come before it and refers to them
+        var patternNames = CollectPatternNames(mapping);
         var settings = new TextLintSettings();
         foreach (var (key, value) in mapping.Children)
         {
-            settings = MapEntry(settings, key, value, sourceName, diagnostics);
+            settings = MapEntry(settings, key, value, patternNames, sourceName, diagnostics);
         }
 
         return settings;
+    }
+
+    /// <summary>
+    ///     Collects the names that the <c>patterns</c> setting defines, without reporting any problem.
+    /// </summary>
+    /// <remarks>
+    ///     Used so that an <c>ignoreRegExpList</c> entry can refer to a pattern defined further down the file.
+    ///     A definition that is itself in error still contributes its name, so one mistake is not reported a
+    ///     second time as an unknown name. Stateless and thread-safe.
+    /// </remarks>
+    /// <param name="mapping">The top-level mapping. Must not be null.</param>
+    /// <returns>The names as written, compared ignoring letter case; empty when there are none.</returns>
+    private static HashSet<string> CollectPatternNames(YamlMappingNode mapping)
+    {
+        var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var (key, value) in mapping.Children)
+        {
+            if (key is not YamlScalarNode { Value: PatternsKey } || value is not YamlSequenceNode sequence)
+            {
+                continue;
+            }
+
+            foreach (var item in sequence.Children.OfType<YamlMappingNode>())
+            {
+                foreach (var (itemKey, itemValue) in item.Children)
+                {
+                    if (itemKey is YamlScalarNode { Value: PatternNameKey } && itemValue is YamlScalarNode { Value: { } name })
+                    {
+                        names.Add(name);
+                    }
+                }
+            }
+        }
+
+        return names;
     }
 
     /// <summary>
@@ -283,6 +358,7 @@ public static class SettingsLoader
     /// <param name="settings">The settings so far. Must not be null.</param>
     /// <param name="key">The key node. Must not be null.</param>
     /// <param name="value">The value node. Must not be null.</param>
+    /// <param name="patternNames">The names that the <c>patterns</c> setting defines. Must not be null.</param>
     /// <param name="sourceName">The name to report in diagnostics; may be null.</param>
     /// <param name="diagnostics">The list that receives any errors. Must not be null.</param>
     /// <returns>The settings with the entry applied, or unchanged when the entry is in error or null.</returns>
@@ -290,6 +366,7 @@ public static class SettingsLoader
         TextLintSettings settings,
         YamlNode key,
         YamlNode value,
+        IReadOnlySet<string> patternNames,
         string? sourceName,
         List<SettingsDiagnostic> diagnostics)
     {
@@ -313,6 +390,10 @@ public static class SettingsLoader
             FlagWordsKey => settings with { FlagWords = ReadWords(FlagWordsKey, true, value, sourceName, diagnostics) },
             MinWordLengthKey => MapMinWordLength(settings, value, sourceName, diagnostics),
             MaxFileSizeKey => MapMaxFileSize(settings, value, sourceName, diagnostics),
+            IgnoreRegExpListKey => settings with { IgnoreRegExpList = ReadIgnoreRegExpList(value, patternNames, sourceName, diagnostics) },
+            PatternsKey => settings with { Patterns = ReadNamedPatterns(value, sourceName, diagnostics) },
+            IgnoreRandomStringsKey => MapIgnoreRandomStrings(settings, value, sourceName, diagnostics),
+            MinRandomLengthKey => MapMinRandomLength(settings, value, sourceName, diagnostics),
             _ => Reject(settings, $"'{keyScalar.Value}' is not a supported setting.", key, sourceName, diagnostics),
         };
     }
@@ -369,21 +450,64 @@ public static class SettingsLoader
             return settings;
         }
 
-        // Accept only unquoted true or false
-        if (value is YamlScalarNode { Style: ScalarStyle.Plain, Value: { } text })
-        {
-            if (TrueSpellings.Contains(text))
-            {
-                return settings with { EnableGlobDot = true };
-            }
+        return TryReadBoolean(value, out var enabled)
+            ? settings with { EnableGlobDot = enabled }
+            : Reject(settings, $"Expected true or false for '{EnableGlobDotKey}'.", value, sourceName, diagnostics);
+    }
 
-            if (FalseSpellings.Contains(text))
-            {
-                return settings with { EnableGlobDot = false };
-            }
+    /// <summary>
+    ///     Applies the <c>ignoreRandomStrings</c> value, which must be a plain boolean.
+    /// </summary>
+    /// <remarks>
+    ///     Read exactly as <c>enableGlobDot</c> is. Side effects: appends to <paramref name="diagnostics"/>. Thread-safe.
+    /// </remarks>
+    /// <param name="settings">The settings so far. Must not be null.</param>
+    /// <param name="value">The value node. Must not be null.</param>
+    /// <param name="sourceName">The name to report in diagnostics; may be null.</param>
+    /// <param name="diagnostics">The list that receives any errors. Must not be null.</param>
+    /// <returns>The settings with the switch applied, or unchanged when the value is null or in error.</returns>
+    private static TextLintSettings MapIgnoreRandomStrings(
+        TextLintSettings settings,
+        YamlNode value,
+        string? sourceName,
+        List<SettingsDiagnostic> diagnostics)
+    {
+        if (IsNull(value))
+        {
+            return settings;
         }
 
-        return Reject(settings, $"Expected true or false for '{EnableGlobDotKey}'.", value, sourceName, diagnostics);
+        return TryReadBoolean(value, out var enabled)
+            ? settings with { IgnoreRandomStrings = enabled }
+            : Reject(settings, $"Expected true or false for '{IgnoreRandomStringsKey}'.", value, sourceName, diagnostics);
+    }
+
+    /// <summary>
+    ///     Reads a plain boolean from a node.
+    /// </summary>
+    /// <remarks>
+    ///     Only the YAML core spellings <c>true</c> and <c>false</c> (in lower, title, or upper case) are
+    ///     accepted. Quoted values and YAML 1.1 spellings such as <c>yes</c> are rejected rather than
+    ///     guessed at. Stateless and thread-safe.
+    /// </remarks>
+    /// <param name="value">The value node. Must not be null.</param>
+    /// <param name="result">The boolean when the method returns true; otherwise false.</param>
+    /// <returns><see langword="true"/> when the node is an unquoted true or false.</returns>
+    private static bool TryReadBoolean(YamlNode value, out bool result)
+    {
+        result = false;
+        if (value is not YamlScalarNode { Style: ScalarStyle.Plain, Value: { } text })
+        {
+            return false;
+        }
+
+        if (TrueSpellings.Contains(text))
+        {
+            result = true;
+            return true;
+        }
+
+        return FalseSpellings.Contains(text);
     }
 
     /// <summary>
@@ -507,15 +631,54 @@ public static class SettingsLoader
             return settings;
         }
 
-        // Accept only an unquoted run of digits that is at least 1 and fits an integer
-        if (value is YamlScalarNode { Style: ScalarStyle.Plain, Value: { } text } &&
-            int.TryParse(text, NumberStyles.None, CultureInfo.InvariantCulture, out var length) &&
-            length >= 1)
+        return TryReadWholeNumber(value, out var length)
+            ? settings with { MinWordLength = length }
+            : Reject(settings, $"Expected a whole number of at least 1 for '{MinWordLengthKey}'.", value, sourceName, diagnostics);
+    }
+
+    /// <summary>
+    ///     Applies the <c>minRandomLength</c> value, which must be a plain whole number of at least 1.
+    /// </summary>
+    /// <remarks>
+    ///     Read exactly as <c>minWordLength</c> is. Side effects: appends to <paramref name="diagnostics"/>. Thread-safe.
+    /// </remarks>
+    /// <param name="settings">The settings so far. Must not be null.</param>
+    /// <param name="value">The value node. Must not be null.</param>
+    /// <param name="sourceName">The name to report in diagnostics; may be null.</param>
+    /// <param name="diagnostics">The list that receives any errors. Must not be null.</param>
+    /// <returns>The settings with the length applied, or unchanged when the value is null or in error.</returns>
+    private static TextLintSettings MapMinRandomLength(
+        TextLintSettings settings,
+        YamlNode value,
+        string? sourceName,
+        List<SettingsDiagnostic> diagnostics)
+    {
+        if (IsNull(value))
         {
-            return settings with { MinWordLength = length };
+            return settings;
         }
 
-        return Reject(settings, $"Expected a whole number of at least 1 for '{MinWordLengthKey}'.", value, sourceName, diagnostics);
+        return TryReadWholeNumber(value, out var length)
+            ? settings with { MinRandomLength = length }
+            : Reject(settings, $"Expected a whole number of at least 1 for '{MinRandomLengthKey}'.", value, sourceName, diagnostics);
+    }
+
+    /// <summary>
+    ///     Reads a plain whole number of at least 1 from a node.
+    /// </summary>
+    /// <remarks>
+    ///     Accepts only an unquoted run of digits that fits an integer; quoted values, signs, and fractions
+    ///     are rejected rather than guessed at. Stateless and thread-safe.
+    /// </remarks>
+    /// <param name="value">The value node. Must not be null.</param>
+    /// <param name="number">The number when the method returns true; otherwise 0.</param>
+    /// <returns><see langword="true"/> when the node is such a number.</returns>
+    private static bool TryReadWholeNumber(YamlNode value, out int number)
+    {
+        number = 0;
+        return value is YamlScalarNode { Style: ScalarStyle.Plain, Value: { } text } &&
+               int.TryParse(text, NumberStyles.None, CultureInfo.InvariantCulture, out number) &&
+               number >= 1;
     }
 
     /// <summary>
@@ -687,6 +850,292 @@ public static class SettingsLoader
             diagnostics.Add(At(exception.Message, pattern.Start, sourceName));
             return false;
         }
+    }
+
+    /// <summary>
+    ///     Reads the <c>ignoreRegExpList</c> entries, validating each one.
+    /// </summary>
+    /// <remarks>
+    ///     Every entry is either a pattern written out, which is parsed exactly as the spell checker parses
+    ///     it, or the name of a pattern, which must be defined by the <c>patterns</c> setting or be
+    ///     predefined. An entry that could not be used is reported at its list item and not kept. See
+    ///     <see cref="ReadList"/> for the handling of a null value and of items that are not text. Side
+    ///     effects: appends to <paramref name="diagnostics"/>. Thread-safe.
+    /// </remarks>
+    /// <param name="value">The value node. Must not be null.</param>
+    /// <param name="patternNames">The names that the <c>patterns</c> setting defines. Must not be null.</param>
+    /// <param name="sourceName">The name to report in diagnostics; may be null.</param>
+    /// <param name="diagnostics">The list that receives any errors. Must not be null.</param>
+    /// <returns>The valid entries found, in order; meaningful only when no diagnostics were added.</returns>
+    private static List<string> ReadIgnoreRegExpList(
+        YamlNode value,
+        IReadOnlySet<string> patternNames,
+        string? sourceName,
+        List<SettingsDiagnostic> diagnostics) =>
+        ReadList(value, sourceName, diagnostics, entry => TryValidateIgnoreEntry(entry, patternNames, sourceName, diagnostics));
+
+    /// <summary>
+    ///     Checks that an <c>ignoreRegExpList</c> entry is a usable pattern or the name of a known pattern.
+    /// </summary>
+    /// <remarks>
+    ///     Reuses <see cref="PatternCatalog"/> and <see cref="PatternParser"/>, so load-time and check-time
+    ///     validation can never disagree. Side effects: appends to <paramref name="diagnostics"/> on failure.
+    ///     Thread-safe.
+    /// </remarks>
+    /// <param name="entry">The scalar node holding the entry. Must not be null.</param>
+    /// <param name="patternNames">The names that the <c>patterns</c> setting defines. Must not be null.</param>
+    /// <param name="sourceName">The name to report in diagnostics; may be null.</param>
+    /// <param name="diagnostics">The list that receives the error. Must not be null.</param>
+    /// <returns><see langword="true"/> when the entry is usable.</returns>
+    private static bool TryValidateIgnoreEntry(
+        YamlScalarNode entry,
+        IReadOnlySet<string> patternNames,
+        string? sourceName,
+        List<SettingsDiagnostic> diagnostics)
+    {
+        var text = entry.Value!;
+        string? problem;
+        if (PatternCatalog.IsNameShaped(text))
+        {
+            problem = PatternCatalog.CheckReference(text, patternNames);
+        }
+        else
+        {
+            problem = TryParsePattern(text);
+        }
+
+        if (problem is null)
+        {
+            return true;
+        }
+
+        diagnostics.Add(At($"Cannot use the '{IgnoreRegExpListKey}' entry '{text}': {problem}", entry.Start, sourceName));
+        return false;
+    }
+
+    /// <summary>
+    ///     Parses a pattern and returns the reason it cannot be used, if any.
+    /// </summary>
+    /// <remarks>
+    ///     Converts the parser's exception into data, because a bad pattern in a settings file is expected
+    ///     input that is reported with a position, not an error of the program. Stateless and thread-safe.
+    /// </remarks>
+    /// <param name="pattern">The pattern text. Must not be null.</param>
+    /// <returns>The reason as a sentence; null when the pattern is usable.</returns>
+    private static string? TryParsePattern(string pattern)
+    {
+        try
+        {
+            _ = PatternParser.Parse(pattern);
+            return null;
+        }
+        catch (InvalidPatternException exception)
+        {
+            return exception.Reason;
+        }
+    }
+
+    /// <summary>
+    ///     Reads the <c>patterns</c> list, a list of mappings that each hold a name and a pattern.
+    /// </summary>
+    /// <remarks>
+    ///     A null value is treated as an empty list. A value that is not a list is reported once at the
+    ///     value; an item that is not a mapping, a missing or invalid name, a name used twice, a missing or
+    ///     invalid pattern, and a key other than <c>name</c>, <c>pattern</c>, and <c>description</c> (which is
+    ///     documentation and is not kept) are each reported at the node that holds them, so every problem
+    ///     is found in one pass. Only complete, valid definitions are kept. Side effects: appends to
+    ///     <paramref name="diagnostics"/>. Thread-safe.
+    /// </remarks>
+    /// <param name="value">The value node. Must not be null.</param>
+    /// <param name="sourceName">The name to report in diagnostics; may be null.</param>
+    /// <param name="diagnostics">The list that receives any errors. Must not be null.</param>
+    /// <returns>The valid definitions found, in order; meaningful only when no diagnostics were added.</returns>
+    private static List<NamedPattern> ReadNamedPatterns(YamlNode value, string? sourceName, List<SettingsDiagnostic> diagnostics)
+    {
+        var definitions = new List<NamedPattern>();
+        if (IsNull(value))
+        {
+            return definitions;
+        }
+
+        if (value is not YamlSequenceNode sequence)
+        {
+            diagnostics.Add(At($"Expected a list of patterns, each with a '{PatternNameKey}' and a '{PatternExpressionKey}'.", value.Start, sourceName));
+            return definitions;
+        }
+
+        // Read each definition, remembering the names used so far to find a repeated one
+        var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var item in sequence.Children)
+        {
+            if (item is not YamlMappingNode definition)
+            {
+                diagnostics.Add(At($"Expected a pattern with a '{PatternNameKey}' and a '{PatternExpressionKey}'.", item.Start, sourceName));
+            }
+            else if (TryReadNamedPattern(definition, names, sourceName, diagnostics, out var pattern))
+            {
+                definitions.Add(pattern);
+            }
+        }
+
+        return definitions;
+    }
+
+    /// <summary>
+    ///     Reads one definition of the <c>patterns</c> list and validates its name and pattern.
+    /// </summary>
+    /// <remarks>
+    ///     Side effects: appends to <paramref name="diagnostics"/> and adds the name to
+    ///     <paramref name="names"/>. Thread-safe as long as the arguments are not shared.
+    /// </remarks>
+    /// <param name="definition">The mapping node of the definition. Must not be null.</param>
+    /// <param name="names">The names defined so far. Must not be null.</param>
+    /// <param name="sourceName">The name to report in diagnostics; may be null.</param>
+    /// <param name="diagnostics">The list that receives any errors. Must not be null.</param>
+    /// <param name="pattern">The definition when the method returns true.</param>
+    /// <returns><see langword="true"/> when the definition is complete and valid.</returns>
+    private static bool TryReadNamedPattern(
+        YamlMappingNode definition,
+        HashSet<string> names,
+        string? sourceName,
+        List<SettingsDiagnostic> diagnostics,
+        out NamedPattern pattern)
+    {
+        pattern = null!;
+        YamlNode? nameNode = null;
+        YamlNode? expressionNode = null;
+        var isValid = true;
+
+        // Find the two keys, reporting any other key
+        foreach (var (key, member) in definition.Children)
+        {
+            switch ((key as YamlScalarNode)?.Value)
+            {
+                case PatternNameKey:
+                    nameNode = member;
+                    break;
+                case PatternExpressionKey:
+                    expressionNode = member;
+                    break;
+                case PatternDescriptionKey:
+                    break;
+                default:
+                    diagnostics.Add(At(
+                        $"'{(key as YamlScalarNode)?.Value}' is not a supported key of a pattern; use '{PatternNameKey}' and '{PatternExpressionKey}'.",
+                        key.Start,
+                        sourceName));
+                    isValid = false;
+                    break;
+            }
+        }
+
+        // Both keys are required, and each must be text
+        if (nameNode is null)
+        {
+            diagnostics.Add(At($"A pattern needs a '{PatternNameKey}'.", definition.Start, sourceName));
+            isValid = false;
+        }
+
+        if (expressionNode is null)
+        {
+            diagnostics.Add(At($"A pattern needs a '{PatternExpressionKey}'.", definition.Start, sourceName));
+            isValid = false;
+        }
+
+        if (nameNode is null || expressionNode is null)
+        {
+            return false;
+        }
+
+        var name = ReadPatternName(nameNode, names, sourceName, diagnostics);
+        var expression = ReadPatternExpression(expressionNode, name, sourceName, diagnostics);
+        if (!isValid || name is null || expression is null)
+        {
+            return false;
+        }
+
+        pattern = new NamedPattern(name, expression);
+        return true;
+    }
+
+    /// <summary>
+    ///     Reads and validates the name of a pattern definition.
+    /// </summary>
+    /// <remarks>
+    ///     The name must be text, have the shape of a name, not be predefined, and not be defined before.
+    ///     Side effects: appends to <paramref name="diagnostics"/> and adds the name to <paramref name="names"/>.
+    ///     Thread-safe as long as the arguments are not shared.
+    /// </remarks>
+    /// <param name="node">The node holding the name. Must not be null.</param>
+    /// <param name="names">The names defined so far. Must not be null.</param>
+    /// <param name="sourceName">The name to report in diagnostics; may be null.</param>
+    /// <param name="diagnostics">The list that receives any errors. Must not be null.</param>
+    /// <returns>The name; null when it cannot be used.</returns>
+    private static string? ReadPatternName(
+        YamlNode node,
+        HashSet<string> names,
+        string? sourceName,
+        List<SettingsDiagnostic> diagnostics)
+    {
+        if (node is not YamlScalarNode { Value: { } name } || IsNull(node))
+        {
+            diagnostics.Add(At($"Expected a text value for '{PatternNameKey}'.", node.Start, sourceName));
+            return null;
+        }
+
+        var problem = PatternCatalog.CheckDefinitionName(name) ?? (names.Add(name) ? null : "a pattern with this name is already defined.");
+        if (problem is null)
+        {
+            return name;
+        }
+
+        diagnostics.Add(At($"Cannot use the pattern name '{name}': {problem}", node.Start, sourceName));
+        return null;
+    }
+
+    /// <summary>
+    ///     Reads and validates the expression of a pattern definition.
+    /// </summary>
+    /// <remarks>
+    ///     The expression must be a single text value that <see cref="PatternParser"/> accepts. A list of
+    ///     patterns, which cspell allows, is rejected with advice, because each pattern should have its own
+    ///     name. Side effects: appends to <paramref name="diagnostics"/>. Thread-safe.
+    /// </remarks>
+    /// <param name="node">The node holding the expression. Must not be null.</param>
+    /// <param name="name">The name of the pattern, for the message; may be null when the name was invalid.</param>
+    /// <param name="sourceName">The name to report in diagnostics; may be null.</param>
+    /// <param name="diagnostics">The list that receives any errors. Must not be null.</param>
+    /// <returns>The expression as written; null when it cannot be used.</returns>
+    private static string? ReadPatternExpression(
+        YamlNode node,
+        string? name,
+        string? sourceName,
+        List<SettingsDiagnostic> diagnostics)
+    {
+        if (node is YamlSequenceNode)
+        {
+            diagnostics.Add(At(
+                $"A list of patterns is not supported for '{PatternExpressionKey}'; give each pattern its own name " +
+                $"and list the names in '{IgnoreRegExpListKey}'.",
+                node.Start,
+                sourceName));
+            return null;
+        }
+
+        if (node is not YamlScalarNode { Value: { } expression } || IsNull(node))
+        {
+            diagnostics.Add(At($"Expected a text value for '{PatternExpressionKey}'.", node.Start, sourceName));
+            return null;
+        }
+
+        var problem = TryParsePattern(expression);
+        if (problem is null)
+        {
+            return expression;
+        }
+
+        diagnostics.Add(At($"Cannot use the pattern '{name ?? expression}' ('{expression}'): {problem}", node.Start, sourceName));
+        return null;
     }
 
     /// <summary>

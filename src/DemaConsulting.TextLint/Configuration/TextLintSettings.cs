@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 using System.Collections.Immutable;
+using DemaConsulting.TextLint.TextScanning;
 
 namespace DemaConsulting.TextLint.Configuration;
 
@@ -50,6 +51,11 @@ public sealed record TextLintSettings
     private const int DefaultMinWordLength = 4;
 
     /// <summary>
+    ///     The length from which a token may be judged to be random when none is configured, which is cspell's default.
+    /// </summary>
+    private const int DefaultMinRandomLength = 40;
+
+    /// <summary>
     ///     Immutable backing store for <see cref="Files"/>; <c>default</c> until first assigned.
     /// </summary>
     private readonly ImmutableArray<string> _files;
@@ -75,6 +81,16 @@ public sealed record TextLintSettings
     private readonly ImmutableArray<string> _flagWords;
 
     /// <summary>
+    ///     Immutable backing store for <see cref="IgnoreRegExpList"/>; <c>default</c> until first assigned.
+    /// </summary>
+    private readonly ImmutableArray<string> _ignoreRegExpList;
+
+    /// <summary>
+    ///     Immutable backing store for <see cref="Patterns"/>; <c>default</c> until first assigned.
+    /// </summary>
+    private readonly ImmutableArray<NamedPattern> _patterns;
+
+    /// <summary>
     ///     Backing store for <see cref="Language"/>.
     /// </summary>
     private readonly string _language = DefaultLanguage;
@@ -88,6 +104,11 @@ public sealed record TextLintSettings
     ///     Backing store for <see cref="MaxFileSize"/>.
     /// </summary>
     private readonly long _maxFileSize;
+
+    /// <summary>
+    ///     Backing store for <see cref="MinRandomLength"/>.
+    /// </summary>
+    private readonly int _minRandomLength = DefaultMinRandomLength;
 
     /// <summary>
     ///     Gets the settings schema version text from the <c>version</c> key.
@@ -108,7 +129,7 @@ public sealed record TextLintSettings
     ///     caller's list do not affect the settings, and the exposed list cannot be mutated.
     /// </remarks>
     /// <value>An immutable list of glob patterns; never <see langword="null"/>, empty by default.</value>
-    /// <exception cref="ArgumentNullException">Thrown by the setter when the assigned value is null.</exception>
+    /// <exception cref="ArgumentNullException">Thrown by the setter when the assigned value is null or holds a null entry.</exception>
     public IReadOnlyList<string> Files
     {
         // Normalize default(ImmutableArray) so an unassigned property reads as an empty list
@@ -124,7 +145,7 @@ public sealed record TextLintSettings
     ///     <see cref="Files"/>.
     /// </remarks>
     /// <value>An immutable list of glob patterns; never <see langword="null"/>, empty by default.</value>
-    /// <exception cref="ArgumentNullException">Thrown by the setter when the assigned value is null.</exception>
+    /// <exception cref="ArgumentNullException">Thrown by the setter when the assigned value is null or holds a null entry.</exception>
     public IReadOnlyList<string> IgnorePaths
     {
         // Normalize default(ImmutableArray) so an unassigned property reads as an empty list
@@ -174,7 +195,7 @@ public sealed record TextLintSettings
     ///     cannot be mutated. Entries are validated when the spell checker is created, not here.
     /// </remarks>
     /// <value>An immutable list of entries; never <see langword="null"/>, empty by default.</value>
-    /// <exception cref="ArgumentNullException">Thrown by the setter when the assigned value is null.</exception>
+    /// <exception cref="ArgumentNullException">Thrown by the setter when the assigned value is null or holds a null entry.</exception>
     public IReadOnlyList<string> Words
     {
         // Normalize default(ImmutableArray) so an unassigned property reads as an empty list
@@ -190,7 +211,7 @@ public sealed record TextLintSettings
     ///     over an accepted word. Copied and immutable, exactly as for <see cref="Words"/>.
     /// </remarks>
     /// <value>An immutable list of entries; never <see langword="null"/>, empty by default.</value>
-    /// <exception cref="ArgumentNullException">Thrown by the setter when the assigned value is null.</exception>
+    /// <exception cref="ArgumentNullException">Thrown by the setter when the assigned value is null or holds a null entry.</exception>
     public IReadOnlyList<string> IgnoreWords
     {
         // Normalize default(ImmutableArray) so an unassigned property reads as an empty list
@@ -207,7 +228,7 @@ public sealed record TextLintSettings
     ///     <c>word: one</c> attach suggestions to the entry. Copied and immutable, exactly as for <see cref="Words"/>.
     /// </remarks>
     /// <value>An immutable list of entries; never <see langword="null"/>, empty by default.</value>
-    /// <exception cref="ArgumentNullException">Thrown by the setter when the assigned value is null.</exception>
+    /// <exception cref="ArgumentNullException">Thrown by the setter when the assigned value is null or holds a null entry.</exception>
     public IReadOnlyList<string> FlagWords
     {
         // Normalize default(ImmutableArray) so an unassigned property reads as an empty list
@@ -255,6 +276,76 @@ public sealed record TextLintSettings
     }
 
     /// <summary>
+    ///     Gets the patterns (<c>ignoreRegExpList</c>) whose matches are not spell-checked, in addition to the
+    ///     default ones.
+    /// </summary>
+    /// <remarks>
+    ///     Each entry is a pattern written out, either <c>/body/flags</c> or a bare expression, or the name
+    ///     of a pattern: one that <see cref="Patterns"/> defines or one that cspell defines in advance. The default
+    ///     ignore list (URLs, email addresses, hashes, and so on) always applies and is not listed here.
+    ///     The assigned sequence is copied, so later changes to the caller's list do not affect the
+    ///     settings, and the exposed list cannot be mutated. Entries are validated when the spell checker is
+    ///     created, not here.
+    /// </remarks>
+    /// <value>An immutable list of entries; never <see langword="null"/>, empty by default.</value>
+    /// <exception cref="ArgumentNullException">Thrown by the setter when the assigned value is null or holds a null entry.</exception>
+    public IReadOnlyList<string> IgnoreRegExpList
+    {
+        // Normalize default(ImmutableArray) so an unassigned property reads as an empty list
+        get => NormalizeList(_ignoreRegExpList);
+        init => _ignoreRegExpList = CopyList(value);
+    }
+
+    /// <summary>
+    ///     Gets the named patterns (<c>patterns</c>) that <see cref="IgnoreRegExpList"/> can refer to.
+    /// </summary>
+    /// <remarks>
+    ///     A pattern is applied only when <see cref="IgnoreRegExpList"/> names it. Names are compared
+    ///     ignoring letter case and must not be the name of a predefined pattern. Copied and immutable,
+    ///     exactly as for <see cref="IgnoreRegExpList"/>; entries are validated when the spell checker is
+    ///     created, not here.
+    /// </remarks>
+    /// <value>An immutable list of named patterns; never <see langword="null"/>, empty by default.</value>
+    /// <exception cref="ArgumentNullException">Thrown by the setter when the assigned value is null or holds a null entry.</exception>
+    public IReadOnlyList<NamedPattern> Patterns
+    {
+        // Normalize default(ImmutableArray) so an unassigned property reads as an empty list
+        get => NormalizeList(_patterns);
+        init => _patterns = CopyList(value);
+    }
+
+    /// <summary>
+    ///     Gets a value indicating whether long tokens that look like random data are not spell-checked
+    ///     (<c>ignoreRandomStrings</c>).
+    /// </summary>
+    /// <remarks>
+    ///     When <see langword="true"/> (the default, as in cspell) a token of at least
+    ///     <see cref="MinRandomLength"/> characters that looks like random data, such as a key or a token,
+    ///     is skipped, and so are unknown words that lie inside a hexadecimal sequence of a token.
+    /// </remarks>
+    /// <value><see langword="true"/> to skip such text; otherwise <see langword="false"/>. Default <see langword="true"/>.</value>
+    public bool IgnoreRandomStrings { get; init; } = true;
+
+    /// <summary>
+    ///     Gets the length (<c>minRandomLength</c>) from which a token is judged to be random data or not.
+    /// </summary>
+    /// <remarks>
+    ///     A shorter token is always checked as words. Used only when <see cref="IgnoreRandomStrings"/> is
+    ///     <see langword="true"/>. Counted in UTF-16 code units, as cspell does.
+    /// </remarks>
+    /// <value>A length of at least 1; 40 by default, as in cspell.</value>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown by the setter when the assigned value is less than 1.</exception>
+    public int MinRandomLength
+    {
+        get => _minRandomLength;
+        init
+        {
+            ArgumentOutOfRangeException.ThrowIfLessThan(value, 1);
+            _minRandomLength = value;
+        }
+    }
+
+    /// <summary>
     ///     Converts a stored list to the value exposed by the property getters.
     /// </summary>
     /// <remarks>
@@ -262,10 +353,11 @@ public sealed record TextLintSettings
     ///     which throws on use; replacing it with the empty array keeps that state from leaking.
     ///     Stateless and thread-safe.
     /// </remarks>
+    /// <typeparam name="T">The type of the list entries.</typeparam>
     /// <param name="stored">The stored array, possibly the uninitialized default.</param>
     /// <returns>The stored array, or the empty array when <paramref name="stored"/> is the default.</returns>
-    private static ImmutableArray<string> NormalizeList(ImmutableArray<string> stored) =>
-        stored.IsDefault ? ImmutableArray<string>.Empty : stored;
+    private static ImmutableArray<T> NormalizeList<T>(ImmutableArray<T> stored) =>
+        stored.IsDefault ? ImmutableArray<T>.Empty : stored;
 
     /// <summary>
     ///     Takes an immutable copy of a caller-supplied sequence of list entries (patterns or words).
@@ -274,15 +366,22 @@ public sealed record TextLintSettings
     ///     Copying isolates the settings from later changes to the caller's list, which is what makes
     ///     the record immutable. Stateless and thread-safe; reads the sequence once.
     /// </remarks>
-    /// <param name="value">The sequence to copy. Must not be null.</param>
+    /// <typeparam name="T">The type of the list entries.</typeparam>
+    /// <param name="value">The sequence to copy. Must not be null, and must not hold a null entry.</param>
     /// <returns>An immutable array holding the items of <paramref name="value"/> in order.</returns>
-    /// <exception cref="ArgumentNullException">Thrown when <paramref name="value"/> is null.</exception>
-    private static ImmutableArray<string> CopyList(IEnumerable<string> value)
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="value"/> is null or holds a null entry.</exception>
+    private static ImmutableArray<T> CopyList<T>(IEnumerable<T> value)
     {
         // A null list is a programming error; failing at assignment names the cause immediately
         ArgumentNullException.ThrowIfNull(value);
 
         // Snapshot the sequence so the settings never observe later changes to it
-        return [.. value];
+        var copy = value.ToImmutableArray();
+        if (copy.Any(static entry => entry is null))
+        {
+            throw new ArgumentNullException(nameof(value), "The list must not hold a null entry.");
+        }
+
+        return copy;
     }
 }
