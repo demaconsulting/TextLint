@@ -47,7 +47,8 @@ subsystem.
 
 The library is also the consumer of a build-time system, the **DictionaryBuilder** (see the
 _DictionaryBuilder_ design). Its build runs the builder to convert the plain-text word lists under
-`dictionaries/` into four binary dictionary files, which it embeds in the assembly, and it compiles
+`dictionaries/`, and the reviewed exclusions list beside them, into four binary dictionary files, which it
+embeds in the assembly, and it compiles
 one source file of the builder, `DictionaryFormat`, so that the program that writes the dictionaries and
 the Dictionaries subsystem that reads them share one definition of the layout, the case fold, and the
 hash. The builder is not shipped and the library has no run-time dependency on it.

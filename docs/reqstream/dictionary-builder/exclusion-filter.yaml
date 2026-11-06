@@ -1,0 +1,41 @@
+---
+# Software Unit Requirements for the ExclusionFilter Class
+#
+# The ExclusionFilter unit removes the words of the reviewed exclusions list from every dictionary, so that
+# an excluded word is never known, and reports the exclusions that no dictionary has.
+
+sections:
+  - title: DictionaryBuilder Requirements
+    sections:
+      - title: ExclusionFilter Requirements
+        requirements:
+          - id: DictionaryBuilder-ExclusionFilter-RemoveExcluded
+            title: >-
+              ExclusionFilter shall remove each excluded word, in every letter case, from every dictionary
+              that has it, shall keep every other word with its capitalization forms unchanged, and shall
+              report how many words it removed from each dictionary.
+            justification: |
+              Imported word lists contain entries that hide real typos, and the project must be able to make
+              such a word unknown everywhere without editing the imported data. Every other word, and the
+              knowledge of how it was written, must survive untouched, and the counts let a person see what
+              the exclusions did.
+            tests:
+              - ExclusionFilter_Apply_ExcludedWordInSeveralDictionaries_IsRemovedFromEach
+              - ExclusionFilter_Apply_ExcludedWords_CountsRemovalsPerDictionary
+              - ExclusionFilter_Apply_NoExclusions_KeepsEveryWord
+              - ExclusionFilter_Apply_RemainingWords_KeepTheirFlags
+              - ExclusionFilter_Apply_Inputs_AreNotModified
+
+          - id: DictionaryBuilder-ExclusionFilter-UnusedExclusions
+            title: >-
+              ExclusionFilter shall report, in order, the excluded words that no dictionary has, as a result
+              that later changes to the collections it was built from cannot alter.
+            justification: |
+              An excluded word that no list contains is a stale entry, for example because a refresh stopped
+              producing the word. Reporting it keeps the reviewed list honest and short. A result that
+              claims to be fixed must not change when a caller later reuses or edits the collections it
+              passed in, or the report and the dictionaries built from it could disagree.
+            tests:
+              - ExclusionFilter_Apply_ExclusionInNoDictionary_IsReportedInOrder
+              - ExclusionFilter_Result_SourceMutatedAfterConstruction_ResultUnchanged
+              - ExclusionFilter_Result_ListsCastToMutableInterfaces_CannotBeChanged

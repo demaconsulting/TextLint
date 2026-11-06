@@ -597,6 +597,7 @@ public class BuilderProgramTests
     [InlineData("--output", "   ")]
     [InlineData("--technical", "")]
     [InlineData("--variants", " ")]
+    [InlineData("--exclusions", "")]
     public void BuilderProgram_Run_EmptyOptionValue_ReturnsUsageError(string option, string value)
     {
         // Arrange: valid lists, with one option given an empty value (the output folder is the one that must never default to the working folder)
@@ -1148,5 +1149,179 @@ public class BuilderProgramTests
         Assert.Equal(BuilderProgram.ExitInvalidWordLists, exitCode);
         Assert.Contains("the output file 'alpha.tld' is ambiguous: 'ALPHA.tld' and 'alpha.tld' differ only in letter case", error);
         Assert.False(Directory.Exists(output));
+    }
+
+    /// <summary>
+    ///     Builds the argument list of the shared variant fixture plus an exclusions list.
+    /// </summary>
+    /// <param name="temp">The temporary directory that holds the fixture.</param>
+    /// <param name="exclusions">The content of the exclusions list.</param>
+    /// <returns>The complete argument list.</returns>
+    private static string[] ExclusionArguments(TempDirectory temp, string exclusions) =>
+        [.. VariantFixture.Arguments(temp), "--exclusions", temp.CreateFile("exclusions.txt", exclusions)];
+
+    /// <summary>
+    ///     Test that an excluded word is removed from every dictionary that has it, in every letter case.
+    /// </summary>
+    [Fact]
+    public void BuilderProgram_Run_ExclusionsList_RemovesWordsFromEveryDictionary()
+    {
+        // Arrange: the variant fixture, where tokenizer is in en-US, the general list, and the keep list, and grey is in en-GB and the language list
+        using var temp = new TempDirectory();
+        VariantFixture.Create(temp);
+
+        // Act: build with an exclusions list that names the words in other letter cases
+        var (exitCode, output, error) = Execute(ExclusionArguments(temp, "# reviewed\nTOKENIZER\nGrey\n"));
+
+        // Assert: success, neither word is in any dictionary, the others are untouched, and the summary counts the removals
+        Assert.Equal(BuilderProgram.ExitSuccess, exitCode);
+        Assert.Equal(string.Empty, error);
+        Assert.Equal(["color", "favorite"], new TldReader(File.ReadAllBytes(temp.PathOf("out/en-US.tld"))).Words);
+        Assert.Equal(["colour"], new TldReader(File.ReadAllBytes(temp.PathOf("out/en-GB.tld"))).Words);
+        Assert.Equal(["color", "kubernetes", "void"], new TldReader(File.ReadAllBytes(temp.PathOf("out/technical.tld"))).Words);
+        Assert.Contains("1 excluded", output);
+    }
+
+    /// <summary>
+    ///     Test that an exclusion that is in no dictionary fails the build, names the word, and writes nothing.
+    /// </summary>
+    [Fact]
+    public void BuilderProgram_Run_ExclusionInNoDictionary_ReturnsOneNamingWord()
+    {
+        // Arrange: the variant fixture and an exclusions list with one word that no list has
+        using var temp = new TempDirectory();
+        VariantFixture.Create(temp);
+        var arguments = ExclusionArguments(temp, "tokenizer\nzebra\n");
+
+        // Act: build
+        var (exitCode, _, error) = Execute(arguments);
+
+        // Assert: exit code 1, the stale word and the exclusions file are named, and nothing was written
+        Assert.Equal(BuilderProgram.ExitInvalidWordLists, exitCode);
+        Assert.Contains("exclusions.txt: error: 'zebra' is not in any dictionary", error);
+        Assert.DoesNotContain("'tokenizer'", error);
+        Assert.False(Directory.Exists(temp.PathOf("out")));
+    }
+
+    /// <summary>
+    ///     Test that an exclusions file that does not exist fails the build, names the file, and writes nothing.
+    /// </summary>
+    [Fact]
+    public void BuilderProgram_Run_ExclusionsFileMissing_ReturnsOneNamingFile()
+    {
+        // Arrange: the variant fixture and an exclusions option that points at a file that is not there
+        using var temp = new TempDirectory();
+        VariantFixture.Create(temp);
+        var missing = temp.PathOf("missing-exclusions.txt");
+
+        // Act: build
+        var (exitCode, _, error) = Execute([.. VariantFixture.Arguments(temp), "--exclusions", missing]);
+
+        // Assert: exit code 1, the file is named as unreadable (not treated as an empty list), and nothing was written
+        Assert.Equal(BuilderProgram.ExitInvalidWordLists, exitCode);
+        Assert.Contains($"{missing}: error: the file cannot be read", error);
+        Assert.False(Directory.Exists(temp.PathOf("out")));
+    }
+
+    /// <summary>
+    ///     Test that an exclusions file that exists but cannot be read fails the build, names the file, and writes nothing.
+    /// </summary>
+    [Fact]
+    public void BuilderProgram_Run_ExclusionsFileCannotBeRead_ReturnsOneNamingFile()
+    {
+        // Arrange: the variant fixture and an existing exclusions file whose read fails, so the build must not treat it as an empty list
+        using var temp = new TempDirectory();
+        VariantFixture.Create(temp);
+        var arguments = ExclusionArguments(temp, "tokenizer\n");
+        var exclusionsFile = arguments[^1];
+        var operations = new FaultingFileOperations { FailRead = path => string.Equals(path, exclusionsFile, StringComparison.Ordinal) };
+
+        // Act: build
+        var (exitCode, _, error) = ExecuteWith(operations, arguments);
+
+        // Assert: exit code 1, the file is named as unreadable, and no dictionary was built that silently kept the excluded words
+        Assert.Equal(BuilderProgram.ExitInvalidWordLists, exitCode);
+        Assert.Contains($"{exclusionsFile}: error: the file cannot be read", error);
+        Assert.False(Directory.Exists(temp.PathOf("out")));
+    }
+
+    /// <summary>
+    ///     Test that an invalid entry in the exclusions list is reported with its file and line, together with other problems.
+    /// </summary>
+    [Fact]
+    public void BuilderProgram_Run_ExclusionsInvalidEntry_ReturnsOneNamingFileAndLine()
+    {
+        // Arrange: the variant fixture, an exclusions list whose second entry has a digit, and a dictionary with an invalid entry too
+        using var temp = new TempDirectory();
+        VariantFixture.Create(temp);
+        temp.CreateFile("input/en-GB/gb.txt", "colour\ngr3y\n");
+        var arguments = ExclusionArguments(temp, "tokenizer\nbad1\n");
+
+        // Act: build
+        var (exitCode, _, error) = Execute(arguments);
+
+        // Assert: both problems are reported at once, each with its file and line, and nothing was written
+        Assert.Equal(BuilderProgram.ExitInvalidWordLists, exitCode);
+        Assert.Contains("exclusions.txt(2): error: 'bad1' is not a valid word", error);
+        Assert.Contains("gb.txt(2): error: 'gr3y' is not a valid word", error);
+        Assert.False(Directory.Exists(temp.PathOf("out")));
+    }
+
+    /// <summary>
+    ///     Test that an exclusions list with no words is accepted and changes nothing.
+    /// </summary>
+    [Fact]
+    public void BuilderProgram_Run_ExclusionsListWithoutWords_BuildsEverything()
+    {
+        // Arrange: the variant fixture and an exclusions list that has only a comment
+        using var temp = new TempDirectory();
+        VariantFixture.Create(temp);
+
+        // Act: build
+        var (exitCode, output, _) = Execute(ExclusionArguments(temp, "# nothing is excluded yet\n"));
+
+        // Assert: success, every word is still there, and the summary says that nothing was excluded
+        Assert.Equal(BuilderProgram.ExitSuccess, exitCode);
+        Assert.Equal(["color", "favorite", "tokenizer"], new TldReader(File.ReadAllBytes(temp.PathOf("out/en-US.tld"))).Words);
+        Assert.Contains("0 excluded", output);
+    }
+
+    /// <summary>
+    ///     Test that a missing dictionary is the only problem reported when an exclusions list is also given.
+    /// </summary>
+    [Fact]
+    public void BuilderProgram_Run_ExclusionsWithMissingDictionary_ReportsOnlyTheMissingDictionary()
+    {
+        // Arrange: a declared dictionary whose folder does not exist, and an exclusions list with a word that therefore looks unused
+        using var temp = new TempDirectory();
+        var input = CreateValidInput(temp);
+        var exclusions = temp.CreateFile("exclusions.txt", "cherry\n");
+
+        // Act: build the existing and a missing dictionary
+        var (exitCode, _, error) = Execute("--input", input, "--output", temp.PathOf("out"), "alpha", "beta", "--exclusions", exclusions);
+
+        // Assert: only the missing folder is reported, not a false "not in any dictionary" for the exclusion
+        Assert.Equal(BuilderProgram.ExitInvalidWordLists, exitCode);
+        Assert.Contains("the word-list folder of dictionary 'beta' does not exist", error);
+        Assert.DoesNotContain("not in any dictionary", error);
+    }
+
+    /// <summary>
+    ///     Test that the exclusions option may be given only once.
+    /// </summary>
+    [Fact]
+    public void BuilderProgram_Run_DuplicateExclusionsOption_ReturnsUsageError()
+    {
+        // Arrange: valid lists and the exclusions option twice
+        using var temp = new TempDirectory();
+        var input = CreateValidInput(temp);
+
+        // Act: run the builder
+        var (exitCode, _, error) = Execute("--input", input, "--output", temp.PathOf("out"), "alpha", "--exclusions", "one.txt", "--exclusions", "two.txt");
+
+        // Assert: exit code 2, the option is named, and nothing was created
+        Assert.Equal(BuilderProgram.ExitUsage, exitCode);
+        Assert.Contains("--exclusions was given more than once", error);
+        Assert.False(Directory.Exists(temp.PathOf("out")));
     }
 }

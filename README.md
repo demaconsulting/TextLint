@@ -37,7 +37,8 @@ The project currently provides:
   (also with the prefix `textlint:`), and reads UTF-8 and UTF-16 files. A parity test compares it with the real
   cspell, and the differences are documented
 - **Word Lookup**: The library reports whether a word is known to American English (the default), British
-  English, or both, plus a dictionary of technical terms (programming languages, tools, companies, file
+  English, or both (including derived forms such as `testability`, with the regional spellings kept apart),
+  plus a dictionary of technical terms (programming languages, tools, companies, file
   types, and licenses). The dictionaries are embedded in the assembly, so no data files are needed, and
   lookups are safe from many threads at once
 - **Command-Line Spell Checker**: The `textlint` tool checks the files you name (or those of the settings file)
@@ -400,9 +401,11 @@ guidelines on reporting bugs, suggesting features, and submitting pull requests.
 ## Third-Party Data
 
 The library embeds English and technical-term dictionaries built from third-party data: SCOWL (a
-permissive license by Kevin Atkinson) for English, and the MIT-licensed cspell-dicts packages by Street
-Side Software for technical terms. The default list of text that is never spell-checked, and the patterns
-that recognize comment directives, are ported from cspell-lib (MIT license). The required license notices are in
+permissive license by Kevin Atkinson, with the notices of the Hunspell affix rules and of the SCOWL data they
+were generated from) and the English word lists of cspell-dicts for English, and the MIT-licensed cspell-dicts
+packages by Street Side Software for technical terms. The default list of text that is never spell-checked, and
+the patterns that recognize comment directives, are ported from cspell-lib (MIT license). The required license
+notices are in
 [THIRD-PARTY-NOTICES.txt](https://github.com/demaconsulting/TextLint/blob/main/third-party/THIRD-PARTY-NOTICES.txt),
 which is also included at the root of both NuGet packages, and the provenance of every list is described in
 the [dictionaries README](https://github.com/demaconsulting/TextLint/blob/main/dictionaries/README.md).

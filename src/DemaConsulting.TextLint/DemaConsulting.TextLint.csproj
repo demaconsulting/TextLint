@@ -121,11 +121,12 @@
          file name of the converted file, and the last part of the embedded resource name. The technical
          dictionary is combined from several kinds of list, and the two regional dictionaries supply the
          spelling variants that the combination removes from the general technical lists (see the
-         DictionaryBuilder design for the variant rule). -->
+         DictionaryBuilder design for the variant rule). The reviewed exclusions list names words that
+         must never be known in any dictionary; the builder removes them from every dictionary. -->
     <Dictionary Include="en-common;en-US;en-GB;technical" />
     <DictionaryVariant Include="en-US;en-GB" />
 
-    <!-- Every word list is an input, so editing any list triggers a conversion. -->
+    <!-- Every word list is an input, so editing any list (including the exclusions list) triggers a conversion. -->
     <DictionaryWordList Include="$(DictionaryWordListRoot)/**/*.txt" />
     <DictionaryBinary Include="@(Dictionary->'$(DictionaryOutputDir)/%(Identity).tld')" />
 
@@ -171,7 +172,7 @@
           Inputs="@(DictionaryWordList);$(DictionaryOutputDir)/wordlists.manifest;@(DictionaryBuilderAssembly)"
           Outputs="@(DictionaryBinary)">
     <MakeDir Directories="$(DictionaryOutputDir)" />
-    <Exec Command="&quot;$(DictionaryDotNet)&quot; &quot;@(DictionaryBuilderAssembly)&quot; --input &quot;$(DictionaryWordListRoot)&quot; --output &quot;$(DictionaryOutputDir)&quot; @(Dictionary, ' ') --technical technical @(DictionaryVariant->'--variants %(Identity)', ' ')" />
+    <Exec Command="&quot;$(DictionaryDotNet)&quot; &quot;@(DictionaryBuilderAssembly)&quot; --input &quot;$(DictionaryWordListRoot)&quot; --output &quot;$(DictionaryOutputDir)&quot; @(Dictionary, ' ') --technical technical @(DictionaryVariant->'--variants %(Identity)', ' ') --exclusions &quot;$(DictionaryWordListRoot)/exclusions.txt&quot;" />
     <!-- The builder leaves a file whose content did not change untouched, so mark every output as up to date
          to let the next build skip this target. This runs only after the builder succeeded, and Touch fails
          for an output that does not exist (it is never asked to create one), so it cannot hide a failure. -->

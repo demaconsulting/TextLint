@@ -3,6 +3,7 @@
 # Version: @cspell/dict-companies@3.2.13; source files: companies
 # License: MIT, Copyright (c) 2017-2025 Street Side Software <support@streetsidesoftware.nl>
 #   See third-party/THIRD-PARTY-NOTICES.txt for the full notice.
+# Verified SHA-256 of the package tarball: cf547bbc689e3dc3aeaa67a4e2663de8cfdb9832258003a21de3f4fca6fccf68
 # Generation: npm pack of the package above; every entry is split into runs of letters, runs of fewer
 #   than two letters and runs that are not ASCII/Latin-1 are dropped, then duplicates are removed.
 #   The list is faithful to upstream: spelling variants are NOT filtered here; the dictionary builder

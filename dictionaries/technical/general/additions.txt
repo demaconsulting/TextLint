@@ -19,3 +19,43 @@ sysml
 textlint
 versionmark
 yamllint
+
+# Developer terms and phrase fragments found by running TextLint over the DEMA repositories that the imported
+# English lists do not have (the tokenizer splits "de facto", "post mortem", "pre-emptive", "et cetera", and
+# "qualType" into parts, which is why fragments such as "facto" and "qual" appear).
+actionability
+approacher
+approachers
+awaiter
+borealis
+cetera
+compilable
+dataflow
+desynchronizing
+detectably
+downcasts
+emptive
+facto
+frusta
+invocable
+keyset
+meridiem
+mortem
+nullability
+numberings
+optionals
+polyhedra
+prolog
+qual
+reindexes
+reopener
+reprobes
+repro
+signable
+subclassed
+suppliable
+tetrahedra
+triangulator
+unactionable
+unformatted
+unwelded

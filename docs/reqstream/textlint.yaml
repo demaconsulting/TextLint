@@ -1,7 +1,7 @@
 ---
 # TextLint System-Level Requirements
 #
-# cspell:ignore favourite
+# cspell:ignore favourite licence
 #
 # PURPOSE:
 # - Define system-level requirements describing what consumers of the DemaConsulting.TextLint
@@ -324,18 +324,72 @@ sections:
 
       - id: TextLint-System-DictionaryContent
         title: >-
-          The library shall know every word of the repository word lists for the language
-          selection that includes the list.
+          The library shall know every word of the repository word lists, except the words of the
+          reviewed exclusions list, for the language selection that includes the list.
         tags: [system]
         justification: |
           The word lists in the repository are the maintained definition of what the library
           considers a correct word. A word that is on a list but is not known to the library
           would be a silent failure of the build that turns the lists into dictionaries, so the
-          whole vocabulary is checked, in every capitalization, against the public behavior.
+          whole vocabulary is checked, in every capitalization, against the public behavior. The
+          only deliberate exceptions are the reviewed exclusions, which are checked separately.
         children:
           - TextLint-Dictionaries-ShippedData
         tests:
           - TextLint_Dictionary_EveryListedWord_IsKnown
+
+      - id: TextLint-System-EnglishVocabulary
+        title: >-
+          The library shall know the inflected and derived forms of English words common in technical
+          writing, and shall know a British-only or American-only spelling only for the language
+          selection of that dialect.
+        tags: [system]
+        justification: |
+          The DEMA repositories showed that a base English word list misses regular derivations such as
+          "testability" and "reviewable", which buries real findings under false ones, while accepting
+          the wrong dialect's spelling ("catalogue" for American English) would hide real findings. The
+          behavior is observed through the public lookup for each language selection.
+        children:
+          - TextLint-Dictionaries-DerivedForms
+        tests:
+          - TextLint_Dictionary_DerivedFormsAndRegionalSpellings_FollowTheLanguageSelection
+
+      - id: TextLint-System-RegionalSeparation
+        title: >-
+          The library shall keep the American and the British spelling of a word apart in the shipped
+          word lists and in lookups, in every letter case, and shall know no -ize form in British
+          English when the -ise form is the British spelling.
+        tags: [system]
+        justification: |
+          The language setting only means something if the data keeps the dialects apart. Letter
+          case folding, generated word forms, imported lists, and words built on a regional spelling
+          with prefixes or suffixes (unmaneuverable) are the ways a spelling of one
+          dialect can leak into the other, so a curated set of well-known pairs and words is checked both in
+          the committed word lists and through the public lookup. Spelling checks do not know the
+          part of speech, so a word such as license (verb) and licence (noun) is accepted in both
+          forms by British English; that is inherent and not a leak.
+        children:
+          - TextLint-Dictionaries-RegionalSeparation
+        tests:
+          - TextLint_Dictionary_CuratedSpellingPairs_StayInTheirOwnRegion
+          - TextLint_Dictionary_IzeFormsWithAnIseCounterpart_AreUnknownToBritishEnglish
+          - TextLint_Dictionary_CommittedWordLists_HaveNoCrossRegionLeaks
+          - TextLint_Dictionary_AffixedRegionalWords_StayInTheirOwnRegion
+
+      - id: TextLint-System-ExcludedWords
+        title: >-
+          The library shall not know any word of the reviewed exclusions list in any language
+          selection.
+        tags: [system]
+        justification: |
+          Imported word lists contain entries that hide real typos, such as a misspelling or a rare
+          word that is almost always a mistyped common one. The reviewed exclusions list names
+          them, and a word on it must be reported as unknown whichever list it came from, in every
+          capitalization, as observed through the public lookup.
+        children:
+          - TextLint-Dictionaries-ExcludedWords
+        tests:
+          - TextLint_Dictionary_EveryExcludedWord_IsUnknown
 
       - id: TextLint-System-ConcurrentLookup
         title: The library shall allow word lookups from many threads at the same time.

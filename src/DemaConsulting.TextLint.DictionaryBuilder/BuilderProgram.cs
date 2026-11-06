@@ -25,7 +25,8 @@ namespace DemaConsulting.TextLint.DictionaryBuilder;
 /// <summary>
 ///     The entry point of the dictionary builder: parses the command line, converts each named
 ///     dictionary's word lists into a binary dictionary file, applies the spelling-variant rule to
-///     the technical dictionary, and reports every problem in the compiler's error format.
+///     the technical dictionary, removes the words of the reviewed exclusions list from every
+///     dictionary, and reports every problem in the compiler's error format.
 /// </summary>
 /// <remarks>
 ///     The builder runs inside the build of the library, so its contract with the build is small
@@ -111,6 +112,11 @@ internal static class BuilderProgram
     private const string VariantsOption = "--variants";
 
     /// <summary>
+    ///     The command-line option that names the reviewed list of words that must never be known in any dictionary.
+    /// </summary>
+    private const string ExclusionsOption = "--exclusions";
+
+    /// <summary>
     ///     The prefix that marks a command-line argument as an option.
     /// </summary>
     private const string OptionPrefix = "-";
@@ -144,7 +150,7 @@ internal static class BuilderProgram
     /// </summary>
     private const string Usage =
         "Usage: DemaConsulting.TextLint.DictionaryBuilder --input <word-list-folder> --output <folder> <name> [<name> ...] " +
-        "[--technical <name> --variants <name> [--variants <name> ...]]";
+        "[--technical <name> --variants <name> [--variants <name> ...]] [--exclusions <word-list-file>]";
 
     /// <summary>
     ///     The entry point of the builder process.
@@ -191,9 +197,18 @@ internal static class BuilderProgram
         var problems = new List<WordListDiagnostic>();
         var listing = ListInputFolders(options, problems);
 
+        // Read the exclusions first so that a problem in that list is reported together with the problems of the dictionaries
+        var exclusions = ReadExclusions(options, problems);
+
         // Read and validate every declared dictionary, collecting every problem before deciding
         var dictionaries = ReadDictionaries(options, listing, problems);
         ReportUndeclaredFolders(options, listing, problems);
+
+        // Remove the excluded words, but only from a complete set of dictionaries: a missing dictionary would make every exclusion look unused
+        if (exclusions is not null && problems.Count == 0)
+        {
+            dictionaries = ApplyExclusions(dictionaries, exclusions, options.ExclusionsFile!, problems);
+        }
 
         // Serialize in memory so that a failure can never leave a half-updated set of files
         var files = new List<OutputFile>();
@@ -243,6 +258,7 @@ internal static class BuilderProgram
         string? input = null;
         string? outputFolder = null;
         string? technical = null;
+        string? exclusionsFile = null;
         var names = new List<string>();
         var variants = new List<string>();
 
@@ -265,7 +281,7 @@ internal static class BuilderProgram
             }
 
             // Every option takes one value that is present, not blank, and not itself an option
-            if (argument is not (InputOption or OutputOption or TechnicalOption or VariantsOption))
+            if (argument is not (InputOption or OutputOption or TechnicalOption or VariantsOption or ExclusionsOption))
             {
                 problem = $"unknown option '{argument}'";
                 return null;
@@ -283,6 +299,7 @@ internal static class BuilderProgram
                 InputOption => AssignOnce(ref input, value),
                 OutputOption => AssignOnce(ref outputFolder, value),
                 TechnicalOption => AssignOnce(ref technical, value),
+                ExclusionsOption => AssignOnce(ref exclusionsFile, value),
                 _ => AddOnce(variants, value)
             };
             if (!accepted)
@@ -315,6 +332,7 @@ internal static class BuilderProgram
             names.ToImmutableArray(),
             declaredTechnical,
             declaredVariants.ToImmutableArray(),
+            exclusionsFile is null ? null : Path.GetFullPath(exclusionsFile),
             FileOperations.Default);
     }
 
@@ -538,6 +556,65 @@ internal static class BuilderProgram
         }
 
         return [.. options.Names.Where(read.ContainsKey).Select(name => read[name])];
+    }
+
+    /// <summary>
+    ///     Reads the reviewed list of excluded words, when one was given.
+    /// </summary>
+    /// <remarks>
+    ///     The list uses the same format and the same validation as every word list, so a bad entry is
+    ///     reported with its file and line. A list that is given but cannot be read (missing,
+    ///     unreadable, or not valid UTF-8) is a problem, never an empty list: silently ignoring it
+    ///     would let every excluded word back into the product. A list with no words is allowed. Reads
+    ///     the file system.
+    /// </remarks>
+    /// <param name="options">The parsed options. Must not be null.</param>
+    /// <param name="problems">The list that receives every problem. Must not be null.</param>
+    /// <returns>The folded excluded words, or <see langword="null"/> when no list was given or it had a problem.</returns>
+    private static IReadOnlyDictionary<string, uint>? ReadExclusions(BuildOptions options, List<WordListDiagnostic> problems)
+    {
+        if (options.ExclusionsFile is null)
+        {
+            return null;
+        }
+
+        var result = WordListReader.ReadFiles([options.ExclusionsFile], options.ExclusionsFile, null, options.Operations);
+        problems.AddRange(result.Diagnostics);
+        return result.HasProblems ? null : result.Words;
+    }
+
+    /// <summary>
+    ///     Removes the excluded words from every dictionary and records the exclusions that no dictionary has.
+    /// </summary>
+    /// <remarks>
+    ///     Applied last, after the variant rule, so an excluded word is unknown in every output whichever
+    ///     list it came from. An exclusion found in no dictionary is a stale entry (a refresh stopped
+    ///     producing the word) and is reported as a problem so the reviewed list stays honest. The
+    ///     summary detail of each dictionary gains the number of words removed from it. Pure apart from
+    ///     adding to the list.
+    /// </remarks>
+    /// <param name="dictionaries">The dictionaries read so far. Must not be null.</param>
+    /// <param name="exclusions">The folded excluded words. Must not be null.</param>
+    /// <param name="exclusionsFile">The path of the exclusions list, named by a problem. Must not be null.</param>
+    /// <param name="problems">The list that receives the stale exclusions. Must not be null.</param>
+    /// <returns>The dictionaries without the excluded words, in the same order.</returns>
+    private static List<BuiltDictionary> ApplyExclusions(
+        List<BuiltDictionary> dictionaries,
+        IReadOnlyDictionary<string, uint> exclusions,
+        string exclusionsFile,
+        List<WordListDiagnostic> problems)
+    {
+        var filtered = ExclusionFilter.Apply([.. dictionaries.Select(dictionary => dictionary.Words)], exclusions);
+        foreach (var word in filtered.UnusedWords)
+        {
+            problems.Add(new WordListDiagnostic(exclusionsFile, WordListDiagnostic.NoLine, $"'{word}' is not in any dictionary, so it does not belong in the exclusions list"));
+        }
+
+        return [.. dictionaries.Select((dictionary, index) => dictionary with
+        {
+            Words = filtered.Dictionaries[index],
+            Detail = $"{dictionary.Detail} ({filtered.Removed[index]} excluded)"
+        })];
     }
 
     /// <summary>
@@ -1055,6 +1132,7 @@ internal static class BuilderProgram
     /// <param name="Names">The declared dictionary names, in command-line order.</param>
     /// <param name="TechnicalName">The declared dictionary that is the technical dictionary, or null.</param>
     /// <param name="VariantNames">The declared dictionaries whose words are spelling variants; empty when there is no technical dictionary.</param>
+    /// <param name="ExclusionsFile">The absolute path of the reviewed list of excluded words, or null when no exclusions were given.</param>
     /// <param name="Operations">The file system operations to use.</param>
     private sealed record BuildOptions(
         string InputFolder,
@@ -1062,6 +1140,7 @@ internal static class BuilderProgram
         IReadOnlyList<string> Names,
         string? TechnicalName,
         IReadOnlyList<string> VariantNames,
+        string? ExclusionsFile,
         FileOperations Operations);
 
     /// <summary>

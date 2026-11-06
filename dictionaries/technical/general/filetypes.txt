@@ -3,6 +3,7 @@
 # Version: @cspell/dict-filetypes@3.0.18; source files: filetypes
 # License: MIT, Copyright (c) 2017-2025 Street Side Software <support@streetsidesoftware.nl>
 #   See third-party/THIRD-PARTY-NOTICES.txt for the full notice.
+# Verified SHA-256 of the package tarball: af83059f71ca3432de3c56f232cf54b3220473942a7fa1780678ecdbe992b422
 # Generation: npm pack of the package above; every entry is split into runs of letters, runs of fewer
 #   than two letters and runs that are not ASCII/Latin-1 are dropped, then duplicates are removed.
 #   The list is faithful to upstream: spelling variants are NOT filtered here; the dictionary builder

@@ -349,12 +349,58 @@ an unknown word are looked up with the correct answers. This scenario is tested 
 dictionary resources under their stable names, and each starts with the dictionary file identifier. This scenario
 is tested by `TextLint_Assembly_Loaded_EmbedsDictionaries`.
 
-**TextLint_Dictionary_EveryListedWord_IsKnown**: Every entry of every word list in the repository is looked up as
+**TextLint_Dictionary_EveryListedWord_IsKnown**: Every entry of every word list in the repository, except the words
+of the reviewed exclusions list (which are skipped explicitly and checked by the next scenario), is looked up as
 written, in lower case, and in upper case, in each language selection that must know the list: the common words
 in the American and the British selection, the regional lists in their own selection, the programming-language
 lists and the reviewed variant list in both single-language selections, and the general technical lists in the
 combined selection. Every lookup is known, and the test fails for a word list in a folder it does not know, so a
-new list cannot go unchecked. This scenario is tested by `TextLint_Dictionary_EveryListedWord_IsKnown`.
+new list cannot go unchecked; the exclusions list itself is not a word list of any dictionary and is not looked
+up. This scenario is tested by `TextLint_Dictionary_EveryListedWord_IsKnown`.
+
+**TextLint_Dictionary_EveryExcludedWord_IsUnknown**: Every word of the reviewed exclusions list is looked up as
+written, capitalized, and in upper case in the American, the British, and the combined selection; none is known,
+and the list is not empty. This scenario is tested by `TextLint_Dictionary_EveryExcludedWord_IsUnknown`.
+
+**TextLint_Dictionary_DerivedFormsAndRegionalSpellings_FollowTheLanguageSelection**: Derived forms that a base word
+list lacks (`testability`, `reviewable`, `precomputed`, `unannotated`, `untestable`) are known in the American and
+the British selection; British-only spellings (`catalogue`, `labelled`, `honoured`, `modelling`) are known only in
+the British selection, and `favorite` only in the American one. This scenario is tested by
+`TextLint_Dictionary_DerivedFormsAndRegionalSpellings_FollowTheLanguageSelection`.
+
+<!-- cspell:ignore colourize glamourize colour organise analyse decolourize unmanoeuvrable manoeuvre -->
+
+**TextLint_Dictionary_CuratedSpellingPairs_StayInTheirOwnRegion**: The British spellings of nine curated pairs
+(`honour`, `colour`, `centre`, `catalogue`, `labelled`, `organise`, `analyse`, `modelling`, `judgement`) are looked up
+as written, capitalized, and in upper case; each is known in the British and the combined selection but not in the
+American one. The American spellings that are not programming terms (`honor`, `judgment`, `favorite`, `defense`,
+`recognize`, `emphasize`) are known in the American and the combined selection but not in the British one. The
+American spellings of the programming terms among the pairs (`color`, `center`, `catalog`, `labeled`, `modeling`,
+`organize`, `analyze`) are deliberately known in every language through the shared technical dictionary, so for them
+the absence from the British word lists is checked by the committed-word-lists scenario below instead. This scenario
+is tested by
+`TextLint_Dictionary_CuratedSpellingPairs_StayInTheirOwnRegion`.
+
+**TextLint_Dictionary_IzeFormsWithAnIseCounterpart_AreUnknownToBritishEnglish**: -ize forms that have a British -ise
+counterpart and are not programming terms (`colourize`, `glamourize`, `decolourize`, `recognize`, `emphasize`,
+`organizational`, `organizationally`, and others) are unknown in the British selection, because British English here
+is -ise only. This scenario is tested by
+`TextLint_Dictionary_IzeFormsWithAnIseCounterpart_AreUnknownToBritishEnglish`.
+
+**TextLint_Dictionary_AffixedRegionalWords_StayInTheirOwnRegion**: The word `unmaneuverable` (an American word with a
+prefix, imported from a list that SCOWL does not cover) is in the American folder and in neither of the others, and
+`unmanoeuvrable` is in the British folder only; both are looked up as written, capitalized, and in upper case, and
+the American word is known in the American selection and not in the British one, the British word the reverse. This
+scenario is tested by `TextLint_Dictionary_AffixedRegionalWords_StayInTheirOwnRegion`.
+
+**TextLint_Dictionary_CommittedWordLists_HaveNoCrossRegionLeaks**: The words of every list in the common, American,
+and British folders are compared in lower case, as the builder combines them: for each curated pair the American
+spelling is in the American folder and in neither of the others, the British spelling is in the British folder and
+in neither of the others, and the British folder holds no -ize form whose -ise counterpart is also there. The
+definition of an -ize form is read from the routing script (`IZE_FORM` in `word_forms.py`, copied beside the test
+assembly), so the test cannot drift from the definition the lists were routed with; the scenario also asserts that
+the pattern matches the verb endings and the derived endings (`organizational`, `organizationally`). This
+scenario is tested by `TextLint_Dictionary_CommittedWordLists_HaveNoCrossRegionLeaks`.
 
 **TextLint_Dictionary_ParallelLookups_ReturnCorrectAnswers**: Twenty thousand lookups spread over the three
 selections are made from many threads at once; every answer is correct. This scenario is tested by

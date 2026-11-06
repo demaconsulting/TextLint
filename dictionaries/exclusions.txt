@@ -1,0 +1,96 @@
+# Words that must never be known, in any dictionary, whatever the imported lists say.
+# This file is owned by the project and is NEVER overwritten by dictionaries/refresh.py.
+#
+# PURPOSE
+#   The imported English lists are large and some entries hide real typos: misspellings that an
+#   upstream list contains, fragments of words, and rare real words that are almost always a mistyped
+#   common word in technical text (for example "curser" for "cursor", or "operants" for "operands").
+#   The dictionary builder removes every word listed here from every dictionary it builds (the English
+#   lists and the technical lists), so such a word is reported as an unknown word. The imported lists
+#   themselves stay faithful to their upstream sources and are never edited to remove these words.
+#
+# REVIEW RULE
+#   Add a word only after a reviewer has confirmed that (1) it is a misspelling, a fragment, or a rare
+#   word that is overwhelmingly a typo of a common word, (2) it is not an accepted spelling variant of
+#   a standard word (highjack, milage, and writeable are accepted variants and are NOT excluded), and
+#   (3) it is not a technical term. Every word needs a justification that the reviewer can see in the
+#   group it is in. The builder fails the build for a word that is in none of the word lists, so
+#   an entry that a refresh made unnecessary is noticed and removed.
+#
+# FORMAT
+#   The same format as every word list: one lower-case word per line, comments on their own lines.
+#   A word is excluded in every letter case.
+#
+# SEEDING
+#   The first entries are the words that the 2026 import added and that a measurement against a large
+#   sample of common misspellings showed to be typos. The sample is third-party data under a
+#   share-alike license and is not part of this repository.
+
+# Misspellings and non-words
+aboves
+alway
+ballance
+brocken
+carful
+colleted
+comines
+durning
+entires
+happing
+hightest
+inconsistences
+justs
+latests
+lits
+longers
+meeds
+onces
+overturing
+programing
+scarry
+sended
+sequencies
+shuting
+straighted
+teated
+threated
+trigging
+tunned
+tunning
+unwieldly
+vitamines
+wapping
+worthing
+wries
+
+# Fragments of words left by the expansion of an old word list
+abl
+beng
+clos
+ede
+flem
+flor
+fo
+musil
+oriente
+thess
+
+# Rare real words and forms that are far more often a mistyped common word in technical text
+belows
+cannel
+curser
+curtesy
+enure
+heigh
+hight
+homeworks
+manges
+operants
+overlorded
+pilar
+pointes
+rachets
+seconde
+selfs
+softwares
+todays

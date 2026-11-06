@@ -20,12 +20,14 @@ package DictionaryBuilder {
         part dictionaryWriter : DictionaryWriter;
         part dictionaryFormat : DictionaryFormat;
         part variantFilter : VariantFilter;
+        part exclusionFilter : ExclusionFilter;
     }
 
-    // BuilderProgram drives the reader, the variant filter, and the writer; the reader and the writer
+    // BuilderProgram drives the reader, the variant filter, the exclusion filter, and the writer; the reader and the writer
     // both rely on the shared format definitions.
     dependency BuilderProgramUsesWordListReader from BuilderProgram to WordListReader;
     dependency BuilderProgramUsesVariantFilter from BuilderProgram to VariantFilter;
+    dependency BuilderProgramUsesExclusionFilter from BuilderProgram to ExclusionFilter;
     dependency BuilderProgramUsesDictionaryWriter from BuilderProgram to DictionaryWriter;
     dependency WordListReaderUsesDictionaryFormat from WordListReader to DictionaryFormat;
     dependency DictionaryWriterUsesDictionaryFormat from DictionaryWriter to DictionaryFormat;
