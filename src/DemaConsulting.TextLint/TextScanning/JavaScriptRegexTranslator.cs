@@ -31,7 +31,8 @@ namespace DemaConsulting.TextLint.TextScanning;
 ///     cspell evaluates its patterns with the JavaScript engine, and a project migrated from cspell must find
 ///     the same text excluded. The two engines differ in ways that matter: in JavaScript <c>\w</c>, <c>\d</c>,
 ///     and <c>\b</c> are ASCII-only, <c>\s</c> has its own list of white space, <c>.</c> stops at all four
-///     line terminators, <c>^</c> and <c>$</c> in multiline mode recognize all four, and the numbering of
+///     line terminators unless the <c>s</c> flag is set, <c>^</c> and <c>$</c> in multiline mode recognize
+///     all four, and the numbering of
 ///     capture groups and the meaning of many escapes differ. A pattern passed through unchanged would
 ///     silently mean something else. The translator is therefore a strict recursive-descent reader of the
 ///     JavaScript syntax that writes the .NET form of every construct it understands and rejects everything
@@ -94,6 +95,12 @@ internal static class JavaScriptRegexTranslator
     ///     JavaScript line terminators.
     /// </summary>
     private const string DotClass = "[^\\n\\r\\u2028\\u2029]";
+
+    /// <summary>
+    ///     The pattern text of the class of the characters that <c>.</c> matches when the <c>s</c> flag is set:
+    ///     every UTF-16 code unit, line terminators included.
+    /// </summary>
+    private const string DotAllClass = "[\\u0000-\\uFFFF]";
 
     /// <summary>
     ///     The pattern text of the start of a line in multiline mode: the start of the text, or the place
@@ -196,11 +203,12 @@ internal static class JavaScriptRegexTranslator
     /// <param name="source">The pattern body, without the slashes and flags. Must not be null.</param>
     /// <param name="multiline"><see langword="true"/> when the <c>m</c> flag is set.</param>
     /// <param name="unicode"><see langword="true"/> when the <c>u</c> flag is set.</param>
+    /// <param name="dotAll"><see langword="true"/> when the <c>s</c> flag is set, so that <c>.</c> also matches line terminators.</param>
     /// <param name="translated">The .NET pattern when the method returns true; otherwise an empty string.</param>
     /// <param name="problem">The reason, as a sentence, when the method returns false; otherwise null.</param>
     /// <returns><see langword="true"/> when the pattern was translated.</returns>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="source"/> is null.</exception>
-    internal static bool TryTranslate(string source, bool multiline, bool unicode, out string translated, out string? problem)
+    internal static bool TryTranslate(string source, bool multiline, bool unicode, bool dotAll, out string translated, out string? problem)
     {
         ArgumentNullException.ThrowIfNull(source);
         translated = string.Empty;
@@ -220,7 +228,7 @@ internal static class JavaScriptRegexTranslator
         }
 
         // Read the pattern; the reader records the reason itself when it stops
-        var reader = new Reader(source, multiline, unicode);
+        var reader = new Reader(source, multiline, unicode, dotAll);
         if (!reader.Run())
         {
             problem = reader.Problem;
@@ -325,6 +333,11 @@ internal static class JavaScriptRegexTranslator
         private readonly bool _unicode;
 
         /// <summary>
+        ///     Whether the dot-all flag is set.
+        /// </summary>
+        private readonly bool _dotAll;
+
+        /// <summary>
         ///     The translation written so far.
         /// </summary>
         private readonly StringBuilder _output = new();
@@ -373,11 +386,13 @@ internal static class JavaScriptRegexTranslator
         /// <param name="source">The pattern body. Must not be null.</param>
         /// <param name="multiline"><see langword="true"/> when the <c>m</c> flag is set.</param>
         /// <param name="unicode"><see langword="true"/> when the <c>u</c> flag is set.</param>
-        internal Reader(string source, bool multiline, bool unicode)
+        /// <param name="dotAll"><see langword="true"/> when the <c>s</c> flag is set.</param>
+        internal Reader(string source, bool multiline, bool unicode, bool dotAll)
         {
             _source = source;
             _multiline = multiline;
             _unicode = unicode;
+            _dotAll = dotAll;
         }
 
         /// <summary>
@@ -569,7 +584,7 @@ internal static class JavaScriptRegexTranslator
 
                 case '.':
                     _position++;
-                    _output.Append(DotClass);
+                    _output.Append(_dotAll ? DotAllClass : DotClass);
                     break;
 
                 case '[':

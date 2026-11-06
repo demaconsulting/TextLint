@@ -206,11 +206,21 @@ internal static partial class PatternCatalog
     {
         ArgumentNullException.ThrowIfNull(name);
         ArgumentNullException.ThrowIfNull(definedNames);
-        return IsPredefined(name) || definedNames.Contains(name.Trim())
-            ? null
-            : $"'{name.Trim()}' is not a defined or predefined pattern name; define it in 'patterns', " +
-              "or write a regular expression between slashes, such as /text/, to match literal text.";
+        return IsPredefined(name) || definedNames.Contains(name.Trim()) ? null : UnknownNameReason(name);
     }
+
+    /// <summary>
+    ///     Builds the sentence that says a name refers to no pattern and what to write instead.
+    /// </summary>
+    /// <remarks>
+    ///     Kept in one place so that the settings file, the settings built in code, and the in-document
+    ///     directive give the same advice. Stateless and thread-safe.
+    /// </remarks>
+    /// <param name="name">The name. Must not be null.</param>
+    /// <returns>The reason, as a sentence.</returns>
+    private static string UnknownNameReason(string name) =>
+        $"'{name.Trim()}' is not a defined or predefined pattern name; define it in 'patterns', " +
+        "or write a regular expression between slashes, such as /text/, to match literal text.";
 
     /// <summary>
     ///     Builds the regular expressions that the <c>ignoreRegExpList</c> and <c>patterns</c> settings describe.
@@ -219,7 +229,8 @@ internal static partial class PatternCatalog
     ///     Every definition is checked, used or not, so a mistake is found where it is made. The result holds
     ///     one regular expression per pattern that excludes text, in the order of the list; a name that is
     ///     listed twice counts once, and a predefined name that is always applied contributes nothing. The
-    ///     result is immutable. Stateless and thread-safe.
+    ///     result is immutable. The regular expressions have the default match time limit. Stateless and
+    ///     thread-safe.
     /// </remarks>
     /// <param name="ignoreRegExpList">The entries of <c>ignoreRegExpList</c>. Must not be null.</param>
     /// <param name="patterns">The definitions of <c>patterns</c>. Must not be null.</param>
@@ -231,11 +242,27 @@ internal static partial class PatternCatalog
     /// </exception>
     internal static ImmutableArray<Regex> Resolve(IReadOnlyList<string> ignoreRegExpList, IReadOnlyList<NamedPattern> patterns)
     {
-        ArgumentNullException.ThrowIfNull(ignoreRegExpList);
+        var timeout = TimeSpan.FromMilliseconds(MatchTimeoutMilliseconds);
+        return ResolveEntries(ignoreRegExpList, ParseDefinitions(patterns, timeout), timeout);
+    }
+
+    /// <summary>
+    ///     Parses the definitions of the <c>patterns</c> setting, rejecting a bad or repeated name.
+    /// </summary>
+    /// <remarks>
+    ///     Every definition is parsed, used or not, so mistakes surface even for unused patterns. Names are
+    ///     compared ignoring letter case. The result is immutable. Stateless and thread-safe.
+    /// </remarks>
+    /// <param name="patterns">The definitions of <c>patterns</c>. Must not be null.</param>
+    /// <param name="matchTimeout">The match time limit of each regular expression. Must be positive.</param>
+    /// <returns>The regular expression of each definition by name.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="patterns"/> is null.</exception>
+    /// <exception cref="InvalidPatternException">Thrown for the first definition that cannot be used.</exception>
+    internal static ImmutableDictionary<string, Regex> ParseDefinitions(IReadOnlyList<NamedPattern> patterns, TimeSpan matchTimeout)
+    {
         ArgumentNullException.ThrowIfNull(patterns);
 
-        // Parse every definition, rejecting a bad or repeated name, so mistakes surface even for unused patterns
-        var defined = new Dictionary<string, Regex>(StringComparer.OrdinalIgnoreCase);
+        var defined = ImmutableDictionary.CreateBuilder<string, Regex>(StringComparer.OrdinalIgnoreCase);
         foreach (var definition in patterns)
         {
             var nameProblem = CheckDefinitionName(definition.Name);
@@ -249,46 +276,125 @@ internal static partial class PatternCatalog
                 throw new InvalidPatternException(definition.Name, "a pattern with this name is already defined.");
             }
 
-            defined[definition.Name] = PatternParser.Parse(definition.Pattern);
+            defined[definition.Name] = PatternParser.Parse(definition.Pattern, matchTimeout);
         }
+
+        return defined.ToImmutable();
+    }
+
+    /// <summary>
+    ///     Builds the regular expressions of the <c>ignoreRegExpList</c> entries from parsed definitions.
+    /// </summary>
+    /// <remarks>
+    ///     The result holds one regular expression per entry that excludes text, in the order of the list; a
+    ///     name that is listed twice counts once, and a predefined name that is always applied contributes
+    ///     nothing. Stateless and thread-safe.
+    /// </remarks>
+    /// <param name="ignoreRegExpList">The entries of <c>ignoreRegExpList</c>. Must not be null.</param>
+    /// <param name="defined">The parsed definitions, from <see cref="ParseDefinitions"/>. Must not be null.</param>
+    /// <param name="matchTimeout">The match time limit of each regular expression. Must be positive.</param>
+    /// <returns>The regular expressions to run over each text; empty when the list is empty.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when an argument is null or an entry is null.</exception>
+    /// <exception cref="InvalidPatternException">Thrown for the first entry that cannot be used.</exception>
+    internal static ImmutableArray<Regex> ResolveEntries(
+        IReadOnlyList<string> ignoreRegExpList,
+        IReadOnlyDictionary<string, Regex> defined,
+        TimeSpan matchTimeout)
+    {
+        ArgumentNullException.ThrowIfNull(ignoreRegExpList);
+        ArgumentNullException.ThrowIfNull(defined);
 
         // Resolve the list: names to their patterns, expressions parsed, each name used once
         var result = ImmutableArray.CreateBuilder<Regex>();
         var used = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var definedNames = new HashSet<string>(defined.Keys, StringComparer.OrdinalIgnoreCase);
         foreach (var entry in ignoreRegExpList)
         {
             ArgumentNullException.ThrowIfNull(entry);
-            if (!IsNameShaped(entry))
-            {
-                result.Add(PatternParser.Parse(entry));
-                continue;
-            }
-
-            var reference = CheckReference(entry, definedNames);
-            if (reference is not null)
-            {
-                throw new InvalidPatternException(entry, reference);
-            }
-
-            // A user pattern is looked up first, but it cannot clash with a predefined name
-            var name = entry.Trim();
-            if (!used.Add(name))
+            if (IsNameShaped(entry) && !used.Add(entry.Trim()))
             {
                 continue;
             }
 
-            if (defined.TryGetValue(name, out var userPattern))
+            if (!TryResolveEntry(entry, defined, matchTimeout, out var regex, out var problem))
             {
-                result.Add(userPattern);
+                throw new InvalidPatternException(entry, problem!);
             }
-            else if (OptionalPatterns.TryGetValue(name, out var predefined))
+
+            if (regex is not null)
             {
-                result.Add(predefined);
+                result.Add(regex);
             }
         }
 
         return result.ToImmutable();
+    }
+
+    /// <summary>
+    ///     Resolves one entry, written in <c>ignoreRegExpList</c> or in an in-document directive, to a regular expression.
+    /// </summary>
+    /// <remarks>
+    ///     Failure is data, so a caller can report the reason where the entry was written. An entry in the
+    ///     shape of a name is looked up in the definitions first and in the predefined patterns second; any
+    ///     other entry is parsed as a pattern. Stateless and thread-safe.
+    /// </remarks>
+    /// <param name="entry">The entry. Must not be null.</param>
+    /// <param name="defined">The parsed definitions of the <c>patterns</c> setting. Must not be null.</param>
+    /// <param name="matchTimeout">The match time limit of the regular expression. Must be positive.</param>
+    /// <param name="regex">
+    ///     The regular expression, or null when the entry is usable but excludes nothing because it names a
+    ///     pattern that is applied to every text anyway.
+    /// </param>
+    /// <param name="problem">The reason, as a sentence, when the method returns false; otherwise null.</param>
+    /// <returns><see langword="true"/> when the entry can be used.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when an argument is null.</exception>
+    internal static bool TryResolveEntry(
+        string entry,
+        IReadOnlyDictionary<string, Regex> defined,
+        TimeSpan matchTimeout,
+        out Regex? regex,
+        out string? problem)
+    {
+        ArgumentNullException.ThrowIfNull(entry);
+        ArgumentNullException.ThrowIfNull(defined);
+        regex = null;
+        problem = null;
+
+        // A pattern is parsed; failure comes back as a reason
+        if (!IsNameShaped(entry))
+        {
+            try
+            {
+                regex = PatternParser.Parse(entry, matchTimeout);
+                return true;
+            }
+            catch (InvalidPatternException exception)
+            {
+                problem = exception.Reason;
+                return false;
+            }
+        }
+
+        // A name is a user pattern first, then a predefined pattern; a user pattern cannot clash with a predefined name
+        var name = entry.Trim();
+        if (defined.TryGetValue(name, out var userPattern))
+        {
+            regex = userPattern;
+            return true;
+        }
+
+        if (OptionalPatterns.TryGetValue(name, out var predefined))
+        {
+            regex = predefined;
+            return true;
+        }
+
+        if (IsPredefined(name))
+        {
+            return true;
+        }
+
+        problem = UnknownNameReason(name);
+        return false;
     }
 
     /// <summary>
@@ -300,7 +406,7 @@ internal static partial class PatternCatalog
     ///     appended to, never cleared. Each pattern is bounded by its match time limit. Thread-safe as long
     ///     as the list is not shared.
     /// </remarks>
-    /// <param name="patterns">The regular expressions to run, from <see cref="Resolve"/> or <see cref="MarkdownPatterns"/>. Must not be default.</param>
+    /// <param name="patterns">The regular expressions to run, from <see cref="ResolveEntries"/> or <see cref="MarkdownPatterns"/>. Must not be default.</param>
     /// <param name="text">The text to search. Must not be null.</param>
     /// <param name="ranges">The list that receives the matching ranges. Must not be null.</param>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="text"/> or <paramref name="ranges"/> is null.</exception>

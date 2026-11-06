@@ -61,6 +61,6 @@ public sealed class InvalidPatternException : ArgumentException
     ///     Internal so that the settings file loader can put the reason in a message that names the setting
     ///     and the position of the entry.
     /// </remarks>
-    /// <value>The reason, for example <c>the flag 's' is not supported</c>.</value>
+    /// <value>The reason, for example <c>the flag 'x' is not supported</c>.</value>
     internal string Reason { get; }
 }

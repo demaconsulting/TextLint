@@ -45,6 +45,15 @@ namespace DemaConsulting.TextLint.SpellChecking;
 public sealed class TextChecker
 {
     /// <summary>
+    ///     The largest number of different patterns that the <c>ignoreRegExp</c> directives of one text may use.
+    /// </summary>
+    /// <remarks>
+    ///     The directives of a text are written by whoever wrote the text, and each pattern costs up to the
+    ///     match time limit, so the number is bounded. Real documents use a handful.
+    /// </remarks>
+    internal const int MaxDirectivePatterns = 32;
+
+    /// <summary>
     ///     The word rules built from the settings, shared by every call.
     /// </summary>
     private readonly WordRules _rules;
@@ -55,6 +64,17 @@ public sealed class TextChecker
     private readonly ImmutableArray<Regex> _customPatterns;
 
     /// <summary>
+    ///     The regular expressions of the <c>patterns</c> setting by name, so that an in-document
+    ///     <c>ignoreRegExp</c> directive can refer to them.
+    /// </summary>
+    private readonly ImmutableDictionary<string, Regex> _definitions;
+
+    /// <summary>
+    ///     The longest time one pattern may spend on one text.
+    /// </summary>
+    private readonly TimeSpan _matchTimeout;
+
+    /// <summary>
     ///     Whether long tokens that look random, and unknown words inside hexadecimal sequences, are skipped.
     /// </summary>
     private readonly bool _ignoreRandomStrings;
@@ -63,6 +83,15 @@ public sealed class TextChecker
     ///     The length from which a token is judged to be random or not.
     /// </summary>
     private readonly int _minRandomLength;
+
+    /// <summary>
+    ///     Gets the longest time one pattern may spend on one text.
+    /// </summary>
+    /// <remarks>
+    ///     Internal so that tests can prove that the checker made by the public constructor has the production limit.
+    /// </remarks>
+    /// <value>Five seconds, unless the checker was made with the internal constructor that takes a limit.</value>
+    internal TimeSpan MatchTimeout => _matchTimeout;
 
     /// <summary>
     ///     Initializes a new instance of the <see cref="TextChecker"/> class from settings.
@@ -89,9 +118,31 @@ public sealed class TextChecker
     ///     in <c>ignoreRegExpList</c> that no pattern defines. The message names the entry and the reason.
     /// </exception>
     public TextChecker(TextLintSettings settings)
+        : this(settings, TimeSpan.FromMilliseconds(PatternParser.MatchTimeoutMilliseconds))
+    {
+    }
+
+    /// <summary>
+    ///     Initializes a new instance of the <see cref="TextChecker"/> class from settings, with a given match time limit.
+    /// </summary>
+    /// <remarks>
+    ///     Internal test seam: the public constructor passes the production limit of 5 seconds, so tests can
+    ///     prove the time-out behavior with a limit of milliseconds. The limit applies to every pattern that
+    ///     is built at run time, which are the patterns of the settings and of the directives; the patterns
+    ///     that are generated at build time keep their own fixed limit. Otherwise the same as the public
+    ///     constructor.
+    /// </remarks>
+    /// <param name="settings">The settings to check with. Must not be null.</param>
+    /// <param name="matchTimeout">The longest time one pattern may spend on one text. Must be positive.</param>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="settings"/> is null.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when <paramref name="matchTimeout"/> is not positive.</exception>
+    /// <exception cref="ArgumentException">Thrown when the language or a word-list entry of the settings is not usable.</exception>
+    /// <exception cref="InvalidPatternException">Thrown when a pattern of the settings is not usable.</exception>
+    internal TextChecker(TextLintSettings settings, TimeSpan matchTimeout)
     {
         ArgumentNullException.ThrowIfNull(settings);
-
+        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(matchTimeout, TimeSpan.Zero);
+        _matchTimeout = matchTimeout;
         // Resolve the language first, so an unsupported language is reported before any list entry
         SpellingDictionary dictionary;
         try
@@ -114,7 +165,8 @@ public sealed class TextChecker
         _rules = new WordRules(dictionary, settings.MinWordLength, ignored, accepted, flagged);
 
         // Compile the patterns that exclude text; an unusable pattern is an error, not silently ignored
-        _customPatterns = PatternCatalog.Resolve(settings.IgnoreRegExpList, settings.Patterns);
+        _definitions = PatternCatalog.ParseDefinitions(settings.Patterns, matchTimeout);
+        _customPatterns = PatternCatalog.ResolveEntries(settings.IgnoreRegExpList, _definitions, matchTimeout);
         _ignoreRandomStrings = settings.IgnoreRandomStrings;
         _minRandomLength = settings.MinRandomLength;
     }
@@ -164,6 +216,8 @@ public sealed class TextChecker
             PatternCatalog.FindExcludedRanges(_customPatterns, text, excluded);
         }
 
+        var invalidPatterns = ApplyDirectivePatterns(text, directives.PatternDirectives, excluded);
+
         excluded.Sort(static (first, second) => first.Start.CompareTo(second.Start));
 
         // Words added by directives apply to this text only, so they are layered over the shared rules
@@ -195,7 +249,73 @@ public sealed class TextChecker
             run.Add(directive, SpellingIssueKind.UnsupportedDirective, []);
         }
 
-        return ToIssues(text, sourceName, run.Findings, !directives.UnsupportedDirectives.IsEmpty);
+        foreach (var (range, reason) in invalidPatterns)
+        {
+            run.Add(range, SpellingIssueKind.InvalidDirective, [], reason);
+        }
+
+        return ToIssues(
+            text,
+            sourceName,
+            run.Findings,
+            !directives.UnsupportedDirectives.IsEmpty || invalidPatterns.Count > 0);
+    }
+
+    /// <summary>
+    ///     Adds the matches of the patterns that <c>ignoreRegExp</c> directives write to the excluded ranges.
+    /// </summary>
+    /// <remarks>
+    ///     A pattern is resolved like an <c>ignoreRegExpList</c> entry, so it may also be the name of a pattern
+    ///     of the settings or a predefined name. It applies to the whole text, wherever its directive is. A
+    ///     pattern that cannot be used is returned with its reason, to be reported where it is written (unless
+    ///     it is in a region where checking is switched off), and has no other effect. Each distinct pattern is
+    ///     resolved and matched once, however many directives repeat it. The directives of a text are written
+    ///     by whoever wrote the text, so the work they cause is bounded: a text may use at most
+    ///     <see cref="MaxDirectivePatterns"/> different patterns, the ones after that are rejected without
+    ///     being read, and each pattern has the match time limit. Thread-safe.
+    /// </remarks>
+    /// <param name="text">The checked text. Must not be null.</param>
+    /// <param name="directives">The patterns of the directives of the text. Must not be the default array.</param>
+    /// <param name="excluded">The list that receives the matching ranges. Must not be null.</param>
+    /// <returns>The patterns that cannot be used and should be reported, with their reasons, in text order.</returns>
+    /// <exception cref="RegexMatchTimeoutException">Thrown when a pattern of a directive exceeds its time limit on the text.</exception>
+    private List<(TextRange Range, string Reason)> ApplyDirectivePatterns(
+        string text,
+        ImmutableArray<DirectiveScan.PatternDirective> directives,
+        List<TextRange> excluded)
+    {
+        var invalid = new List<(TextRange Range, string Reason)>();
+        if (directives.IsEmpty)
+        {
+            return invalid;
+        }
+
+        var resolved = new Dictionary<string, string?>(StringComparer.Ordinal);
+        foreach (var directive in directives)
+        {
+            if (!resolved.TryGetValue(directive.Text, out var problem))
+            {
+                // Resolve and match a pattern once; the patterns after the limit are rejected without being read
+                if (resolved.Count >= MaxDirectivePatterns)
+                {
+                    problem = $"a text may use at most {MaxDirectivePatterns} different ignoreRegExp patterns.";
+                }
+                else if (PatternCatalog.TryResolveEntry(directive.Text, _definitions, _matchTimeout, out var regex, out problem) &&
+                         regex is not null)
+                {
+                    PatternCatalog.FindExcludedRanges([regex], text, excluded);
+                }
+
+                resolved[directive.Text] = problem;
+            }
+
+            if (problem is not null && directive.IsReportable)
+            {
+                invalid.Add((directive.Range, problem));
+            }
+        }
+
+        return invalid;
     }
 
     /// <summary>
@@ -270,7 +390,8 @@ public sealed class TextChecker
                 finding.Start - lineStart + 1,
                 text.Substring(finding.Start, finding.Length),
                 finding.Kind,
-                finding.Suggestions.IsDefault ? [] : finding.Suggestions));
+                finding.Suggestions.IsDefault ? [] : finding.Suggestions,
+                finding.Detail));
         }
 
         return issues.MoveToImmutable();
@@ -283,7 +404,8 @@ public sealed class TextChecker
     /// <param name="Length">The length of the finding in UTF-16 code units.</param>
     /// <param name="Kind">The kind of finding.</param>
     /// <param name="Suggestions">The suggestions; the default array when there are none.</param>
-    private readonly record struct Finding(int Start, int Length, SpellingIssueKind Kind, ImmutableArray<string> Suggestions);
+    /// <param name="Detail">The reason an invalid directive cannot be used; null for the other kinds.</param>
+    private readonly record struct Finding(int Start, int Length, SpellingIssueKind Kind, ImmutableArray<string> Suggestions, string? Detail = null);
 
     /// <summary>
     ///     The state of one call to <see cref="Check"/>: the text, the rules in force, and the findings so far.
@@ -369,8 +491,9 @@ public sealed class TextChecker
         /// <param name="range">The range of the finding in the text.</param>
         /// <param name="kind">The kind of finding.</param>
         /// <param name="suggestions">The suggestions; empty when there are none.</param>
-        internal void Add(TextRange range, SpellingIssueKind kind, ImmutableArray<string> suggestions) =>
-            Findings.Add(new Finding(range.Start, range.Length, kind, suggestions));
+        /// <param name="detail">The reason an invalid directive cannot be used; null for the other kinds.</param>
+        internal void Add(TextRange range, SpellingIssueKind kind, ImmutableArray<string> suggestions, string? detail = null) =>
+            Findings.Add(new Finding(range.Start, range.Length, kind, suggestions, detail));
 
         /// <summary>
         ///     Checks one stretch of text that no excluded range touches.

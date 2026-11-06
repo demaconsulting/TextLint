@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-// cspell:ignore dgimsuvxy
+// cspell:ignore dgimsuvxy gimsu
 
 using System.Text.RegularExpressions;
 
@@ -34,12 +34,14 @@ namespace DemaConsulting.TextLint.TextScanning;
 ///     expression that cspell reads with the flags <c>g</c>, <c>i</c>, and <c>m</c>. The body is translated
 ///     to .NET by <see cref="JavaScriptRegexTranslator"/>, which keeps the JavaScript meaning of the
 ///     constructs it supports and rejects the rest. Only the flags that have a safe equivalent are
-///     accepted: <c>g</c> (always in force, because every match is wanted), <c>i</c>, <c>m</c>, and
-///     <c>u</c>. The flags <c>x</c>, <c>y</c>, <c>s</c>, <c>d</c>, and <c>v</c> are rejected by name, because
+///     accepted: <c>g</c> (always in force, because every match is wanted), <c>i</c>, <c>m</c>, <c>s</c>
+///     (the dot also matches line terminators), and <c>u</c>. The flags <c>x</c>, <c>y</c>, <c>d</c>, and
+///     <c>v</c> are rejected by name, because
 ///     cspell drops some of them silently and a pattern that does not mean what its author wrote must not
 ///     load. Every regular expression is built with a match time limit, so a pattern that backtracks
 ///     catastrophically on some file ends with a <see cref="RegexMatchTimeoutException"/> instead of hanging
-///     a run; cspell, which has no limit, would hang. Failure is reported with a reason as an
+///     a run; cspell, which has no limit, would hang. The limit is 5 seconds in production; an internal
+///     overload lets the tests use a short one. Failure is reported with a reason as an
 ///     <see cref="InvalidPatternException"/>, which the settings loader turns into a positioned
 ///     diagnostic. The class is stateless and thread-safe; the regular expressions it creates are immutable
 ///     and safe for concurrent matching.
@@ -64,7 +66,7 @@ internal static class PatternParser
     /// <summary>
     ///     The flags that are accepted.
     /// </summary>
-    private const string SupportedFlags = "gimu";
+    private const string SupportedFlags = "gimsu";
 
     /// <summary>
     ///     The character that opens and closes a regular expression literal.
@@ -97,9 +99,29 @@ internal static class PatternParser
     ///     Thrown when the entry is blank, has an unsupported flag, or has a body that cannot be translated or
     ///     is not a valid regular expression. The exception names the entry and the reason.
     /// </exception>
-    internal static Regex Parse(string entry)
+    internal static Regex Parse(string entry) => Parse(entry, TimeSpan.FromMilliseconds(MatchTimeoutMilliseconds));
+
+    /// <summary>
+    ///     Parses a pattern entry into a regular expression with a given match time limit.
+    /// </summary>
+    /// <remarks>
+    ///     The same as <see cref="Parse(string)"/>, except for the limit. Production code uses the default
+    ///     limit; the overload exists so that tests can prove the time-out behavior in milliseconds instead of
+    ///     seconds. Stateless and thread-safe.
+    /// </remarks>
+    /// <param name="entry">The pattern entry. Must not be null.</param>
+    /// <param name="matchTimeout">The longest time one match operation may take. Must be positive; the infinite time span is not allowed.</param>
+    /// <returns>The regular expression; never null.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="entry"/> is null.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when <paramref name="matchTimeout"/> is not positive or is infinite.</exception>
+    /// <exception cref="InvalidPatternException">
+    ///     Thrown when the entry is blank, has an unsupported flag, or has a body that cannot be translated or
+    ///     is not a valid regular expression. The exception names the entry and the reason.
+    /// </exception>
+    internal static Regex Parse(string entry, TimeSpan matchTimeout)
     {
         ArgumentNullException.ThrowIfNull(entry);
+        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(matchTimeout, TimeSpan.Zero);
 
         // Separate the body from the flags, with the forms cspell recognizes
         var text = entry.Trim();
@@ -125,14 +147,15 @@ internal static class PatternParser
         var unsupported = flags.Where(static flag => !SupportedFlags.Contains(flag, StringComparison.Ordinal)).ToArray();
         if (unsupported.Length > 0)
         {
-            throw new InvalidPatternException(entry, $"the flag '{unsupported[0]}' is not supported; use only g, i, m, and u.");
+            throw new InvalidPatternException(entry, $"the flag '{unsupported[0]}' is not supported; use only g, i, m, s, and u.");
         }
 
         // Translate the body, then build the regular expression with the time limit
         var ignoreCase = flags.Contains('i', StringComparison.Ordinal);
         var multiline = flags.Contains('m', StringComparison.Ordinal);
         var unicode = flags.Contains('u', StringComparison.Ordinal);
-        if (!JavaScriptRegexTranslator.TryTranslate(body, multiline, unicode, out var translated, out var problem))
+        var dotAll = flags.Contains('s', StringComparison.Ordinal);
+        if (!JavaScriptRegexTranslator.TryTranslate(body, multiline, unicode, dotAll, out var translated, out var problem))
         {
             throw new InvalidPatternException(entry, problem!);
         }
@@ -140,7 +163,7 @@ internal static class PatternParser
         var options = RegexOptions.CultureInvariant | (ignoreCase ? RegexOptions.IgnoreCase : RegexOptions.None);
         try
         {
-            return new Regex(translated, options, TimeSpan.FromMilliseconds(MatchTimeoutMilliseconds));
+            return new Regex(translated, options, matchTimeout);
         }
         catch (ArgumentException exception)
         {

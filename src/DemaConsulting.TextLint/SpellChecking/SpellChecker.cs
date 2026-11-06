@@ -107,6 +107,10 @@ public static class SpellChecker
     /// <param name="selectFiles">Selects the files, given the token it must honor. Must not be null.</param>
     /// <param name="options">How to run; null means the defaults.</param>
     /// <param name="cancellationToken">Token that cancels the run, including the selection.</param>
+    /// <param name="matchTimeout">
+    ///     The longest time one pattern may spend on one text; null means the production limit of 5 seconds.
+    ///     A second internal seam, so that tests can prove the time-out behavior in milliseconds.
+    /// </param>
     /// <returns>The result, ordered by file path (ordinal), then line, then column.</returns>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="settings"/> or <paramref name="selectFiles"/> is null.</exception>
     /// <exception cref="ArgumentException">Thrown when the language or a word-list entry of the settings is not usable.</exception>
@@ -115,12 +119,13 @@ public static class SpellChecker
         TextLintSettings settings,
         Func<CancellationToken, IReadOnlyList<SelectedFile>> selectFiles,
         SpellCheckOptions? options,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        TimeSpan? matchTimeout = null)
     {
         // Reject unusable settings before touching the file system
         ArgumentNullException.ThrowIfNull(settings);
         ArgumentNullException.ThrowIfNull(selectFiles);
-        var checker = new TextChecker(settings);
+        var checker = matchTimeout is { } limit ? new TextChecker(settings, limit) : new TextChecker(settings);
 
         // Select the files off the caller's thread; the selection's exceptions (missing root, bad pattern) propagate
         var files = await Task.Run(() => selectFiles(cancellationToken), cancellationToken).ConfigureAwait(false);

@@ -25,8 +25,9 @@ namespace DemaConsulting.TextLint.SpellChecking;
 /// </summary>
 /// <remarks>
 ///     Consumers choose how to present each kind: an unknown word is usually a typo to fix or a word to
-///     add to the settings, a flagged word is a word the project forbids, and an unsupported directive is
-///     a comment the author expects to work but that has no effect.
+///     add to the settings, a flagged word is a word the project forbids, an unsupported directive is
+///     a comment the author expects to work but that has no effect, and an invalid directive is a supported
+///     directive whose argument cannot be used.
 /// </remarks>
 public enum SpellingIssueKind
 {
@@ -44,4 +45,11 @@ public enum SpellingIssueKind
     ///     A comment contains a directive that cspell supports but this engine does not, so it has no effect.
     /// </summary>
     UnsupportedDirective,
+
+    /// <summary>
+    ///     A comment contains a directive that this engine supports, but its argument cannot be used: an
+    ///     <c>ignoreRegExp</c> directive whose pattern is invalid, unsupported, or names no pattern, so it has
+    ///     no effect. The <see cref="SpellingIssue.Detail"/> gives the reason.
+    /// </summary>
+    InvalidDirective,
 }
