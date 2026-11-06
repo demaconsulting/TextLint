@@ -30,7 +30,8 @@ the test project supports.
 - URLs, email addresses, hexadecimal values, UUIDs, and encoded data are excluded from the words to check, and ordinary
   prose is not.
 - A disabled block, an ignore directive, and every directive prefix switch checking off as documented, an ignore
-  directive adds its words, and an unsupported directive is reported at its name.
+  directive adds its words, an ignoreRegExp directive adds its pattern as written and is not reported as unsupported,
+  and an unsupported directive is reported at its name.
 - Patterns written as expressions between slashes, as bare expressions, and as defined and predefined names find the
   ranges they match with the case rules of their form, and a pattern that cannot be used is rejected with the entry
   and the reason.
@@ -76,6 +77,10 @@ are not checked, and the words around the block are.
 **TextScanningSubsystem_Scan_IgnoreDirective_AddsWordsAndExcludesDirectiveText**: An ignore directive adds its words as
 ignored words, and the words of the directive are not among the words to check.
 
+**TextScanningSubsystem_Scan_IgnoreRegExpDirective_AddsItsPattern**: An ignoreRegExp directive after some text adds its
+pattern as written (a slash pattern with the i flag) at its position, nothing is reported as unsupported, and the words
+of the directive are not among the words to check.
+
 **TextScanningSubsystem_Scan_UnsupportedDirective_IsReportedAtItsName**: An unsupported directive is reported at the
 range of its name, and the text before it is still checked.
 
@@ -92,7 +97,8 @@ matches in a text; the bare expression and the defined pattern ignore letter cas
 and text that none of them matches is left alone.
 
 **TextScanningSubsystem_ResolvePatterns_UnusableEntry_ThrowsWithEntryAndReason**: An expression with an unsupported
-flag, a name that nothing defines, and an invalid expression are each rejected with an exception that holds the entry
+flag (the x flag), a name that nothing defines, and an invalid expression are each rejected with an exception that
+holds the entry
 and a reason about the flag, the pattern name, or the unclosed group.
 
 **TextScanningSubsystem_MarkdownPatterns_LinkTarget_IsExcludedOnlyForMarkdownNames**: The patterns apply to a `.md`

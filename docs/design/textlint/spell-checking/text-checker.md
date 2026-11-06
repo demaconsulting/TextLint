@@ -13,23 +13,32 @@ also defines the finding types `SpellingIssue` and `SpellingIssueKind`, and the 
 #### Data Model
 
 **TextChecker** is a public sealed class. Its fields are the shared `WordRules` built from the settings in the
-constructor; the regular expressions of the `ignoreRegExpList` and `patterns` settings, resolved once into an immutable
-array (`_customPatterns`); and the two random-string settings (`_ignoreRandomStrings` and `_minRandomLength`). The
+constructor; the regular expressions of the `ignoreRegExpList` setting, resolved once into an immutable array
+(`_customPatterns`); the parsed definitions of the `patterns` setting by name (`_definitions`, an immutable
+dictionary compared ignoring letter case), kept so that an in-document `ignoreRegExp` directive can name them; the match
+time limit (`_matchTimeout`, exposed to tests as the internal `MatchTimeout` property); and the two random-string
+settings (`_ignoreRandomStrings` and `_minRandomLength`). The internal constant `MaxDirectivePatterns` (32) is the
+largest number of different patterns that the directives of one text may use. The
 checker keeps no reference to the settings, copies the word lists into sets, compiles the patterns, and never changes
 after construction, so it is immutable and safe to share between threads.
 
 **SpellingIssue** is an immutable public class with `FilePath` (the source name, or null), `Line` and `Column`
 (1-based; the column counts UTF-16 code units), `Text` (the word as written, the whole token for a flagged entry
-that contains digits or punctuation, or the name of an unsupported directive), `Kind`, and `Suggestions` (an
-immutable list, empty unless the finding is a flagged word whose entry gave suggestions). Its constructor is
+that contains digits or punctuation, the name of an unsupported directive, or the pattern of an invalid directive as
+written), `Kind`, `Suggestions` (an
+immutable list, empty unless the finding is a flagged word whose entry gave suggestions), and `Detail` (the reason an
+invalid directive cannot be used, as a sentence; null for the other kinds). Its constructor is
 internal because only the checker produces findings. `ToString` formats `file(line,column): error: message` in the
-compiler style, with the suggestions appended to the message, and just `(line,column)` when there is no file name.
+compiler style, with the suggestions appended to the message, and just `(line,column)` when there is no file name. The
+message of an invalid directive is `Cannot use the pattern '<text>' of the directive 'ignoreRegExp': <reason>`.
 `Format(filePath)` does the same under a file name chosen by the caller, and `ToString` is `Format` applied to the
 recorded `FilePath`; a caller that was given absolute paths uses it to show them without copying the message wording.
 Findings are values rather than exceptions so that a consumer can print or process every one the same way.
 
-**SpellingIssueKind** is an enumeration of the three kinds: `UnknownWord`, `FlaggedWord`, and
-`UnsupportedDirective`.
+**SpellingIssueKind** is an enumeration of the four kinds: `UnknownWord`, `FlaggedWord`, `UnsupportedDirective`, and
+`InvalidDirective`. An invalid directive is a directive that the library supports but whose argument cannot be used:
+an `ignoreRegExp` directive whose pattern is invalid, uses an unsupported flag or construct, or names no pattern.
+It has no effect, and the `Detail` of the finding says why.
 
 **WordRules** is an internal immutable class that answers the word-level questions: is a word flagged, is it
 accepted, is it the capital run of an acronym with an ending, is it a contraction whose parts are acceptable, is it a
@@ -50,7 +59,8 @@ an entry is repeated, the first is kept.
 settings, the findings so far, and four scratch lists (tokens, words, pieces, and the hexadecimal sequences of a token)
 that are reused across the call to avoid allocating for each word. It never leaves the call that created it.
 
-**Finding** is a private record struct of an offset, a length, a kind, and suggestions; it is converted to a
+**Finding** is a private record struct of an offset, a length, a kind, suggestions, and the optional detail of an
+invalid directive; it is converted to a
 `SpellingIssue` only at the end, when the offsets are turned into lines and columns.
 
 #### Key Methods
@@ -61,15 +71,25 @@ that are reused across the call to avoid allocating for each word. It never leav
 - _Preconditions_: the settings are not null, the language is supported, every entry of `words`,
   `ignoreWords`, and `flagWords` can match something, and every entry of `ignoreRegExpList` and `patterns` can be used.
 - _Postconditions_: the checker is immutable. The dictionaries of the language are loaded lazily, when the first word
-  is looked up, not here.
+  is looked up, not here. The match time limit is 5 seconds.
+
+**Constructor (internal, with a match time limit)**: Builds a checker with a given time limit. The public constructor
+calls it with the production limit of 5 seconds (`PatternParser.MatchTimeoutMilliseconds`), so the two differ only in
+the limit. It is a test seam: tests pass a few milliseconds to prove the time-out behavior without waiting for the real
+limit, and a test proves that a checker made by the public constructor reports 5 seconds through the internal
+`MatchTimeout` property. The limit applies to every pattern that is built at run time, which are the patterns of the
+settings and those of the directives; the generated patterns keep their own fixed limit of 5 seconds. A limit that is
+not positive throws `ArgumentOutOfRangeException`.
 
 Steps: (1) resolve the language with the spelling dictionary, converting its exception into an `ArgumentException`
 that names the language and lists the supported names, so an unsupported language is reported before any list
 entry; (2) interpret every entry of the three lists (the flag list also accepts the suggestion forms `word->a, b`
 and `word: a`) and reject one that could never match, naming the setting and the entry; (3) build the sets and the
-rules; (4) resolve the pattern settings with `PatternCatalog.Resolve`, which parses every pattern and checks every
-name, so an `InvalidPatternException` that names the entry and the reason is thrown for an unusable one, used or not,
-after the word lists have been accepted; (5) keep the compiled patterns and the two random-string settings. Settings
+rules; (4) parse the definitions of `patterns` with `PatternCatalog.ParseDefinitions` and resolve the entries of
+`ignoreRegExpList` with `PatternCatalog.ResolveEntries`, both with the time limit, which parse every pattern and check
+every name, so an `InvalidPatternException` that names the entry and the reason is thrown for an unusable one, used or
+not, after the word lists have been accepted; (5) keep the compiled patterns, the parsed definitions, and the two
+random-string settings. Settings
 built in code bypass the settings file loader's checks, which is why the constructor repeats them, with the same
 rules, so a pattern accepted when a file is loaded is never rejected here.
 
@@ -82,14 +102,41 @@ rules, so a pattern accepted when a file is loaded is never rejected here.
 - _Postconditions_: the text is not modified; nothing is read or written; the list is immutable.
 
 Steps: (1) scan the text for directives, which yields the regions that are switched off, the text of the directives
-that add words, the words they add, and the unsupported directives; (2) add the ranges that are never checked: the
+that add words or patterns, the words they add, the patterns of the `ignoreRegExp` directives, and the unsupported
+directives; (2) add the ranges that are never checked: the
 default patterns (URLs, email addresses, hexadecimal values, hashes, encoded data), the Markdown patterns when
-`MarkdownPatterns.AppliesTo` accepts the source name (link targets, labels, anchors, and entities), and the patterns of
-the settings, each run over the whole text by `PatternCatalog.FindExcludedRanges`, so a pattern can span lines and can
-cut a word in two; then sort all excluded ranges by position; (3) when the directives added words, layer them over the
+`MarkdownPatterns.AppliesTo` accepts the source name (link targets, labels, anchors, and entities), the patterns of
+the settings, and the patterns of the directives (see _ApplyDirectivePatterns_), each run over the whole text by
+`PatternCatalog.FindExcludedRanges`, so a pattern can span lines and can cut a word in two; then sort all excluded
+ranges by position; (3) when the directives added words, layer them over the
 shared rules; (4) check each stretch of text between excluded ranges as a separate segment, so a word that an excluded
-range cuts in two is checked as two pieces; (5) add one finding for each unsupported directive; (6) convert offsets to
-lines and columns.
+range cuts in two is checked as two pieces; (5) add one finding for each unsupported directive and one for each
+invalid directive pattern; (6) convert offsets to lines and columns.
+
+**ApplyDirectivePatterns (private)**: Applies the patterns of the `ignoreRegExp` directives of one text.
+
+- _Parameters_: the text, the `PatternDirectives` of the scan, and the list of excluded ranges that receives the
+  matches.
+- _Returns_: the patterns that cannot be used and are to be reported, each with its range and reason, in text order.
+- _Postconditions_: a pattern applies to the whole text, wherever its directive is, also when the directive is inside a
+  disabled region (there it is applied but not reported, because `IsReportable` is false). The text of the directive
+  itself is never checked, because the scan excludes it; a pattern that cannot be used hides nothing else.
+- _Algorithm_: for each directive in text order: (1) when its pattern text was already seen, reuse the earlier outcome,
+  so each DISTINCT pattern text (compared exactly, ordinal) is resolved and matched once, however many directives
+  repeat it, while every repetition is still reported at its own position; (2) otherwise, when 32 different patterns
+  were already seen (`MaxDirectivePatterns`), the pattern is rejected without being read, with the reason `a text may
+  use at most 32 different ignoreRegExp patterns.`; (3) otherwise resolve it with `PatternCatalog.TryResolveEntry`, like
+  an `ignoreRegExpList` entry: a literal `/body/flags` with the flags as written, a bare expression read with `i` and
+  `m`, the name of a definition of the `patterns` setting, or a predefined name; a regular expression that results
+  is run over the text with `PatternCatalog.FindExcludedRanges`, and a failure gives the reason; (4) when the outcome is
+  a reason and the directive is reportable, add the range and the reason to the result.
+- _Constraints_: a pattern that exceeds the time limit throws `RegexMatchTimeoutException` (see _Error Handling_).
+
+The rule for patterns differs from cspell in three deliberate ways: a pattern that cannot be used is reported (cspell
+drops it silently); a plain name that is neither defined nor predefined is an error (cspell reads it as a literal
+regular expression); and an `ignoreRegExp` directive with nothing after its name is reported as an unsupported directive.
+A pattern that cspell would also use is applied in the same way, to the whole document. The number of patterns is
+bounded because a directive is written by whoever wrote the text.
 
 **CheckRun.CheckToken / CheckWord / CheckPiece (private)**: The word-level algorithm for one segment.
 
@@ -129,8 +176,9 @@ The test comes after the whole-word checks, so a word that is known as a whole n
 
 **ToIssues (private)**: Converts findings to issues.
 
-The findings are in text order except that unsupported directives are appended last, so they are sorted (stably)
-only when there is one. The conversion walks the text once, counting line feeds (a carriage return alone is not a
+The findings are in text order except that unsupported directives and invalid directives are appended last, so they are
+sorted (stably) only when there is one of either; the invalid ones are therefore merged in text order with the other
+findings. The conversion walks the text once, counting line feeds (a carriage return alone is not a
 line break, as in cspell) and measuring the column in UTF-16 code units from the last line feed.
 
 **InterpretEntries (private)**: Interprets one list. It uses the tokenizer's entry parser and throws an
@@ -147,26 +195,43 @@ mistaken for an accepted word), or has no letter or digit.
 
 #### Error Handling
 
-A null settings value or text throws `ArgumentNullException`. An unusable language or word-list entry throws
+A null settings value or text throws `ArgumentNullException`, and a match time limit that is not positive throws
+`ArgumentOutOfRangeException` from the internal constructor. An unusable language or word-list entry throws
 `ArgumentException` from the constructor, naming the language, or the setting and the entry. An unusable pattern, in
 `ignoreRegExpList` or `patterns`, throws `InvalidPatternException` (a kind of `ArgumentException`) from the constructor,
-naming the entry and the reason. Checking itself has no expected failure. Two failures can still occur and are not
+naming the entry and the reason. An unusable pattern in an `ignoreRegExp` directive of a text is not an exception: it is
+data that is reported as an `InvalidDirective` finding at the pattern, with the reason in `Detail`, and the rest of the
+text is checked as usual (the finding is omitted inside a region where checking is switched off). The reasons are those
+of `PatternParser` and `PatternCatalog` (an invalid expression, an unsupported flag or construct, or a name that is
+neither defined nor predefined), or the sentence that the text uses more than 32 different patterns, which rejects the
+excess without reading it. Checking itself has no other expected failure. Two failures can still occur and are not
 caught here, because only the caller knows what to do with them: a `RegexMatchTimeoutException` when any ignore pattern,
-whether a default pattern, a Markdown pattern, a pattern of the settings, or the hexadecimal pattern, exceeds its time
-limit on hostile text (the caller should treat the text as not checked; `SpellChecker` reports the file as timed out,
+whether a default pattern, a Markdown pattern, a pattern of the settings, a pattern of a directive, or the hexadecimal
+pattern, exceeds its time limit
+on hostile text (the caller should treat the text as not checked; `SpellChecker` reports the file as timed out,
 and the findings found so far are discarded with the exception), and an `InvalidDataException` when an embedded
 dictionary is missing or damaged, which means the build of the library is defective. Findings are never thrown. Nothing
 is logged.
 
+The time limit is a safety net, not a guarantee of speed. Every pattern that is built at run time may cost up to the
+limit (5 seconds in production) on one text before the file is reported as timed out, and the first time-out aborts the
+check of that file. A file is bounded by the patterns that apply to it: the patterns of the settings, and at most 32
+different patterns that its own directives add, so in the very worst case a file built to trigger them costs up to
+(the number of patterns of the settings + 32) x 5 seconds. A pattern repeated by several directives is run once.
+The patterns that are generated at build time keep a fixed limit of 5 seconds and are not covered by the seam.
+
 #### Dependencies
 
 - **TextLintSettings** (Configuration subsystem) - the language, the three word lists, the minimum word length, the
-  `ignoreRegExpList` and `patterns` lists, and the two random-string settings.
+  `ignoreRegExpList` and `patterns` lists (the definitions also serve the names that a directive writes), and the two
+  random-string settings.
 - **SpellingDictionary** (Dictionaries subsystem) - the language selection and the word lookup.
 - **WordTokenizer**, **DefaultPatterns**, and **DocumentDirectives** (TextScanning subsystem) - the tokens, words, and
-  pieces; the text that is never checked; and the directives. See _TextScanning Design_.
-- **PatternCatalog**, **MarkdownPatterns**, and **RandomStringDetector** (TextScanning subsystem) - the resolved
-  patterns of the settings and the code that runs them; the patterns that apply to Markdown sources; and the judgement
+  pieces; the text that is never checked; and the directives, including the patterns of `ignoreRegExp` directives. See
+  _TextScanning Design_.
+- **PatternCatalog**, **PatternParser**, **MarkdownPatterns**, and **RandomStringDetector** (TextScanning subsystem) - the
+  resolved patterns of the settings and of the directives and the code that runs them; the match time limit; the
+  patterns that apply to Markdown sources; and the judgement
   of random-looking tokens and hexadecimal sequences. `InvalidPatternException` and `NamedPattern` come with them.
 - **.NET BCL** - collections, spans, and regular expressions (the compiled patterns are held as `Regex` values).
 
@@ -175,3 +240,4 @@ is logged.
 - **SpellChecker** - creates one checker for a run and calls it from every worker for the text of each file.
 - **Library consumers** - editors, build steps, and tests that check a string, usually with
   `new TextChecker(settings).Check(text, name)`.
+- **Tests** - use the internal constructor with a short time limit.

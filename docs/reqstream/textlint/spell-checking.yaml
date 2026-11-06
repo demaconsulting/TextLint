@@ -54,10 +54,12 @@ sections:
 
           - id: TextLint-SpellChecking-ExcludedTextAndForms
             title: >-
-              The SpellChecking subsystem shall not check text that matches the patterns of the settings, the
+              The SpellChecking subsystem shall not check text that matches the patterns of the settings or of
+              the ignoreRegExp directives of the text, the
               link targets and labels of Markdown files, long tokens that look like random data, and unknown
-              words inside hexadecimal sequences, shall accept contractions whose parts are acceptable, and shall
-              reject settings with a pattern that cannot be used.
+              words inside hexadecimal sequences, shall accept contractions whose parts are acceptable, shall
+              reject settings with a pattern that cannot be used, and shall report a directive pattern that
+              cannot be used at its position.
             justification: |
               Projects hold text that is not prose and that the default ignore list does not recognize, and
               cspell lets them exclude it. The same rules must apply to a string and to the files of a run, and
@@ -65,11 +67,13 @@ sections:
             children:
               - TextLint-SpellChecking-TextChecker-CustomPatterns
               - TextLint-SpellChecking-TextChecker-InvalidPatterns
+              - TextLint-SpellChecking-TextChecker-IgnoreRegExpDirective
               - TextLint-SpellChecking-TextChecker-MarkdownFiles
               - TextLint-SpellChecking-TextChecker-RandomStrings
               - TextLint-SpellChecking-TextChecker-Contractions
             tests:
               - SpellCheckingSubsystem_CheckText_CustomPatternsFromSettings_SkipMatches
+              - SpellCheckingSubsystem_CheckText_IgnoreRegExpDirective_HidesMatchesAndReportsUnusablePatterns
               - SpellCheckingSubsystem_Constructor_UnusablePattern_ThrowsInvalidPatternException
               - SpellCheckingSubsystem_CheckAsync_MarkdownFile_SkipsLinkTargetsOfThatFileOnly
               - SpellCheckingSubsystem_CheckText_RandomLookingToken_IsSkippedUnlessSwitchedOff

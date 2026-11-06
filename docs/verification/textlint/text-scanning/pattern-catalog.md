@@ -5,15 +5,19 @@
 `PatternCatalog` is verified with unit tests in `PatternCatalogTests.cs`. The unit depends on `PatternParser` and on the
 .NET base class library, so the tests use the real classes and no mocks, doubles, or files: each test passes the
 `ignoreRegExpList` entries and the pattern definitions to `Resolve`, passes the resolved regular expressions and a text
-to `FindExcludedRanges`, and asserts on the text of the ranges it reports or on the exception it throws. The parser is
-not replaced because the catalog's contract includes the exceptions that parsing raises for a definition or an
-expression, and its own behavior is verified by the unit tests of `PatternParser`. The expectations for the predefined
+to `FindExcludedRanges`, and asserts on the text of the ranges it reports or on the exception it throws. The entry-level
+operations that the in-document directives use, `ParseDefinitions`, `ResolveEntries`, and `TryResolveEntry`, are called
+directly with parsed definitions and a short match limit, and the tests assert on the regular expression they return,
+its limit, or the reason they give. The parser is not replaced because the catalog's contract includes the exceptions
+that parsing raises for a definition or an expression, and its own behavior is verified by the unit tests of
+`PatternParser`. The expectations for the predefined
 patterns that exclude text only when listed were recorded from the pattern definitions of the cspell version that they
 are ported from, run in a real JavaScript engine, so each row of the theory is a recorded cspell result: a name, a text,
 and the matches cspell finds. The count and the names of the predefined patterns are tested against the explicit list of
 twenty-eight names, so a pattern that is added or removed fails a test. The always-applied names are a theory with one
 row per name. The five-second limit cannot be waited for in a test, so the test checks that every optional pattern
-carries it, and the search of a text of one million characters, by a pattern that starts a match at every position,
+carries it, the entry-level operations take the limit as an argument so that the tests can prove that they pass a
+shorter one on, and the search of a text of one million characters, by a pattern that starts a match at every position,
 proves that a large text is searched completely.
 
 #### Test Environment
@@ -34,6 +38,13 @@ N/A - standard test environment.
 - Ranges are appended to the list without removing its items, empty matches are skipped, and a text of one million
   characters is searched completely.
 - Empty lists resolve to nothing, null arguments are rejected, and a named pattern keeps its values and rejects null.
+- A single entry resolves to a regular expression with the limit it is given, to nothing for a name that is always
+  applied, or to a reason for an unsupported flag or an unknown name, without throwing; a defined name is found in any
+  letter case before the predefined names.
+- Parsed definitions are by name without regard to letter case and carry the limit they are given; a repeated or
+  predefined name is rejected with the name as the entry.
+- The entries of a list are resolved against parsed definitions with the limit, a name listed twice once, and an unknown
+  name is rejected with an exception; null arguments are rejected.
 
 #### Test Scenarios
 
@@ -86,8 +97,8 @@ rejected, with the second named and a reason that says it is already defined.
 **PatternCatalog_Resolve_UnusedInvalidDefinition_Throws**: A definition with an invalid pattern that the list does not
 name is still rejected, with the pattern as the entry.
 
-**PatternCatalog_Resolve_InvalidExpressions_ThrowForListAndDefinitions**: An expression with an unsupported flag in the
-list, and an invalid pattern in a definition, are each rejected with their own entry.
+**PatternCatalog_Resolve_InvalidExpressions_ThrowForListAndDefinitions**: An expression with an unsupported flag (the
+x flag) in the list, and an invalid pattern in a definition, are each rejected with their own entry.
 
 **PatternCatalog_IsNameShaped_Entries_AreClassified**: Words with letters, digits, hyphens, underscores, and padding are
 classified as names, and slashed expressions, expressions with metacharacters, entries that start with a digit or a
@@ -111,5 +122,22 @@ null range list each throw a null-argument error.
 
 **NamedPattern_Constructor_KeepsValuesAndRejectsNull**: A named pattern keeps its name and pattern, equal values are
 equal, and a null name or pattern throws.
+
+**PatternCatalog_TryResolveEntry_Forms_AreResolvedOrExplained**: With parsed definitions of one defined pattern and a
+limit of 250 milliseconds, an expression resolves to a regular expression that has the limit, a defined name in another
+letter case resolves to the parsed pattern itself, an optional predefined name resolves to a pattern, and a name that
+is always applied resolves to nothing, each with no reason; an expression with the x flag and a name that nothing
+defines resolve to nothing with a reason that names the flag and a reason that says the name is not a defined or
+predefined pattern name.
+
+**PatternCatalog_ParseDefinitions_Names_AreCaseInsensitiveAndChecked**: Parsing one definition with a limit of 300
+milliseconds gives a pattern that is found by its name in other letter case and has the limit; a repeat that differs
+only by letter case and a name of a predefined pattern are each rejected with the name as the entry, and a null list
+throws a null-argument error.
+
+**PatternCatalog_ResolveEntries_Entries_AreResolvedOnceWithTheLimit**: A list that names a defined pattern twice in
+different letter case, an expression, and a name that is always applied resolves to the parsed pattern once and the
+expression with the limit of 400 milliseconds; an unknown name is rejected with an exception, and a null list, null
+definitions, a null entry, and null definitions for a single entry each throw a null-argument error.
 
 <!-- cspell:ignore metacharacters -->

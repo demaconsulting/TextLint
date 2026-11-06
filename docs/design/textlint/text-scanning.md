@@ -8,10 +8,12 @@ The `TextScanning` subsystem decides what the checkable parts of a text are. It 
 string: where are the words, tokens, and case-change pieces; which parts are not prose and must never be checked
 (URLs, email addresses, hashes, encoded data, the text that the project's own patterns match, and the link targets of
 a Markdown document); which tokens look like random data, such as keys, and which hexadecimal sequences lie inside a
-token; which parts the author has switched off or added words for with in-document directives; and how an entry of a
+token; which parts the author has switched off or added words or patterns for with in-document directives; and how an
+entry of a
 word list is to be read so that it can be matched. It contains seven units: `WordTokenizer`, which decides what a word
 is and interprets list entries; `DefaultPatterns`, which finds the text that is not prose; `DocumentDirectives`, which
-interprets directives such as the disable directive; `PatternParser`, which turns a pattern written the way cspell
+interprets directives such as the disable directive and finds the patterns of `ignoreRegExp` directives;
+`PatternParser`, which turns a pattern written the way cspell
 writes it into a .NET regular expression that has its JavaScript meaning (with `JavaScriptRegexTranslator`, which does
 the translation, and `InvalidPatternException`, which reports an unusable pattern); `PatternCatalog`, which knows the
 predefined pattern names and turns the `ignoreRegExpList` and `patterns` settings into regular expressions
@@ -61,8 +63,11 @@ All members are in-process .NET static methods, so every unit is stateless and e
 **DocumentDirectives.Scan**: Interprets the directives of a text.
 
 - _Contract_: Returns a `DirectiveScan` with the excluded ranges (not sorted, possibly overlapping), the words added by
-  `ignore` and by `words` directives, and the ranges of the names of directives that are recognized but not supported.
-  A text without directives returns the shared `DirectiveScan.Empty`.
+  `ignore` and by `words` directives, the patterns written by `ignoreRegExp` directives (`PatternDirectives`: the range
+  and text of each pattern as written, read from the line the way cspell reads it, and whether an unusable pattern
+  there is to be reported), and the ranges of the names of directives that are recognized but not supported, which
+  include an `ignoreRegExp` directive with nothing after its name on its line. A text without directives returns the
+  shared `DirectiveScan.Empty`.
 - _Constraints_: Throws `ArgumentNullException` for a null text and `RegexMatchTimeoutException` when a pattern
   exceeds its time limit.
 
@@ -70,27 +75,43 @@ All members are in-process .NET static methods, so every unit is stateless and e
 
 - _Contract_: Accepts an entry, `/body/flags` or a bare expression, and returns a .NET regular expression that has the
   JavaScript meaning of the pattern, built with the invariant culture and a five-second match time limit. The flags
-  `g`, `i`, `m`, and `u` are accepted and every other flag is rejected by name.
-- _Constraints_: Throws `ArgumentNullException` for a null entry and `InvalidPatternException`, naming the entry and the
+  `g`, `i`, `m`, `s` (the dot also matches line terminators), and `u` are accepted and every other flag (`x`, `y`, `d`,
+  `v`) is rejected by name. An internal overload takes the time limit, so that tests can prove the time-out behavior
+  in milliseconds; production code never passes one.
+- _Constraints_: Throws `ArgumentNullException` for a null entry, `ArgumentOutOfRangeException` for a limit that is not
+  positive, and `InvalidPatternException`, naming the entry and the
   reason, for a blank entry, an unsupported flag, a body that is too long (more than 4096 characters), nested too deep
   (more than 100 levels), or untranslatable. `JavaScriptRegexTranslator.TryTranslate` does the translation and returns
   the reason as data instead of throwing.
 
-**PatternCatalog.Resolve**: Turns the pattern settings into regular expressions.
+**PatternCatalog.Resolve, ParseDefinitions, ResolveEntries**: Turn the pattern settings into regular expressions.
 
-- _Contract_: Accepts the entries of `ignoreRegExpList` and the definitions of `patterns` (`NamedPattern` values), and
-  returns an immutable array with one regular expression for each pattern that excludes text, in list order. An entry
-  that has the shape of a name is a defined name, one of the nine predefined patterns that apply only when listed, or one
-  of the nineteen predefined names of patterns that always apply, which add nothing; any other entry is a pattern.
-- _Constraints_: Throws `ArgumentNullException` for a null argument and `InvalidPatternException` for the first
+- _Contract_: `ParseDefinitions` parses the definitions of `patterns` (`NamedPattern` values) into a dictionary by
+  name, ignoring letter case. `ResolveEntries` accepts the entries of `ignoreRegExpList` and the parsed definitions, and
+  returns an immutable array with one regular expression for each pattern that excludes text, in list order. `Resolve`
+  does both with the production time limit. An entry that has the shape of a name is a defined name, one of the nine
+  predefined patterns that apply only when listed, or one of the nineteen predefined names of patterns that always
+  apply, which add nothing; any other entry is a pattern. The two newer methods take the match time limit, an internal
+  seam for tests.
+- _Constraints_: Throw `ArgumentNullException` for a null argument and `InvalidPatternException` for the first
   definition or entry that cannot be used: an invalid, predefined, or repeated definition name, a name that is not
   defined, or a pattern that cannot be parsed. Every definition is checked, used or not.
+
+**PatternCatalog.TryResolveEntry**: Resolves one entry to a regular expression, with the failure as data.
+
+- _Contract_: Accepts one entry, written in `ignoreRegExpList` or in an in-document directive, and the parsed
+  definitions, and returns `true` with the regular expression (null for a predefined name that always applies), or
+  `false` with the reason as a sentence. It resolves in the same way as `ResolveEntries`: a pattern is parsed, and a
+  name is looked up among the definitions, then the predefined patterns.
+- _Constraints_: Throws `ArgumentNullException` for a null argument; an unusable entry is never thrown, so that the
+  caller can report it where it was written.
 
 **PatternCatalog.IsNameShaped, IsPredefined, CheckDefinitionName, CheckReference**: Classify and check names.
 
 - _Contract_: Report whether an entry has the shape of a name, whether a name is predefined (ignoring letter case), and,
   as a sentence or null, whether a name may be given to a definition or refers to a pattern. They let the settings
-  loader report the same problems as `Resolve`, with a position.
+  loader report the same problems as `Resolve`, with a position. The sentence for a name that refers to no pattern is
+  built in one place, which `TryResolveEntry` shares.
 - _Constraints_: Throw `ArgumentNullException` for a null argument; nothing else can fail.
 
 **PatternCatalog.FindExcludedRanges**: Finds the text that a set of patterns matches.
@@ -158,20 +179,28 @@ that scans many files can reuse one buffer, no result needs a copy of the text, 
 column of a finding. Offsets count UTF-16 code units, which is how .NET strings are indexed and how cspell reports
 columns, so a character outside the basic multilingual plane counts as two.
 
-The subsystem differs from cspell in four ways on purpose. It has no counterpart to cspell's heuristic word splitter,
+Every directive that cspell supports and this library does not is reported instead of being silently ignored. The
+subsystem differs from cspell in four ways on purpose. It has no counterpart to cspell's heuristic word splitter,
 which re-segments an unknown word with the help of the dictionary: words are split only at case changes, so the
 subsystem stays a pure function of the text that does not depend on a dictionary. It treats a word-list entry as
 something to be validated: an entry that could never match is rejected with a reason when settings are read, where
 cspell silently keeps it. It treats a pattern as something to be validated in the same way: an unsupported flag or
 construct, an invalid regular expression, or a name that is not defined is an error, where cspell either drops the flag,
-lets the JavaScript engine decide, or reads the unknown name as a literal regular expression. And it bounds every
-regular expression with a match time limit, where cspell has none.
+lets the JavaScript engine decide, or reads the unknown name as a literal regular expression; this holds for the
+patterns of in-document `ignoreRegExp` directives too, which cspell drops without a word when they are invalid and
+which the library finds and reports at their position (the directive itself is read exactly as cspell reads it, and its
+pattern applies to the whole document). And it bounds every regular expression with a match time limit, where cspell
+has none.
 
 The time limit is a safety net with stated limits. It stops one match operation of one pattern on one text after five
 seconds with a `RegexMatchTimeoutException`, so a pattern that backtracks catastrophically on a hostile file cannot hang
 a run, but it does not stop the processor being busy for those five seconds, so a file built to trigger every pattern can
-cost up to five seconds for each of them. The length and nesting limits of `PatternParser` bound the work of reading a
-pattern, which the time limit does not cover.
+cost up to five seconds for each of them. The first time-out aborts the file, and the number of patterns that can apply
+to a file is bounded (the patterns of the settings, and at most 32 different patterns written by the directives of the
+file, which `TextChecker` enforces), so the worst case for one file is (settings patterns + 32) x 5 seconds. The length
+and nesting limits of `PatternParser` bound the work of reading a pattern, which the time limit does not cover. The
+limit is 5 seconds in production; internal overloads let the tests use a short one, and the generated patterns keep
+their fixed limit.
 
 Every unit is thread-safe because every unit is stateless. The generated and constructed regular expressions are
 immutable and safe for concurrent matching, the shared `DirectiveScan.Empty` and all other results are immutable, and

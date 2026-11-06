@@ -380,7 +380,7 @@ scenario is tested by `SettingsLoader_Parse_IgnoreRegExpList_MapsEntriesInOrder`
 description, are mapped in order with their names and expressions. This scenario is tested by
 `SettingsLoader_Parse_Patterns_MapsNamesAndExpressions`.
 
-**SettingsLoader_Parse_IgnoreRegExpListUnsupportedFlag_ReportsErrorAtItem**: An expression with the `s` flag is the
+**SettingsLoader_Parse_IgnoreRegExpListUnsupportedFlag_ReportsErrorAtItem**: An expression with the `x` flag is the
 single error, which names the setting, the entry, and the flag, at line 2 and the column of the list item. This
 scenario is tested by `SettingsLoader_Parse_IgnoreRegExpListUnsupportedFlag_ReportsErrorAtItem`.
 

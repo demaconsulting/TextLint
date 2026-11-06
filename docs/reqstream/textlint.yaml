@@ -547,9 +547,9 @@ sections:
       - id: TextLint-System-IgnoreRegExpList
         title: >-
           The library shall not check the text that matches a pattern of the ignoreRegExpList setting,
-          written between slashes with flags, as a bare expression, or as the name of a defined or
-          predefined pattern, and shall report a pattern that cannot be used in a settings file as an
-          error at its position.
+          written between slashes with the flags g, i, m, s, and u, as a bare expression, or as the name
+          of a defined or predefined pattern, and shall report a pattern that cannot be used in a settings
+          file as an error at its position.
         tags: [system]
         justification: |
           Projects hold text that is not prose and that the default ignore list does not recognize, such
@@ -563,9 +563,27 @@ sections:
           - TextLint-Configuration-InvalidRegularExpressions
         tests:
           - TextLint_CheckText_IgnoreRegExpList_SkipsMatches
+          - TextLint_CheckText_DotAllFlag_MatchesAcrossLines
           - TextLint_Settings_InvalidRegularExpression_ReportsFileLineAndColumn
           - TextLint_Settings_UnknownPatternName_ReportsFileLineAndColumn
           - TextLint_SpellCheck_PatternsFromConfigFile_SkipMatchesInFiles
+
+      - id: TextLint-System-IgnoreRegExpDirective
+        title: >-
+          The library shall not check the text that matches the pattern of an ignoreRegExp directive
+          in a comment, with any directive prefix, in the whole text the directive is written in, and shall
+          report a pattern of a directive that cannot be used, at its position and with the reason.
+        tags: [system]
+        justification: |
+          Authors of a document hide text that is not prose next to the text itself, as they do with cspell.
+          cspell applies the pattern to the whole document and drops a pattern it cannot use without a word,
+          which leaves the author believing it is in force, so the library reports it where it is written.
+        children:
+          - TextLint-TextScanning-Directives
+          - TextLint-SpellChecking-ExcludedTextAndForms
+        tests:
+          - TextLint_CheckText_IgnoreRegExpDirective_SkipsMatchesInTheWholeText
+          - TextLint_CheckText_IgnoreRegExpDirectiveInvalid_IsReportedAtItsPosition
 
       - id: TextLint-System-PredefinedPatterns
         title: >-
@@ -804,3 +822,4 @@ sections:
           - TextLint_CspellParity_MarkdownLinkCorpus_MatchesRecordedCspellOutput
           - TextLint_CspellParity_RandomStringCorpora_MatchRecordedCspellOutput
           - TextLint_CspellParity_ContractionCorpus_MatchesRecordedCspellOutput
+          - TextLint_CspellParity_IgnoreRegExpCorpus_MatchesRecordedCspellOutput

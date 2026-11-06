@@ -87,6 +87,23 @@ sections:
                   - PatternCatalog_FindExcludedRanges_ExistingListAndEmptyMatches_AreKeptAndSkipped
                   - PatternCatalog_FindExcludedRanges_OneMegabyteOfText_IsSearchedCompletely
 
+              - id: TextLint-TextScanning-PatternCatalog-EntryResolution
+                title: >-
+                  PatternCatalog shall resolve a single entry, such as one written in an in-document directive, to
+                  a regular expression with the match time limit it is given, to nothing for a name that is always
+                  applied, or to the reason it cannot be used, without throwing, looking a name up among the
+                  parsed definitions of the settings (compared without regard to letter case) before the
+                  predefined names, and shall parse the definitions of the settings with the limit it is given.
+                justification: |
+                  The settings and the directives of a text write patterns in the same forms, so one resolution
+                  gives both the same meaning. A caller that reads a directive must report an unusable pattern where
+                  it is written, so failure is returned as data, and the limit lets tests prove the time-out in
+                  milliseconds.
+                tests:
+                  - PatternCatalog_TryResolveEntry_Forms_AreResolvedOrExplained
+                  - PatternCatalog_ParseDefinitions_Names_AreCaseInsensitiveAndChecked
+                  - PatternCatalog_ResolveEntries_Entries_AreResolvedOnceWithTheLimit
+
               - id: TextLint-TextScanning-PatternCatalog-ArgumentValidation
                 title: >-
                   PatternCatalog shall resolve empty lists to no patterns, shall reject a missing argument with a

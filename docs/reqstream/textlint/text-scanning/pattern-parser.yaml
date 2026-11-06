@@ -31,12 +31,13 @@ sections:
 
               - id: TextLint-TextScanning-PatternParser-Flags
                 title: >-
-                  PatternParser shall accept the flags g, i, m, and u, in any combination, and shall reject any
+                  PatternParser shall accept the flags g, i, m, s, and u, in any combination, and shall reject any
                   other flag, naming it.
                 justification: |
-                  The other JavaScript flags have no safe equivalent: cspell drops some of them without a word, so
+                  The flags x, y, d, and v have no safe equivalent: cspell drops some of them without a word, so
                   a pattern that depends on one would not mean what its author wrote. Rejecting the flag by name
-                  lets the author fix the pattern instead of wondering why it does not work.
+                  lets the author fix the pattern instead of wondering why it does not work. The s flag, which
+                  lets the dot match line terminators, has an exact equivalent and is accepted.
                 tests:
                   - PatternParser_Parse_SupportedFlags_AreAccepted
                   - PatternParser_Parse_UnsupportedFlag_ThrowsNamingTheFlag
@@ -45,7 +46,8 @@ sections:
                 title: >-
                   PatternParser shall give the constructs of a pattern their JavaScript meaning: word characters,
                   digits, and word boundaries are ASCII only; white space is the JavaScript set; the dot and the
-                  line anchors recognize the four JavaScript line terminators; classes, ranges, groups, named
+                  line anchors recognize the four JavaScript line terminators, and the dot also matches them with
+                  the s flag; classes, ranges, groups, named
                   groups, back-references, look-ahead, look-behind, quantifiers, escapes, and Unicode general
                   categories behave as in JavaScript; groups are numbered in order of their opening parenthesis;
                   and a character outside the basic plane is one character with the u flag. A back-reference to a
@@ -100,13 +102,17 @@ sections:
 
               - id: TextLint-TextScanning-PatternParser-BoundedMatching
                 title: >-
-                  PatternParser shall build every regular expression with a match time limit of five seconds, so
+                  PatternParser shall build every regular expression with a match time limit of five seconds,
+                  unless a shorter limit is requested through the internal seam that tests use, so
                   that a pattern that backtracks without end on some text ends with a time-out error instead of
-                  hanging, and with the invariant culture so that matching does not depend on the machine.
+                  hanging, shall reject a limit that is not positive, and shall build with the invariant culture
+                  so that matching does not depend on the machine.
                 justification: |
                   A pattern that works on every file of a project can still backtrack catastrophically on a file
                   built to make it. A run that never finishes is worse than one that reports the file as not
-                  checked, and cspell, which has no limit, would hang.
+                  checked, and cspell, which has no limit, would hang. The production limit is fixed; the seam
+                  lets the tests prove the time-out in milliseconds, without waiting for the real limit.
                 tests:
                   - PatternParser_Parse_Result_HasInvariantCultureCaseOptionAndTimeLimit
                   - PatternParser_Parse_CatastrophicPattern_TimesOutWhenMatching
+                  - PatternParser_Parse_MatchTimeout_DefaultsToFiveSecondsAndMustBePositive

@@ -38,14 +38,16 @@ Windows, Linux, and macOS.
   stopping the run, and a missing root directory is an error.
 - Results are identical and in the same order for one worker and for many, also when runs overlap; an invalid degree
   of parallelism is rejected; a cancelled run throws and returns nothing.
-- Text that matches an expression or a named pattern of the settings is not checked, and a pattern that cannot be used
-  is rejected when the checker is created.
+- Text that matches an expression or a named pattern of the settings, or the pattern of an ignoreRegExp directive of
+  the text, is not checked; a pattern that cannot be used is rejected when the checker is created, and a directive
+  pattern that cannot be used is reported at its position with the reason.
 - The link targets of a Markdown file are not checked, and the same text in a file with another name is.
 - A token that looks like random data is not checked unless the setting is off, and a contraction is accepted when its
   parts are, and reported whole otherwise.
 - A file on which a pattern exceeds its time limit is reported as a file that took too long and the run continues. No
   subsystem test waits for the limit; this behavior is proved by the unit tests of `TextChecker` and `SpellChecker`
-  and by a system test with a catastrophic pattern.
+  and by a system test with a catastrophic pattern, which run with a limit of 100 milliseconds through internal seams,
+  while the production limit of five seconds is checked by a unit test of `TextChecker`.
 
 ### Test Scenarios
 
@@ -154,6 +156,13 @@ is tested by `SpellCheckingSubsystem_CheckText_CustomPatternsFromSettings_SkipMa
 **SpellCheckingSubsystem_Constructor_UnusablePattern_ThrowsInvalidPatternException**: Settings with an invalid
 expression and settings with a name that nothing defines each fail when the checker is created, with the documented
 exception. This scenario is tested by `SpellCheckingSubsystem_Constructor_UnusablePattern_ThrowsInvalidPatternException`.
+
+**SpellCheckingSubsystem_CheckText_IgnoreRegExpDirective_HidesMatchesAndReportsUnusablePatterns**: Settings define a
+pattern, and a text holds a directive that names it, a directive with an expression, a word each of them matches, one
+before and one after its directive, and a directive with a pattern that cannot be used; the matched words are hidden,
+wherever the directives are, and the findings are one misspelling and one invalid directive at the position of the
+unusable pattern. This scenario is tested by
+`SpellCheckingSubsystem_CheckText_IgnoreRegExpDirective_HidesMatchesAndReportsUnusablePatterns`.
 
 **SpellCheckingSubsystem_CheckAsync_MarkdownFile_SkipsLinkTargetsOfThatFileOnly**: A Markdown file and a text file hold
 the same link and the same misspelling; the link target is skipped in the Markdown file and reported in the text file.

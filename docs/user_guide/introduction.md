@@ -457,7 +457,8 @@ terms, and the word lists of the settings:
   certificate and key blocks. The text that the patterns of the settings match, the link targets and labels of Markdown
   files, and long random-looking tokens are not checked either (see the sections below).
 
-Each finding has a kind: an **unknown word**, a **flagged word**, or an **unsupported directive**. Positions are
+Each finding has a kind: an **unknown word**, a **flagged word**, an **unsupported directive**, or an **invalid
+directive** (an `ignoreRegExp` directive whose pattern cannot be used). Positions are
 1-based; the line is counted by line feed characters only, and the column counts UTF-16 code units from the start
 of the line, as cspell does. Files are read as UTF-8 with or without a byte order mark, or as UTF-16 with a byte
 order mark; a file that contains a NUL character in its first 1,024 characters is binary and is skipped.
@@ -523,9 +524,11 @@ patterns:
   whole document, as in cspell.
 - **Where the patterns come from.** A pattern is read when the settings are loaded, so every problem is reported with
   the file, line, and column of the entry, for example
-  `.textlint.yaml(7,5): error: Cannot use the 'ignoreRegExpList' entry '/(?i)x/': the group syntax '(?i' is not
+  `.textlint.yaml(7,5): error: Cannot use the 'ignoreRegExpList' entry '/(?i)x/': the group syntax '(?i)' is not
   supported.` A project that builds its settings in code gets an `InvalidPatternException` that names the entry when
   the `TextChecker` is created.
+- **Patterns in a comment.** A document can add a pattern for itself with the `ignoreRegExp` directive (see
+  _Directives in Comments_). The same forms, names, and rules apply.
 
 ### Predefined Pattern Names
 
@@ -564,10 +567,11 @@ wrote:
   it they match only at the start and the end of the text.
 - Groups are numbered by their opening parenthesis, and named groups (`(?<name>...)`, `\k<name>`) are numbered with
   the others, as in JavaScript.
-- The flags `g`, `i`, `m`, and `u` are accepted. `\p{...}` and `\P{...}` need the `u` flag and accept the general
-  categories (`\p{Lu}`, `\p{Letter}` is not accepted: use the short names). Look-ahead and look-behind are supported.
-- Rejected, with a message that names the construct: the flags `s`, `x`, `y`, `d`, and `v` (for example
-  `the flag 's' is not supported; use only g, i, m, and u.`); inline options such as
+- The flags `g`, `i`, `m`, `s`, and `u` are accepted. The `s` flag makes `.` match every character, line breaks
+  included. `\p{...}` and `\P{...}` need the `u` flag and accept the general categories (`\p{Lu}`; `\p{Letter}` is not
+  accepted: use the short names). Look-ahead and look-behind are supported.
+- Rejected, with a message that names the construct: the flags `x`, `y`, `d`, and `v` (for example
+  `the flag 'x' is not supported; use only g, i, m, s, and u.`); inline options such as
   `(?i)`; atomic groups, conditionals, and every other `(?...)` form that JavaScript lacks; octal escapes; the .NET
   escapes `\A`, `\z`, `\Z`, `\G`, `\e`, `\a`, and `\h`; a back-reference to a group that is not complete; properties
   other than the general categories; a quantifier with nothing to repeat; a pattern longer than 4,096 characters or
@@ -575,11 +579,15 @@ wrote:
 - A back-reference to a group that did not take part in a match matches the empty text in JavaScript and fails in
   .NET; `.` matches one UTF-16 code unit, so with the `u` flag it matches half of a character outside the basic plane.
 
-**Time limit.** Every expression has a limit of 5 seconds for one match operation on one text. A pattern that
-backtracks catastrophically on a file (for example `/^(a|aa)+$/` on a long run of `a` followed by `b`) stops the check
-of that file, and the file is listed in the result as one that took too long, an error, while the run continues with
-the other files. The limit is a safety net and not a guarantee of speed: the processor is busy until the limit is
-reached, so one hostile file can cost up to 5 seconds for each pattern, and a pattern file should be reviewed like code.
+**Time limit and the worst case.** Every expression has a limit of 5 seconds for one match operation on one text. A
+pattern that backtracks catastrophically on a file (for example `/^(a|aa)+$/` on a long run of `a` followed by `b`)
+stops the check of that file, and the file is listed in the result as one that took too long, an error, while the run
+continues with the other files. The limit is a safety net and not a guarantee of speed: the processor stays busy until
+the limit is reached. In the worst case a file costs up to 5 seconds for every pattern that runs on it, before the
+first one that times out ends the check of that file. A text can add at most 32 different patterns of its own with
+`ignoreRegExp` directives, so the worst case for one file is about (the patterns of the settings plus 32) times 5
+seconds, and a run with many such files is that long per file. Patterns come from files that anyone who can change the
+repository may write, so review a pattern file like code.
 
 ## Random Strings
 
@@ -621,6 +629,7 @@ letter case, and the prefix must not follow a letter, digit, or underscore. The 
 | `textlint:disable-line`                    | Hides the whole line, including text before the directive           |
 | `textlint:disable-next-line` (or `-next`)  | Hides the rest of its line and the next line                        |
 | `textlint:ignore word1 word2` (or `words`) | Adds the words, separated by spaces, commas, or semicolons          |
+| `textlint:ignoreRegExp /pattern/flags`     | Adds a pattern whose matches are not checked, in the whole document |
 
 - A block is closed only by an `enable` written with the same prefix as the `disable` that opened it (letter case
   aside), so one prefix does not close another.
@@ -628,25 +637,39 @@ letter case, and the prefix must not follow a letter, digit, or underscore. The 
   with Windows line endings a blank line after a next-line directive is the only line hidden, while with line feeds
   the blank line and the line after it are hidden, as in cspell.
 - `ignore` and `words` apply to the whole document, in any letter case, and the directive's own text is not checked.
+- `ignoreRegExp` (also written `ignore_Reg_Exp`) applies its pattern to the **whole document**, wherever the
+  directive is, also before it and also inside a disabled block, as in cspell. The directive's own line is not
+  checked. The pattern is read from the rest of the line the way cspell reads it: the longest stretch from the first
+  slash that has another slash after it to the last slash, with the flag letters `g`, `i`, `m`, `u`, and `y` that
+  follow it, otherwise the first word. So `ignoreRegExp /a/i trailing words` uses `/a/i`, `ignoreRegExp /a/ and /b/`
+  uses all of `/a/ and /b/` as one literal (not two), and `ignoreRegExp abc` uses the bare expression `abc`. Names
+  work as in `ignoreRegExpList`: the name of a pattern of the `patterns` setting, or a predefined name such as
+  `HexValues`. The `s` flag cannot be written in a directive, because cspell does not read it there.
+- A pattern in an `ignoreRegExp` directive that cannot be used (an invalid or unsupported expression, or a name that
+  nothing defines) is **reported** as an invalid directive at the pattern, with the reason, for example
+  `a.md(3,24): error: Cannot use the pattern '/(?i)x/' of the directive 'ignoreRegExp': the group syntax '(?i)' is not
+  supported.`; it has no other effect, and it is not reported inside a disabled region. cspell drops such a pattern
+  without a word. A directive with no pattern on its line is reported like an unsupported directive. One text may use
+  at most 32 different patterns this way; the others are reported with that reason and are not read.
 - A prefix inside a longer word (`xcspell:disable`), a prefix with no name, and a name that does not begin like a
   directive (`mystery`) are not directives and are ignored.
 - The forms `disable-next-foo`, `disable-next-line-foo`, `disable-line-foo`, and `enable-foo` (a hyphen after the
   keyword) work as the keyword, as they do in cspell.
 - A name that only begins like a directive (`disabled`, `disable-lines`, `disable-foo`, `ignored`, `wordsmith`,
-  `words-x`) hides nothing and adds no words, and is **reported**, at the position of its name, so a misspelled
-  directive does not go unnoticed. cspell does the same for the `disable` forms, but for `ignore`, `word`, and
-  `ignoreRegExp` forms it hides the rest of the line, which TextLint does not.
-- Only the first prefix of a line is read for words and unsupported directives, as in cspell.
+  `words-x`, `ignoreRegExpx`) hides nothing and adds no words, and is **reported**, at the position of its name, so a
+  misspelled directive does not go unnoticed. cspell does the same for the `disable` forms, but for the `ignore`,
+  `word`, and `ignoreRegExp` forms it hides the rest of the line, which TextLint does not.
+- Only the first prefix of a line is read for words, patterns, and unsupported directives, as in cspell.
 - A directive that cspell has and TextLint does not have is **reported**, at the position of its name, as an
   unsupported directive, so you do not believe it is in force: `flag` and `forbid`, `locale` (or its cspell alias
   `local`) and `language`,
-  `dictionary` and `dictionaries`, `ignoreRegExp`, `includeRegExp`, and the switches for compound words and case
+  `dictionary` and `dictionaries`, `includeRegExp`, and the switches for compound words and case
   sensitivity. A directive inside a disabled region is not reported, and names that do not begin like a directive
   are ignored.
 
 ## Differences from cspell
 
-<!-- cspell:ignore quixs xcspell -->
+<!-- cspell:ignore quixs xcspell Expx -->
 
 TextLint follows cspell's documented rules, and the test suite compares it with the real cspell on a set of
 corpora (see the verification of TextLint). These differences are deliberate:
@@ -660,13 +683,22 @@ corpora (see the verification of TextLint). These differences are deliberate:
 - **Unsupported settings are errors,** and unsupported directives are reported; cspell has more settings (for
   example `caseSensitive`, `allowCompoundWords`, `overrides`, `dictionaries`, and `includeRegExpList`), which are
   not available yet.
-- **Patterns are translated, and unusual ones are rejected.** `ignoreRegExpList` and `patterns` accept JavaScript
-  regular expressions, but the flags `s`, `x`, `y`, `d`, and `v`, and constructs without a safe .NET equivalent, are
-  load errors where cspell would run them as the JavaScript engine decides. A name in `ignoreRegExpList` that is
-  neither defined nor predefined is an error, where cspell reads it as a literal expression; only 28 predefined names
-  are supported, and every other name is an error. The `ignoreRegExp` directive in a comment is reported as
-  unsupported. A back-reference to a group that did not match, and `.` beside characters outside the basic plane,
-  differ as described under _Regular Expression Rules_. Every pattern has a 5-second limit, which cspell lacks.
+- **Patterns are translated, and unusual ones are rejected.** `ignoreRegExpList`, `patterns`, and `ignoreRegExp`
+  directives accept JavaScript regular expressions, but the flags `x`, `y`, `d`, and `v`, and constructs without a
+  safe .NET equivalent, are errors where cspell would run them as the JavaScript engine decides, or, in a directive,
+  drop them without a word. A back-reference to a group that did not match, and `.` beside characters outside the
+  basic plane, differ as described under _Regular Expression Rules_. Every pattern has a 5-second limit, which cspell
+  lacks.
+- **Unknown pattern names are errors (stricter than cspell).** A name in `ignoreRegExpList` or in an `ignoreRegExp`
+  directive that is neither defined by `patterns` nor predefined is an error, where cspell reads it as a literal
+  expression and hides that word. Write a literal between slashes (`/word/`) to match it. Only 28 predefined names are
+  supported; every other name is an error.
+- **Patterns that cannot be used are reported.** cspell drops an unusable pattern of an `ignoreRegExp` directive
+  without a word; TextLint reports it at its position, and reports a directive with no pattern.
+- **Null entries are errors in every list setting.** A settings value built in code throws `ArgumentNullException`
+  when any of its lists (`Files`, `IgnorePaths`, `Words`, `IgnoreWords`, `FlagWords`, `IgnoreRegExpList`,
+  `Patterns`) holds a null entry; a settings file cannot hold a null entry in a list, so it reports an error at the
+  entry.
 - **The Markdown rules are the five link, anchor, and entity patterns only** (not the other patterns that the
   language-specific settings of cspell add).
 - **A word accepted by escape.** After cspell accepts a word through the backslash-escape rule (`\nfoo` accepts
@@ -747,14 +779,17 @@ var checker = new TextChecker(settings);
 
 foreach (var issue in checker.Check("The wrold of TextLint", "greeting.txt"))
 {
-    // issue.Line, issue.Column, issue.Text, issue.Kind, and issue.Suggestions describe the finding
+    // issue.Line, issue.Column, issue.Text, issue.Kind, issue.Suggestions, and issue.Detail (the reason for an
+    // invalid directive) describe the finding
     Console.WriteLine(issue); // greeting.txt(1,5): error: Unknown word 'wrold'
 }
 ```
 
 The `TextChecker` constructor throws `ArgumentException` for a language that is not supported or an unusable word
-list entry, and `Check` throws `RegexMatchTimeoutException` only when hostile text defeats one of the ignore
-patterns within its time limit.
+list entry, and `InvalidPatternException` (also an `ArgumentException`) for an unusable pattern; a null entry in any
+list of the settings is rejected when the settings are built. `Check` throws `RegexMatchTimeoutException` only when
+hostile text defeats one of the ignore patterns, including a pattern of an `ignoreRegExp` directive, within its time
+limit of 5 seconds; see the worst case under _Regular Expression Rules_.
 
 ## Selecting Files
 

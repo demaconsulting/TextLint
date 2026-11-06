@@ -14,9 +14,11 @@ has a test of its own that states the documented difference. Rejected constructs
 and a text that the reason must contain; each exception must name the entry. Length and nesting limits are tested at the
 limit and one past it, with the values built at run time from repeated characters so that the boundary is explicit, and
 hostile patterns built from repeated metacharacters must be parsed or rejected with the documented exception only. The
-five-second match limit cannot be waited for in a test, so one test checks that the regular expression carries it, and
-the time-out behavior is checked on a catastrophic pattern whose regular expression is rebuilt with a limit of fifty
-milliseconds, which keeps the test fast and proves that matching ends with a time-out error instead of hanging.
+production match limit is five seconds, which a test cannot wait for, so the unit has an internal overload of `Parse`
+that takes the limit. One test checks that the default is five seconds and that a limit that is not positive is
+rejected, and the time-out behavior is checked on a catastrophic pattern parsed with a limit of fifty milliseconds
+through the overload, which keeps the test fast and proves that the regular expression carries the requested limit and
+that matching ends with a time-out error instead of hanging.
 
 #### Test Environment
 
@@ -28,7 +30,8 @@ N/A - standard test environment.
 - A pattern between slashes uses only the flags that are written; any other text is a case-insensitive expression whose
   line anchors match at every line; white space around an entry is ignored; slashes may appear in the body; and an entry
   that starts with a slash but does not end in flags is a bare expression.
-- The flags g, i, m, and u are accepted in any combination, and every other flag is rejected by name.
+- The flags g, i, m, s, and u are accepted in any combination, and every other flag is rejected by name.
+- The s flag makes the dot match the four JavaScript line terminators, and without it the dot does not match them.
 - Every construct of the meaning theory finds exactly the matches recorded from the JavaScript engine, groups are
   numbered in order of their opening parenthesis, and an astral character is one character only with the u flag.
 - A back-reference to a group that did not take part in the match does not match.
@@ -37,7 +40,8 @@ N/A - standard test environment.
 - A pattern of 4096 characters and groups nested 100 levels deep are accepted, one more of either is rejected, and
   hostile patterns end with a regular expression or the documented exception.
 - The regular expression has the invariant culture, the case option the entry asks for, and a match limit of five
-  seconds, and a catastrophic pattern ends with a time-out error.
+  seconds by default, and a limit that is not positive is rejected.
+- A catastrophic pattern parsed with a limit of fifty milliseconds carries that limit and ends with a time-out error.
 
 #### Test Scenarios
 
@@ -53,10 +57,10 @@ inside its body find their text.
 **PatternParser_Parse_LeadingSlashWithoutFlagsEnding_IsBareExpression**: A path-like entry and a lone slash are read as
 literal text and find themselves.
 
-**PatternParser_Parse_SupportedFlags_AreAccepted**: Each of the flags g, i, m, and u, all four together, and a repeated
-flag are accepted.
+**PatternParser_Parse_SupportedFlags_AreAccepted**: Each of the flags g, i, m, s, and u, all five together, and a
+repeated flag are accepted.
 
-**PatternParser_Parse_UnsupportedFlag_ThrowsNamingTheFlag**: Each of the flags x, y, s, d, and v is rejected with an
+**PatternParser_Parse_UnsupportedFlag_ThrowsNamingTheFlag**: Each of the flags x, y, d, and v is rejected with an
 exception that holds the entry, names the flag in its reason, and shows the entry in its message.
 
 **PatternParser_Parse_Result_HasInvariantCultureCaseOptionAndTimeLimit**: A case-sensitive entry gets the invariant
@@ -66,7 +70,10 @@ seconds, and the published limit constant is five thousand milliseconds.
 **PatternParser_Parse_Construct_KeepsItsJavaScriptMeaning**: Each row, recorded from the JavaScript engine, gives an
 entry, a text, and the matches that JavaScript finds. The rows cover ASCII-only word characters, digits, and word
 boundaries; the JavaScript white-space set, including the byte order mark and the no-break space and excluding the
-next-line character; the dot and the line anchors with the four JavaScript line terminators; classes, ranges, escapes
+next-line character; the dot and the line anchors with the four JavaScript line terminators; the dot with the s flag,
+which also matches the line terminators, alone and combined with the other flags, with a greedy repeat, with a line
+anchor, with a negated class and an escaped dot that it does not change, with a back-reference, and with a Unicode
+property; classes, ranges, escapes
 inside classes, and empty classes; numbered, named, and mixed back-references; look-ahead and look-behind; counted,
 lazy, and literal braces; hexadecimal, Unicode, code point, control, and null escapes; Unicode general categories with
 the u flag; case-insensitive matching of non-ASCII letters; and astral characters with and without the u flag.
@@ -105,8 +112,12 @@ rejected with a reason that mentions nesting.
 characters of parentheses, closing parentheses, brackets, backslashes, stars, and braces, and of repeated named-group
 openings, are parsed or rejected with the documented exception, and nothing else escapes.
 
-**PatternParser_Parse_CatastrophicPattern_TimesOutWhenMatching**: A nested quantifier that backtracks without end, built
-again with a limit of fifty milliseconds, throws the time-out error of the regular expression engine on a text that
-almost matches, instead of hanging.
+**PatternParser_Parse_CatastrophicPattern_TimesOutWhenMatching**: A nested quantifier that backtracks without end, parsed
+with a limit of fifty milliseconds through the internal overload, carries that limit and throws the time-out error of
+the regular expression engine on a text that almost matches, instead of hanging.
+
+**PatternParser_Parse_MatchTimeout_DefaultsToFiveSecondsAndMustBePositive**: A pattern parsed without a limit has the
+production limit of five seconds, and a limit of zero, a negative limit, and an infinite limit are each rejected with an
+out-of-range error.
 
 <!-- cspell:ignore metacharacters -->

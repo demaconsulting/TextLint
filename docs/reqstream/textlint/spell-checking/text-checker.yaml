@@ -310,13 +310,45 @@ sections:
               - id: TextLint-SpellChecking-TextChecker-PatternTimeout
                 title: >-
                   TextChecker shall stop checking a text and throw the time-out exception of the regular
-                  expression engine when one of its patterns exceeds five seconds on the text, so that the
-                  caller can treat the text as not checked.
+                  expression engine when one of its patterns, from the settings or from a directive of the
+                  text, exceeds five seconds on the text (a shorter limit is available through an internal
+                  seam for tests), so that the caller can treat the text as not checked, and shall reject a
+                  limit that is not positive.
                 justification: |
-                  A pattern of the settings can backtrack catastrophically on a file built to make it. A run that
-                  never finishes is worse than one that reports the file as not checked.
+                  A pattern of the settings, or of a directive written by whoever wrote the text, can backtrack
+                  catastrophically on a file built to make it. A run that never finishes is worse than one that
+                  reports the file as not checked. The seam lets the tests prove it in milliseconds.
                 tests:
                   - TextChecker_Check_CatastrophicCustomPattern_ThrowsRegexMatchTimeoutException
+                  - TextChecker_Check_CatastrophicDirectivePattern_ThrowsRegexMatchTimeoutException
+                  - TextChecker_New_MatchTimeout_IsFiveSecondsAndMustBePositive
+
+              - id: TextLint-SpellChecking-TextChecker-IgnoreRegExpDirective
+                title: >-
+                  TextChecker shall exclude from checking the text that matches the pattern of an ignoreRegExp
+                  directive, anywhere in the text it is written in, resolving the pattern like an
+                  ignoreRegExpList entry (a literal with the flags written, a bare expression, a pattern of the
+                  settings by name, or a predefined name), shall report a pattern that cannot be used as an
+                  invalid directive at the pattern, with the reason, unless checking is switched off there, shall
+                  report an ignoreRegExp directive with no pattern as an unsupported directive, shall put these
+                  reports in text order with the other findings, shall read each different pattern once however
+                  many directives repeat it, and shall accept at most 32 different patterns in one text,
+                  reporting the excess without reading it.
+                justification: |
+                  A project migrated from cspell relies on the directive to hide text that is not prose. cspell
+                  silently drops a pattern it cannot use, so the author would believe it is in force, and the
+                  report tells them where it is not. The directives of a text are written by whoever wrote the
+                  text, so the work they cause is bounded by the number of patterns and the time limit of each.
+                tests:
+                  - TextChecker_Check_IgnoreRegExpDirective_HidesMatchesInTheWholeText
+                  - TextChecker_Check_IgnoreRegExpDirectiveForms_UseTheFlagsAsWritten
+                  - TextChecker_Check_IgnoreRegExpDirectiveNames_RefersToSettingsAndPredefinedPatterns
+                  - TextChecker_Check_IgnoreRegExpDirectiveInvalid_IsReportedAtItsPosition
+                  - TextChecker_Check_IgnoreRegExpDirectiveUnknownName_IsReportedAndHidesNothing
+                  - TextChecker_Check_IgnoreRegExpDirectiveInDisabledBlock_AppliesButIsNotReported
+                  - TextChecker_Check_IgnoreRegExpDirectiveRepeated_IsReportedAtEachPlaceInOrder
+                  - TextChecker_Check_IgnoreRegExpDirectiveWithoutPattern_IsReportedAsUnsupported
+                  - TextChecker_Check_IgnoreRegExpDirectivePatternLimit_RejectsTheExcessWithoutReadingIt
 
               - id: TextLint-SpellChecking-TextChecker-MarkdownFiles
                 title: >-

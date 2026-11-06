@@ -172,7 +172,8 @@ words up, and check text and files:
    the selection, and the answer is returned. This route is also what the spell checker uses for every word.
 5. **Text checking**: the caller creates a `TextChecker` from settings (which validates the language, the word
    lists, and the patterns once) and passes a string, and optionally a source name, to `Check`. The checker finds the
-   directives and the text that is never checked (the default patterns, the patterns of the settings, and for a Markdown
+   directives and the text that is never checked (the default patterns, the patterns of the settings, the patterns that
+   `ignoreRegExp` directives write, and for a Markdown
    source name the Markdown patterns), splits what remains into tokens, skips a token that looks like random data,
    splits the others into words, and for each word applies the word rules (flagged words,
    minimum length, dictionary, word lists, the allowances for possessives, escapes, and contractions, and the split at
@@ -244,12 +245,18 @@ and embeds the four resulting files in the assembly; see _Design Constraints_.
 - Bounded regular expressions: every regular expression of the spell checker has a match timeout of five seconds,
   so hostile content cannot hang a run. The expressions that are known when the library is built (the default
   patterns, the directive patterns, the predefined and Markdown patterns, and the hexadecimal pattern) are generated at
-  build time, which keeps the library trim and Native AOT safe; the patterns of a settings file are translated from the
+  build time, which keeps the library trim and Native AOT safe; the patterns of a settings file, and those that
+  `ignoreRegExp` directives write in a text, are translated from the
   JavaScript syntax by `PatternParser`, which rejects what it cannot translate faithfully and limits a pattern to 4096
   characters and 100 levels of nesting, and are constructed at run time with the same timeout. A
   timeout surfaces as an exception from `TextChecker` and as a `TimedOut` file diagnostic from `SpellChecker`. The
   timeout stops one match but does not prevent the processor from being busy until it fires, so a hostile file can
-  cost up to five seconds for each pattern. The expressions are ports of cspell's with explicit ASCII classes, because
+  cost up to five seconds for each pattern, and the first timeout ends the check of that file. A text may add at most
+  32 different patterns through its directives, so a file costs at most (the patterns of the settings + 32) x 5
+  seconds in the very worst case: a safety net, not a speed guarantee. Internal test seams (an overload of
+  `PatternParser.Parse`, an internal `TextChecker` constructor, and an optional parameter of the internal file-checking
+  method) let the tests use a limit of milliseconds; production code always uses five seconds. The expressions are
+  ports of cspell's with explicit ASCII classes, because
   JavaScript and .NET differ in what the word class and the word boundary mean; see the _DefaultPatterns Design_ and
   the _PatternParser Design_.
 - Deterministic parallelism: files are checked on all processor cores, and the result is the same whatever the
@@ -263,8 +270,10 @@ and embeds the four resulting files in the assembly; see _Design Constraints_.
 - Documented differences from cspell: the checker follows cspell's documented word-splitting, ignore, directive,
   word-list, pattern, Markdown, random-string, and contraction rules and proves it with a parity corpus (see the
   _TextLint Verification_ document), but it does
-  not port cspell's heuristic splitter, uses its own dictionaries, reports unsupported directives, rejects the pattern
-  flags and constructs that have no safe .NET equivalent and the names that no pattern defines, bounds every pattern with
+  not port cspell's heuristic splitter, uses its own dictionaries, reports unsupported directives and the patterns of
+  `ignoreRegExp` directives that cannot be used (which cspell drops silently), rejects the pattern
+  flags and constructs that have no safe .NET equivalent and the names that no pattern defines (cspell reads an unknown
+  name as a literal expression), bounds every pattern with
   a time limit, and has no
   duplicate-problem cap. The differences are listed in the user guide and, for the corpora, in a file that the
   parity test compares exactly.

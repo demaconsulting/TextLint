@@ -5,7 +5,8 @@
 `DocumentDirectives` is verified with unit tests in `DocumentDirectivesTests.cs`. The unit is pure logic over strings
 and uses nothing but the .NET base class library and the time-limit constant of `DefaultPatterns`, so no mocks,
 doubles, or files are used: each test passes a text to `Scan` and asserts on the text of the excluded ranges, the
-words, or the unsupported directives. The expected excluded text is cut from the same text that is scanned, so the
+words, the patterns of the ignoreRegExp directives, or the unsupported directives. The expected excluded text is cut
+from the same text that is scanned, so the
 expectations never repeat an offset. Behavior that depends on the line terminator runs with both LF and CRLF as the
 rows of one theory, which is how the LF and CRLF twins of a scenario are verified; the one deliberate difference, the
 blank line after a next-line directive, has a scenario for each style. The behavior of a blank next line was verified
@@ -32,6 +33,10 @@ N/A - standard test environment.
 - The recorded cspell output for the directive-boundaries corpus agrees with the library except for the listed
   divergences (see the parity corpus verification in the system document).
 - Every unsupported directive family is reported at its name, and one inside a disabled region is not.
+- Every ignoreRegExp directive, with any prefix and spelling, adds its pattern as cspell's own reader reads it, with the
+  range where it is written, in text order and also inside a disabled region, where it is not reportable; its text is
+  excluded, it is not reported as unsupported unless it has no pattern on its line, and a second prefix on a line adds
+  no pattern.
 - LF and CRLF give the same results, and positions count UTF-16 code units.
 - A text of one megabyte is scanned completely and a null text is rejected.
 
@@ -145,8 +150,36 @@ nothing, and adds no word.
 **DocumentDirectives_Scan_NameBeginningLikeDirectiveInsideBlock_IsNotReported**: Such a name inside a disabled block is
 not reported.
 
-**DocumentDirectives_Scan_IgnoreRegExpWithArgument_HidesItsLineAndIsReported**: An ignoreRegExp directive with an
-argument excludes its text to the end of the line and is reported at its name.
+**DocumentDirectives_Scan_IgnoreRegExpWithArgument_HidesItsLineAndAddsItsPattern**: An ignoreRegExp directive with an
+argument excludes its text to the end of the line, adds its pattern with the range where it is written, which is
+reportable, and is not reported as unsupported.
+
+**DocumentDirectives_Scan_IgnoreRegExpArgument_IsReadLikeCspell**: Each row, an argument and the pattern that cspell's
+own reader returns for it, gives the pattern that is found, and the range holds exactly that text. The rows cover a
+slash pattern, one followed by trailing words, a pattern followed by letters that are not flags, a bare word, a bare
+word followed by other words, a longest stretch from the first slash to the last slash, a pattern that follows a word,
+a word that holds a slash, the flag letters g, i, m, u, and y, an s that is not a flag letter and is left out, an inline
+option, a trailing backslash, leading white space and a tab, and a pattern with no closing slash.
+
+**DocumentDirectives_Scan_IgnoreRegExpPrefixesAndSpellings_AllAddThePattern**: Each of nine forms, with the cspell,
+spell, spell-checker, and spellchecker prefixes, the textlint prefix, upper case, two colons, a space after the colon,
+and a name spelled with underscores, adds its pattern and is not reported as unsupported.
+
+**DocumentDirectives_Scan_IgnoreRegExpInsideDisabledBlock_AddsPatternButIsNotReportable**: Three directives, one before
+a disabled block, one inside it, and one after it, all add their patterns in text order, and only the one inside the
+block is not reportable.
+
+**DocumentDirectives_Scan_IgnoreRegExpWithoutPattern_IsReportedAtItsName**: A directive with nothing after its name on
+its line, and its argument on the next line, adds no pattern and is reported as unsupported at its name.
+
+**DocumentDirectives_Scan_IgnoreRegExpLineTerminators_EndThePattern**: With LF, CRLF, a lone carriage return, and a
+Unicode line separator, the pattern of each of two directives ends at the end of its own line.
+
+**DocumentDirectives_Scan_IgnoreRegExpAfterAnotherPrefixOnTheLine_IsNotRead**: A second prefix on a line, after a words
+directive, adds no pattern.
+
+**DocumentDirectives_Scan_IgnoreRegExpInLargeText_IsFound**: A directive at the end of a text of one megabyte is found
+at its position.
 
 **DocumentDirectives_Scan_RangeOnlyPrefix_HidesButIsNotRead**: A prefix that only the range patterns accept still hides
 a line but a name after it is not reported.
@@ -158,7 +191,7 @@ the words of the first directive include its text.
 does not close the block, which runs to the end of the text.
 
 **DocumentDirectives_Scan_UnsupportedDirective_IsReportedAtItsName**: Each unsupported family (flag, forbid, locale
-and its alias local, language, dictionary, ignoreRegExp, includeRegExp, and the compound-word and case-sensitivity
+and its alias local, language, dictionary, includeRegExp, and the compound-word and case-sensitivity
 switches), in several letter cases and prefix forms, is reported once, with a range that is exactly its name.
 
 **DocumentDirectives_Scan_UnsupportedDirective_HasNoOtherEffect**:

@@ -14,7 +14,7 @@ unusable entry. The three are documented together because they are used only tog
 
 #### Data Model
 
-<!-- cspell:ignore dgimsuvxy -->
+<!-- cspell:ignore dgimsuvxy gimsu -->
 
 `PatternParser` is an `internal static` class with no state. Its constants are the flag letters and the time limit:
 
@@ -22,9 +22,10 @@ unusable entry. The three are documented together because they are used only tog
   `i`, and `m`, and `g` is always in force here, so `i` and `m` remain.
 - `FlagLetters` (`dgimsuvxy`): the letters that count as flags of a literal, whether or not they are supported. Text
   after the last slash is read as flags only when it is made of these letters.
-- `SupportedFlags` (`gimu`): the flags that are accepted.
-- `MatchTimeoutMilliseconds` (5000): the longest time a pattern may spend on one text. It is the constant of
-  `DefaultPatterns`, so every regular expression the library runs has the same limit.
+- `SupportedFlags` (`gimsu`): the flags that are accepted.
+- `MatchTimeoutMilliseconds` (5000): the production limit, the longest time a pattern may spend on one text. It is the
+  constant of `DefaultPatterns`, so every regular expression the library runs has the same limit. An internal overload
+  of `Parse` takes another limit (see _Key Methods_), which only tests use.
 
 `JavaScriptRegexTranslator` is an `internal static` class whose state is fixed for the life of the process: the limits,
 the text of the fixed translations, and the tables of character ranges.
@@ -40,8 +41,8 @@ the text of the fixed translations, and the tables of character ranges.
   `Nl`, `No`, `P`, `Pc`, `Pd`, `Ps`, `Pe`, `Pi`, `Pf`, `Po`, `S`, `Sm`, `Sc`, `Sk`, `So`, `Z`, `Zs`, `Zl`, `Zp`, `C`,
   `Cc`, `Cf`, `Cs`, `Co`, and `Cn`), which .NET spells as JavaScript does.
 
-Each call to the translator creates a private `Reader`, a sealed class that holds the pattern, the two flags it needs
-(multiline and Unicode), the translation written so far, the groups that have been closed, the names of the named
+Each call to the translator creates a private `Reader`, a sealed class that holds the pattern, the three flags it needs
+(multiline, Unicode, and dot-all), the translation written so far, the groups that have been closed, the names of the named
 groups with their numbers, the position, the number of capturing groups opened so far and in the whole pattern, whether
 the pattern has a named group, the current depth, and the first problem found. A reader is never shared, which is what
 makes the translator thread-safe.
@@ -64,10 +65,14 @@ are immutable.
   such as a path (`/usr/lib/x`). It is read with the flags `i` and `m`: case-insensitive, with the line anchors matching
   at every line, as cspell reads it.
 
-**Flags.** The flags `g`, `i`, `m`, and `u` are accepted in any combination. `g` changes nothing, because every match
-is wanted. `i` selects case-insensitive matching with the invariant culture. `m` and `u` are passed to the translator.
-The flags `x`, `y`, `s`, `d`, and `v` are rejected by name, because they have no safe equivalent and cspell drops some
-of them silently, so a pattern that depends on one would not mean what its author wrote.
+**Flags.** The flags `g`, `i`, `m`, `s`, and `u` are accepted in any combination. `g` changes nothing, because every
+match is wanted. `i` selects case-insensitive matching with the invariant culture. `m`, `s`, and `u` are passed to the
+translator; `s` makes `.` match every UTF-16 code unit, line terminators included. The flags `x`, `y`, `d`, and `v` are
+rejected by name, with the reason `the flag 'x' is not supported; use only g, i, m, s, and u.`, because they have no
+safe equivalent and cspell drops some of them silently, so a pattern that depends on one would not mean what its author
+wrote. The `s` flag has an exact equivalent, so it is accepted. A pattern written in an in-document directive cannot
+carry `s`, because there only the flag letters that cspell reads (`g`, `i`, `m`, `u`, and `y`) are taken as flags (see
+_DocumentDirectives_); the flag works in the entries of the settings.
 
 **Translation rules.** The translator is a strict recursive-descent reader of the JavaScript syntax. For each construct
 it understands it writes the .NET form, and it rejects everything else with a reason, instead of passing text through
@@ -80,7 +85,8 @@ that .NET might read differently. Each rule is covered by a unit test.
 - _White space._ `\s` is the JavaScript set listed above, and `\S` its negation. Inside a class, the negated
   shorthands `\D`, `\W`, and `\S` have no .NET spelling with the JavaScript meaning, so they are written out as the
   complementary ranges over the UTF-16 code units.
-- _Line terminators._ `.` is the class of every character except `\n`, `\r`, U+2028, and U+2029. In multiline mode `^`
+- _Line terminators._ `.` is the class of every character except `\n`, `\r`, U+2028, and U+2029; with the `s` flag it
+  is the class `[\u0000-\uFFFF]` of every UTF-16 code unit, line terminators included. In multiline mode `^`
   is the look-behind that is true at the start of the text or after one of those four characters, and `$` the
   look-ahead that is true at the end of the text or before one. Without the multiline flag, `^` is `\A` and `$` is
   `\z`, so `$` does not match before a final line feed, as in JavaScript (where .NET's `$` would). The translated
@@ -131,29 +137,36 @@ of matching.
 
 - A back-reference to a group that did not take part in the match matches the empty string in JavaScript and fails to
   match in .NET. The pattern is accepted, and the match differs only on a text that reaches that case.
-- `.` and negated classes match one UTF-16 code unit, so with the `u` flag they match half of a character outside the
-  basic plane where JavaScript matches the whole character. The columns that the checker reports count UTF-16 code
-  units for the same reason.
+- `.` and negated classes match one UTF-16 code unit, so with the `u` flag (and with `s`) they match half of a
+  character outside the basic plane where JavaScript matches the whole character. The columns that the checker reports
+  count UTF-16 code units for the same reason.
 
 #### Key Methods
 
-**PatternParser.Parse**: Parses an entry into a regular expression.
+**PatternParser.Parse**: Parses an entry into a regular expression. There are two forms: `Parse(entry)`, used in
+production, builds the expression with the limit of 5 seconds (`MatchTimeoutMilliseconds`) and calls
+`Parse(entry, matchTimeout)`, the internal test seam, which builds it with the limit it is given so that a test can
+prove the time-out behavior in milliseconds. Generated (source-generated) regular expressions of other units keep
+their own fixed limit of 5 seconds; the seam reaches only the expressions that `PatternParser` builds.
 
-- _Parameters_: `string entry`, the entry as written.
+- _Parameters_: `string entry`, the entry as written; and, in the second form, `TimeSpan matchTimeout`, the longest
+  time one match operation may take.
 - _Returns_: a `Regex`, never null.
-- _Preconditions_: the entry is not null.
+- _Preconditions_: the entry is not null; the limit is positive and not infinite, otherwise
+  `ArgumentOutOfRangeException` is thrown.
 - _Postconditions_: the regular expression is built with the invariant culture, the case option of the `i` flag, and
-  the match time limit. The multiline behavior is in the translated pattern, not in the options.
+  the match time limit. The multiline and dot-all behavior is in the translated pattern, not in the options.
 - _Algorithm_: (1) trim the entry; (2) when it starts with a slash, find the last slash, and when that slash is not the
   first character and what follows consists only of flag letters, take the text between the slashes as the body and the
   letters as the flags, otherwise take the whole text as a bare expression with `im`; (3) reject a blank entry;
-  (4) reject the first flag that is not `g`, `i`, `m`, or `u`; (5) translate the body; (6) construct the `Regex` and turn
-  any `ArgumentException` of the engine into the exception below.
+  (4) reject the first flag that is not `g`, `i`, `m`, `s`, or `u`; (5) translate the body with the multiline, Unicode,
+  and dot-all flags; (6) construct the `Regex` with the limit and turn any `ArgumentException` of the engine into the
+  exception below.
 
 **JavaScriptRegexTranslator.TryTranslate**: Translates a body to a .NET pattern.
 
-- _Parameters_: the body, whether the multiline flag is set, whether the Unicode flag is set, and the out parameters for
-  the translation and for the problem.
+- _Parameters_: the body, whether the multiline flag is set, whether the Unicode flag is set, whether the dot-all flag
+  (`s`) is set, and the out parameters for the translation and for the problem.
 - _Returns_: `true` and the .NET pattern, or `false` and the reason as a sentence. Failure is data: nothing is thrown
   for a bad pattern.
 - _Preconditions_: the body is not null; a null body throws `ArgumentNullException`.
@@ -191,12 +204,21 @@ The design choices and their reasons:
   The limit is a safety net, not a guarantee of speed. It stops one match operation of one pattern on one text after
   five seconds, but it does not prevent the processor from being busy until then. A text can therefore cost up to five
   seconds for each pattern before it is reported, and a run can lose that time for each file that is built to trigger
-  it. The time limit does not apply to reading a pattern; the length and nesting limits bound that work, and a pattern
-  of the settings file is read when the settings are loaded and again when a checker is created, not per file.
+  it. The first time-out aborts the check of that file, so the worst case is bounded by the number of patterns that
+  apply to the file: the patterns of the settings, plus at most 32 different patterns that the in-document
+  `ignoreRegExp` directives of the file add (see _TextChecker_), that is at most (settings patterns + 32) x 5 seconds
+  for one file, and only for a file built to trigger it. The time limit does not apply to reading a pattern; the length
+  and nesting limits bound that work, and a pattern of the settings file is read when the settings are loaded and again
+  when a checker is created, not per file.
+- **An injectable limit for tests only.** Proving that a catastrophic pattern ends in a time-out would take five
+  seconds per test with the production limit. The internal overload of `Parse` that takes the limit (and the internal
+  constructor of `TextChecker` that passes it on) lets a test use a few milliseconds. Production code never passes a
+  limit, so the limit in force is always the 5 seconds; the seam is not a setting and is not exposed to users.
 
 #### Error Handling
 
-A null entry or body throws `ArgumentNullException`. An entry that cannot be used (blank, an unsupported flag, a body
+A null entry or body throws `ArgumentNullException`, and a limit that is not positive throws
+`ArgumentOutOfRangeException`. An entry that cannot be used (blank, an unsupported flag, a body
 that is empty, too long, nested too deep, untranslatable, or not accepted by the regular expression engine) throws
 `InvalidPatternException` from `Parse`, with the entry and the reason; the translator itself never throws for bad input
 and returns the reason. The translation is built to be valid .NET, so the engine rejects it only for a construct that
@@ -214,8 +236,9 @@ regular expressions they create are immutable and safe for concurrent matching.
 
 #### Callers
 
-- **PatternCatalog** (same subsystem) - parses every entry of `ignoreRegExpList` that is not a name and every
-  definition of `patterns`, and reads `MatchTimeoutMilliseconds` for the patterns it generates.
+- **PatternCatalog** (same subsystem) - parses every entry of `ignoreRegExpList` and every in-document directive
+  pattern that is not a name, and every definition of `patterns`, with the limit it is given, and reads
+  `MatchTimeoutMilliseconds` for the patterns it generates.
 - **MarkdownPatterns** and **RandomStringDetector** (same subsystem) - read `MatchTimeoutMilliseconds` for their
   generated patterns.
 - **SettingsLoader** (`Configuration` subsystem) - parses each pattern at load time, to report an unusable one at its

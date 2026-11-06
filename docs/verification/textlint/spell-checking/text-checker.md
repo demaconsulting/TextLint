@@ -12,11 +12,16 @@ word of fifty thousand characters, a lone surrogate, a carriage return alone, a 
 text, and several threads that use one checker at once. The rules for patterns, Markdown files, random strings, and
 contractions use the real pattern catalog, parser, Markdown patterns, and random-string detector, whose own behavior is
 proved by their unit tests; here the tests prove how the checker combines them with the word rules. The unusable
-patterns are written in settings built in code, which bypass the checks of the settings file loader, and the
-time-out is proved with a catastrophic pattern that makes the real five-second limit throw the time-out exception of
-the regular expression engine; the checker does not catch it, so that the caller can report the file as not checked.
-Directive texts use the `textlint` prefix, or assemble the
-`cspell` prefix from parts, so that the repository's own spell check does not read them as directives.
+patterns are written in settings built in code, which bypass the checks of the settings file loader. The production
+time limit of five seconds cannot be waited for in a test, so the checker has an internal constructor that takes the
+limit, and the time-out is proved with a catastrophic pattern, from the settings and from a directive, that makes a limit
+of 100 milliseconds throw the time-out exception of the regular expression engine; one test checks that the public
+constructor gives the five seconds and that a limit that is not positive is rejected. The checker does not catch the
+exception, so that the caller can report the file as not checked. The patterns of ignoreRegExp directives are written in
+the text under test, and the unusable ones are reported as findings of their own kind with the reason.
+Directive texts of the other tests use the `textlint` prefix, or assemble the
+`cspell` prefix from parts, so that the repository's own spell check does not read them as directives; the
+ignoreRegExp tests write the `cspell` prefix in full in their texts.
 
 #### Test Environment
 
@@ -39,8 +44,16 @@ No setup beyond the standard test runner. The tests read no files and are indepe
 - Text that matches an expression, a defined name, or a predefined name of the ignore list is not checked, whole
   patterns are applied to the whole text, the text around a match is still checked, the default patterns still apply,
   and a pattern with no match or only empty matches changes nothing.
-- A pattern that cannot be used is rejected when the checker is created, naming the entry, and a pattern that
-  exceeds its time limit makes the check throw the time-out exception.
+- A pattern that cannot be used is rejected when the checker is created, naming the entry, and a pattern, from the
+  settings or from a directive, that exceeds its time limit makes the check throw the time-out exception; the public
+  constructor gives the limit of five seconds and a limit that is not positive is rejected.
+- The pattern of an ignoreRegExp directive hides its matches in the whole text, before and after the directive, with
+  the flags as written (a literal only its own flags, a bare expression ignoring letter case), and may name a pattern
+  of the settings, without regard to letter case, or a predefined pattern.
+- An unusable directive pattern, and a name that nothing defines, is reported as an invalid directive at the pattern,
+  with the reason, hides nothing, and is reported at each place it is written, in text order with the other findings;
+  one inside a disabled block still applies and is not reported; a directive with no pattern is reported as
+  unsupported; at most 32 different patterns are accepted in one text and the excess is reported without being read.
 - The Markdown patterns apply to a source name with a Markdown extension and not to another name or none.
 - A long token that looks like random data, and the unknown words inside a hexadecimal sequence, are not reported
   by default, are reported when the setting is off or the token is below the minimum length, a flagged word is not
@@ -403,9 +416,63 @@ rejected. This scenario is tested by `TextChecker_Constructor_InvalidNamedPatter
 
 **TextChecker_Check_CatastrophicCustomPattern_ThrowsRegexMatchTimeoutException**: A nested quantifier that backtracks
 without end, on a text that almost matches it, makes the check throw the time-out exception of the regular expression
-engine at the five-second limit instead of hanging. The test uses the real limit, which a catastrophic pattern reaches
-on a text of sixty-one characters, and the exception is the evidence that the limit is applied. This scenario is
-tested by `TextChecker_Check_CatastrophicCustomPattern_ThrowsRegexMatchTimeoutException`.
+engine at the limit instead of hanging. The checker is made with the internal limit of 100 milliseconds, which a
+catastrophic pattern reaches on a text of sixty-one characters, and the exception is the evidence that the limit is
+applied. This scenario is tested by `TextChecker_Check_CatastrophicCustomPattern_ThrowsRegexMatchTimeoutException`.
+
+**TextChecker_Check_CatastrophicDirectivePattern_ThrowsRegexMatchTimeoutException**: A directive in the text writes a
+nested quantifier that backtracks without end, and a line that almost matches it follows; a checker with the internal
+limit of 100 milliseconds throws the time-out exception instead of hanging. This scenario is tested by
+`TextChecker_Check_CatastrophicDirectivePattern_ThrowsRegexMatchTimeoutException`.
+
+**TextChecker_New_MatchTimeout_IsFiveSecondsAndMustBePositive**: A checker made with the public constructor has the
+production limit of five seconds, the constructor with a limit rejects a limit of zero with an out-of-range error, and
+a null setting throws a null-argument error. This scenario is tested by
+`TextChecker_New_MatchTimeout_IsFiveSecondsAndMustBePositive`.
+
+**TextChecker_Check_IgnoreRegExpDirective_HidesMatchesInTheWholeText**: A directive with a pattern between a
+misspelling and a second one hides the invented word before it and the one after it, and the two misspellings are
+reported. This scenario is tested by `TextChecker_Check_IgnoreRegExpDirective_HidesMatchesInTheWholeText`.
+
+**TextChecker_Check_IgnoreRegExpDirectiveForms_UseTheFlagsAsWritten**: A literal without flags, a literal with the case
+flag, and a bare word are each written in a directive; the words in both letter cases are hidden except the capitals
+that the literal without the flag cannot match, which is the only finding. This scenario is tested by
+`TextChecker_Check_IgnoreRegExpDirectiveForms_UseTheFlagsAsWritten`.
+
+**TextChecker_Check_IgnoreRegExpDirectiveNames_RefersToSettingsAndPredefinedPatterns**: A directive that names a pattern
+of the settings in another letter case and one that names a predefined pattern each hide their matches, and the
+unknown word beside them is the only finding. This scenario is tested by
+`TextChecker_Check_IgnoreRegExpDirectiveNames_RefersToSettingsAndPredefinedPatterns`.
+
+**TextChecker_Check_IgnoreRegExpDirectiveInvalid_IsReportedAtItsPosition**: A directive with an inline option, which
+cannot be used, is reported as an invalid directive at the position of its pattern, with the reason as its detail and a
+message in the compiler style that names the pattern and the directive; the word the pattern would have hidden is still
+reported, and an ordinary finding has no detail. This scenario is tested by
+`TextChecker_Check_IgnoreRegExpDirectiveInvalid_IsReportedAtItsPosition`.
+
+**TextChecker_Check_IgnoreRegExpDirectiveUnknownName_IsReportedAndHidesNothing**: A directive with a misspelled
+predefined name is reported at the name, with a reason that says it is not a defined or predefined pattern name, and
+the word it spells is still reported. This scenario is tested by
+`TextChecker_Check_IgnoreRegExpDirectiveUnknownName_IsReportedAndHidesNothing`.
+
+**TextChecker_Check_IgnoreRegExpDirectiveInDisabledBlock_AppliesButIsNotReported**: A valid directive and an invalid one
+inside a disabled block; after the block the valid pattern hides its word, nothing is reported for the invalid one, and
+the unknown word is the only finding. This scenario is tested by
+`TextChecker_Check_IgnoreRegExpDirectiveInDisabledBlock_AppliesButIsNotReported`.
+
+**TextChecker_Check_IgnoreRegExpDirectiveRepeated_IsReportedAtEachPlaceInOrder**: An unusable pattern written twice,
+with a misspelling after each, gives four findings in text order, the pattern at each of its places. This scenario is
+tested by `TextChecker_Check_IgnoreRegExpDirectiveRepeated_IsReportedAtEachPlaceInOrder`.
+
+**TextChecker_Check_IgnoreRegExpDirectiveWithoutPattern_IsReportedAsUnsupported**: A directive whose pattern is on the
+next line has no pattern, and the one finding is an unsupported directive named ignoreRegExp. This scenario is tested by
+`TextChecker_Check_IgnoreRegExpDirectiveWithoutPattern_IsReportedAsUnsupported`.
+
+**TextChecker_Check_IgnoreRegExpDirectivePatternLimit_RejectsTheExcessWithoutReadingIt**: A text with one more different
+pattern than the limit of 32, each written twice, and a word that the last pattern would hide, reports the last
+pattern at both of its places with a reason that names the limit, and the word it would have hidden is reported, so the
+excess was not read. This scenario is tested by
+`TextChecker_Check_IgnoreRegExpDirectivePatternLimit_RejectsTheExcessWithoutReadingIt`.
 
 **TextChecker_Check_MarkdownFile_SkipsLinkTargetsLabelsAnchorsAndEntities**: A line with a link, a reference, an anchor,
 and an entity checked under a Markdown name, in upper case, reports only the word outside them; under a text name the

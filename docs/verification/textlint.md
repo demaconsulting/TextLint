@@ -36,8 +36,12 @@ configuration checks are design-constraint guards that are not linked to a requi
   dictionaries, and the data test reads the repository word lists, which the test project copies beside
   the test assembly, to check every listed word, in its original, lower, and upper case, against the
   public lookup for the language selection that includes its list. Directive prefixes in the spell-checking
-  tests are assembled from pieces, so that the spell checker that checks this repository does not read them as
-  directives of the test source.
+  tests are assembled from pieces or written with the `textlint` prefix, so that the spell checker that checks this
+  repository does not read them as directives of the test source; one test of the ignoreRegExp directive that names a
+  pattern that nothing defines writes the `cspell` prefix in full. The time limit of a pattern is five seconds in
+  production and a test cannot wait for it, so the catastrophic-pattern test passes a limit of 100 milliseconds through
+  an internal seam of `SpellChecker`, which keeps the test fast; the production limit is verified by unit tests of
+  `PatternParser` and `TextChecker`.
 - **cspell parity corpus**: the requirement to report the same words as cspell is verified against the real
   cspell, not against a description of it. The folder `test/DemaConsulting.TextLint.Tests/SpellChecking/Parity`
   holds corpora (text files built from invented words, so that the result does not depend on the dictionary of
@@ -48,7 +52,8 @@ configuration checks are design-constraint guards that are not linked to a requi
   requires the findings to equal the recorded ones except for exactly the listed differences. Because the list must
   match exactly, a difference that is fixed or newly introduced fails the test, so the documented differences from
   cspell cannot drift from the real ones. The corpora that exist only to show the differences are kept apart from
-  the others, so that every other corpus must match without exceptions.
+  the others, so that every other corpus must match without exceptions, except the `ignore-regexp` corpus described
+  below, which has a short list of its own.
   The corpora of the pattern, Markdown, random-string, and contraction rules are `custom-patterns`,
   `predefined-patterns`, `predefined-everything`, `markdown-links`, `random-strings`, `random-strings-off`,
   `random-strings-short`, and `contractions`. The random-string corpora hold the same tokens under three settings (the
@@ -58,7 +63,19 @@ configuration checks are design-constraint guards that are not linked to a requi
   told the Markdown language when it is recorded, and TextLint checks it under a source name with a Markdown extension.
   These outputs were recorded with the real cspell 10.1.1 by `record-cspell.ps1`, which states the version in the
   header of every recording.
-  The one new deliberate difference is a quirk of the escape retry of cspell: after a word has been accepted through
+  The corpus of the ignoreRegExp directive is `ignore-regexp`, with a settings file that defines the pattern one of the
+  directives names, and with a recording for line feeds and one for carriage return and line feed endings
+  (`ignore-regexp.cspell` and `ignore-regexp.crlf.cspell`). It holds directives written with every prefix; literals with
+  and without flags, a bare word, a pattern followed by other text, two patterns on one line, and a slash inside a bare
+  word; patterns in a disabled block; a name defined by the settings and a predefined name; and the directives that
+  cannot be used. Five differences from cspell are documented in the divergences file and are checked in both
+  recordings: a pattern with an inline option, a name that nothing defines, and a pattern that is not a valid expression
+  are each reported by TextLint as an invalid directive where cspell drops them silently; the word that the name
+  that nothing defines spells is reported by TextLint, which does not read the name as a literal expression as cspell
+  does; and a directive with no pattern on its line is reported by TextLint as unsupported where cspell ignores it.
+  The `unsupported-directives` corpus no longer holds an ignoreRegExp directive, because the directive is now applied;
+  it keeps the locale and dictionary directives and their two listed differences.
+  The one other deliberate difference is a quirk of the escape retry of cspell: after a word has been accepted through
   the retry that drops the escape letter after a backslash (`\nzorbq` accepted as `zorbq`), cspell accepts that word
   anywhere later in the same file, where TextLint accepts it only directly after a backslash. It is recorded in the
   divergences file as the finding of the word `nzorbq` that only TextLint reports, in the corpus of deliberate
@@ -125,20 +142,26 @@ requires the DictionaryBuilder project, which the library project builds first; 
   shorter than the minimum length are not; an apostrophe stays inside a word; the possessive of a known word and a
   known word after a backslash escape are accepted.
 - URLs, email addresses, hexadecimal values, UUIDs, hashes, and encoded data are not checked.
-- Directives switch checking off for a block, a line, and the next line, and add words for the document, with every
-  prefix and in any letter case; a directive that is not supported is reported at its position.
+- Directives switch checking off for a block, a line, and the next line, and add words and patterns for the document,
+  with every prefix and in any letter case; a directive that is not supported is reported at its position.
 - The language, the word lists with their precedence and letter-case rules, the minimum word length, and the maximum
   file size act as configured, and an invalid value in a settings file is reported with its file, line, and column.
 - Files are read as UTF-8 or UTF-16 and report the same positions; binary and too-large files are skipped and
   reported; an unreadable file is an error that does not stop the run.
 - The results are identical and identically ordered at every degree of parallelism, an invalid degree is rejected,
   and a cancelled run throws.
-- On every corpus the findings equal those that cspell recorded, except for exactly the documented differences.
-- Text that matches the ignoreRegExpList patterns of the settings, written between slashes, as bare expressions, or
-  as names of defined and predefined patterns, is not checked, and a pattern that cannot be used in a settings file is
-  reported with its file, line, and column.
+- On every corpus the findings equal those that cspell recorded, except for exactly the documented differences,
+  including the five of the ignoreRegExp directive corpus, which are checked for line feed and for carriage return and
+  line feed endings.
+- Text that matches the ignoreRegExpList patterns of the settings, written between slashes with the flags g, i, m, s,
+  and u, as bare expressions, or as names of defined and predefined patterns, is not checked, with the dot matching line
+  terminators only under the s flag, and a pattern that cannot be used in a settings file is reported with its file,
+  line, and column.
+- Text that matches the pattern of an ignoreRegExp directive is not checked anywhere in the text the directive is
+  written in, and a pattern of a directive that cannot be used is reported at its position with the reason.
 - A file on which a pattern exceeds its time limit is reported as a file that took too long, an error, and the run
-  continues with the other files.
+  continues with the other files; the test uses a shortened limit through an internal seam, and the production limit
+  of five seconds is verified by unit tests.
 - The link targets, labels, anchors, and entities of a Markdown file are not checked and those of another file are;
   a long token that looks like random data is not checked unless the setting is off; a contraction of acceptable parts
   is accepted and one with an unknown part is reported whole.
@@ -511,6 +534,21 @@ unsupported directive named `locale` at the position of its name. This scenario 
 and a defined name are applied to a text with a match of each and one unmatched word; only the unmatched word is
 reported, at its position. This scenario is tested by `TextLint_CheckText_IgnoreRegExpList_SkipsMatches`.
 
+**TextLint_CheckText_DotAllFlag_MatchesAcrossLines**: A pattern of the settings that runs from a start marker to an end
+marker with the dot, and carries the s flag, is applied to a text with the markers on different lines; the whole span is
+skipped and only the words outside it are reported. Without the flag the same pattern does not cross the line breaks and
+the word between the markers is reported. This scenario is tested by `TextLint_CheckText_DotAllFlag_MatchesAcrossLines`.
+
+**TextLint_CheckText_IgnoreRegExpDirective_SkipsMatchesInTheWholeText**: A directive with the `textlint` prefix writes a
+pattern that matches a word on the line before the directive; the word is not reported although it comes before the
+directive, and the other misspellings are. This scenario is tested by
+`TextLint_CheckText_IgnoreRegExpDirective_SkipsMatchesInTheWholeText`.
+
+**TextLint_CheckText_IgnoreRegExpDirectiveInvalid_IsReportedAtItsPosition**: A directive names a pattern that nothing
+defines and a misspelling follows; the finding of the directive is an error at the position of its pattern that names the
+pattern and the directive and gives the reason, and the misspelling is still reported. This scenario is tested by
+`TextLint_CheckText_IgnoreRegExpDirectiveInvalid_IsReportedAtItsPosition`.
+
 **TextLint_CheckText_PredefinedPatternNames_ExcludeTheirText**: Settings that list the predefined names `string`,
 `CStyleComment`, `href`, and `Urls` are applied to a text with a string, a comment, an attribute, and one unmatched
 word; the listed patterns exclude their text, the name that is always applied is accepted, and only the unmatched word
@@ -523,8 +561,9 @@ match in both files, and only the Markdown file also hides the link target. This
 
 **TextLint_SpellCheck_CatastrophicPattern_ReportsTimedOutDiagnostic**: A pattern that backtracks without end is applied
 to a file that almost matches it and to a file that does not start to match; the first file is reported as a file that
-took too long, an error that has problems, and the second file is still checked. The test uses the real five-second
-limit. This scenario is tested by `TextLint_SpellCheck_CatastrophicPattern_ReportsTimedOutDiagnostic`.
+took too long, an error that has problems, and the second file is still checked. The run goes through the internal
+seam of `SpellChecker` with a limit of 100 milliseconds, so the test does not wait for the production limit of five
+seconds. This scenario is tested by `TextLint_SpellCheck_CatastrophicPattern_ReportsTimedOutDiagnostic`.
 
 **TextLint_CheckText_MarkdownLinkTargets_AreNotChecked**: A line of Markdown with a link target, a reference label,
 an anchor id, and an entity is checked under a Markdown source name and under a text name; nothing is reported in the
@@ -674,5 +713,13 @@ minimum random length; the findings of each equal cspell's recorded output. This
 invented words and from unknown invented words is checked with the word lists stored beside it; the findings equal
 cspell's recorded output. This scenario is tested by
 `TextLint_CspellParity_ContractionCorpus_MatchesRecordedCspellOutput`.
+
+**TextLint_CspellParity_IgnoreRegExpCorpus_MatchesRecordedCspellOutput**: The corpus of ignoreRegExp directives,
+written with every prefix, as literals with and without flags, as bare words, as the name of a pattern defined in the
+settings beside it and of a predefined pattern, inside a disabled block, and with patterns that cannot be used, is
+checked with line feeds and with every line ending turned into a carriage return and a line feed; the findings equal
+the output that cspell recorded for each, except for the five differences listed in the divergences file (three
+patterns that cannot be used and the word a missing name spells, and a directive with no pattern). This scenario is
+tested by `TextLint_CspellParity_IgnoreRegExpCorpus_MatchesRecordedCspellOutput`.
 
 <!-- cspell:ignore nzorbq zorbq -->

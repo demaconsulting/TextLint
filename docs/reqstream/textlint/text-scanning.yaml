@@ -95,8 +95,9 @@ sections:
             title: >-
               The TextScanning subsystem shall find where directives in a text, written with any of the
               accepted prefixes, switch checking off for a block, a line, or the next line, which words they
-              add to the document, and which directives are recognized but not supported, reporting each
-              unsupported directive at its name unless checking is switched off there.
+              add to the document, which patterns they add to the document, and which directives are
+              recognized but not supported, reporting each unsupported directive at its name unless checking
+              is switched off there.
             justification: |
               Directives in comments are how cspell users silence deliberate exceptions next to the text that
               needs them, and a directive that silently does nothing would hide a difference from cspell.
@@ -116,6 +117,7 @@ sections:
               - TextLint-TextScanning-DocumentDirectives-NearMissNames
               - TextLint-TextScanning-DocumentDirectives-PrefixReading
               - TextLint-TextScanning-DocumentDirectives-UnsupportedDirectives
+              - TextLint-TextScanning-DocumentDirectives-IgnoreRegExp
               - TextLint-TextScanning-DocumentDirectives-HiddenUnsupportedDirectives
               - TextLint-TextScanning-DocumentDirectives-NoDirectives
               - TextLint-TextScanning-DocumentDirectives-LineTerminators
@@ -125,6 +127,7 @@ sections:
             tests:
               - TextScanningSubsystem_Scan_DisabledBlock_ExcludesWordsInside
               - TextScanningSubsystem_Scan_IgnoreDirective_AddsWordsAndExcludesDirectiveText
+              - TextScanningSubsystem_Scan_IgnoreRegExpDirective_AddsItsPattern
               - TextScanningSubsystem_Scan_UnsupportedDirective_IsReportedAtItsName
               - TextScanningSubsystem_Scan_EveryPrefix_SwitchesOffCheckingAlike
               - TextScanningSubsystem_ScanDocument_DisabledBlockUrlAndIgnoreDirective_LeavesOnlyCheckedWords
@@ -151,6 +154,7 @@ sections:
               - TextLint-TextScanning-PatternCatalog-PredefinedNames
               - TextLint-TextScanning-PatternCatalog-OptionalPatterns
               - TextLint-TextScanning-PatternCatalog-NamedPatterns
+              - TextLint-TextScanning-PatternCatalog-EntryResolution
               - TextLint-TextScanning-PatternCatalog-InvalidNames
               - TextLint-TextScanning-PatternCatalog-ExcludedRanges
               - TextLint-TextScanning-PatternCatalog-ArgumentValidation
