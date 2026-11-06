@@ -52,11 +52,15 @@ empty-selection error when nothing was checked, skipped, or failed and `--allow-
 - _Parameters_: `Context context`; `string root` - the absolute root.
 - _Returns_: `bool` - true when the root exists, is a directory, and can be read.
 
-It enumerates the first entry of the directory. A `DirectoryNotFoundException` is written as
-`The root directory '<root>' does not exist.`; any other `IOException` (including a root that is a file) or an
-`UnauthorizedAccessException` is written as `The root directory '<root>' cannot be read: <explanation>`. Asking
-`Directory.Exists` instead would answer "no" for a directory the process may not read and so blame the wrong
-thing.
+It reads the attributes of the path first, so that the answer does not depend on how an operating system reports
+a file that is used as a directory (Windows and Unix differ). A `FileNotFoundException` or
+`DirectoryNotFoundException` is written as `The root directory '<root>' does not exist.`; attributes that lack the
+directory flag give `The root directory '<root>' is not a directory.`; any other `IOException` or an
+`UnauthorizedAccessException` is written as `The root directory '<root>' cannot be read: <explanation>`. When the
+attributes say it is a directory, the first entry of it is listed to confirm that it can be read, and a failure
+there is reported in the same three ways. The explanation after `cannot be read` is the file system's own text and
+differs between operating systems; the rest of each message is stable. Asking `Directory.Exists` instead would
+answer "no" for a directory the process may not read and so blame the wrong thing.
 
 **LoadSettings (private)**: Finds and loads the settings, or reports why that was not possible.
 

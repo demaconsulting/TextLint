@@ -33,7 +33,9 @@ combinations. Temporary files and directories are created and cleaned up within 
 - Exit code non-zero is returned for all invalid argument combinations, for findings, for files that could not be
   checked, for an empty selection, and for every failure a user can cause.
 - Results files are created at the specified paths when `--results` is used with `--validate`.
-- Silent mode (`--silent`) produces empty combined output.
+- Silent mode (`--silent`) produces empty combined output for every command line that is understood. A command
+  line that cannot be understood (an unknown option, a missing or repeated option value) is the one exception: it
+  is found before the output settings exist, so its error is still written to standard error and the exit code is 1.
 - The tool package contains `THIRD-PARTY-NOTICES.txt` at its root with the notices of the third-party word
   lists in the bundled library.
 
@@ -162,6 +164,10 @@ explanation that names `--allow-empty`. This scenario is tested by `TextLintTool
 
 **TextLintTool_Check_NoFilesMatchedAllowEmpty_ExitsZero**: The same pattern with `--allow-empty` gives exit code
 0 and a summary of zero files. This scenario is tested by `TextLintTool_Check_NoFilesMatchedAllowEmpty_ExitsZero`.
+
+**TextLintTool_Check_NoPatternsAllowEmpty_ExitsOne**: `--allow-empty` is given with no patterns and no settings file;
+the run is a usage error that says what to add, and the exit code is 1. This scenario is tested by
+`TextLintTool_Check_NoPatternsAllowEmpty_ExitsOne`.
 
 **TextLintTool_Check_BinaryFile_ReportsInfoAndExitsZero**: A binary file and a clean text file are selected; the
 binary file is reported as information, counted as skipped, and the exit code is 0. This scenario is tested by

@@ -91,8 +91,9 @@ sections:
               - id: TextLintTool-Linting-LintRunner-RootValidation
                 title: >-
                   LintRunner shall verify that the root directory exists, is a directory, and can be read before
-                  it looks for settings or resolves any path, and shall report a missing root and an unusable
-                  root differently.
+                  it looks for settings or resolves any path, and shall report a missing root, a root that is not
+                  a directory, and a root that cannot be read differently, in the same way on every operating
+                  system.
                 justification: |
                   Every later step depends on the root. An absolute path must not be able to bypass an invalid
                   root, and a message about missing settings in a folder that does not exist would mislead the

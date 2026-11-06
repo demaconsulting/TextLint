@@ -109,9 +109,16 @@ an error that names the pattern and exit code 1. This scenario is tested by
 it and exit code 1, with no line about missing settings. This scenario is tested by
 `LintRunner_Run_MissingRootDirectory_ReportsErrorAndFails`.
 
-**LintRunner_Run_RootIsFile_ReportsErrorAndFails**: A root that is a file gives an error that says the root cannot
-be read, no line about missing settings, and exit code 1. This scenario is tested by
-`LintRunner_Run_RootIsFile_ReportsErrorAndFails`.
+**LintRunner_Run_RootIsFile_ReportsErrorAndFails**: A root that is a file gives an error that says the root is not a
+directory (the same on every operating system), no line about missing settings, and exit code 1. This scenario is
+tested by `LintRunner_Run_RootIsFile_ReportsErrorAndFails`.
+
+**LintRunner_Run_UnreadableRoot_ReportsCannotBeRead**: On Unix, as a user other than the super-user, a root whose
+permissions forbid reading gives an error that says it cannot be read (not that it does not exist) and exit code 1;
+the explanation that follows is the operating system's and is not compared. The scenario is skipped on Windows and
+for the super-user, where the condition cannot be produced; because a skipped test is not evidence on those
+systems, it is not listed against the requirement. This scenario is tested by
+`LintRunner_Run_UnreadableRoot_ReportsCannotBeRead`.
 
 **LintRunner_Run_InvalidRootWithAbsolutePath_ReportsErrorAndFails**: A missing root combined with a misspelled
 file named by its absolute path reports the root, checks nothing, and gives exit code 1. This scenario is tested

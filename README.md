@@ -221,8 +221,12 @@ textlint --config ci/textlint.yaml "**/*.md"
 textlint --root ../other-project "docs/**/*.md"
 textlint --language en-GB "**/*.md"
 
-# Accept a selection that matches no files (for example in a script that checks changed files)
-textlint --allow-empty $(git diff --name-only -- '*.md')
+# Accept patterns that match no files (for example a folder that may not exist yet)
+textlint --allow-empty "generated/**/*.md"
+
+# Check the changed files, but only when there are any: with no patterns at all the tool has nothing to check,
+# and that is a usage error that --allow-empty does not excuse
+changed=$(git diff --name-only -- '*.md'); [ -z "$changed" ] || textlint --allow-empty $changed
 
 # Limit the number of files checked at the same time
 textlint --max-parallelism 2 "**/*.md"
@@ -255,7 +259,7 @@ textlint --silent --log output.log "**/*.md"
 | `--config <file>`                     | Settings file (default: `.textlint.yaml` in the root directory)        |
 | `--root <dir>`                        | Directory that globs and the default settings file are relative to     |
 | `--language <languages>`              | Dictionary language, e.g. `en-US` or `en-GB`; overrides the settings   |
-| `--allow-empty`                       | Accept a selection that matches no files (default: exit code 1)        |
+| `--allow-empty`                       | Accept patterns that match no files (default: exit code 1)             |
 | `--max-parallelism <#>`               | Maximum number of files checked at the same time (default: processors) |
 | `-v`, `--version`                     | Display version information                                            |
 | `-?`, `-h`, `--help`                  | Display help message                                                   |

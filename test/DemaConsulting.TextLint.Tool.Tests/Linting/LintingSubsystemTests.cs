@@ -301,7 +301,7 @@ public class LintingSubsystemTests
             () => Assert.DoesNotContain("No settings file found", missingResult.Output),
             () => Assert.DoesNotContain("Unknown word", missingResult.Output),
             () => Assert.Equal(1, fileResult.ExitCode),
-            () => Assert.Contains($"The root directory '{fileRoot}' cannot be read", fileResult.Output),
+            () => Assert.Contains($"The root directory '{fileRoot}' is not a directory.", fileResult.Output),
             () => Assert.DoesNotContain("Unknown word", fileResult.Output));
     }
 

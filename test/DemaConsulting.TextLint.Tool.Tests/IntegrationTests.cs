@@ -643,6 +643,24 @@ public class IntegrationTests
     }
 
     /// <summary>
+    ///     Test that allowing an empty selection does not excuse a run that was given no patterns at all.
+    /// </summary>
+    [Fact]
+    public void TextLintTool_Check_NoPatternsAllowEmpty_ExitsOne()
+    {
+        // Arrange: a directory with a file, and no patterns anywhere (no settings file either)
+        using var temp = new TempDirectory();
+        temp.CreateFile("a.md", "Hello world.\n");
+
+        // Act: run with the allow-empty option and no patterns
+        var exitCode = RunTool(temp.FullPath, out var output, "--allow-empty");
+
+        // Assert: the run is a usage error that says what to add, not an accepted empty selection
+        Assert.Equal(1, exitCode);
+        Assert.Contains("No files to check", output);
+    }
+
+    /// <summary>
     ///     Test that a binary file is reported as information and does not fail the run.
     /// </summary>
     [Fact]

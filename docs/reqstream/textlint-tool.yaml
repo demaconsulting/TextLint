@@ -311,18 +311,21 @@ sections:
 
       - id: TextLintTool-System-NoFiles
         title: >-
-          The tool shall exit with code 1 and explain itself when the selection matches no files, unless the
-          allow-empty option accepts an empty selection.
+          The tool shall exit with code 1 and explain itself when the patterns it was given match no files,
+          unless the allow-empty option accepts that; a run given no patterns at all shall always fail with a
+          usage error.
         tags: [system]
         justification: |
           A pattern that matches nothing is almost always a typing mistake, and a check that examined no files
-          must not pass by accident; scripts that legitimately may select nothing opt in explicitly.
+          must not pass by accident; scripts that legitimately may select nothing opt in explicitly, but a
+          script that passes an empty list of files has a bug that the option must not hide.
         children:
           - TextLintTool-Cli-AllowEmpty
           - TextLintTool-Linting-EmptySelection
         tests:
           - TextLintTool_Check_NoFilesMatched_ExitsOne
           - TextLintTool_Check_NoFilesMatchedAllowEmpty_ExitsZero
+          - TextLintTool_Check_NoPatternsAllowEmpty_ExitsOne
 
       - id: TextLintTool-System-SkippedFiles
         title: >-

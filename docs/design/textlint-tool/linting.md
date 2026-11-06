@@ -41,9 +41,9 @@ checker, and its result types). No other tool subsystem is used.
 self-validation. The runner works in this order:
 
 1. It makes the root directory absolute: the `--root` directory, or the current directory. It then checks that the
-   directory exists, is a directory, and can be read, by enumerating one entry of it, so that a missing root
-   ("does not exist") is told apart from an unusable one (not a directory, or access denied) without asking
-   `Exists`. This happens before anything else, so that an absolute path cannot bypass an invalid root and no
+   directory exists, is a directory, and can be read (its attributes, then one listed entry), so that a missing root
+   ("does not exist") is told apart from a file ("is not a directory") and from one that cannot be read, without
+   asking `Exists`. This happens before anything else, so that an absolute path cannot bypass an invalid root and no
    misleading line about missing settings is written.
 2. It finds the settings. A file named by `--config` is loaded as typed. Otherwise `.textlint.yaml` in the root is
    loaded when it exists, and nothing else is searched, so a file from an unrelated directory is never applied by

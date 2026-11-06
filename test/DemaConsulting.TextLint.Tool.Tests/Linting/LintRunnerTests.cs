@@ -20,6 +20,7 @@
 
 // cspell:ignore wrold xyzzyq favourite
 
+using System.Runtime.Versioning;
 using DemaConsulting.TextLint.Tool.Cli;
 using DemaConsulting.TextLint.Tool.Linting;
 using DemaConsulting.TextLint.Tool.Tests.TestSupport;
@@ -505,8 +506,41 @@ public class LintRunnerTests
         // Assert: the error names the root, no settings notice appears, and the run fails
         Assert.Multiple(
             () => Assert.Equal(1, result.ExitCode),
-            () => Assert.Contains($"The root directory '{file}' cannot be read", result.Output),
+            () => Assert.Contains($"The root directory '{file}' is not a directory.", result.Output),
             () => Assert.DoesNotContain("No settings file found", result.Output));
+    }
+
+    /// <summary>
+    ///     Test that a root directory the process may not read is reported as unreadable and not as missing.
+    /// </summary>
+    [Fact]
+    [UnsupportedOSPlatform("windows")]
+    public void LintRunner_Run_UnreadableRoot_ReportsCannotBeRead()
+    {
+        // Arrange: the permission bits that make a directory unreadable exist only on Unix, and a super-user
+        // ignores them, so the scenario cannot be produced elsewhere
+        Assert.SkipWhen(OperatingSystem.IsWindows(), "Directory permissions are enforced through Unix file modes.");
+        Assert.SkipWhen(Environment.UserName == "root", "A super-user can read every directory.");
+        using var temp = new TempDirectory();
+        var locked = Path.Combine(temp.FullPath, "locked");
+        Directory.CreateDirectory(locked);
+        File.SetUnixFileMode(locked, UnixFileMode.None);
+        try
+        {
+            // Act: run against the locked directory
+            var result = ContextRun.Execute(["--root", locked, "*.md"], context => LintRunner.Run(context, TestContext.Current.CancellationToken));
+
+            // Assert: only the stable part of the message is checked, because the explanation is the operating system's
+            Assert.Multiple(
+                () => Assert.Equal(1, result.ExitCode),
+                () => Assert.Contains($"The root directory '{locked}' cannot be read", result.Output),
+                () => Assert.DoesNotContain("does not exist", result.Output));
+        }
+        finally
+        {
+            // Restore access so that the temporary directory can be deleted
+            File.SetUnixFileMode(locked, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        }
     }
 
     /// <summary>

@@ -171,7 +171,15 @@ and are removed by `--silent`.
 | `1`  | Anything else: issues found, a file that could not be checked, no file selected, or an error. |
 
 As in cspell, there is a single failure code. A selection that matches no files fails (a mistyped pattern is
-almost always the reason) unless `--allow-empty` is given, and so does a run that was given no patterns anywhere.
+almost always the reason) unless `--allow-empty` is given. `--allow-empty` applies only to patterns that were given
+and matched nothing: a run that was given no patterns at all, on the command line or in the settings, has nothing
+to check and always fails with a usage error. A script that checks a list of changed files should therefore call the
+tool only when the list is not empty:
+
+```bash
+changed=$(git diff --name-only -- '*.md'); [ -z "$changed" ] || textlint --allow-empty $changed
+```
+
 Interrupting the tool with Ctrl+C stops the check, prints a message, and exits with code 1 without a partial result.
 
 ### Limiting Parallelism
@@ -746,7 +754,7 @@ The following command-line options are supported:
 | `--config <file>`                     | Settings file (default: `.textlint.yaml` in the root directory)          |
 | `--root <dir>`                        | Directory that patterns and the default settings file are relative to    |
 | `--language <languages>`              | Dictionary language such as `en-US` or `en-GB`; overrides the settings   |
-| `--allow-empty`                       | Accept a selection that matches no files (default: exit code 1)          |
+| `--allow-empty`                       | Accept patterns that match no files (default: exit code 1)               |
 | `--max-parallelism <#>`               | Maximum number of files checked at the same time (default: processors)   |
 | `-v`, `--version`                     | Display version information                                              |
 | `-?`, `-h`, `--help`                  | Display help message                                                     |

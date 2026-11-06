@@ -186,15 +186,17 @@ internal static class LintRunner
     }
 
     /// <summary>
-    ///     Checks that the root directory exists, is a directory, and can be read, reporting why not.
+    ///     Checks that the root directory exists, is a directory, and can be listed, reporting why not.
     /// </summary>
     /// <remarks>
-    ///     The directory is read rather than asked about with <see cref="Directory.Exists(string?)"/>, which
-    ///     answers "no" for a directory the process may not read and would report it as missing. Reading one
-    ///     entry lets the file system say which failure it is: only a directory-not-found failure means the
-    ///     root does not exist; a path that names a file, or a directory that cannot be read, is reported with
-    ///     the file system's own explanation. Side effects: writes to <paramref name="context"/> and reads
-    ///     one directory entry.
+    ///     The checks are made in an order that gives the same answer on every operating system. The attributes
+    ///     of the path say whether it exists and whether it is a directory; a failure to read them other than
+    ///     "not found" is reported as unreadable. Asking <see cref="Directory.Exists(string?)"/> instead would
+    ///     answer "no" for a directory the process may not read and report it as missing. Listing one entry
+    ///     then confirms that the directory can be read. The stable parts of the three messages are
+    ///     <c>does not exist</c>, <c>is not a directory</c>, and <c>cannot be read</c>; the last is followed by
+    ///     the file system's own explanation, which differs between operating systems. Side effects: writes to
+    ///     <paramref name="context"/> and reads the attributes and one entry of the directory.
     /// </remarks>
     /// <param name="context">The output channels. Must not be null.</param>
     /// <param name="root">The absolute root directory. Must not be null.</param>
@@ -203,12 +205,20 @@ internal static class LintRunner
     {
         try
         {
-            // The listing is lazy, so the first step is what reaches the file system
+            // A trailing separator would make some systems report a file as missing rather than as a file
+            var attributes = File.GetAttributes(Path.TrimEndingDirectorySeparator(root));
+            if (!attributes.HasFlag(FileAttributes.Directory))
+            {
+                context.WriteError($"The root directory '{root}' is not a directory.");
+                return false;
+            }
+
+            // The listing is lazy, so the first step is what shows whether the directory can be read
             using var entries = new DirectoryInfo(root).EnumerateFileSystemInfos().GetEnumerator();
             _ = entries.MoveNext();
             return true;
         }
-        catch (DirectoryNotFoundException)
+        catch (Exception exception) when (exception is FileNotFoundException or DirectoryNotFoundException)
         {
             context.WriteError($"The root directory '{root}' does not exist.");
         }

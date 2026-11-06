@@ -201,7 +201,7 @@ internal static class Program
         context.WriteLine("  --root <dir>               Directory that patterns and the default settings file are relative to");
         context.WriteLine("                             (default: current directory)");
         context.WriteLine("  --language <languages>     Language of the dictionaries, e.g. en-US or en-GB (overrides the settings)");
-        context.WriteLine("  --allow-empty              Accept a selection that matches no files (default: exit code 1)");
+        context.WriteLine("  --allow-empty              Accept patterns that match no files (default: exit code 1)");
         context.WriteLine("  --max-parallelism <#>      Maximum number of files checked at the same time (default: processor count)");
         context.WriteLine("");
         context.WriteLine("[globs...] are the files to check: paths or glob patterns, relative or absolute, replacing the");

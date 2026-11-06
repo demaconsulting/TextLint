@@ -58,7 +58,8 @@ tested by `CliSubsystem_ValidateFlow_ContextAndProgram_RunsValidationAndExits`.
 
 **CliSubsystem_SilentFlow_ContextAndProgram_SuppressesOutput**: Arguments `["--version", "--silent"]`
 are passed; standard output is empty and exit code is 0, confirming `--silent` suppresses all
-console output. This scenario is tested by
+console output of a command line that was understood (one that cannot be parsed has no `Context` yet; its error is
+still written to standard error, as verified by the _Program_ unit). This scenario is tested by
 `CliSubsystem_SilentFlow_ContextAndProgram_SuppressesOutput`.
 
 **CliSubsystem_ResultsFlow_ContextAndProgram_WritesResultsFile**: Arguments
