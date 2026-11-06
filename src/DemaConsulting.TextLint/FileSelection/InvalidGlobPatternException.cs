@@ -43,6 +43,7 @@ public sealed class InvalidGlobPatternException : ArgumentException
         : base($"Invalid glob pattern '{pattern}': {reason}")
     {
         Pattern = pattern;
+        Reason = reason;
     }
 
     /// <summary>
@@ -50,4 +51,15 @@ public sealed class InvalidGlobPatternException : ArgumentException
     /// </summary>
     /// <value>The pattern exactly as the caller supplied it.</value>
     public string Pattern { get; }
+
+    /// <summary>
+    ///     Gets the reason the pattern was rejected, without the pattern text.
+    /// </summary>
+    /// <remarks>
+    ///     Internal so that a unit which rewrites a user's text before validating it (the command-line
+    ///     path resolver) can report the same reason against the text the user actually typed, instead
+    ///     of against the rewritten form.
+    /// </remarks>
+    /// <value>The reason, for example <c>the '?' wildcard is not supported</c>.</value>
+    internal string Reason { get; }
 }

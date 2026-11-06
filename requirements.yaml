@@ -17,6 +17,7 @@ includes:
   - docs/reqstream/textlint/file-selection/glob-pattern-expander.yaml
   - docs/reqstream/textlint/file-selection/hidden-path-policy.yaml
   - docs/reqstream/textlint/file-selection/file-selector.yaml
+  - docs/reqstream/textlint/file-selection/command-line-path-resolver.yaml
   - docs/reqstream/textlint/text-scanning.yaml
   - docs/reqstream/textlint/text-scanning/word-tokenizer.yaml
   - docs/reqstream/textlint/text-scanning/default-patterns.yaml
@@ -32,6 +33,9 @@ includes:
   - docs/reqstream/textlint-tool/program.yaml
   - docs/reqstream/textlint-tool/cli.yaml
   - docs/reqstream/textlint-tool/cli/context.yaml
+  - docs/reqstream/textlint-tool/linting.yaml
+  - docs/reqstream/textlint-tool/linting/lint-runner.yaml
+  - docs/reqstream/textlint-tool/linting/lint-reporter.yaml
   - docs/reqstream/textlint-tool/self-test.yaml
   - docs/reqstream/textlint-tool/self-test/validation.yaml
   - docs/reqstream/textlint-tool/utilities.yaml

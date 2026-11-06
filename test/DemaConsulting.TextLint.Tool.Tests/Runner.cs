@@ -37,6 +37,25 @@ internal static class Runner
     /// <exception cref="InvalidOperationException">Thrown when process fails to start.</exception>
     public static int Run(out string output, string program, params string[] arguments)
     {
+        return RunIn(out output, null, program, arguments);
+    }
+
+    /// <summary>
+    ///     Runs the specified program in a given working directory and captures its output.
+    /// </summary>
+    /// <remarks>
+    ///     Needed to prove behavior that depends on the working directory of the process, such as the
+    ///     default settings file, without changing the current directory of the test process, which every
+    ///     other test shares.
+    /// </remarks>
+    /// <param name="output">Program output (stdout and stderr combined).</param>
+    /// <param name="workingDirectory">The directory the program starts in, or null to inherit the test process's.</param>
+    /// <param name="program">Program name or path.</param>
+    /// <param name="arguments">Program arguments.</param>
+    /// <returns>Program exit code.</returns>
+    /// <exception cref="InvalidOperationException">Thrown when process fails to start.</exception>
+    public static int RunIn(out string output, string? workingDirectory, string program, params string[] arguments)
+    {
         // Construct the start information
         var startInfo = new ProcessStartInfo(program)
         {
@@ -45,6 +64,12 @@ internal static class Runner
             UseShellExecute = false,
             CreateNoWindow = true
         };
+
+        // Start in the requested directory, if one was given
+        if (workingDirectory is not null)
+        {
+            startInfo.WorkingDirectory = workingDirectory;
+        }
 
         // Add the arguments
         foreach (var argument in arguments)

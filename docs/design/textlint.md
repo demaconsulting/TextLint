@@ -14,8 +14,8 @@ The library is composed of five subsystems and consumes two OTS items:
   settings value, and reports every configuration problem as a positioned error. It contains the
   `TextLintSettings` and `SettingsLoader` units. See _Configuration Design_.
 - **FileSelection** applies include and ignore glob patterns to a root directory and returns the ordered list of files to
-  check. It contains the `GlobPatternExpander`, `HiddenPathPolicy`, and `FileSelector` units.
-  See _FileSelection Design_.
+  check. It contains the `GlobPatternExpander`, `HiddenPathPolicy`, `FileSelector`, and `CommandLinePathResolver`
+  units. See _FileSelection Design_.
 - **Dictionaries** answers whether a word is known to the selected English language (American, British, or
   both) and the technical vocabulary, from dictionaries embedded in the assembly. It contains the
   `SpellingDictionary` and `DictionaryImage` units. See _Dictionaries Design_.
@@ -59,7 +59,8 @@ capabilities (custom ignore patterns and the remaining cspell settings) are adde
 later changes as further units or subsystems of this system, each with its own requirements, design, and
 verification documents. The library is self-contained: it never depends on the tool, so any .NET
 application can lint without it. The command-line tool is only a thin front-end over this library
-and is not permitted to carry linting logic of its own; it is unchanged by the spell checker.
+and is not permitted to carry linting logic of its own. Even the interpretation of paths typed on a command line
+belongs to the library (see `CommandLinePathResolver`), so every front-end reads them the same way.
 
 ## External Interfaces
 
@@ -82,11 +83,13 @@ and is not permitted to carry linting logic of its own; it is unchanged by the s
 - _Contract_: In the `DemaConsulting.TextLint.Configuration` namespace, `TextLintSettings` (an
   immutable record), `SettingsLoader` (asynchronous loading of a settings file), `SettingsLoadResult`,
   and `SettingsDiagnostic`. In the `DemaConsulting.TextLint.FileSelection` namespace, `FileSelector`
-  (selecting files), `SelectedFile`, and `InvalidGlobPatternException`. In the
+  (selecting files), `SelectedFile`, `InvalidGlobPatternException`, and `CommandLinePathResolver` (turning
+  command-line path arguments into a search directory and patterns) with its result `CommandLineSelection`. In the
   `DemaConsulting.TextLint.Dictionaries` namespace, `SpellingDictionary` (selecting a language and asking
   whether a word is known). In the `DemaConsulting.TextLint.SpellChecking` namespace, `TextChecker` (checking a
   string), `SpellChecker` (checking the files of a directory) with `SpellCheckOptions` and `SpellCheckResult`,
-  and the finding types `SpellingIssue`, `SpellingIssueKind`, `FileDiagnostic`, and `FileDiagnosticKind`. The
+  and the finding types `SpellingIssue` (which can be formatted under a caller-chosen file name),
+  `SpellingIssueKind`, `FileDiagnostic` (likewise), and `FileDiagnosticKind`. The
   `TextScanning` subsystem has no public type.
 - _Constraints_: No public signature exposes a type from YamlDotNet or
   Microsoft.Extensions.FileSystemGlobbing, so upgrading those packages can never break consumers.

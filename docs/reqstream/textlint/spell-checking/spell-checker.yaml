@@ -65,6 +65,17 @@ sections:
                   - SpellChecker_FileDiagnostic_ErrorToString_UsesErrorSeverity
                   - SpellChecker_FileDiagnostic_SkipToString_UsesInfoSeverity
 
+              - id: TextLint-SpellChecking-SpellChecker-DiagnosticFileName
+                title: >-
+                  SpellChecker shall let a caller format a file diagnostic under a file name of the caller's
+                  choosing, with the severity and message the diagnostic itself would show.
+                justification: |
+                  A diagnostic records the path relative to the root directory, but a user who typed an
+                  absolute path expects to see that path in the output. Letting the caller choose the name keeps
+                  the severity rule and message wording in one place instead of copied into every consumer.
+                tests:
+                  - SpellChecker_FileDiagnostic_FormatCallerFileName_ReplacesRecordedFileName
+
               - id: TextLint-SpellChecking-SpellChecker-Defects
                 title: >-
                   SpellChecker shall let any failure of checking a file that is not a problem with that

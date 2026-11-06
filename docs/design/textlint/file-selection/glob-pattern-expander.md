@@ -18,7 +18,8 @@ expand to (256), which guards against short patterns such as `{a,b}{a,b}{a,b}...
 
 **InvalidGlobPatternException** is a public sealed exception deriving from `ArgumentException`. It
 carries `Pattern`, the original text as supplied, and its message always has the form
-`Invalid glob pattern '<pattern>': <reason>`. Only the library creates it.
+`Invalid glob pattern '<pattern>': <reason>`. Only the library creates it. The reason is also kept in an
+internal property, so that `CommandLinePathResolver` can report the same reason against the text a user typed.
 
 #### Key Methods
 
@@ -85,4 +86,5 @@ logged.
 #### Callers
 
 - **FileSelector** - expands every include and ignore pattern before selecting files.
+- **CommandLinePathResolver** - validates every pattern it builds from command-line arguments.
 - **SettingsLoader** (Configuration subsystem) - validates patterns while loading a settings file.

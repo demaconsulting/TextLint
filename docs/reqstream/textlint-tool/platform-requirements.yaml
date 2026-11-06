@@ -26,6 +26,9 @@ sections:
           # Tests link to "windows" to ensure results come from Windows platform
           - "windows@TextLintTool_VersionDisplay"
           - "windows@TextLintTool_HelpDisplay"
+          - "windows@TextLintTool_CheckMisspelling"
+          - "windows@TextLintTool_CheckSettingsFile"
+          - "windows@TextLintTool_CheckAbsolutePath"
 
       - id: TextLintTool-Platform-Linux
         title: The tool shall execute successfully on Linux platforms.
@@ -36,6 +39,9 @@ sections:
           # Tests link to "ubuntu" to ensure results come from Linux platform
           - "ubuntu@TextLintTool_VersionDisplay"
           - "ubuntu@TextLintTool_HelpDisplay"
+          - "ubuntu@TextLintTool_CheckMisspelling"
+          - "ubuntu@TextLintTool_CheckSettingsFile"
+          - "ubuntu@TextLintTool_CheckAbsolutePath"
 
       - id: TextLintTool-Platform-MacOS
         title: The tool shall execute successfully on macOS platforms.
@@ -46,6 +52,9 @@ sections:
           # Tests link to "macos" to ensure results come from macOS platform
           - "macos@TextLintTool_VersionDisplay"
           - "macos@TextLintTool_HelpDisplay"
+          - "macos@TextLintTool_CheckMisspelling"
+          - "macos@TextLintTool_CheckSettingsFile"
+          - "macos@TextLintTool_CheckAbsolutePath"
 
       - id: TextLintTool-Platform-Net10
         title: The tool shall support .NET 10 runtime.
@@ -55,3 +64,6 @@ sections:
         tests:
           - "dotnet10.x@TextLintTool_VersionDisplay"
           - "dotnet10.x@TextLintTool_HelpDisplay"
+          - "dotnet10.x@TextLintTool_CheckMisspelling"
+          - "dotnet10.x@TextLintTool_CheckSettingsFile"
+          - "dotnet10.x@TextLintTool_CheckAbsolutePath"

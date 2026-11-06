@@ -22,6 +22,8 @@ that contains digits or punctuation, or the name of an unsupported directive), `
 immutable list, empty unless the finding is a flagged word whose entry gave suggestions). Its constructor is
 internal because only the checker produces findings. `ToString` formats `file(line,column): error: message` in the
 compiler style, with the suggestions appended to the message, and just `(line,column)` when there is no file name.
+`Format(filePath)` does the same under a file name chosen by the caller, and `ToString` is `Format` applied to the
+recorded `FilePath`; a caller that was given absolute paths uses it to show them without copying the message wording.
 Findings are values rather than exceptions so that a consumer can print or process every one the same way.
 
 **SpellingIssueKind** is an enumeration of the three kinds: `UnknownWord`, `FlaggedWord`, and

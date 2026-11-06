@@ -32,6 +32,7 @@ sections:
           invocation and must list the available options so that users can self-serve.
         children:
           - TextLintTool-Program-Help
+          - TextLintTool-Program-HelpOptions
           - TextLintTool-Cli-Help
         tests:
           - TextLintTool_HelpFlag_Provided_OutputsUsageInformation
@@ -49,19 +50,27 @@ sections:
           - TextLintTool-Program-Validate
           - TextLintTool-Cli-Validate
           - TextLintTool-SelfTest-Qualification
+          - TextLintTool-SelfTest-LintScenarios
         tests:
           - TextLintTool_ValidateFlag_Provided_RunsValidation
+          - TextLintTool_ValidateFlag_Provided_RunsLintScenarios
 
       - id: TextLintTool-System-Silent
-        title: The tool shall suppress console output when the silent flag is provided.
+        title: >-
+          The tool shall suppress the console output of a run when the silent flag is provided, while still
+          reporting a command line it cannot understand on standard error with exit code 1.
         tags: [system]
         justification: |
           Enables automated scripts and CI/CD pipelines to run the tool without
-          cluttering output logs when only the exit code is needed.
+          cluttering output logs when only the exit code is needed. A malformed command line is
+          reported even when silent, because it is found before the output settings are known, and
+          a script that mistyped an option must never fail without a word.
         children:
           - TextLintTool-Cli-Silent
+          - TextLintTool-Program-ExitCode
         tests:
           - TextLintTool_SilentFlag_Provided_SuppressesOutput
+          - TextLintTool_SilentFlag_UnknownArgument_ReportsErrorOnStderr
 
       - id: TextLintTool-System-Log
         title: The tool shall write output to a log file when the log flag is provided.
@@ -140,17 +149,21 @@ sections:
           - TextLintTool_ValidateWithBadExtension_ExtensionInvalid_ReturnsNonZero
 
       - id: TextLintTool-System-DefaultBehavior
-        title: The tool shall display a banner then run the default tool logic when invoked without any action flags.
+        title: >-
+          The tool shall display a banner and then check the files that the command line and the settings
+          select, and shall report a usage error when invoked without any action flag and with nothing to check.
         tags: [system]
         justification: |
-          When a user invokes the tool without any recognized action flag, the tool shall
-          display a banner identifying itself and run its primary logic so that the
-          invocation is never silently empty.
+          A user who runs the tool without options must always see what the tool is, and must never
+          get a silent success from a run that checked nothing: a build step that checks no files
+          would pass by accident. The usage error says what to add.
         children:
           - TextLintTool-Cli-ArgumentParsing
           - TextLintTool-Cli-OutputChannels
+          - TextLintTool-Program-Check
+          - TextLintTool-Linting-NoPatterns
         tests:
-          - TextLintTool_NoArguments_Invoked_DisplaysBanner
+          - TextLintTool_NoArguments_Invoked_DisplaysBannerAndUsageError
 
       - id: TextLintTool-System-ResultAlias
         title: The tool shall accept `--result` as a legacy alias for `--results`.
@@ -162,6 +175,220 @@ sections:
           - TextLintTool-Cli-ResultAlias
         tests:
           - TextLintTool_ResultAlias_LegacyFlag_WritesResultsFile
+
+      - id: TextLintTool-System-Check
+        title: >-
+          The tool shall check the spelling of the selected files and report each issue on standard output
+          as file(line,column): error: message, followed by a summary of the files checked, and shall exit with
+          code 1 when any issue is found.
+        tags: [system]
+        justification: |
+          Checking the files of a repository is the purpose of the tool. The compiler-style line is
+          understood by editors, build servers, and CI log parsers, so issues become clickable with no
+          integration, and a non-zero exit code lets a pipeline stop on the first misspelling.
+        children:
+          - TextLintTool-Linting-Reporting
+          - TextLintTool-Linting-ExitStatus
+        tests:
+          - TextLintTool_Check_MisspelledFile_ReportsIssueAndExitsOne
+
+      - id: TextLintTool-System-CleanPass
+        title: >-
+          The tool shall exit with code 0 and report the number of files checked when no issue is found.
+        tags: [system]
+        justification: |
+          A pipeline needs an unambiguous success signal, and a person needs to see that files were in
+          fact checked, so that a pattern that selects the wrong files is noticed.
+        children:
+          - TextLintTool-Linting-ExitStatus
+          - TextLintTool-Linting-Reporting
+        tests:
+          - TextLintTool_Check_CleanFile_ExitsZero
+
+      - id: TextLintTool-System-Config
+        title: >-
+          The tool shall read and apply the settings file in the root directory (by default the current
+          directory) when there is one, and shall use the default settings and say so when there is none.
+        tags: [system]
+        justification: |
+          A project's spelling rules live in its settings file, so running the tool in the project folder
+          must find them without options. The tool does not search parent folders, so a file from an
+          unrelated folder can never be applied by accident, and it says when it used the defaults so that a
+          missing file is noticed instead of silently producing many unknown-word findings.
+        children:
+          - TextLintTool-Linting-SettingsResolution
+        tests:
+          - TextLintTool_Check_DefaultSettingsFile_AppliesSettings
+
+      - id: TextLintTool-System-ConfigOption
+        title: >-
+          The tool shall use the settings file named by the config option, and shall report an error and check
+          nothing when that file does not exist.
+        tags: [system]
+        justification: |
+          Projects keep settings files in different places or under different names; an explicit file that is
+          missing is a mistake that must not fall back to other settings.
+        children:
+          - TextLintTool-Cli-Config
+          - TextLintTool-Linting-SettingsResolution
+          - TextLintTool-Linting-SettingsErrors
+        tests:
+          - TextLintTool_Check_ConfigOption_UsesNamedFile
+          - TextLintTool_Check_ConfigOption_MissingFile_ReportsErrorAndExitsOne
+
+      - id: TextLintTool-System-ConfigErrors
+        title: >-
+          The tool shall report every problem of a settings file with its file, line, and column, check no
+          file, and exit with code 1.
+        tags: [system]
+        justification: |
+          A settings file that is only partly understood would check the wrong things and pass or fail for
+          the wrong reasons, so every problem is shown at once, where the user can find it.
+        children:
+          - TextLintTool-Linting-SettingsErrors
+        tests:
+          - TextLintTool_Check_InvalidSettings_ReportsErrorAndExitsOne
+
+      - id: TextLintTool-System-Globs
+        title: >-
+          The tool shall check the files named by glob patterns given on the command line instead of the files
+          of the settings, while still honoring the ignore patterns of the settings.
+        tags: [system]
+        justification: |
+          Checking one file or one folder, for example the files changed by a commit, must not require a
+          second settings file; the ignore patterns still protect generated content.
+        children:
+          - TextLintTool-Cli-Globs
+          - TextLintTool-Linting-FileSelection
+        tests:
+          - TextLintTool_Check_GlobArguments_ReplaceConfiguredFiles
+
+      - id: TextLintTool-System-Root
+        title: >-
+          The tool shall resolve patterns, the default settings file, and the reported paths relative to the
+          directory named by the root option.
+        tags: [system]
+        justification: |
+          Build scripts run the tool from anywhere and need to say which folder is the project, without
+          changing their own working directory.
+        children:
+          - TextLintTool-Cli-Root
+          - TextLintTool-Linting-FileSelection
+        tests:
+          - TextLintTool_Check_RootOption_ResolvesPathsFromRoot
+
+      - id: TextLintTool-System-CommandLinePaths
+        title: >-
+          The tool shall accept the paths and patterns its user types in the form of the user's shell,
+          including backslash-separated relative paths on Windows and absolute paths, and shall report files
+          named by an absolute path under that absolute path. An absolute path that names a directory shall
+          check every file below it.
+        tags: [system]
+        justification: |
+          PowerShell completes backslash paths, editors and hooks pass absolute paths, and users expect to see
+          paths in the form they typed. Rejecting these would make the tool awkward on its main platforms, and
+          a directory named in full must behave as the same directory named relatively does.
+        children:
+          - TextLintTool-Linting-FileSelection
+        tests:
+          - TextLintTool_Check_AbsolutePath_ReportsAbsolutePath
+          - TextLintTool_Check_AbsoluteDirectory_ChecksFilesBelow
+          - TextLintTool_Check_PlatformRelativePath_ChecksFile
+
+      - id: TextLintTool-System-Language
+        title: >-
+          The tool shall check against the dictionaries of the language named by the language option, in
+          preference to the language of the settings.
+        tags: [system]
+        justification: |
+          American and British spellings differ, and a project that mixes them, or a one-off check against
+          another language, must not need a second settings file.
+        children:
+          - TextLintTool-Cli-Language
+          - TextLintTool-Linting-Overrides
+        tests:
+          - TextLintTool_Check_LanguageOption_SelectsDictionary
+
+      - id: TextLintTool-System-NoFiles
+        title: >-
+          The tool shall exit with code 1 and explain itself when the patterns it was given match no files,
+          unless the allow-empty option accepts that; a run given no patterns at all shall always fail with a
+          usage error.
+        tags: [system]
+        justification: |
+          A pattern that matches nothing is almost always a typing mistake, and a check that examined no files
+          must not pass by accident; scripts that legitimately may select nothing opt in explicitly, but a
+          script that passes an empty list of files has a bug that the option must not hide.
+        children:
+          - TextLintTool-Cli-AllowEmpty
+          - TextLintTool-Linting-EmptySelection
+        tests:
+          - TextLintTool_Check_NoFilesMatched_ExitsOne
+          - TextLintTool_Check_NoFilesMatchedAllowEmpty_ExitsZero
+          - TextLintTool_Check_NoPatternsAllowEmpty_ExitsOne
+
+      - id: TextLintTool-System-SkippedFiles
+        title: >-
+          The tool shall report each file that was skipped on purpose, such as a binary file, as information
+          that does not fail the run, and each file that could not be checked as an error.
+        tags: [system]
+        justification: |
+          Nothing may be silently left out of a check, but a binary file in a broad pattern is not a reason to
+          fail the build, while a file that was meant to be checked and was not is.
+        children:
+          - TextLintTool-Linting-Reporting
+          - TextLintTool-Linting-ExitStatus
+        tests:
+          - TextLintTool_Check_BinaryFile_ReportsInfoAndExitsZero
+
+      - id: TextLintTool-System-Parallelism
+        title: >-
+          The tool shall accept a limit on the number of files checked at the same time and shall give the same
+          result whatever the limit.
+        tags: [system]
+        justification: |
+          Shared build machines need to leave processors free, and a result that depended on the limit would
+          make runs unreproducible.
+        children:
+          - TextLintTool-Cli-MaxParallelism
+          - TextLintTool-Linting-Overrides
+        tests:
+          - TextLintTool_Check_MaxParallelism_GivesSameResult
+
+      - id: TextLintTool-System-ArgumentValidation
+        title: >-
+          The tool shall reject a missing, empty, repeated, or out-of-range option value with an error message
+          that names the option, and shall exit with code 1.
+        tags: [system]
+        justification: |
+          A script that gives an option twice, or an empty value from an unset variable, has a bug; silently
+          taking the last value or an empty one would hide it.
+        children:
+          - TextLintTool-Cli-OptionValidation
+        tests:
+          - TextLintTool_Check_DuplicateOption_ReportsErrorAndExitsOne
+
+      - id: TextLintTool-System-FailureReporting
+        title: >-
+          The tool shall report a failure caused by the user's input or environment, such as a missing root
+          directory, an unsupported pattern or language, or an unreadable file, as an error message with exit
+          code 1 and not as an unhandled exception, and shall stop a running check cleanly when the user
+          interrupts it. A root directory that is unusable shall be reported before anything else, whatever
+          paths were typed.
+        tags: [system]
+        justification: |
+          A pipeline and a person both need a message that says what to fix, and an interrupted run must not
+          leave the impression that a partial result is complete. An absolute path must not let a mistaken
+          root go unnoticed.
+        children:
+          - TextLintTool-Linting-FailureHandling
+          - TextLintTool-Linting-RootValidation
+          - TextLintTool-Linting-Cancellation
+          - TextLintTool-Program-Cancellation
+        tests:
+          - TextLintTool_Check_MissingRoot_ReportsErrorAndExitsOne
+          - TextLintTool_Check_InvalidRootWithAbsolutePath_ReportsErrorAndExitsOne
+          - TextLintTool_Check_InvalidPattern_ReportsErrorAndExitsOne
 
       - id: TextLintTool-System-ThirdPartyNotices
         title: >-

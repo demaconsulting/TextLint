@@ -347,4 +347,8 @@ names the directive. This scenario is tested by `TextChecker_Check_UnsupportedDi
 **TextChecker_Check_IssueSuggestions_AreImmutable**: The suggestions of a finding cannot be changed by casting them
 to a mutable interface. This scenario is tested by `TextChecker_Check_IssueSuggestions_AreImmutable`.
 
+**TextChecker_Format_CallerFileName_ReplacesRecordedFileName**: A finding recorded under a relative name is formatted
+under an absolute name chosen by the caller, and with no name at all; only the file name changes. This scenario is
+tested by `TextChecker_Format_CallerFileName_ReplacesRecordedFileName`.
+
 <!-- cspell:ignore wrold speling xqzv xqz -->

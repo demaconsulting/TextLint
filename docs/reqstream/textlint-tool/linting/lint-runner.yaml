@@ -1,0 +1,180 @@
+---
+# Software Unit Requirements for the LintRunner Class
+#
+# The LintRunner class runs one spell check as the command line asked for it: it finds and loads the settings,
+# applies the command-line overrides, calls the TextLint library, hands the result to the reporter, and sets the
+# exit status. It contains policy and glue only; all linting logic is in the library.
+
+sections:
+  - title: TextLintTool Requirements
+    sections:
+      - title: Linting Requirements
+        sections:
+          - title: LintRunner Requirements
+            requirements:
+              - id: TextLintTool-Linting-LintRunner-ExplicitSettings
+                title: >-
+                  LintRunner shall load exactly the settings file named by the command line, as typed, and shall
+                  report an error and check nothing when that file does not exist.
+                justification: |
+                  An explicit request is the most specific one; falling back to other settings when it cannot be
+                  honored would check against rules the user did not ask for.
+                tests:
+                  - LintRunner_Run_ConfigOption_UsesNamedFile
+                  - LintRunner_Run_MissingConfigFile_ReportsErrorAndFails
+
+              - id: TextLintTool-Linting-LintRunner-RootSettings
+                title: >-
+                  LintRunner shall, when no settings file is named, load the settings file in the root directory
+                  when there is one, and shall not search any other directory.
+                justification: |
+                  A project's rules live beside the project; searching parent folders could apply the rules of an
+                  unrelated project, which is a safety concern, and every other tool of the family looks only in
+                  the working folder.
+                tests:
+                  - LintRunner_Run_DefaultSettingsFile_IsApplied
+
+              - id: TextLintTool-Linting-LintRunner-DefaultSettings
+                title: >-
+                  LintRunner shall use the default settings and write one information line that names the root
+                  directory when no settings file is named and the root directory has none.
+                justification: |
+                  A check must work in a folder without configuration, but a missing settings file is the usual
+                  reason for many unknown-word findings, so the user is told that the defaults were used.
+                tests:
+                  - LintRunner_Run_NoSettingsFile_UsesDefaultsAndSaysSo
+
+              - id: TextLintTool-Linting-LintRunner-SettingsErrors
+                title: >-
+                  LintRunner shall report each problem of a settings file with the text and position the library
+                  gives, as an error, and shall check no file.
+                justification: |
+                  Every problem is shown at once so that it can be corrected in one pass, and nothing is checked
+                  against settings that were only partly understood.
+                tests:
+                  - LintRunner_Run_InvalidSettings_ReportsEachErrorAndChecksNothing
+
+              - id: TextLintTool-Linting-LintRunner-UnreadableSettings
+                title: >-
+                  LintRunner shall treat a settings file in the root directory that exists but cannot be examined
+                  or read as an error, and only a path that does not exist as an absent file.
+                justification: |
+                  A file the process may not read is not a missing file: silently applying the defaults would hide
+                  the user's own settings, and the remedy differs.
+                tests:
+                  - LintRunner_Run_UnreadableSettingsFile_ReportsErrorNotAbsence
+                  - LintRunner_ProbeSettingsFile_FileSystemFailures_AreNotAbsence
+
+              - id: TextLintTool-Linting-LintRunner-ApplyGlobs
+                title: >-
+                  LintRunner shall check the files named by the command-line patterns instead of the files of the
+                  settings, and shall apply the ignore patterns of the settings to them.
+                justification: |
+                  Selecting a file or folder on the command line must not need a second settings file, while the
+                  project's ignore rules still protect generated content.
+                tests:
+                  - LintRunner_Run_GlobArguments_ReplaceFilesSetting
+                  - LintRunner_Run_GlobArguments_HonorIgnorePaths
+
+              - id: TextLintTool-Linting-LintRunner-CommandLinePaths
+                title: >-
+                  LintRunner shall have the library interpret the command-line patterns and shall name each file
+                  found in the form the library says, so that a file named by an absolute path is reported by
+                  that path and an absolute path that names a directory checks every file below it.
+                justification: |
+                  The rules for backslashes and absolute paths belong to the library so every front-end applies
+                  them identically; the runner must not reimplement them.
+                tests:
+                  - LintRunner_Run_AbsolutePathArgument_ReportsAbsolutePath
+                  - LintRunner_Run_AbsoluteDirectoryArgument_ChecksEveryFileBelow
+
+              - id: TextLintTool-Linting-LintRunner-RootValidation
+                title: >-
+                  LintRunner shall verify that the root directory exists, is a directory, and can be read before
+                  it looks for settings or resolves any path, and shall report a missing root, a root that is not
+                  a directory, and a root that cannot be read differently, in the same way on every operating
+                  system.
+                justification: |
+                  Every later step depends on the root. An absolute path must not be able to bypass an invalid
+                  root, and a message about missing settings in a folder that does not exist would mislead the
+                  user about what is wrong.
+                tests:
+                  - LintRunner_Run_MissingRootDirectory_ReportsErrorAndFails
+                  - LintRunner_Run_RootIsFile_ReportsErrorAndFails
+                  - LintRunner_Run_InvalidRootWithAbsolutePath_ReportsErrorAndFails
+
+              - id: TextLintTool-Linting-LintRunner-NoPatterns
+                title: >-
+                  LintRunner shall report a usage error that says what to add, and check nothing, when neither
+                  the command line nor the settings name any files.
+                justification: |
+                  A check that was asked to examine nothing must not succeed by accident.
+                tests:
+                  - LintRunner_Run_NoPatterns_ReportsUsageError
+
+              - id: TextLintTool-Linting-LintRunner-EmptySelection
+                title: >-
+                  LintRunner shall fail with an explanation that names the way to accept it when the selection
+                  matches no files, and shall succeed when an empty selection was allowed.
+                justification: |
+                  A pattern that matches nothing is almost always a mistake, but some scripts legitimately may
+                  select nothing and must be able to say so.
+                tests:
+                  - LintRunner_Run_NoFilesMatched_FailsWithExplanation
+                  - LintRunner_Run_NoFilesMatchedAllowEmpty_Succeeds
+
+              - id: TextLintTool-Linting-LintRunner-LanguageOverride
+                title: >-
+                  LintRunner shall check against the language given on the command line in preference to the
+                  language of the settings.
+                justification: |
+                  A command-line option is the most specific request and so wins over the settings.
+                tests:
+                  - LintRunner_Run_LanguageOption_OverridesSettings
+
+              - id: TextLintTool-Linting-LintRunner-Parallelism
+                title: >-
+                  LintRunner shall limit the number of files checked at the same time to the number given, and
+                  shall produce the same result for every number.
+                justification: |
+                  A limit protects shared machines, and a result that depended on it would make runs
+                  unreproducible.
+                tests:
+                  - LintRunner_Run_MaxParallelism_GivesSameResult
+
+              - id: TextLintTool-Linting-LintRunner-ExitStatus
+                title: >-
+                  LintRunner shall mark the run failed when the check found an issue or could not check a
+                  selected file, and shall not mark it failed for a file that was skipped on purpose or when
+                  everything was checked and clean.
+                justification: |
+                  Success must mean that every selected file was checked and nothing was found, while a binary
+                  file in a broad pattern must not fail the build.
+                tests:
+                  - LintRunner_Run_MisspelledFile_ReportsIssueAndFails
+                  - LintRunner_Run_CleanFile_Succeeds
+                  - LintRunner_Run_BinaryFile_ReportsInfoAndSucceeds
+                  - LintRunner_Run_LockedFile_ReportsErrorAndFails
+
+              - id: TextLintTool-Linting-LintRunner-ExpectedFailures
+                title: >-
+                  LintRunner shall report an invalid root directory path, an unsupported pattern, and an
+                  unsupported language as an error message and a failed run, and shall reject a missing context.
+                justification: |
+                  These are mistakes a user can make; each needs a message that says what to fix, not a stack
+                  trace.
+                tests:
+                  - LintRunner_Run_InvalidLanguage_ReportsErrorAndFails
+                  - LintRunner_Run_InvalidGlobPattern_ReportsErrorNamingPattern
+                  - LintRunner_Run_InvalidRootPath_ReportsErrorAndFails
+                  - LintRunner_Run_NullContext_ThrowsArgumentNullException
+
+              - id: TextLintTool-Linting-LintRunner-Cancellation
+                title: >-
+                  LintRunner shall stop a check when its cancellation token is cancelled, report that it was
+                  cancelled, report no partial result, and fail the run.
+                justification: |
+                  A user who interrupts a long check must get control back promptly, and a partial result must
+                  never be mistaken for a complete one.
+                tests:
+                  - LintRunner_Run_CancelledToken_ReportsCancellationAndFails

@@ -280,6 +280,15 @@ absolute paths are not supported. This scenario is tested by
 `docs/file?.md` is loaded; the error is at the item, names the pattern, and suggests using `*`. This scenario is
 tested by `TextLint_Settings_QuestionMarkPattern_ReportsErrorSuggestingStar`.
 
+**TextLint_CommandLinePaths_AbsolutePath_ChecksFileAndNamesItAbsolute**: A file with a misspelling is named on a
+command line by its absolute path; the path is resolved, the selected file is checked, and the finding is
+formatted under the absolute path. This scenario is tested by
+`TextLint_CommandLinePaths_AbsolutePath_ChecksFileAndNamesItAbsolute`.
+
+**TextLint_CommandLinePaths_RelativePath_ChecksFileAndNamesItRelative**: The same file is named by a relative
+pattern; the finding is formatted under the relative path with forward slashes. This scenario is tested by
+`TextLint_CommandLinePaths_RelativePath_ChecksFileAndNamesItRelative`.
+
 **TextLint_Package_Packed_ContainsThirdPartyNotices**: FileAssert inspects the produced library package and finds
 exactly one `THIRD-PARTY-NOTICES.txt` at its root whose text names the author of the English word lists, carries
 the permission sentence of their license verbatim, names the publisher of the technical word lists, and names the

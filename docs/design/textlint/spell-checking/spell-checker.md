@@ -31,6 +31,8 @@ CI gate should be based on it.
 
 **FileDiagnostic** is a public immutable class with `FilePath` (relative to the root, with forward slashes), `Kind`,
 `Message`, and `IsError`. `ToString` formats `file: severity: message`, with `error` or `info` as `IsError` says;
+`Format(filePath)` does the same under a file name chosen by the caller (it rejects null), and `ToString` is
+`Format` applied to the recorded `FilePath`;
 there is no line or column because the problem concerns the whole file.
 
 **FileDiagnosticKind** is an enumeration: `Unreadable`, `Binary`, `TooLarge`, and `TimedOut`. `Unreadable` and

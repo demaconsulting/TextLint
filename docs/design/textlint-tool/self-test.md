@@ -19,7 +19,8 @@ results file.
 - *Role*: Provider.
 - *Contract*: Accepts a `Context` argument. Prints a Markdown-formatted heading (depth
   controlled by `context.HeadingDepth`) and a table of environment metadata, executes each test
-  runner (`RunVersionTest`, `RunHelpTest`), prints aggregate totals (`Total Tests:`, `Passed:`,
+  runner (`RunVersionTest`, `RunHelpTest`) and each spell-checking scenario (`RunLintScenario`), prints aggregate
+  totals (`Total Tests:`, `Passed:`,
   `Failed:`), and writes a results file if `context.ResultsFile` is set. Calls
   `context.WriteError` for each failed test and for unsupported results file extensions,
   causing `context.ExitCode` to return 1.
@@ -40,6 +41,10 @@ The `SelfTest` subsystem contains only the `Validation` unit. When `Program.Run`
    arguments (capturing output to the log file via `--log`), reads the log, and asserts the
    expected content is present. Pass or fail is recorded; any exception is caught and recorded
    via `HandleTestException` so execution continues with the next test.
+   Each spell-checking scenario (`RunLintScenario`) runs the real tool logic in-process against sample files in
+   its own temporary directory, selected with the root option so the process's current directory is never
+   changed, and checks the exit code and the output; passing proves that settings are read, files are
+   selected, text is checked, and results are reported on this operating system and runtime.
 4. Totals are printed; `WriteError` is used for the failed count if any tests failed.
 5. If `context.ResultsFile` is set, `WriteResultsFile` serializes the results. An unsupported
    file extension causes `WriteError` to be called and no file is written.

@@ -15,12 +15,11 @@ TextLint is a fast text linter for source code and documentation, delivered as t
 
 **Status**: under active development. TextLint is being developed to provide cspell-compatible
 spell-checking, configured by a `.textlint.yaml` file, using embedded English and technical-term
-dictionaries, and to check files in parallel across all processor cores. The library can already do
-this: it loads a `.textlint.yaml` settings file, selects the files to check, checks their spelling in
-parallel with cspell's word-splitting, ignore, directive, and word-list rules, and looks words up in its
-embedded dictionaries. The tool does not read the settings file or call the spell checker yet and provides
-only the command-line scaffolding described below. Custom ignore patterns and the remaining cspell settings
-are not supported yet.
+dictionaries, and to check files in parallel across all processor cores. Both the library and the `textlint`
+tool can already do this: they load a `.textlint.yaml` settings file, select the files to check, check
+their spelling in parallel with cspell's word-splitting, ignore, directive, and word-list rules, and look
+words up in the embedded dictionaries. Custom ignore patterns and the remaining cspell settings are not
+supported yet.
 
 ## Features
 
@@ -41,9 +40,13 @@ The project currently provides:
   English, or both, plus a dictionary of technical terms (programming languages, tools, companies, file
   types, and licenses). The dictionaries are embedded in the assembly, so no data files are needed, and
   lookups are safe from many threads at once
+- **Command-Line Spell Checker**: The `textlint` tool checks the files you name (or those of the settings file)
+  and reports each issue as `file(line,column): error: message`, a format that editors and CI systems link to,
+  followed by a summary. It accepts relative and absolute paths and globs, backslash paths on Windows, and exits
+  with 0 only when everything was checked and no issue was found
 - **Standardized Command-Line Interface**: Context class handling common arguments
   (`--version`, `--help`, `--silent`, `--validate`, `--results`, `--depth`, `--log`)
-- **Self-Validation**: Built-in validation tests with TRX/JUnit output
+- **Self-Validation**: Built-in validation tests with TRX/JUnit output, including real spell-checking scenarios
 - **Multi-Platform Support**: Builds and runs on Windows, Linux, and macOS
 - **Modern Runtime Support**: Targets .NET 10
 - **Comprehensive CI/CD**: GitHub Actions workflows with quality checks, builds, and
@@ -146,6 +149,22 @@ var settings = new TextLintSettings
 var files = FileSelector.Select("/path/to/repo", settings.Files, settings.IgnorePaths, settings.EnableGlobDot);
 ```
 
+Patterns typed on a command line are more forgiving than patterns in a settings file: they may be absolute,
+and on Windows may use backslashes. `CommandLinePathResolver` turns them into a search directory and
+validated patterns, and tells you how to name the files it finds:
+
+```csharp
+// For example: textlint C:\work\project\docs\*.md   (or ./docs/*.md, or .\docs\*.md on Windows)
+var selection = CommandLinePathResolver.Resolve(Directory.GetCurrentDirectory(), args);
+var files = FileSelector.Select(selection.RootDirectory, selection.Patterns, settings.IgnorePaths);
+
+foreach (var file in files)
+{
+    // The absolute path when the user typed an absolute path, otherwise the relative path
+    Console.WriteLine(selection.GetDisplayPath(file.RelativePath));
+}
+```
+
 The supported `.textlint.yaml` keys are `version`, `files`, `ignorePaths`, `enableGlobDot`, `language`,
 `words`, `ignoreWords`, `flagWords`, `minWordLength`, and `maxFileSize`; any other key is an error. See the
 [User Guide][link-guide] for the settings reference, the glob pattern rules, the comment directives, and the
@@ -182,9 +201,35 @@ the whole process, so one `SpellingDictionary` can be used from many threads at 
 
 ## Usage
 
+Check files by naming them. Quote glob patterns so that your shell does not expand them first; `**` matches
+any number of directories:
+
 ```bash
-# Default behavior (no arguments) — displays banner and copyright
+# Check the markdown files below the current directory, with the settings in ./.textlint.yaml if there is one
+textlint "**/*.md"
+
+# Check specific files; relative paths, absolute paths, and (on Windows) backslash paths are all accepted
+textlint README.md docs/guide.md
+textlint C:\work\project\README.md
+textlint C:\work\project\docs     # an absolute path naming a directory checks every file below it
+
+# With no patterns, the 'files' setting of ./.textlint.yaml selects the files
 textlint
+
+# Use another settings file, another project folder, and another language
+textlint --config ci/textlint.yaml "**/*.md"
+textlint --root ../other-project "docs/**/*.md"
+textlint --language en-GB "**/*.md"
+
+# Accept patterns that match no files (for example a folder that may not exist yet)
+textlint --allow-empty "generated/**/*.md"
+
+# Check the changed files, but only when there are any: with no patterns at all the tool has nothing to check,
+# and that is a usage error that --allow-empty does not excuse
+changed=$(git diff --name-only -- '*.md'); [ -z "$changed" ] || textlint --allow-empty $changed
+
+# Limit the number of files checked at the same time
+textlint --max-parallelism 2 "**/*.md"
 
 # Display version
 textlint --version
@@ -203,28 +248,73 @@ textlint --validate --result results.xml
 textlint --validate --depth 2
 
 # Silent mode with logging
-textlint --silent --log output.log
+textlint --silent --log output.log "**/*.md"
 ```
 
 ## Command-Line Options
 
-| Option                                | Description                                                  |
-| ------------------------------------- | ------------------------------------------------------------ |
-| `-v`, `--version`                     | Display version information                                  |
-| `-?`, `-h`, `--help`                  | Display help message                                         |
-| `--silent`                            | Suppress console output                                      |
-| `--validate`                          | Run self-validation                                          |
-| `--results <file>`, `--result <file>` | Write results to `.trx` (TRX) or `.xml` (JUnit XML) file.    |
-| `--depth <#>`                         | Set heading depth for markdown output (default: 1)           |
-| `--log <file>`                        | Write output to log file                                     |
+| Option                                | Description                                                            |
+| ------------------------------------- | ---------------------------------------------------------------------- |
+| `[globs...]`                          | Files to check (paths or globs); they replace the `files` setting      |
+| `--config <file>`                     | Settings file (default: `.textlint.yaml` in the root directory)        |
+| `--root <dir>`                        | Directory that globs and the default settings file are relative to     |
+| `--language <languages>`              | Dictionary language, e.g. `en-US` or `en-GB`; overrides the settings   |
+| `--allow-empty`                       | Accept patterns that match no files (default: exit code 1)             |
+| `--max-parallelism <#>`               | Maximum number of files checked at the same time (default: processors) |
+| `-v`, `--version`                     | Display version information                                            |
+| `-?`, `-h`, `--help`                  | Display help message                                                   |
+| `--silent`                            | Suppress console output (usage errors still go to stderr)              |
+| `--validate`                          | Run self-validation                                                    |
+| `--results <file>`, `--result <file>` | Write results to `.trx` (TRX) or `.xml` (JUnit XML) file.              |
+| `--depth <#>`                         | Set heading depth for markdown output (default: 1)                     |
+| `--log <file>`                        | Write output to log file                                               |
+
+The settings file is `.textlint.yaml` in the root directory (the current directory unless `--root` is given),
+or the file named by `--config`. No parent directory is searched. Without a settings file the default settings
+apply and the tool says so.
+
+## Exit Codes
+
+| Code | Meaning                                                                                                   |
+| ---- | --------------------------------------------------------------------------------------------------------- |
+| `0`  | Every selected file was checked and no issue was found (skipped binary files do not count)                |
+| `1`  | Anything else: issues, an unreadable file, no files matched, no files named, or a settings or usage error |
+
+## Output
+
+Results are written to standard output; errors of the tool itself (a bad argument, a settings error, a missing
+directory) are written to standard error. Each issue is one line in the compiler style that editors and CI
+systems understand, followed by files that were skipped, and a summary:
+
+<!-- cspell:ignore wrold -->
+
+```text
+TextLint Tool version <version>
+Copyright (c) DEMA Consulting
+
+info: No settings file found in '/work/project'; using the default settings.
+docs/guide.md(12,5): error: Unknown word 'wrold'
+src/Program.cs(40,9): error: Flagged word 'utilize'; suggestions: use
+assets/logo.dat: info: The file looks like binary data: it contains a NUL character in its first 1,024 characters.
+Checked 120 file(s): 2 issue(s) in 2 file(s), 1 skipped, 0 could not be checked.
+```
+
+Paths are relative to the root directory with `/` separators, unless you typed an absolute path, in which case
+the absolute path is shown.
 
 ## Error Handling
 
-Unrecognized arguments cause the tool to print an error message to standard error and exit
-with a non-zero exit code. For example:
+Unrecognized, missing, empty, or repeated arguments cause the tool to print an error message to standard error
+and exit with a non-zero exit code. For example:
 
 ```text
 Error: Unsupported argument '--unknown'
+```
+
+A settings file that cannot be used is reported with its file, line, and column, and nothing is checked:
+
+```text
+/work/project/.textlint.yaml(3,1): error: 'caseSensitive' is not a supported setting.
 ```
 
 This behavior enables CI/CD pipelines to detect and surface misconfiguration failures
@@ -247,9 +337,19 @@ Running self-validation produces a report containing the following information:
 
 ✓ TextLintTool_VersionDisplay - Passed
 ✓ TextLintTool_HelpDisplay - Passed
+✓ TextLintTool_CheckCleanFile - Passed
+✓ TextLintTool_CheckMisspelling - Passed
+✓ TextLintTool_CheckSettingsFile - Passed
+✓ TextLintTool_CheckSettingsError - Passed
+✓ TextLintTool_CheckGlobsReplaceFiles - Passed
+✓ TextLintTool_CheckInlineDirective - Passed
+✓ TextLintTool_CheckLanguageOption - Passed
+✓ TextLintTool_CheckBinaryFileSkipped - Passed
+✓ TextLintTool_CheckNoFilesMatched - Passed
+✓ TextLintTool_CheckAbsolutePath - Passed
 
-Total Tests: 2
-Passed: 2
+Total Tests: 12
+Passed: 12
 Failed: 0
 ```
 
@@ -257,6 +357,17 @@ Each test in the report proves:
 
 - **`TextLintTool_VersionDisplay`** - `--version` outputs a valid version string.
 - **`TextLintTool_HelpDisplay`** - `--help` outputs usage and options information.
+- **`TextLintTool_CheckCleanFile`** - A correctly spelled file is accepted with exit code 0.
+- **`TextLintTool_CheckMisspelling`** - A misspelling is reported at its line and column with exit code 1.
+- **`TextLintTool_CheckSettingsFile`** - The settings file in the root is found and applied.
+- **`TextLintTool_CheckSettingsError`** - An invalid settings file is reported with its position, and nothing is
+  checked.
+- **`TextLintTool_CheckGlobsReplaceFiles`** - Patterns on the command line replace the `files` setting.
+- **`TextLintTool_CheckInlineDirective`** - In-document directives suppress findings.
+- **`TextLintTool_CheckLanguageOption`** - `--language` selects the American or the British dictionary.
+- **`TextLintTool_CheckBinaryFileSkipped`** - A binary file is reported as information and does not fail the run.
+- **`TextLintTool_CheckNoFilesMatched`** - A selection that matches no files fails unless `--allow-empty` is given.
+- **`TextLintTool_CheckAbsolutePath`** - A file named by an absolute path is reported by that path.
 
 Use `--depth <#>` to control the heading level of the validation output (default: `1`).
 This is useful when embedding validation output into a larger markdown document:
@@ -294,8 +405,7 @@ Side Software for technical terms. The default list of text that is never spell-
 that recognize comment directives, are ported from cspell-lib (MIT license). The required license notices are in
 [THIRD-PARTY-NOTICES.txt](https://github.com/demaconsulting/TextLint/blob/main/third-party/THIRD-PARTY-NOTICES.txt),
 which is also included at the root of both NuGet packages, and the provenance of every list is described in
-the [dictionaries README](https://github.com/demaconsulting/TextLint/blob/main/dictionaries/README.md). The
-tool does not use the dictionaries yet.
+the [dictionaries README](https://github.com/demaconsulting/TextLint/blob/main/dictionaries/README.md).
 
 ## License
 

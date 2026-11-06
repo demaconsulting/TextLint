@@ -30,6 +30,25 @@ namespace DemaConsulting.TextLint.Tool.Tests;
 public class ValidationTests
 {
     /// <summary>
+    ///     The names of every self-validation scenario, in the order they run.
+    /// </summary>
+    private static readonly string[] ScenarioNames =
+    [
+        "TextLintTool_VersionDisplay",
+        "TextLintTool_HelpDisplay",
+        "TextLintTool_CheckCleanFile",
+        "TextLintTool_CheckMisspelling",
+        "TextLintTool_CheckSettingsFile",
+        "TextLintTool_CheckSettingsError",
+        "TextLintTool_CheckGlobsReplaceFiles",
+        "TextLintTool_CheckInlineDirective",
+        "TextLintTool_CheckLanguageOption",
+        "TextLintTool_CheckBinaryFileSkipped",
+        "TextLintTool_CheckNoFilesMatched",
+        "TextLintTool_CheckAbsolutePath"
+    ];
+
+    /// <summary>
     ///     Test that Run throws ArgumentNullException when context is null.
     /// </summary>
     [Fact]
@@ -183,6 +202,73 @@ public class ValidationTests
             if (File.Exists(logFile))
             {
                 File.Delete(logFile);
+            }
+        }
+    }
+
+    /// <summary>
+    ///     Test that every self-validation scenario is run, passes, and is reported by name.
+    /// </summary>
+    [Fact]
+    public void Validation_Run_WithSilentContext_ReportsEveryScenarioPassed()
+    {
+        // Arrange: a silent context whose log captures the scenario lines
+        var logFile = Path.Combine(Path.GetTempPath(), $"validation_test_{Guid.NewGuid()}.log");
+        try
+        {
+            using (var context = Context.Create(["--silent", "--log", logFile]))
+            {
+                // Act: run validation
+                Validation.Run(context);
+            }
+
+            // Assert: the version and help checks and every spell-checking scenario passed, and there are no others
+            var logContent = File.ReadAllText(logFile);
+            foreach (var scenario in ScenarioNames)
+            {
+                Assert.Contains($"✓ {scenario} - Passed", logContent);
+            }
+
+            Assert.Contains($"Total Tests: {ScenarioNames.Length}", logContent);
+            Assert.Contains($"Passed: {ScenarioNames.Length}", logContent);
+            Assert.Contains("Failed: 0", logContent);
+        }
+        finally
+        {
+            if (File.Exists(logFile))
+            {
+                File.Delete(logFile);
+            }
+        }
+    }
+
+    /// <summary>
+    ///     Test that the results file names every self-validation scenario, so that requirements can link to each.
+    /// </summary>
+    [Fact]
+    public void Validation_Run_WithTrxResultsFile_NamesEveryScenario()
+    {
+        // Arrange: a TRX path for the results
+        var trxFile = Path.Combine(Path.GetTempPath(), $"validation_test_{Guid.NewGuid()}.trx");
+        try
+        {
+            using var context = Context.Create(["--silent", "--results", trxFile]);
+
+            // Act: run validation
+            Validation.Run(context);
+
+            // Assert: the results file carries the name of every scenario
+            var content = File.ReadAllText(trxFile);
+            foreach (var scenario in ScenarioNames)
+            {
+                Assert.Contains(scenario, content);
+            }
+        }
+        finally
+        {
+            if (File.Exists(trxFile))
+            {
+                File.Delete(trxFile);
             }
         }
     }

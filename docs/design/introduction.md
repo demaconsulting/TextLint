@@ -22,8 +22,9 @@ Local items:
   - **Configuration** subsystem: **TextLintSettings** (the immutable settings value) and
     **SettingsLoader** (reads a `.textlint.yaml` file, with its result and diagnostic types)
   - **FileSelection** subsystem: **GlobPatternExpander** (pattern validation and rewriting),
-    **HiddenPathPolicy** (the hidden-name rule), and **FileSelector** (selects files, with its
-    result and exception types)
+    **HiddenPathPolicy** (the hidden-name rule), **FileSelector** (selects files, with its
+    result and exception types), and **CommandLinePathResolver** (turns command-line path arguments
+    into a search directory and patterns, with its result type)
   - **Dictionaries** subsystem: **SpellingDictionary** (the public word lookup and language
     selection) and **DictionaryImage** (loads, validates, and probes one embedded binary dictionary)
   - **TextScanning** subsystem: **WordTokenizer** (what a word is: words, tokens, case-change pieces, and
@@ -33,7 +34,9 @@ Local items:
     its finding types and word rules), **FileTextReader** (reads a file into text), and **SpellChecker** (checks the
     files of a directory in parallel, with its options and result types)
 - **TextLintTool**: system, subsystem, and unit design for all local components of the
-  command-line tool.
+  command-line tool: the **Cli** subsystem (argument parsing and output), the **Linting** subsystem
+  (**LintRunner**, which runs one check, and **LintReporter**, which writes the results), the **SelfTest**
+  subsystem, the **Utilities** subsystem, and the **Program** unit.
 - **DictionaryBuilder**: system and unit design for the build-time program that converts the word
   lists under `dictionaries/` into the binary dictionary files embedded in the library. It is not
   packaged. Its units are **BuilderProgram** (command line and orchestration), **WordListReader**
@@ -117,6 +120,7 @@ on nothing but the .NET base class library.
   - **DemaConsulting.TextLint.DictionaryBuilder/** - build-time dictionary builder source (five units)
   - **DemaConsulting.TextLint.Tool/** - main application source
     - **Cli/** - command-line interface subsystem
+    - **Linting/** - one check run: settings resolution, calling the library, and reporting
     - **SelfTest/** - self-validation subsystem
     - **Utilities/** - shared utilities subsystem
 

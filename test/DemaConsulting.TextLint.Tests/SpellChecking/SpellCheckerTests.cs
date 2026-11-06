@@ -902,6 +902,28 @@ public class SpellCheckerTests
     }
 
     /// <summary>
+    ///     Test that a diagnostic can be formatted under a file name chosen by the caller.
+    /// </summary>
+    [Fact]
+    public void SpellChecker_FileDiagnostic_FormatCallerFileName_ReplacesRecordedFileName()
+    {
+        // Arrange: an error diagnostic and a skip diagnostic recorded under relative names
+        var error = new FileDiagnostic("docs/a.md", FileDiagnosticKind.Unreadable, "The file cannot be read.");
+        var skip = new FileDiagnostic("a.bin", FileDiagnosticKind.Binary, "Looks binary.");
+        var shown = Path.GetFullPath("docs/a.md");
+
+        // Act: format them under the caller's name
+        var formattedError = error.Format(shown);
+        var formattedSkip = skip.Format(shown);
+
+        // Assert: the caller's name replaces the recorded name and the severity still follows the kind
+        Assert.Multiple(
+            () => Assert.Equal($"{shown}: error: The file cannot be read.", formattedError),
+            () => Assert.Equal($"{shown}: info: Looks binary.", formattedSkip),
+            () => Assert.Throws<ArgumentNullException>(() => error.Format(null!)));
+    }
+
+    /// <summary>
     ///     Test that a token that is already cancelled stops the run.
     /// </summary>
     [Fact]

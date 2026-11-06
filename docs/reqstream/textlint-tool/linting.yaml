@@ -1,0 +1,172 @@
+---
+# Linting Subsystem Requirements
+#
+# PURPOSE:
+# - Define requirements for the TextLintTool Linting subsystem
+# - The Linting subsystem spans LintRunner.cs and LintReporter.cs: it runs one spell check as the command line
+#   asked for it, calls the TextLint library, and reports the result and the exit status
+# - Subsystem requirements decompose the system requirements for checking; they are validated by
+#   LintingSubsystemTests.cs
+
+sections:
+  - title: TextLintTool Requirements
+    sections:
+      - title: Linting Requirements
+        requirements:
+          - id: TextLintTool-Linting-SettingsResolution
+            title: >-
+              The Linting subsystem shall use the settings file named explicitly, otherwise the settings file in
+              the root directory, and otherwise the default settings, saying that it used the defaults.
+            justification: |
+              A check must apply the project's own rules when they exist, and the order of precedence must be
+              predictable: the most specific request wins, nothing is searched for in unrelated folders, and a
+              run that used the defaults says so.
+            children:
+              - TextLintTool-Linting-LintRunner-ExplicitSettings
+              - TextLintTool-Linting-LintRunner-RootSettings
+              - TextLintTool-Linting-LintRunner-DefaultSettings
+            tests:
+              - LintingSubsystem_Run_ExplicitSettings_BeatRootSettings
+              - LintingSubsystem_Run_RootSettingsFile_IsUsedWithoutOption
+              - LintingSubsystem_Run_NoSettingsFile_UsesDefaults
+
+          - id: TextLintTool-Linting-SettingsErrors
+            title: >-
+              The Linting subsystem shall report every problem of a settings file, including a file that exists
+              but cannot be read and an explicitly named file that is missing, as an error, and shall check no
+              file when the settings could not be used.
+            justification: |
+              A settings file that is only partly understood, or that is silently replaced by the defaults
+              because it could not be read, would check the wrong things and give results that look
+              trustworthy but are not.
+            children:
+              - TextLintTool-Linting-LintRunner-SettingsErrors
+              - TextLintTool-Linting-LintRunner-UnreadableSettings
+            tests:
+              - LintingSubsystem_Run_InvalidSettings_ReportsErrorsAndChecksNothing
+
+          - id: TextLintTool-Linting-RootValidation
+            title: >-
+              The Linting subsystem shall report a root directory that does not exist, is not a directory, or
+              cannot be read as an error before it does anything else, whatever paths were typed.
+            justification: |
+              Nothing the run does is meaningful without a usable root, and an absolute path must not let a
+              mistaken root go unnoticed or produce a misleading message about settings.
+            children:
+              - TextLintTool-Linting-LintRunner-RootValidation
+            tests:
+              - LintingSubsystem_Run_InvalidRoot_IsReportedBeforeAnythingElse
+
+          - id: TextLintTool-Linting-FileSelection
+            title: >-
+              The Linting subsystem shall check the files named by the command-line patterns instead of the
+              files of the settings, shall still apply the ignore patterns of the settings, and shall accept
+              the paths in the forms the library's command-line rules accept, including an absolute path that
+              names a directory, reporting them under the name the user typed.
+            justification: |
+              Command-line selection must be usable on its own while the project's ignore rules still protect
+              generated content, and the interpretation of paths belongs to the library so that every
+              front-end reads them the same way.
+            children:
+              - TextLintTool-Linting-LintRunner-ApplyGlobs
+              - TextLintTool-Linting-LintRunner-CommandLinePaths
+            tests:
+              - LintingSubsystem_Run_GlobsAndSettings_GlobsReplaceFiles
+              - LintingSubsystem_Run_AbsolutePath_ReportsAbsolutePath
+              - LintingSubsystem_Run_AbsoluteDirectory_ChecksEveryFileBelow
+
+          - id: TextLintTool-Linting-NoPatterns
+            title: >-
+              The Linting subsystem shall report a usage error that says what to add, and check nothing, when
+              neither the command line nor the settings name any files.
+            justification: |
+              A check that was asked to examine nothing must not succeed, or a mistake in a build script would
+              pass unnoticed.
+            children:
+              - TextLintTool-Linting-LintRunner-NoPatterns
+            tests:
+              - LintingSubsystem_Run_NoPatterns_ReportsUsageError
+
+          - id: TextLintTool-Linting-EmptySelection
+            title: >-
+              The Linting subsystem shall fail with an explanation when the selection matches no files, unless
+              an empty selection was explicitly allowed.
+            justification: |
+              A pattern that matches nothing is almost always a mistake, and it must be distinguishable from a
+              check that found no issues.
+            children:
+              - TextLintTool-Linting-LintRunner-EmptySelection
+            tests:
+              - LintingSubsystem_Run_NoFilesMatched_FailsUnlessAllowed
+
+          - id: TextLintTool-Linting-Overrides
+            title: >-
+              The Linting subsystem shall let the language given on the command line take precedence over the
+              language of the settings, and shall limit the number of files checked at the same time to the
+              limit given, without changing the result.
+            justification: |
+              Command-line options are the most specific request, so they win over the settings; and a limit
+              on parallelism protects shared machines but must never change what is reported.
+            children:
+              - TextLintTool-Linting-LintRunner-LanguageOverride
+              - TextLintTool-Linting-LintRunner-Parallelism
+            tests:
+              - LintingSubsystem_Run_LanguageOption_OverridesSettings
+              - LintingSubsystem_Run_MaxParallelism_GivesSameResult
+
+          - id: TextLintTool-Linting-Reporting
+            title: >-
+              The Linting subsystem shall write each finding as file(line,column): error: message, each file
+              that was skipped or could not be checked as a line that names the file and the reason, and a
+              summary of the files checked, the findings, the files skipped, and the files that could not be
+              checked, all to standard output.
+            justification: |
+              The result is the product of the tool: it must be complete, ordered the same way on every run,
+              understood by editors and CI, and can be captured with a redirect, while nothing may be silently
+              left out.
+            children:
+              - TextLintTool-Linting-LintReporter-Issues
+              - TextLintTool-Linting-LintReporter-FileDiagnostics
+              - TextLintTool-Linting-LintReporter-Summary
+              - TextLintTool-Linting-LintReporter-InvalidArguments
+              - TextLintTool-Linting-LintReporter-ExitStatusIndependent
+            tests:
+              - LintingSubsystem_Run_MixedOutcomes_ReportsAllAndSummary
+
+          - id: TextLintTool-Linting-ExitStatus
+            title: >-
+              The Linting subsystem shall make the run succeed only when every selected file was checked and no
+              issue was found, and shall make it fail for any finding, any file that could not be checked, and
+              any error.
+            justification: |
+              A single failure code, as in cspell, keeps scripts simple, and a run must never succeed while
+              part of its selection was left unchecked because of an error.
+            children:
+              - TextLintTool-Linting-LintRunner-ExitStatus
+            tests:
+              - LintingSubsystem_Run_CleanAndDirty_SetExitCode
+
+          - id: TextLintTool-Linting-FailureHandling
+            title: >-
+              The Linting subsystem shall report a failure caused by the user's input or environment, such as a
+              missing directory, an unsupported pattern, or an unsupported language, as an error message and a
+              failure exit status and not as an unhandled exception.
+            justification: |
+              The user must be told what to fix; a stack trace helps nobody, and a defect of the tool itself
+              must still not be mistaken for bad input.
+            children:
+              - TextLintTool-Linting-LintRunner-ExpectedFailures
+            tests:
+              - LintingSubsystem_Run_ExpectedFailures_AreReportedNotThrown
+
+          - id: TextLintTool-Linting-Cancellation
+            title: >-
+              The Linting subsystem shall stop a check when it is cancelled, say that it was cancelled, report no
+              partial result, and fail.
+            justification: |
+              A user who interrupts a long check must get control back promptly, and a partial result must
+              never be mistaken for a complete one.
+            children:
+              - TextLintTool-Linting-LintRunner-Cancellation
+            tests:
+              - LintingSubsystem_Run_CancelledToken_ReportsCancellation

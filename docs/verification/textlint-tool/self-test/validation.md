@@ -18,6 +18,8 @@ N/A - standard test environment.
 - `Validation.Run` throws `ArgumentNullException` for a null context argument.
 - The validation summary output contains "Total Tests:", "Passed:", and "Failed:".
 - `context.ExitCode` is 0 when all sub-tests pass.
+- Every self-validation scenario is reported by name, and the spell-checking scenarios run in private temporary
+  directories without changing the current directory.
 - TRX and JUnit XML result files are created with the correct XML root elements.
 - An unsupported result file extension produces no file and an error message on the context.
 
@@ -52,3 +54,12 @@ with a context whose `ResultsFile` has a `.json` extension (unsupported); no fil
 no exception is thrown, and an error message indicating the unsupported format is written to
 the context. This scenario is tested by
 `Validation_Run_WithUnsupportedResultsFormat_DoesNotWriteFile`.
+
+**Validation_Run_WithSilentContext_ReportsEveryScenarioPassed**: `Validation.Run` is called with a silent context
+whose log is read afterwards; the version check, the help check, and each of the ten spell-checking scenarios are
+reported as passed by name, and the totals equal the number of scenarios with no failure. This scenario is tested
+by `Validation_Run_WithSilentContext_ReportsEveryScenarioPassed`.
+
+**Validation_Run_WithTrxResultsFile_NamesEveryScenario**: `Validation.Run` is called with a TRX results path; the
+file carries the name of every scenario, so that requirements and platform requirements can link to each. This
+scenario is tested by `Validation_Run_WithTrxResultsFile_NamesEveryScenario`.

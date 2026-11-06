@@ -82,5 +82,23 @@ public sealed class FileDiagnostic
     ///     <c>error</c> or <c>info</c>, as <see cref="IsError"/> says.
     /// </remarks>
     /// <returns>The formatted diagnostic.</returns>
-    public override string ToString() => $"{FilePath}: {(IsError ? "error" : "info")}: {Message}";
+    public override string ToString() => Format(FilePath);
+
+    /// <summary>
+    ///     Formats the diagnostic in the compiler style, naming the file as the caller chooses.
+    /// </summary>
+    /// <remarks>
+    ///     The checker names a file by its path relative to the root directory, but a caller that was given
+    ///     absolute paths (the command-line tool) must show those instead, and must not copy the severity
+    ///     rule to do so. <see cref="ToString"/> is this method applied to <see cref="FilePath"/>.
+    ///     Thread-safe.
+    /// </remarks>
+    /// <param name="filePath">The file name to show before the severity. Must not be null.</param>
+    /// <returns>The formatted diagnostic.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="filePath"/> is null.</exception>
+    public string Format(string filePath)
+    {
+        ArgumentNullException.ThrowIfNull(filePath);
+        return $"{filePath}: {(IsError ? "error" : "info")}: {Message}";
+    }
 }
