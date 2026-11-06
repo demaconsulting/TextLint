@@ -128,6 +128,7 @@ sections:
               - BuilderProgram_Run_ExclusionsList_RemovesWordsFromEveryDictionary
               - BuilderProgram_Run_ExclusionInNoDictionary_ReturnsOneNamingWord
               - BuilderProgram_Run_ExclusionsFileMissing_ReturnsOneNamingFile
+              - BuilderProgram_Run_ExclusionsFileCannotBeRead_ReturnsOneNamingFile
               - BuilderProgram_Run_ExclusionsInvalidEntry_ReturnsOneNamingFileAndLine
               - BuilderProgram_Run_ExclusionsListWithoutWords_BuildsEverything
               - BuilderProgram_Run_ExclusionsWithMissingDictionary_ReportsOnlyTheMissingDictionary

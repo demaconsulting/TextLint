@@ -450,7 +450,8 @@ order mark; a file that contains a NUL character in its first 1,024 characters i
 ## Spelling Settings
 
 - **`language`**: `en` and `en-US` choose American English (the default), `en-GB` chooses British English, and a
-  comma-separated list such as `en-US, en-GB` accepts both. Names are not case-sensitive. Technical terms are known
+  comma-separated list such as `en-US, en-GB` accepts both. Names are not case-sensitive. British English is
+  -ise only (`organise`, not `organize`). Technical terms are known
   in every language. Anything else, such as `fr` or `en-AU`, is an error that names the language.
 - **`words`**: words that are accepted as correct. Entries match in any letter case: `TextLint` accepts `textlint`
   and `TEXTLINT`. An entry that contains digits or punctuation, such as `k8s` or `foo-bar`, matches the whole
@@ -740,9 +741,38 @@ The lookup follows these rules:
 not allocate. The dictionaries are loaded the first time a word is looked up (a few milliseconds) and are shared by
 the whole process, and a selection can be used from many threads at once.
 
-The word lists the dictionaries are built from are third-party data: SCOWL for English and the cspell dictionaries
-for technical terms, and the default ignore patterns of the spell checker are ported from cspell-lib. Their license
-notices are in the `THIRD-PARTY-NOTICES.txt` file at the root of both NuGet packages.
+The word lists the dictionaries are built from are third-party data, and the default ignore patterns of the spell
+checker are ported from cspell-lib. Their license notices are in the `THIRD-PARTY-NOTICES.txt` file at the root of
+both NuGet packages.
+
+<!-- cspell:ignore colourize glamourize colourise organise practise licence -->
+
+### Dictionary Contents
+
+The dictionaries are generated from these sources, with their versions and license terms listed in
+`dictionaries/README.md` and `THIRD-PARTY-NOTICES.txt`:
+
+- **English**: SCOWL (the Spell Checker Oriented Word Lists) word lists and Hunspell dictionaries, the English
+  word lists and Hunspell-expanded word forms of the cspell dictionaries, and a hand-added list of developer terms.
+  Each word is routed to the common, the American, or the British list by one documented rule, so a spelling that
+  belongs to one dialect never lands in the common list.
+- **Technical terms**: the cspell dictionaries for software terms, companies, file types, licenses, and the
+  programming languages and tools in common use.
+- **Exclusions**: a reviewed list of words that imported lists contain but that are almost always a mistyped
+  common word. An excluded word is unknown in every language, in every letter case, whichever list it came from.
+  The build fails when an exclusion is not a word of any list, so a stale entry is noticed.
+
+Two rules of the English data are worth knowing:
+
+- **British English is -ise only.** `organise` and `colourise` are British; `organize` is American only, and a
+  hybrid such as `colourize` or `glamourize` is unknown in both. The same holds for a capitalized form: the lookup
+  ignores letter case, so `Honor` is American just as `honor` is. The shared technical dictionary is the one
+  exception: it keeps the American spelling of a word that is also a programming term (`color`, `center`,
+  `organize`), so those spellings are accepted under `en-GB` as well.
+- **The check does not know the part of speech.** British English spells the verb `license` and the noun `licence`
+  differently, and the verb `practise` and the noun `practice`; one of the two forms of each is common to both
+  dialects, so British English accepts both forms of such a word wherever it appears. This is inherent in a
+  spelling check and is not a leak of American spellings.
 
 # Command-Line Options
 

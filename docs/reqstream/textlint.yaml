@@ -1,7 +1,7 @@
 ---
 # TextLint System-Level Requirements
 #
-# cspell:ignore favourite
+# cspell:ignore favourite licence
 #
 # PURPOSE:
 # - Define system-level requirements describing what consumers of the DemaConsulting.TextLint
@@ -353,6 +353,26 @@ sections:
           - TextLint-Dictionaries-DerivedForms
         tests:
           - TextLint_Dictionary_DerivedFormsAndRegionalSpellings_FollowTheLanguageSelection
+
+      - id: TextLint-System-RegionalSeparation
+        title: >-
+          The library shall keep the American and the British spelling of a word apart in the shipped
+          word lists and in lookups, in every letter case, and shall know no -ize form in British
+          English when the -ise form is the British spelling.
+        tags: [system]
+        justification: |
+          The language setting only means something if the data keeps the dialects apart. Letter
+          case folding, generated word forms, and imported lists are the ways a spelling of one
+          dialect can leak into the other, so a curated set of well-known pairs is checked both in
+          the committed word lists and through the public lookup. Spelling checks do not know the
+          part of speech, so a word such as license (verb) and licence (noun) is accepted in both
+          forms by British English; that is inherent and not a leak.
+        children:
+          - TextLint-Dictionaries-RegionalSeparation
+        tests:
+          - TextLint_Dictionary_CuratedSpellingPairs_StayInTheirOwnRegion
+          - TextLint_Dictionary_IzeFormsWithAnIseCounterpart_AreUnknownToBritishEnglish
+          - TextLint_Dictionary_CommittedWordLists_HaveNoCrossRegionLeaks
 
       - id: TextLint-System-ExcludedWords
         title: >-

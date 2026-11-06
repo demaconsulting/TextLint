@@ -1224,6 +1224,28 @@ public class BuilderProgramTests
     }
 
     /// <summary>
+    ///     Test that an exclusions file that exists but cannot be read fails the build, names the file, and writes nothing.
+    /// </summary>
+    [Fact]
+    public void BuilderProgram_Run_ExclusionsFileCannotBeRead_ReturnsOneNamingFile()
+    {
+        // Arrange: the variant fixture and an existing exclusions file whose read fails, so the build must not treat it as an empty list
+        using var temp = new TempDirectory();
+        VariantFixture.Create(temp);
+        var arguments = ExclusionArguments(temp, "tokenizer\n");
+        var exclusionsFile = arguments[^1];
+        var operations = new FaultingFileOperations { FailRead = path => string.Equals(path, exclusionsFile, StringComparison.Ordinal) };
+
+        // Act: build
+        var (exitCode, _, error) = ExecuteWith(operations, arguments);
+
+        // Assert: exit code 1, the file is named as unreadable, and no dictionary was built that silently kept the excluded words
+        Assert.Equal(BuilderProgram.ExitInvalidWordLists, exitCode);
+        Assert.Contains($"{exclusionsFile}: error: the file cannot be read", error);
+        Assert.False(Directory.Exists(temp.PathOf("out")));
+    }
+
+    /// <summary>
     ///     Test that an invalid entry in the exclusions list is reported with its file and line, together with other problems.
     /// </summary>
     [Fact]

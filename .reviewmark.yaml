@@ -22,6 +22,10 @@ needs-review:
   - "dictionaries/technical/general/additions.txt"   # Curated project-owned technical terms (human-reviewed data)
   - "test/DemaConsulting.TextLint.Tests/SpellChecking/Parity/**"   # cspell parity corpora and output (reviewed data)
   - "third-party/THIRD-PARTY-NOTICES.txt"   # Legal notices for the third-party word list data
+  # Deliberately NOT listed: the generated English and technical word lists under dictionaries/en-*/ and
+  # dictionaries/technical/ (other than the curated files above). They are generated data of about two hundred
+  # thousand words that a reviewer cannot judge; the generator, its self-checks, the library tests, and the
+  # curated lists above are reviewed instead (see dictionaries/README.md).
   - "!**/obj/**"                  # Exclude build output
   - "!**/bin/**"                  # Exclude build output
   - "!node_modules/**"            # Exclude npm dependencies

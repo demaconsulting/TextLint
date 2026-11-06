@@ -403,8 +403,9 @@ guidelines on reporting bugs, suggesting features, and submitting pull requests.
 The library embeds English and technical-term dictionaries built from third-party data: SCOWL (a
 permissive license by Kevin Atkinson, with the notices of the Hunspell affix rules and of the SCOWL data they
 were generated from) and the English word lists of cspell-dicts for English, and the MIT-licensed cspell-dicts
-packages by Street Side Software for technical terms. The default list of text that is never spell-checked, and the patterns
-that recognize comment directives, are ported from cspell-lib (MIT license). The required license notices are in
+packages by Street Side Software for technical terms. The default list of text that is never spell-checked, and
+the patterns that recognize comment directives, are ported from cspell-lib (MIT license). The required license
+notices are in
 [THIRD-PARTY-NOTICES.txt](https://github.com/demaconsulting/TextLint/blob/main/third-party/THIRD-PARTY-NOTICES.txt),
 which is also included at the root of both NuGet packages, and the provenance of every list is described in
 the [dictionaries README](https://github.com/demaconsulting/TextLint/blob/main/dictionaries/README.md).

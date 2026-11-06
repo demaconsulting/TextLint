@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-// cspell:ignore colour neighbour organise favourite kubernetes xyzzyq cafè tabel καλημέρα catalogue labelled honoured modelling ageing curser operants programing milage writeable unannotated mockable
+// cspell:ignore colour neighbour organise favourite kubernetes xyzzyq cafè tabel καλημέρα catalogue labelled honoured modelling ageing curser operants programing milage writeable unannotated mockable honour analyse colourize decolourize colourized glamourize
 
 using System.Collections.Concurrent;
 using DemaConsulting.TextLint.Dictionaries;
@@ -283,6 +283,36 @@ public class DictionariesSubsystemTests
         // Assert: no American selection knows them and the British selection knows all of them
         Assert.Empty(knownToAmerican);
         Assert.Empty(unknownToBritish);
+    }
+
+    /// <summary>
+    ///     Test that a capitalized form of a regional spelling and an -ize form do not carry a word into the wrong selection.
+    /// </summary>
+    /// <remarks>
+    ///     Lookups fold letter case and British English is -ise only. Spelling checks do not know the part of speech,
+    ///     so words such as license and practice, whose British form differs by part of speech, are accepted in
+    ///     both forms by British English; they are not part of this test.
+    /// </remarks>
+    [Fact]
+    public void DictionariesSubsystem_ForLanguages_CapitalizedAndIzeForms_DoNotCrossRegions()
+    {
+        // Arrange: capitalized American and British spellings, and -ize forms with a British -ise counterpart
+        var americanOnly = new[] { "Honor", "HONOR", "Judgment", "Recognize" };
+        var britishOnly = new[] { "Honour", "HONOUR", "Organise", "Analyse" };
+        var izeForms = new[] { "colourize", "Glamourize", "decolourize", "colourized", "recognize" };
+        var american = SpellingDictionary.ForLanguages("en-US");
+        var british = SpellingDictionary.ForLanguages("en-GB");
+
+        // Act: look the words up in the selection of the other region
+        var americanKnownToBritish = americanOnly.Where(word => british.IsKnown(word)).ToArray();
+        var britishKnownToAmerican = britishOnly.Where(word => american.IsKnown(word)).ToArray();
+        var izeKnownToBritish = izeForms.Where(word => british.IsKnown(word)).ToArray();
+
+        // Assert: no spelling crossed, and British English knows no -ize form
+        Assert.Multiple(
+            () => Assert.Empty(americanKnownToBritish),
+            () => Assert.Empty(britishKnownToAmerican),
+            () => Assert.Empty(izeKnownToBritish));
     }
 
     /// <summary>

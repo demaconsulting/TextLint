@@ -101,6 +101,18 @@ offset of a word in the word block; every read goes through a bounds-checked spa
 is capped at one cycle of the table, so a damaged file can only produce an exception at load and never an
 out-of-range read or an endless loop.
 
+<!-- cspell:ignore colourize licence practise -->
+
+**Regional spellings and the part of speech.** The data decides which dictionary a spelling belongs to, and the
+lookup never looks at anything but the folded word, so three consequences follow and are deliberate. First, a
+capitalized form cannot carry a word into the other region: the lists are routed by the lower-cased word, so a
+name such as `Honor` sits in the same region as `honor`, and the shipped lists are checked for that. Second, British
+English is -ise only: an -ize form whose -ise counterpart is a known British spelling (`colourize`, `glamourize`) is
+in no British list, and a common -ize word that has such a counterpart is American. Third, a spelling check is
+blind to the part of speech, so a word whose British form differs only by part of speech (the verb `license` and the
+noun `licence`, `practice` and `practise`) is accepted in both forms by British English, because one of the two forms
+is common to both dialects; that is inherent in a spelling check and is not a leak.
+
 **Why a precomputed binary format.** The vocabulary is about two hundred thousand words, and a spell checker
 looks up millions of words in a large repository. The alternatives were to load the words into a general-purpose set
 at run time and to generate source code that initializes one. Building a set from text on every run costs

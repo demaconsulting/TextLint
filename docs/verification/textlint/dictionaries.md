@@ -95,6 +95,16 @@ English word lists also accept for American English (`catalogue`, `labelled`, `h
 `ageing`) are unknown in the American selection and known in the British one. This scenario is tested by
 `DictionariesSubsystem_ForLanguages_BritishOnlySpellings_AreKnownOnlyForBritish`.
 
+<!-- cspell:ignore colourize decolourize glamourize colourized Organise Analyse -->
+
+**DictionariesSubsystem_ForLanguages_CapitalizedAndIzeForms_DoNotCrossRegions**: Capitalized and upper-case forms of
+American spellings (`Honor`, `HONOR`, `Judgment`, `Recognize`) are unknown in the British selection, those of British
+spellings (`Honour`, `HONOUR`, `Organise`, `Analyse`) are unknown in the American one, and -ize forms that have a
+British -ise counterpart (`colourize`, `Glamourize`, `decolourize`, `colourized`, `recognize`) are unknown in the
+British selection. Words whose British form differs only by part of speech (license, practice) are deliberately not
+tested: a spelling check is part-of-speech-blind, so British English accepts both forms. This scenario is tested by
+`DictionariesSubsystem_ForLanguages_CapitalizedAndIzeForms_DoNotCrossRegions`.
+
 **DictionariesSubsystem_IsKnown_ExcludedWords_AreUnknownInEveryLanguage**: Words of the reviewed exclusions list
 (`curser`, `operants`, and a capitalized form) are unknown in every selection, while the accepted
 variants `milage` and `writeable`, which are not on the list, are known. This scenario is tested by

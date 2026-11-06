@@ -189,6 +189,11 @@ scenario is tested by `BuilderProgram_Run_ExclusionInNoDictionary_ReturnsOneNami
 does not exist returns exit code 1, names the file as unreadable, and creates no output. This scenario is tested by
 `BuilderProgram_Run_ExclusionsFileMissing_ReturnsOneNamingFile`.
 
+**BuilderProgram_Run_ExclusionsFileCannotBeRead_ReturnsOneNamingFile**: an exclusions file that exists but whose
+read fails (a faulting file-operations seam) returns exit code 1, names the file as unreadable, and creates no
+output, so an inaccessible list is never mistaken for an empty one. This scenario is tested by
+`BuilderProgram_Run_ExclusionsFileCannotBeRead_ReturnsOneNamingFile`.
+
 **BuilderProgram_Run_ExclusionsInvalidEntry_ReturnsOneNamingFileAndLine**: an exclusions list with an invalid
 entry and a dictionary with another invalid entry return exit code 1 and both problems are reported at once, each
 with its file and line. This scenario is tested by

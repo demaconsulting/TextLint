@@ -7,7 +7,8 @@
 #   and the technical vocabulary, from dictionaries embedded in the library assembly
 # - Subsystem requirements decompose the system requirements for word lookup; they are validated
 #   by DictionariesSubsystemTests.cs
-
+#
+# cspell:ignore colourize licence
 sections:
   - title: TextLint Requirements
     sections:
@@ -113,6 +114,20 @@ sections:
             tests:
               - DictionariesSubsystem_IsKnown_DerivedForms_AreKnownInEveryLanguage
               - DictionariesSubsystem_ForLanguages_BritishOnlySpellings_AreKnownOnlyForBritish
+
+          - id: TextLint-Dictionaries-RegionalSeparation
+            title: >-
+              The Dictionaries subsystem shall keep the American and the British spelling of a word apart
+              whatever the letter case of the form that is looked up, and shall not know an -ize form in
+              British English when the -ise form is the British spelling.
+            justification: |
+              Lookups ignore letter case, so a capitalized form of a word (such as a name) must not let the
+              spelling of one dialect into the other. British English is -ise only, so a hybrid such as
+              "colourize" is a mistake in both dialects. Spelling checks do not know the part of speech, so
+              a word whose British form differs only by part of speech (license and licence) is accepted in
+              both forms by British English; that is inherent in the check and is not a leak.
+            tests:
+              - DictionariesSubsystem_ForLanguages_CapitalizedAndIzeForms_DoNotCrossRegions
 
           - id: TextLint-Dictionaries-ExcludedWords
             title: >-

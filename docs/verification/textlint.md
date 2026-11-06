@@ -368,6 +368,29 @@ the British selection; British-only spellings (`catalogue`, `labelled`, `honoure
 the British selection, and `favorite` only in the American one. This scenario is tested by
 `TextLint_Dictionary_DerivedFormsAndRegionalSpellings_FollowTheLanguageSelection`.
 
+<!-- cspell:ignore colourize glamourize colour organise analyse decolourize -->
+
+**TextLint_Dictionary_CuratedSpellingPairs_StayInTheirOwnRegion**: The British spellings of nine curated pairs
+(`honour`, `colour`, `centre`, `catalogue`, `labelled`, `organise`, `analyse`, `modelling`, `judgement`) are looked up
+as written, capitalized, and in upper case; each is known in the British and the combined selection but not in the
+American one. The American spellings that are not programming terms (`honor`, `judgment`, `favorite`, `defense`,
+`recognize`, `emphasize`) are known in the American and the combined selection but not in the British one. The
+American spellings of the programming terms among the pairs (`color`, `center`, `catalog`, `labeled`, `modeling`,
+`organize`, `analyze`) are deliberately known in every language through the shared technical dictionary, so for them
+the absence from the British word lists is checked by the next-but-one scenario instead. This scenario is tested by
+`TextLint_Dictionary_CuratedSpellingPairs_StayInTheirOwnRegion`.
+
+**TextLint_Dictionary_IzeFormsWithAnIseCounterpart_AreUnknownToBritishEnglish**: -ize forms that have a British -ise
+counterpart and are not programming terms (`colourize`, `glamourize`, `decolourize`, `recognize`, `emphasize`, and
+others) are unknown in the British selection, because British English here is -ise only. This scenario is tested by
+`TextLint_Dictionary_IzeFormsWithAnIseCounterpart_AreUnknownToBritishEnglish`.
+
+**TextLint_Dictionary_CommittedWordLists_HaveNoCrossRegionLeaks**: The words of every list in the common, American,
+and British folders are compared in lower case, as the builder combines them: for each curated pair the American
+spelling is in the American folder and in neither of the others, the British spelling is in the British folder and
+in neither of the others, and the British folder holds no -ize form whose -ise counterpart is also there. This
+scenario is tested by `TextLint_Dictionary_CommittedWordLists_HaveNoCrossRegionLeaks`.
+
 **TextLint_Dictionary_ParallelLookups_ReturnCorrectAnswers**: Twenty thousand lookups spread over the three
 selections are made from many threads at once; every answer is correct. This scenario is tested by
 `TextLint_Dictionary_ParallelLookups_ReturnCorrectAnswers`.

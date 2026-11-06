@@ -18,13 +18,14 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-// cspell:ignore favourite neighbour organise tokenizer kubernetes powershell textlint xyzzyq cafè tabel catalogue labelled honoured modelling curser operants programing milage writeable unannotated mockable
+// cspell:ignore favourite neighbour organise tokenizer kubernetes powershell textlint xyzzyq cafè tabel catalogue labelled honoured modelling curser operants programing milage writeable unannotated mockable honour colour centre analyse judgement colourize colourized decolourize glamourize glamourized ation ations
 
 using System.Collections.Concurrent;
 using System.Reflection;
 using System.Runtime.Loader;
 using System.Runtime.Versioning;
 using System.Text;
+using System.Text.RegularExpressions;
 using DemaConsulting.TextLint.Configuration;
 using DemaConsulting.TextLint.Dictionaries;
 using DemaConsulting.TextLint.FileSelection;
@@ -97,6 +98,21 @@ public class TextLintTests
     ///     The namespace prefixes of the third-party packages the library depends on.
     /// </summary>
     private static readonly string[] ThirdPartyNamespaces = ["YamlDotNet", "Microsoft.Extensions.FileSystemGlobbing"];
+
+    /// <summary>
+    ///     American spellings paired with their British -ise spellings, for words whose British spelling does not depend on the part of speech.
+    /// </summary>
+    private static readonly (string American, string British)[] CuratedSpellingPairs =
+    [
+        ("honor", "honour"), ("color", "colour"), ("center", "centre"), ("catalog", "catalogue"),
+        ("labeled", "labelled"), ("organize", "organise"), ("analyze", "analyse"), ("modeling", "modelling"),
+        ("judgment", "judgement"),
+    ];
+
+    /// <summary>
+    ///     Matches an -ize ending (a verb form or a common derived noun or adjective) and captures what follows the -iz.
+    /// </summary>
+    private static readonly Regex IzeForm = new("iz(e|es|ed|ing|er|ers|ation|ations|able|ability)$", RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
     /// <summary>
     ///     Loads the TextLint library assembly by name.
@@ -1077,6 +1093,143 @@ public class TextLintTests
             () => Assert.Empty(britishUnknownToBritish),
             () => Assert.True(american.IsKnown("favorite") && !british.IsKnown("favorite")));
     }
+
+    /// <summary>
+    ///     Test that curated American and British spellings of the same word stay in their own language selection, in every letter case.
+    /// </summary>
+    /// <remarks>
+    ///     The dictionaries fold letter case, so a capitalized form of a word (a name such as Honor) must not carry
+    ///     the word into the wrong region. Spelling checks do not know the part of speech, so only pairs whose British
+    ///     form differs in spelling regardless of the part of speech are listed (license and practice are not).
+    ///     The technical dictionary is shared by every language and deliberately keeps the American spelling of a
+    ///     word that is also a programming term (color, center, catalog, labeled, modeling, organize, analyze), so
+    ///     British English knows those American spellings; the committed word lists, which do not hold them for
+    ///     British English, are checked for all nine pairs by <see cref="TextLint_Dictionary_CommittedWordLists_HaveNoCrossRegionLeaks"/>.
+    ///     Here every British spelling must be American-unknown, and the American spellings that are not
+    ///     technical terms must be British-unknown.
+    /// </remarks>
+    [Fact]
+    public void TextLint_Dictionary_CuratedSpellingPairs_StayInTheirOwnRegion()
+    {
+        // Arrange: the British spellings of the curated pairs, the American spellings that are not technical terms, and the three language selections
+        var britishSpellings = CuratedSpellingPairs.Select(pair => pair.British).ToArray();
+        var americanSpellings = new[] { "honor", "judgment", "favorite", "defense", "recognize", "emphasize" };
+        var american = SpellingDictionary.ForLanguages("en-US");
+        var british = SpellingDictionary.ForLanguages("en-GB");
+        var both = SpellingDictionary.ForLanguages("en-US,en-GB");
+        var failures = new List<string>();
+
+        // Act: look up each spelling as written, capitalized, and in upper case in each selection
+        foreach (var form in new Func<string, string>[] { word => word, Capitalize, UpperCaseLatin1 })
+        {
+            foreach (var spelling in americanSpellings.Select(form))
+            {
+                if (!american.IsKnown(spelling) || british.IsKnown(spelling) || !both.IsKnown(spelling))
+                {
+                    failures.Add($"American spelling {spelling} is not American-only");
+                }
+            }
+
+            foreach (var spelling in britishSpellings.Select(form))
+            {
+                if (american.IsKnown(spelling) || !british.IsKnown(spelling) || !both.IsKnown(spelling))
+                {
+                    failures.Add($"British spelling {spelling} is not British-only");
+                }
+            }
+        }
+
+        // Assert: no spelling crossed into the other region
+        Assert.Empty(failures);
+    }
+
+    /// <summary>
+    ///     Test that -ize forms with a British -ise counterpart are not known to British English.
+    /// </summary>
+    [Fact]
+    public void TextLint_Dictionary_IzeFormsWithAnIseCounterpart_AreUnknownToBritishEnglish()
+    {
+        // Arrange: -ize forms that have a known -ise counterpart in British English and are not technical terms, and the British selection
+        var izeForms = new[]
+        {
+            "colourize", "colourized", "decolourize", "glamourize", "glamourized", "recognize", "realize", "emphasize",
+            "summarizing", "criticized",
+        };
+        var british = SpellingDictionary.ForLanguages("en-GB");
+
+        // Act: collect the forms that British English knows
+        var known = izeForms.Where(word => british.IsKnown(word)).ToArray();
+
+        // Assert: British English is -ise only, so none of them is known
+        Assert.Empty(known);
+    }
+
+    /// <summary>
+    ///     Test that the committed word-list folders hold no spelling of a curated pair that belongs to the other region.
+    /// </summary>
+    /// <remarks>
+    ///     The dictionaries fold letter case, so the lists are compared on lower-case words, the way the builder
+    ///     combines them: the common and American lists must not hold the British spelling of any pair, the common
+    ///     and British lists must not hold the American spelling, and the British lists hold no -ize form.
+    /// </remarks>
+    [Fact]
+    public void TextLint_Dictionary_CommittedWordLists_HaveNoCrossRegionLeaks()
+    {
+        // Arrange: the words of the common, American, and British folders (lower-cased) and the curated pairs
+        var root = Path.Combine(AppContext.BaseDirectory, "dictionaries");
+        var common = ReadFolderWords(root, "en-common");
+        var american = ReadFolderWords(root, "en-US");
+        var british = ReadFolderWords(root, "en-GB");
+        var pairs = CuratedSpellingPairs;
+        var failures = new List<string>();
+
+        // Act: check each pair and the British folder for -ize forms with a counterpart
+        foreach (var (americanSpelling, britishSpelling) in pairs)
+        {
+            if (!american.Contains(americanSpelling) || common.Contains(americanSpelling) || british.Contains(americanSpelling))
+            {
+                failures.Add($"{americanSpelling} must be in the American folder only");
+            }
+
+            if (!british.Contains(britishSpelling) || common.Contains(britishSpelling) || american.Contains(britishSpelling))
+            {
+                failures.Add($"{britishSpelling} must be in the British folder only");
+            }
+        }
+
+        foreach (var word in british.Where(word => IzeForm.IsMatch(word)))
+        {
+            var counterpart = IzeForm.Replace(word, "is$1");
+            if (british.Contains(counterpart) || british.Contains(counterpart.Replace("our", "or", StringComparison.Ordinal)))
+            {
+                failures.Add($"{word} is an -ize form in the British folder");
+            }
+        }
+
+        // Assert: no leaks
+        Assert.Empty(failures.Take(MaxReportedFailures));
+    }
+
+    /// <summary>
+    ///     Reads the lower-cased words of every list in one word-list folder.
+    /// </summary>
+    /// <param name="root">The word-list folder copied beside the tests.</param>
+    /// <param name="folder">The name of the folder below the root.</param>
+    /// <returns>The distinct lower-case words.</returns>
+    private static HashSet<string> ReadFolderWords(string root, string folder) =>
+        Directory.GetFiles(Path.Combine(root, folder), "*.txt")
+            .SelectMany(File.ReadLines)
+            .Select(line => line.Trim())
+            .Where(line => line.Length > 0 && line[0] != '#')
+            .Select(line => line.ToLowerInvariant())
+            .ToHashSet(StringComparer.Ordinal);
+
+    /// <summary>
+    ///     Capitalizes the first letter of a word.
+    /// </summary>
+    /// <param name="word">The non-empty word.</param>
+    /// <returns>The word with an upper-case first letter.</returns>
+    private static string Capitalize(string word) => char.ToUpperInvariant(word[0]) + word[1..];
 
     /// <summary>
     ///     Test that every word of the reviewed exclusions list is unknown in every language selection, in every letter case.
