@@ -107,8 +107,10 @@ A person typing a command works differently from a settings file, so the command
   with a message that says to use `/`.
 - **Absolute paths.** `C:\work\project\README.md`, `C:/work/project/**/*.md`, `\\server\share\docs\*.md`, and
   `/home/me/project/README.md` are accepted. The part of the path before the first wildcard is the directory to
-  search, and the rest is the pattern within it. A path without a wildcard names one file; end it with a
-  separator to select everything below a directory.
+  search, and the rest is the pattern within it. A path without a wildcard names one file, unless it names an
+  existing directory, which selects everything below it (just as a relative `docs` does); a trailing separator
+  also selects everything below a directory. A path that does not exist is treated as a file name and matches
+  nothing.
 - **Absolute paths inside the root directory** mean exactly what the equivalent relative path means, so the
   `ignorePaths` of your settings still apply to them. An absolute path outside the root directory searches below
   its own directory, and relative paths cannot be combined with it in one run. Paths on different drives cannot be
@@ -131,6 +133,9 @@ folder. When no settings file is found, the default settings apply and the tool 
 ```text
 info: No settings file found in '/work/project'; using the default settings.
 ```
+
+The root directory is checked before anything else, so a root that does not exist, is not a directory, or cannot be
+read is reported as such and stops the run, whatever paths were typed (an absolute path cannot bypass it).
 
 An explicit `--config` file that does not exist, a settings file that cannot be read, and a settings file with
 problems are errors: each problem is reported as `file(line,column): error: message` and nothing is checked.
@@ -285,7 +290,8 @@ operating system and .NET runtime that ran them:
 
 ## Silent Mode
 
-Suppress console output; the exit code still reports the result:
+Suppress console output; the exit code still reports the result. An argument error (for example a misspelled
+option) is still written to standard error, because it is found before the output settings are known:
 
 ```bash
 textlint --silent "**/*.md"
@@ -663,6 +669,9 @@ foreach (var file in files)
 
 An absolute argument inside the root directory is turned into the equivalent root-relative pattern, so the ignore
 patterns apply to it as usual; one outside it makes the search directory its own literal leading directory.
+An absolute argument that names an existing directory selects everything beneath it; the resolver looks the path
+up in the file system to decide, and a look-up that fails for any reason other than the path being missing
+(for example a denied permission) throws `UnauthorizedAccessException` or `IOException`.
 `Resolve` throws `InvalidGlobPatternException`, naming the argument exactly as it was typed, for anything the
 pattern rules reject, and `ArgumentException` for a combination that cannot be searched from one directory.
 To report findings under the same names, format them with `SpellingIssue.Format` and `FileDiagnostic.Format`,
@@ -741,7 +750,7 @@ The following command-line options are supported:
 | `--max-parallelism <#>`               | Maximum number of files checked at the same time (default: processors)   |
 | `-v`, `--version`                     | Display version information                                              |
 | `-?`, `-h`, `--help`                  | Display help message                                                     |
-| `--silent`                            | Suppress console output                                                  |
+| `--silent`                            | Suppress console output (usage errors still go to stderr)                |
 | `--validate`                          | Run self-validation                                                      |
 | `--results <file>`, `--result <file>` | Write validation results to file (TRX or JUnit format)                   |
 | `--depth <#>`                         | Set heading depth for markdown output (default: 1)                       |

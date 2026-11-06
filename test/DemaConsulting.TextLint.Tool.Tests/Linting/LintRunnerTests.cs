@@ -482,10 +482,77 @@ public class LintRunnerTests
         // Act: run against it
         var result = ContextRun.Execute(["--root", missing, "*.md"], context => LintRunner.Run(context, TestContext.Current.CancellationToken));
 
-        // Assert: the error names the directory and the run fails
+        // Assert: the error names the directory, no settings notice precedes it, and the run fails
         Assert.Multiple(
             () => Assert.Equal(1, result.ExitCode),
-            () => Assert.Contains(missing, result.Output));
+            () => Assert.Contains($"The root directory '{missing}' does not exist.", result.Output),
+            () => Assert.DoesNotContain("No settings file found", result.Output));
+    }
+
+    /// <summary>
+    ///     Test that a root that names a file is reported as an error.
+    /// </summary>
+    [Fact]
+    public void LintRunner_Run_RootIsFile_ReportsErrorAndFails()
+    {
+        // Arrange: a root that is a file
+        using var temp = new TempDirectory();
+        var file = temp.CreateFile("not-a-directory.txt", "x");
+
+        // Act: run against it
+        var result = ContextRun.Execute(["--root", file, "*.md"], context => LintRunner.Run(context, TestContext.Current.CancellationToken));
+
+        // Assert: the error names the root, no settings notice appears, and the run fails
+        Assert.Multiple(
+            () => Assert.Equal(1, result.ExitCode),
+            () => Assert.Contains($"The root directory '{file}' cannot be read", result.Output),
+            () => Assert.DoesNotContain("No settings file found", result.Output));
+    }
+
+    /// <summary>
+    ///     Test that an absolute path outside an invalid root cannot bypass the root check.
+    /// </summary>
+    [Fact]
+    public void LintRunner_Run_InvalidRootWithAbsolutePath_ReportsErrorAndFails()
+    {
+        // Arrange: a misspelled file that exists, and a root that does not
+        using var temp = new TempDirectory();
+        using var other = new TempDirectory();
+        var file = other.CreateFile("a.md", "Hello wrold\n");
+        var missing = Path.Combine(temp.FullPath, "nowhere");
+
+        // Act: name the file by its absolute path while the root is invalid
+        var result = ContextRun.Execute(["--root", missing, file], context => LintRunner.Run(context, TestContext.Current.CancellationToken));
+
+        // Assert: the invalid root is reported and nothing is checked
+        Assert.Multiple(
+            () => Assert.Equal(1, result.ExitCode),
+            () => Assert.Contains($"The root directory '{missing}' does not exist.", result.Output),
+            () => Assert.DoesNotContain("Unknown word", result.Output),
+            () => Assert.DoesNotContain("Checked", result.Output));
+    }
+
+    /// <summary>
+    ///     Test that an absolute path that names a directory checks every file below it.
+    /// </summary>
+    [Fact]
+    public void LintRunner_Run_AbsoluteDirectoryArgument_ChecksEveryFileBelow()
+    {
+        // Arrange: a directory with files at two depths, one misspelled
+        using var temp = new TempDirectory();
+        var file = temp.CreateFile("docs/deep/a.md", "Hello wrold\n");
+        temp.CreateFile("docs/b.md", "Hello world.\n");
+        temp.CreateFile("other/c.md", "Hello xyzzyq\n");
+
+        // Act: name the directory by its absolute path, without a trailing separator
+        var result = Run(temp, Path.Combine(temp.FullPath, "docs"));
+
+        // Assert: both files below it are checked, the file outside is not, and the finding is reported by absolute path
+        Assert.Multiple(
+            () => Assert.Equal(1, result.ExitCode),
+            () => Assert.Contains($"{file}(1,7): error: Unknown word 'wrold'", result.Lines),
+            () => Assert.Contains("Checked 2 file(s)", result.Output),
+            () => Assert.DoesNotContain("c.md", result.Output));
     }
 
     /// <summary>

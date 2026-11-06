@@ -741,6 +741,63 @@ public class IntegrationTests
     }
 
     /// <summary>
+    ///     Test that an invalid root is an error even when an absolute path is named.
+    /// </summary>
+    [Fact]
+    public void TextLintTool_Check_InvalidRootWithAbsolutePath_ReportsErrorAndExitsOne()
+    {
+        // Arrange: a misspelled file, and a root that does not exist
+        using var temp = new TempDirectory();
+        using var other = new TempDirectory();
+        var file = other.CreateFile("a.md", "Hello wrold\n");
+        var missing = Path.Combine(temp.FullPath, "nowhere");
+
+        // Act: name the file by its absolute path with the invalid root
+        var exitCode = RunTool(temp.FullPath, out var output, "--root", missing, file);
+
+        // Assert: the root is reported, nothing is checked, and the exit code is 1
+        Assert.Equal(1, exitCode);
+        Assert.Contains($"The root directory '{missing}' does not exist.", output);
+        Assert.DoesNotContain("Unknown word", output);
+        Assert.DoesNotContain("No settings file found", output);
+    }
+
+    /// <summary>
+    ///     Test that an absolute directory path checks every file below it.
+    /// </summary>
+    [Fact]
+    public void TextLintTool_Check_AbsoluteDirectory_ChecksFilesBelow()
+    {
+        // Arrange: a directory with a nested misspelled file and a working directory elsewhere
+        using var project = new TempDirectory();
+        using var elsewhere = new TempDirectory();
+        var file = project.CreateFile("docs/deep/a.md", "Hello wrold\n");
+
+        // Act: name the directory by its absolute path, without a trailing separator
+        var exitCode = RunTool(elsewhere.FullPath, out var output, Path.Combine(project.FullPath, "docs"));
+
+        // Assert: the file below it is checked and reported by its absolute path
+        Assert.Equal(1, exitCode);
+        Assert.Contains($"{file}(1,7): error: Unknown word 'wrold'", output);
+    }
+
+    /// <summary>
+    ///     Test that an argument error is still reported on standard error when the silent flag is given.
+    /// </summary>
+    [Fact]
+    public void TextLintTool_SilentFlag_UnknownArgument_ReportsErrorOnStderr()
+    {
+        // Arrange: (none — constructor initializes _dllPath)
+
+        // Act: run with the silent flag and an unknown option
+        var exitCode = Runner.Run(out var output, "dotnet", _dllPath, "--silent", "--unknown");
+
+        // Assert: the error still appears (it is found while parsing, before output settings exist), and the exit code is 1
+        Assert.Equal(1, exitCode);
+        Assert.Contains("Unsupported argument '--unknown'", output);
+    }
+
+    /// <summary>
     ///     Test that self-validation includes the spell-checking scenarios and that they pass.
     /// </summary>
     [Fact]

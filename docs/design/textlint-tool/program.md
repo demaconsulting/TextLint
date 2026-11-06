@@ -73,7 +73,9 @@ linting logic.
 
 `Main` handles errors at two levels. Expected errors (`ArgumentException` and
 `InvalidOperationException`) are written to stderr as `"Error: {message}"` and cause exit
-code 1 without a stack trace. Unexpected errors (`Exception`) are written to stderr as
+code 1 without a stack trace. These two are written to stderr even when `--silent` was given, because the
+command line could not be understood and no `Context` exists to honor the option; this is also what the
+other tools of the family do. Unexpected errors (`Exception`) are written to stderr as
 `"Unexpected error: {message}"` and re-thrown so the runtime can record them in event logs.
 `Run`, `RunCancellable`, `PrintBanner`, `PrintHelp`, and `RunToolLogic` do not catch exceptions; all errors
 propagate to `Main`. Failures a user can cause during a check are handled inside `LintRunner`, which reports

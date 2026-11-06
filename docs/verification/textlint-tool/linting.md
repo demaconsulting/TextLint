@@ -63,6 +63,16 @@ explanation; the same pattern with `--allow-empty` succeeds. This scenario is te
 **LintingSubsystem_Run_AbsolutePath_ReportsAbsolutePath**: A file named by its absolute path is reported under
 that path. This scenario is tested by `LintingSubsystem_Run_AbsolutePath_ReportsAbsolutePath`.
 
+**LintingSubsystem_Run_AbsoluteDirectory_ChecksEveryFileBelow**: A directory named by its absolute path, without a
+trailing separator, checks the misspelled file two levels below it; the path of a directory that does not exist is
+a file name that matches nothing and fails with "No files matched". This scenario is tested by
+`LintingSubsystem_Run_AbsoluteDirectory_ChecksEveryFileBelow`.
+
+**LintingSubsystem_Run_InvalidRoot_IsReportedBeforeAnythingElse**: A root that does not exist and a root that is a
+file, each with a misspelled file named by its absolute path, give exit code 1 and an error that names the root;
+there is no line about missing settings and nothing is checked. This scenario is tested by
+`LintingSubsystem_Run_InvalidRoot_IsReportedBeforeAnythingElse`.
+
 **LintingSubsystem_Run_LanguageOption_OverridesSettings**: Settings for American English and a file with the
 British spelling report the word; the language option for British English accepts it. This scenario is tested by
 `LintingSubsystem_Run_LanguageOption_OverridesSettings`.

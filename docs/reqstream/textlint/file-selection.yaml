@@ -127,7 +127,7 @@ sections:
               relative or absolute and written with the separators of the operating system, into a
               validated search directory and patterns, so that an absolute path inside the root directory
               selects the same files as its relative form and one outside it selects files beneath its own
-              directory.
+              directory. An absolute path that names an existing directory selects everything beneath it.
             justification: |
               People type paths the way their shell and operating system show them: PowerShell completes
               backslash paths, and editors pass absolute paths. Settings-file patterns must stay strict and
@@ -136,6 +136,7 @@ sections:
             children:
               - TextLint-FileSelection-CommandLinePathResolver-Separators
               - TextLint-FileSelection-CommandLinePathResolver-AbsolutePaths
+              - TextLint-FileSelection-CommandLinePathResolver-ProbeFailure
               - TextLint-FileSelection-CommandLinePathResolver-Combination
               - TextLint-FileSelection-CommandLinePathResolver-Validation
               - TextLint-FileSelection-CommandLinePathResolver-ImmutableResult
@@ -143,6 +144,7 @@ sections:
               - FileSelectionSubsystem_ResolveCommandLine_AbsolutePatternInsideRoot_SelectsAndHonorsIgnore
               - FileSelectionSubsystem_ResolveCommandLine_AbsolutePatternOutsideRoot_SelectsBeneathItsDirectory
               - FileSelectionSubsystem_ResolveCommandLine_BackslashRelativePath_FollowsPlatformRules
+              - FileSelectionSubsystem_ResolveCommandLine_ExistingDirectory_SelectsEveryFileBelow
 
           - id: TextLint-FileSelection-CommandLineReporting
             title: >-

@@ -72,6 +72,10 @@ directory is not checked. This scenario is tested by `LintRunner_Run_GlobArgumen
 **LintRunner_Run_AbsolutePathArgument_ReportsAbsolutePath**: A file named by its absolute path is reported under
 that path. This scenario is tested by `LintRunner_Run_AbsolutePathArgument_ReportsAbsolutePath`.
 
+**LintRunner_Run_AbsoluteDirectoryArgument_ChecksEveryFileBelow**: A directory named by its absolute path, without a
+trailing separator, checks the files at every depth below it and none outside it; the finding is reported under the
+file's absolute path. This scenario is tested by `LintRunner_Run_AbsoluteDirectoryArgument_ChecksEveryFileBelow`.
+
 **LintRunner_Run_NoPatterns_ReportsUsageError**: With no settings and no patterns, the run writes the usage error
 and fails without checking anything. This scenario is tested by `LintRunner_Run_NoPatterns_ReportsUsageError`.
 
@@ -102,7 +106,16 @@ an error that names the pattern and exit code 1. This scenario is tested by
 `LintRunner_Run_InvalidGlobPattern_ReportsErrorNamingPattern`.
 
 **LintRunner_Run_MissingRootDirectory_ReportsErrorAndFails**: A root that does not exist gives an error that names
-it and exit code 1. This scenario is tested by `LintRunner_Run_MissingRootDirectory_ReportsErrorAndFails`.
+it and exit code 1, with no line about missing settings. This scenario is tested by
+`LintRunner_Run_MissingRootDirectory_ReportsErrorAndFails`.
+
+**LintRunner_Run_RootIsFile_ReportsErrorAndFails**: A root that is a file gives an error that says the root cannot
+be read, no line about missing settings, and exit code 1. This scenario is tested by
+`LintRunner_Run_RootIsFile_ReportsErrorAndFails`.
+
+**LintRunner_Run_InvalidRootWithAbsolutePath_ReportsErrorAndFails**: A missing root combined with a misspelled
+file named by its absolute path reports the root, checks nothing, and gives exit code 1. This scenario is tested
+by `LintRunner_Run_InvalidRootWithAbsolutePath_ReportsErrorAndFails`.
 
 **LintRunner_Run_InvalidRootPath_ReportsErrorAndFails**: A root that contains a character no path may contain
 gives a message and exit code 1 and does not throw. This scenario is tested by

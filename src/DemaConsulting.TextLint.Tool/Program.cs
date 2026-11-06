@@ -62,7 +62,10 @@ internal static class Program
     ///     <see cref="ArgumentException"/> and <see cref="InvalidOperationException"/> are treated as
     ///     expected errors: their messages are written to stderr and exit code 1 is returned without
     ///     a stack trace. Any other exception is written to stderr and then re-thrown so that the
-    ///     runtime can record it in event logs.
+    ///     runtime can record it in event logs. These messages are written even when <c>--silent</c> is given, as
+    ///     in the other DEMA command-line tools: they arise while the command line is being parsed, before the
+    ///     output settings exist, and a command line that cannot be understood must never fail without a word.
+    ///     Everything written through the <see cref="Context"/> honors <c>--silent</c>.
     /// </remarks>
     public static int Main(string[] args)
     {
@@ -188,7 +191,8 @@ internal static class Program
         context.WriteLine("Options:");
         context.WriteLine("  -v, --version              Display version information");
         context.WriteLine("  -?, -h, --help             Display this help message");
-        context.WriteLine("  --silent                   Suppress console output");
+        context.WriteLine("  --silent                   Suppress console output (a command line that cannot be understood");
+        context.WriteLine("                             is still reported on standard error)");
         context.WriteLine("  --validate                 Run self-validation");
         context.WriteLine("  --results <file>           Write validation results to file (.trx or .xml)");
         context.WriteLine("  --depth <#>                Set heading depth for markdown output (default: 1)");

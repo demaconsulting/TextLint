@@ -85,8 +85,10 @@ temporary file paths.
 - _Role_: Provider.
 - _Contract_: Writes error messages in red when a failure of the tool or its input occurs: a usage or argument
   error, a settings error, a missing directory, an unsupported pattern or language, or an empty selection.
-  Suppressed when `--silent`
-  is active but the exit code is still set to 1.
+  Errors of the run itself are suppressed when `--silent` is active, but the exit code is still set to 1. An
+  argument error is written even then, because it arises while the command line is parsed, before the output
+  settings exist (the other DEMA command-line tools behave the same); it is not written to the log file, which
+  may not have been opened.
 - _Constraints_: Color output requires a terminal that supports `ConsoleColor`. Findings and per-file problems
   are results and go to standard output, not here.
 

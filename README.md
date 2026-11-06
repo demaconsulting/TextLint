@@ -211,6 +211,7 @@ textlint "**/*.md"
 # Check specific files; relative paths, absolute paths, and (on Windows) backslash paths are all accepted
 textlint README.md docs/guide.md
 textlint C:\work\project\README.md
+textlint C:\work\project\docs     # an absolute path naming a directory checks every file below it
 
 # With no patterns, the 'files' setting of ./.textlint.yaml selects the files
 textlint
@@ -258,7 +259,7 @@ textlint --silent --log output.log "**/*.md"
 | `--max-parallelism <#>`               | Maximum number of files checked at the same time (default: processors) |
 | `-v`, `--version`                     | Display version information                                            |
 | `-?`, `-h`, `--help`                  | Display help message                                                   |
-| `--silent`                            | Suppress console output                                                |
+| `--silent`                            | Suppress console output (usage errors still go to stderr)              |
 | `--validate`                          | Run self-validation                                                    |
 | `--results <file>`, `--result <file>` | Write results to `.trx` (TRX) or `.xml` (JUnit XML) file.              |
 | `--depth <#>`                         | Set heading depth for markdown output (default: 1)                     |

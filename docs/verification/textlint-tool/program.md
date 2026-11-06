@@ -58,6 +58,10 @@ no finding, and exit code is 1. This scenario is tested by
 is 1 and standard error names the repeated option. This scenario is tested by
 `Program_Main_DuplicateOption_ReturnsNonZeroExitCode`.
 
+**Program_Main_SilentUnknownArgument_ReportsErrorAndFails**: `Program.Main` is invoked with `--silent` and an
+unknown option; exit code is 1, standard error names the option (no output settings exist yet when parsing fails),
+and standard output is empty. This scenario is tested by `Program_Main_SilentUnknownArgument_ReportsErrorAndFails`.
+
 **Program_Version_Read_ReturnsNonEmptyString**: The `Program.Version` static property is read; the
 returned string is non-empty and non-null, confirming the version is resolvable from the
 assembly attributes. This scenario is tested by `Program_Version_Read_ReturnsNonEmptyString`.

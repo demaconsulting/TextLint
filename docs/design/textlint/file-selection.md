@@ -46,11 +46,14 @@ does not read settings files; that belongs to the `Configuration` subsystem.
   search directory, the validated patterns relative to it, whether files are to be named by absolute path, and
   `GetDisplayPath`, which gives the name under which a selected file is reported. Relative arguments are patterns
   relative to the root; on Windows a backslash is a separator. Absolute arguments are split at their first wildcard
-  into a literal directory and a pattern, and one inside the root means the same as its relative form.
+  into a literal directory and a pattern, and one inside the root means the same as its relative form. An absolute
+  argument that names an existing directory selects everything beneath it.
 - _Constraints_: Throws `ArgumentNullException` or `ArgumentException` for null, empty, or invalid input, and
   `InvalidGlobPatternException`, naming the argument as typed, for anything the pattern rules or the absolute-path
   rules reject. Throws `ArgumentException` for a relative argument combined with an absolute one outside the root
-  and for absolute arguments on different drives. The settings-file rules are not affected: they still reject
+  and for absolute arguments on different drives. Throws `UnauthorizedAccessException` or `IOException` when the
+  file system cannot say whether an absolute argument is a directory; a missing path is not an error and is
+  treated as a file name. The settings-file rules are not affected: they still reject
   absolute paths and backslashes.
 
 **Supported pattern forms**: Patterns use `/` as the separator and `*` and `**` as wildcards.
@@ -97,5 +100,6 @@ Command-line input takes a separate, forgiving path in front of the same pipelin
 rewrites what a person typed (backslashes on Windows, absolute paths) into a search directory and patterns that
 satisfy the strict rules, validates them with `GlobPatternExpander`, and hands the result to `FileSelector`
 unchanged, so selection itself has one implementation and the settings-file rules stay strict. The resolver
-touches no file system entry; it is pure string logic, so both the Windows and the other path rules are tested
+is string logic with one exception: it asks the file system whether a literal absolute argument names an
+existing directory, through a replaceable look-up so that both the Windows and the other path rules are tested
 on every operating system.

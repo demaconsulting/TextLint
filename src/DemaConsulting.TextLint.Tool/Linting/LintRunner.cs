@@ -123,6 +123,13 @@ internal static class LintRunner
         // Resolve the one directory that settings discovery and relative paths are measured from
         var root = Path.GetFullPath(context.Root ?? Directory.GetCurrentDirectory());
 
+        // Check the root before anything else uses it: it decides where the settings are looked for, and an
+        // absolute command-line path must not be able to bypass a root the user named wrongly
+        if (!IsRootUsable(context, root))
+        {
+            return;
+        }
+
         // Find and load the settings; a problem has already been reported, and nothing is checked
         var settings = LoadSettings(context, root, cancellationToken);
         if (settings is null)
@@ -176,6 +183,41 @@ internal static class LintRunner
         {
             context.MarkFailed();
         }
+    }
+
+    /// <summary>
+    ///     Checks that the root directory exists, is a directory, and can be read, reporting why not.
+    /// </summary>
+    /// <remarks>
+    ///     The directory is read rather than asked about with <see cref="Directory.Exists(string?)"/>, which
+    ///     answers "no" for a directory the process may not read and would report it as missing. Reading one
+    ///     entry lets the file system say which failure it is: only a directory-not-found failure means the
+    ///     root does not exist; a path that names a file, or a directory that cannot be read, is reported with
+    ///     the file system's own explanation. Side effects: writes to <paramref name="context"/> and reads
+    ///     one directory entry.
+    /// </remarks>
+    /// <param name="context">The output channels. Must not be null.</param>
+    /// <param name="root">The absolute root directory. Must not be null.</param>
+    /// <returns><see langword="true"/> when the root can be used; otherwise an error was written.</returns>
+    private static bool IsRootUsable(Context context, string root)
+    {
+        try
+        {
+            // The listing is lazy, so the first step is what reaches the file system
+            using var entries = new DirectoryInfo(root).EnumerateFileSystemInfos().GetEnumerator();
+            _ = entries.MoveNext();
+            return true;
+        }
+        catch (DirectoryNotFoundException)
+        {
+            context.WriteError($"The root directory '{root}' does not exist.");
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            context.WriteError($"The root directory '{root}' cannot be read: {exception.Message}");
+        }
+
+        return false;
     }
 
     /// <summary>

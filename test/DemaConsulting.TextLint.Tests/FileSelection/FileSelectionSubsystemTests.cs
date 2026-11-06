@@ -343,6 +343,31 @@ public class FileSelectionSubsystemTests
     }
 
     /// <summary>
+    ///     Test that an absolute path that names an existing directory, without a trailing separator, selects every file below it.
+    /// </summary>
+    [Fact]
+    public void FileSelectionSubsystem_ResolveCommandLine_ExistingDirectory_SelectsEveryFileBelow()
+    {
+        // Arrange: a directory with files at two depths, a file outside it, and the path of a directory that does not exist
+        using var temp = new TempDirectory();
+        temp.CreateFile("docs/a.md");
+        temp.CreateFile("docs/deep/b.md");
+        temp.CreateFile("other/c.md");
+        var missing = Path.Combine(temp.FullPath, "nowhere");
+
+        // Act: resolve the existing directory and the missing one, and select with each
+        var directory = CommandLinePathResolver.Resolve(temp.FullPath, [Path.Combine(temp.FullPath, "docs")]);
+        var absent = CommandLinePathResolver.Resolve(temp.FullPath, [missing]);
+        var selected = FileSelector.Select(directory.RootDirectory, directory.Patterns, [], cancellationToken: TestContext.Current.CancellationToken);
+        var none = FileSelector.Select(absent.RootDirectory, absent.Patterns, [], cancellationToken: TestContext.Current.CancellationToken);
+
+        // Assert: the directory selects every file below it and none outside; the missing path selects nothing
+        Assert.Multiple(
+            () => Assert.Equal(["docs/a.md", "docs/deep/b.md"], selected.Select(file => file.RelativePath)),
+            () => Assert.Empty(none));
+    }
+
+    /// <summary>
     ///     Test that a path with backslashes selects a file on Windows and is rejected elsewhere.
     /// </summary>
     [Fact]

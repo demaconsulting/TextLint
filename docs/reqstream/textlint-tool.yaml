@@ -56,15 +56,21 @@ sections:
           - TextLintTool_ValidateFlag_Provided_RunsLintScenarios
 
       - id: TextLintTool-System-Silent
-        title: The tool shall suppress console output when the silent flag is provided.
+        title: >-
+          The tool shall suppress the console output of a run when the silent flag is provided, while still
+          reporting a command line it cannot understand on standard error with exit code 1.
         tags: [system]
         justification: |
           Enables automated scripts and CI/CD pipelines to run the tool without
-          cluttering output logs when only the exit code is needed.
+          cluttering output logs when only the exit code is needed. A malformed command line is
+          reported even when silent, because it is found before the output settings are known, and
+          a script that mistyped an option must never fail without a word.
         children:
           - TextLintTool-Cli-Silent
+          - TextLintTool-Program-ExitCode
         tests:
           - TextLintTool_SilentFlag_Provided_SuppressesOutput
+          - TextLintTool_SilentFlag_UnknownArgument_ReportsErrorOnStderr
 
       - id: TextLintTool-System-Log
         title: The tool shall write output to a log file when the log flag is provided.
@@ -275,15 +281,18 @@ sections:
         title: >-
           The tool shall accept the paths and patterns its user types in the form of the user's shell,
           including backslash-separated relative paths on Windows and absolute paths, and shall report files
-          named by an absolute path under that absolute path.
+          named by an absolute path under that absolute path. An absolute path that names a directory shall
+          check every file below it.
         tags: [system]
         justification: |
           PowerShell completes backslash paths, editors and hooks pass absolute paths, and users expect to see
-          paths in the form they typed. Rejecting these would make the tool awkward on its main platforms.
+          paths in the form they typed. Rejecting these would make the tool awkward on its main platforms, and
+          a directory named in full must behave as the same directory named relatively does.
         children:
           - TextLintTool-Linting-FileSelection
         tests:
           - TextLintTool_Check_AbsolutePath_ReportsAbsolutePath
+          - TextLintTool_Check_AbsoluteDirectory_ChecksFilesBelow
           - TextLintTool_Check_PlatformRelativePath_ChecksFile
 
       - id: TextLintTool-System-Language
@@ -361,17 +370,21 @@ sections:
           The tool shall report a failure caused by the user's input or environment, such as a missing root
           directory, an unsupported pattern or language, or an unreadable file, as an error message with exit
           code 1 and not as an unhandled exception, and shall stop a running check cleanly when the user
-          interrupts it.
+          interrupts it. A root directory that is unusable shall be reported before anything else, whatever
+          paths were typed.
         tags: [system]
         justification: |
           A pipeline and a person both need a message that says what to fix, and an interrupted run must not
-          leave the impression that a partial result is complete.
+          leave the impression that a partial result is complete. An absolute path must not let a mistaken
+          root go unnoticed.
         children:
           - TextLintTool-Linting-FailureHandling
+          - TextLintTool-Linting-RootValidation
           - TextLintTool-Linting-Cancellation
           - TextLintTool-Program-Cancellation
         tests:
           - TextLintTool_Check_MissingRoot_ReportsErrorAndExitsOne
+          - TextLintTool_Check_InvalidRootWithAbsolutePath_ReportsErrorAndExitsOne
           - TextLintTool_Check_InvalidPattern_ReportsErrorAndExitsOne
 
       - id: TextLintTool-System-ThirdPartyNotices

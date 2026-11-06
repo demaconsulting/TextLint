@@ -464,6 +464,122 @@ public class CommandLinePathResolverTests
     }
 
     /// <summary>
+    ///     Test that an absolute path that names an existing directory selects everything below it, on both rule sets.
+    /// </summary>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void CommandLinePathResolver_ResolveWithStyle_ExistingDirectory_SelectsEverythingBeneath(bool windowsPaths)
+    {
+        // Arrange: a directory inside the root and one outside it, which the probe reports as existing
+        var root = windowsPaths ? WindowsRoot : UnixRoot;
+        var inside = windowsPaths ? @"C:\work\proj\docs" : "/home/x/docs";
+        var outside = windowsPaths ? @"D:\other\notes" : "/data/notes";
+
+        // Act: resolve each, with a probe that says every path is a directory
+        var insideSelection = CommandLinePathResolver.ResolveWithStyle(root, [inside], windowsPaths, _ => true);
+        var outsideSelection = CommandLinePathResolver.ResolveWithStyle(root, [outside], windowsPaths, _ => true);
+
+        // Assert: the directory is searched whole, and the one outside the root becomes the search base
+        Assert.Multiple(
+            () => Assert.Equal(["/docs/**"], insideSelection.Patterns),
+            () => Assert.Equal(windowsPaths ? "C:/work/proj" : "/home/x", insideSelection.RootDirectory),
+            () => Assert.Equal(["/**"], outsideSelection.Patterns),
+            () => Assert.Equal(windowsPaths ? "D:/other/notes" : "/data/notes", outsideSelection.RootDirectory));
+    }
+
+    /// <summary>
+    ///     Test that a path that does not exist, or is not a directory, stays a file name.
+    /// </summary>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void CommandLinePathResolver_ResolveWithStyle_NotADirectory_IsFileName(bool windowsPaths)
+    {
+        // Arrange: a path that the probe says is not a directory (missing, or a file)
+        var root = windowsPaths ? WindowsRoot : UnixRoot;
+        var argument = windowsPaths ? @"C:\work\proj\docs\README" : "/home/x/docs/README";
+
+        // Act: resolve it with a probe that says no, and without a probe at all
+        var withProbe = CommandLinePathResolver.ResolveWithStyle(root, [argument], windowsPaths, _ => false);
+        var withoutProbe = CommandLinePathResolver.ResolveWithStyle(root, [argument], windowsPaths);
+
+        // Assert: the last segment is a file name anchored in its directory
+        Assert.Multiple(
+            () => Assert.Equal(["/docs/README"], withProbe.Patterns),
+            () => Assert.Equal(["/docs/README"], withoutProbe.Patterns));
+    }
+
+    /// <summary>
+    ///     Test that the directory probe is asked only about literal absolute paths, with the portable form of the path.
+    /// </summary>
+    [Fact]
+    public void CommandLinePathResolver_ResolveWithStyle_DirectoryProbe_AskedOnlyAboutLiteralAbsolutePaths()
+    {
+        // Arrange: a probe that records what it is asked
+        var asked = new List<string>();
+
+        // Act: resolve a literal absolute path, one with a trailing separator, one with a wildcard, and a relative one
+        CommandLinePathResolver.ResolveWithStyle(
+            WindowsRoot,
+            [@"C:\work\proj\docs", @"C:\work\proj\guides\", @"C:\work\proj\*.md", "a.md"],
+            windowsPaths: true,
+            isDirectory: path =>
+            {
+                asked.Add(path);
+                return false;
+            });
+
+        // Assert: only the first was looked up, in portable form
+        Assert.Equal(["C:/work/proj/docs"], asked);
+    }
+
+    /// <summary>
+    ///     Test that a failure of the directory probe is not mistaken for a missing path.
+    /// </summary>
+    [Fact]
+    public void CommandLinePathResolver_ResolveWithStyle_DirectoryProbeFails_Propagates()
+    {
+        // Arrange: a probe that cannot examine the path
+
+        // Act / Assert: the failure reaches the caller instead of the path being guessed to be a file name
+        Assert.Throws<UnauthorizedAccessException>(() => CommandLinePathResolver.ResolveWithStyle(
+            UnixRoot,
+            ["/home/x/secret"],
+            windowsPaths: false,
+            isDirectory: _ => throw new UnauthorizedAccessException("denied")));
+    }
+
+    /// <summary>
+    ///     Test that the public method looks the path up in the real file system.
+    /// </summary>
+    [Fact]
+    public void CommandLinePathResolver_Resolve_RealPaths_DirectoryIsSearchedAndFileOrMissingIsName()
+    {
+        // Arrange: a root with a directory and a file, and the path of something that does not exist
+        var root = Path.Combine(Path.GetTempPath(), $"textlint-resolver-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(Path.Combine(root, "docs"));
+        File.WriteAllText(Path.Combine(root, "docs", "a.md"), "x");
+        try
+        {
+            // Act: resolve the directory, the file, and the missing path
+            var directory = CommandLinePathResolver.Resolve(root, [Path.Combine(root, "docs")]);
+            var file = CommandLinePathResolver.Resolve(root, [Path.Combine(root, "docs", "a.md")]);
+            var missing = CommandLinePathResolver.Resolve(root, [Path.Combine(root, "docs", "nowhere")]);
+
+            // Assert: only the directory selects everything below it
+            Assert.Multiple(
+                () => Assert.Equal(["/docs/**"], directory.Patterns),
+                () => Assert.Equal(["/docs/a.md"], file.Patterns),
+                () => Assert.Equal(["/docs/nowhere"], missing.Patterns));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    /// <summary>
     ///     Test that missing or empty input is rejected before anything is resolved.
     /// </summary>
     [Fact]

@@ -447,9 +447,10 @@ jobs:
           echo "Testing textlint on a misspelled file..."
           mkdir -p integration-sample
           printf 'Hello wrold\n' > integration-sample/misspelled.md
-          # The step shell stops at the first failing command, but exit code 1 is the expected result here
+          # Findings are written to standard output and errors to standard error, so capture both. The step
+          # shell stops at the first failing command, but exit code 1 is the expected result here.
           set +e
-          output=$(textlint --root integration-sample misspelled.md)
+          output=$(textlint --root integration-sample misspelled.md 2>&1)
           exit_code=$?
           set -e
           echo "${output}"
@@ -464,7 +465,8 @@ jobs:
           echo "Testing textlint with nothing to check..."
           mkdir -p integration-empty
           set +e
-          output=$(textlint --root integration-empty)
+          # Usage errors are written to standard error, so capture both streams
+          output=$(textlint --root integration-empty 2>&1)
           exit_code=$?
           set -e
           echo "${output}"

@@ -80,12 +80,27 @@ sections:
                 title: >-
                   LintRunner shall have the library interpret the command-line patterns and shall name each file
                   found in the form the library says, so that a file named by an absolute path is reported by
-                  that path.
+                  that path and an absolute path that names a directory checks every file below it.
                 justification: |
                   The rules for backslashes and absolute paths belong to the library so every front-end applies
                   them identically; the runner must not reimplement them.
                 tests:
                   - LintRunner_Run_AbsolutePathArgument_ReportsAbsolutePath
+                  - LintRunner_Run_AbsoluteDirectoryArgument_ChecksEveryFileBelow
+
+              - id: TextLintTool-Linting-LintRunner-RootValidation
+                title: >-
+                  LintRunner shall verify that the root directory exists, is a directory, and can be read before
+                  it looks for settings or resolves any path, and shall report a missing root and an unusable
+                  root differently.
+                justification: |
+                  Every later step depends on the root. An absolute path must not be able to bypass an invalid
+                  root, and a message about missing settings in a folder that does not exist would mislead the
+                  user about what is wrong.
+                tests:
+                  - LintRunner_Run_MissingRootDirectory_ReportsErrorAndFails
+                  - LintRunner_Run_RootIsFile_ReportsErrorAndFails
+                  - LintRunner_Run_InvalidRootWithAbsolutePath_ReportsErrorAndFails
 
               - id: TextLintTool-Linting-LintRunner-NoPatterns
                 title: >-
@@ -142,7 +157,7 @@ sections:
 
               - id: TextLintTool-Linting-LintRunner-ExpectedFailures
                 title: >-
-                  LintRunner shall report a missing or invalid root directory, an unsupported pattern, and an
+                  LintRunner shall report an invalid root directory path, an unsupported pattern, and an
                   unsupported language as an error message and a failed run, and shall reject a missing context.
                 justification: |
                   These are mistakes a user can make; each needs a message that says what to fix, not a stack
@@ -150,7 +165,6 @@ sections:
                 tests:
                   - LintRunner_Run_InvalidLanguage_ReportsErrorAndFails
                   - LintRunner_Run_InvalidGlobPattern_ReportsErrorNamingPattern
-                  - LintRunner_Run_MissingRootDirectory_ReportsErrorAndFails
                   - LintRunner_Run_InvalidRootPath_ReportsErrorAndFails
                   - LintRunner_Run_NullContext_ThrowsArgumentNullException
 

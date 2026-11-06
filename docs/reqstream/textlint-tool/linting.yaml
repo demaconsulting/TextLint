@@ -45,12 +45,24 @@ sections:
             tests:
               - LintingSubsystem_Run_InvalidSettings_ReportsErrorsAndChecksNothing
 
+          - id: TextLintTool-Linting-RootValidation
+            title: >-
+              The Linting subsystem shall report a root directory that does not exist, is not a directory, or
+              cannot be read as an error before it does anything else, whatever paths were typed.
+            justification: |
+              Nothing the run does is meaningful without a usable root, and an absolute path must not let a
+              mistaken root go unnoticed or produce a misleading message about settings.
+            children:
+              - TextLintTool-Linting-LintRunner-RootValidation
+            tests:
+              - LintingSubsystem_Run_InvalidRoot_IsReportedBeforeAnythingElse
+
           - id: TextLintTool-Linting-FileSelection
             title: >-
               The Linting subsystem shall check the files named by the command-line patterns instead of the
               files of the settings, shall still apply the ignore patterns of the settings, and shall accept
-              the paths in the forms the library's command-line rules accept, reporting them under the name the
-              user typed.
+              the paths in the forms the library's command-line rules accept, including an absolute path that
+              names a directory, reporting them under the name the user typed.
             justification: |
               Command-line selection must be usable on its own while the project's ignore rules still protect
               generated content, and the interpretation of paths belongs to the library so that every
@@ -61,6 +73,7 @@ sections:
             tests:
               - LintingSubsystem_Run_GlobsAndSettings_GlobsReplaceFiles
               - LintingSubsystem_Run_AbsolutePath_ReportsAbsolutePath
+              - LintingSubsystem_Run_AbsoluteDirectory_ChecksEveryFileBelow
 
           - id: TextLintTool-Linting-NoPatterns
             title: >-

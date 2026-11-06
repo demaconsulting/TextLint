@@ -44,8 +44,10 @@ namespace DemaConsulting.TextLint.FileSelection;
 ///         <item>
 ///             An absolute argument (a drive path or <c>//server/share</c> network path on Windows, a path
 ///             that starts with <c>/</c> elsewhere) is split at its first wildcard. The literal leading
-///             part is a directory and the rest is a pattern within it; an argument without a wildcard
-///             names one file, or a whole directory when it ends with a separator.
+///             part is a directory and the rest is a pattern within it. An argument without a wildcard that
+///             names an existing directory, or that ends with a separator, selects everything below that
+///             directory, as a bare directory name does in a relative pattern; otherwise it names one file
+///             (a path that does not exist is taken as a file name, so it selects nothing).
 ///         </item>
 ///         <item>
 ///             An absolute argument inside the root directory means the same as the equivalent relative
@@ -58,8 +60,9 @@ namespace DemaConsulting.TextLint.FileSelection;
 ///             <see cref="CommandLineSelection.GetDisplayPath(string)"/>); otherwise by relative path.
 ///         </item>
 ///     </list>
-///     The work is textual and touches no file system entry, so the Windows and the other rule sets can both
-///     be exercised on any operating system through an internal overload. Stateless and thread-safe.
+///     The work is textual except for one question, whether an absolute argument without a wildcard names a
+///     directory, which is a parameter of an internal overload, so the Windows and the other rule sets can
+///     both be exercised on any operating system without a file system. Stateless and thread-safe.
 /// </remarks>
 public static class CommandLinePathResolver
 {
@@ -119,8 +122,11 @@ public static class CommandLinePathResolver
     /// <remarks>
     ///     The root directory is made absolute against the current directory, but it is not checked for
     ///     existence; <see cref="FileSelector"/> reports a missing or unreadable root when it is used.
-    ///     Side effects: reads the current directory when <paramref name="rootDirectory"/> is relative.
-    ///     Cancellation is not offered because there is no waiting. Thread-safe.
+    ///     An absolute argument without a wildcard is looked up in the file system once, to learn whether it
+    ///     names a directory (then it selects everything below it) or a file. Only a missing path counts as "not
+    ///     a directory"; a path that cannot be examined is reported, not guessed at.
+    ///     Side effects: reads the current directory when <paramref name="rootDirectory"/> is relative, and the
+    ///     attributes of such arguments. Cancellation is not offered because there is no waiting. Thread-safe.
     /// </remarks>
     /// <param name="rootDirectory">
     ///     The directory that relative arguments are relative to; may itself be relative to the current
@@ -129,6 +135,8 @@ public static class CommandLinePathResolver
     /// <param name="arguments">The path and pattern arguments as typed. Must not be null or empty, and must not contain null.</param>
     /// <returns>The search base, the validated patterns, and how to report the files; never null.</returns>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="rootDirectory"/> or <paramref name="arguments"/> is null.</exception>
+    /// <exception cref="UnauthorizedAccessException">Thrown when the process may not examine an absolute argument that has no wildcard.</exception>
+    /// <exception cref="IOException">Thrown when an absolute argument that has no wildcard cannot be examined for another reason.</exception>
     /// <exception cref="ArgumentException">
     ///     Thrown when <paramref name="rootDirectory"/> is empty or white space, when <paramref name="arguments"/> is empty
     ///     or contains null, or when relative arguments are combined with an absolute argument outside the root
@@ -144,10 +152,36 @@ public static class CommandLinePathResolver
         // Make the root absolute for the current platform, then apply the rules of that platform
         ArgumentException.ThrowIfNullOrWhiteSpace(rootDirectory);
         ArgumentNullException.ThrowIfNull(arguments);
-        var resolved = ResolveWithStyle(Path.GetFullPath(rootDirectory), arguments, OperatingSystem.IsWindows());
+        var resolved = ResolveWithStyle(Path.GetFullPath(rootDirectory), arguments, OperatingSystem.IsWindows(), IsExistingDirectory);
 
         // The core works in portable form; the platform form of the search base is what callers open
         return new CommandLineSelection(Path.GetFullPath(resolved.RootDirectory), resolved.Patterns, resolved.ReportsAbsolutePaths);
+    }
+
+    /// <summary>
+    ///     Tells whether a path names an existing directory, without mistaking a failure for absence.
+    /// </summary>
+    /// <remarks>
+    ///     <see cref="Directory.Exists(string?)"/> answers "no" for a path the process may not examine, which would
+    ///     quietly turn a directory the user named into a file name that matches nothing. Reading the attributes
+    ///     lets the file system say which case it is: only a missing file or directory is "no", and any other failure
+    ///     propagates. Side effects: reads the attributes of one path. Thread-safe.
+    /// </remarks>
+    /// <param name="path">The path to examine. Must not be null.</param>
+    /// <returns><see langword="true"/> when the path exists and is a directory.</returns>
+    /// <exception cref="UnauthorizedAccessException">Thrown when the process may not examine the path.</exception>
+    /// <exception cref="IOException">Thrown when the path cannot be examined for another reason.</exception>
+    private static bool IsExistingDirectory(string path)
+    {
+        try
+        {
+            return File.GetAttributes(path).HasFlag(FileAttributes.Directory);
+        }
+        catch (Exception exception) when (exception is FileNotFoundException or DirectoryNotFoundException)
+        {
+            // Only a path that does not exist is "not a directory"
+            return false;
+        }
     }
 
     /// <summary>
@@ -162,13 +196,22 @@ public static class CommandLinePathResolver
     /// <param name="absoluteRoot">The absolute root directory in the form of the chosen platform. Must not be null or white space.</param>
     /// <param name="arguments">The path and pattern arguments as typed. Must not be null or empty.</param>
     /// <param name="windowsPaths"><see langword="true"/> for Windows path rules; <see langword="false"/> for Unix path rules.</param>
+    /// <param name="isDirectory">
+    ///     Tells whether a portable absolute path (forward slashes, for example <c>C:/work/docs</c>) names an
+    ///     existing directory, so that tests need no file system; null means nothing does. It is called only for an
+    ///     absolute argument that has no wildcard and does not already end in a separator, and its exceptions propagate.
+    /// </param>
     /// <returns>The resolved selection, with the search base in portable form.</returns>
     /// <exception cref="ArgumentNullException">Thrown when an argument is null.</exception>
     /// <exception cref="ArgumentException">
     ///     Thrown when the root is not absolute, the argument list is empty or contains null, the arguments cannot
     ///     be combined, or an argument is rejected by the pattern rules (see <see cref="InvalidGlobPatternException"/>).
     /// </exception>
-    internal static CommandLineSelection ResolveWithStyle(string absoluteRoot, IReadOnlyList<string> arguments, bool windowsPaths)
+    internal static CommandLineSelection ResolveWithStyle(
+        string absoluteRoot,
+        IReadOnlyList<string> arguments,
+        bool windowsPaths,
+        Func<string, bool>? isDirectory = null)
     {
         // Reject arguments that could only come from a programming error
         ArgumentException.ThrowIfNullOrWhiteSpace(absoluteRoot);
@@ -186,7 +229,7 @@ public static class CommandLinePathResolver
         var parsed = new List<ParsedArgument>(arguments.Count);
         foreach (var argument in arguments)
         {
-            parsed.Add(ParseArgument(argument ?? throw new ArgumentException("An argument is null.", nameof(arguments)), windowsPaths));
+            parsed.Add(ParseArgument(argument ?? throw new ArgumentException("An argument is null.", nameof(arguments)), windowsPaths, isDirectory));
         }
 
         // Choose the search base: the root when every absolute argument is inside it, else the common ancestor
@@ -243,9 +286,12 @@ public static class CommandLinePathResolver
     /// </remarks>
     /// <param name="argument">The argument as typed. Must not be null.</param>
     /// <param name="windowsPaths">Whether Windows path rules apply.</param>
+    /// <param name="isDirectory">
+    ///     Tells whether a portable absolute path names an existing directory; null means nothing does.
+    /// </param>
     /// <returns>The parsed argument.</returns>
     /// <exception cref="InvalidGlobPatternException">Thrown when the argument is an unsupported absolute form or climbs above the file system root.</exception>
-    private static ParsedArgument ParseArgument(string argument, bool windowsPaths)
+    private static ParsedArgument ParseArgument(string argument, bool windowsPaths, Func<string, bool>? isDirectory)
     {
         // Convert Windows separators first, so every later step sees only forward slashes
         var text = windowsPaths ? argument.Replace(WindowsSeparator, Separator) : argument;
@@ -277,6 +323,13 @@ public static class CommandLinePathResolver
         var last = raw[^1];
         var namesDirectory = last.Length == 0 || last is CurrentDirectorySegment or ParentDirectorySegment || literal.Count == 0;
         if (namesDirectory)
+        {
+            return new ParsedArgument(argument, new PathParts(prefix, literal), EverythingPattern);
+        }
+
+        // A path that exists as a directory selects everything below it, as a bare directory name does in a
+        // relative pattern; anything else, including a path that does not exist, is a file name
+        if (isDirectory is not null && isDirectory(new PathParts(prefix, literal).Render()))
         {
             return new ParsedArgument(argument, new PathParts(prefix, literal), EverythingPattern);
         }

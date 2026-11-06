@@ -237,6 +237,37 @@ public class ProgramTests
     }
 
     /// <summary>
+    ///     Test that Main still reports an argument error on standard error when the silent flag is given.
+    /// </summary>
+    [Fact]
+    public void Program_Main_SilentUnknownArgument_ReportsErrorAndFails()
+    {
+        // Arrange: capture both console streams
+        var originalOut = Console.Out;
+        var originalError = Console.Error;
+        try
+        {
+            using var outWriter = new StringWriter();
+            using var errorWriter = new StringWriter();
+            Console.SetOut(outWriter);
+            Console.SetError(errorWriter);
+
+            // Act: run Main with the silent flag and an unknown option, which fails while parsing
+            var exitCode = Program.Main(["--silent", "--bogus"]);
+
+            // Assert: the error is still reported on standard error (no output settings exist yet), nothing is on standard output
+            Assert.Equal(1, exitCode);
+            Assert.Contains("Unsupported argument '--bogus'", errorWriter.ToString());
+            Assert.Equal(string.Empty, outWriter.ToString());
+        }
+        finally
+        {
+            Console.SetOut(originalOut);
+            Console.SetError(originalError);
+        }
+    }
+
+    /// <summary>
     ///     Test that version property returns non-empty version string.
     /// </summary>
     [Fact]

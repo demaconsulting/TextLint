@@ -42,6 +42,7 @@ sections:
         tests:
           - Program_Main_WithInvalidArgs_ReturnsNonZeroExitCode
           - Program_Main_DuplicateOption_ReturnsNonZeroExitCode
+          - Program_Main_SilentUnknownArgument_ReportsErrorAndFails
 
       - id: TextLintTool-Program-Check
         title: >-

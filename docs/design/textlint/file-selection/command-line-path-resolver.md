@@ -40,12 +40,15 @@ a relative one), and the pattern text.
 - _Postconditions_: every pattern has passed the same validation as a settings-file pattern.
 
 It makes the root absolute with the platform's own path logic, calls the internal overload with the Windows rules
-when running on Windows and the Unix rules otherwise, and converts the portable search directory it returns to
-the platform form. It reads the current directory only when the root is relative and touches no other file
-system entry; the existence of the root is checked later by `FileSelector`.
+when running on Windows and the Unix rules otherwise and with a look-up that asks the file system whether a path
+is a directory, and converts the portable search directory it returns to the platform form. It reads the current
+directory only when the root is relative. The look-up reads the attributes of one path: a missing file or
+directory means "not a directory", and any other failure (a denied permission, an I/O error) is not caught and
+reaches the caller. The existence of the root is checked later by `FileSelector`.
 
-**ResolveWithStyle (internal)**: Resolves arguments under a chosen set of path rules. It is the test seam that
-lets both rule sets be proven on every operating system. Steps:
+**ResolveWithStyle (internal)**: Resolves arguments under a chosen set of path rules and with a chosen directory
+look-up (none means that nothing is a directory). It is the test seam that
+lets both rule sets and every look-up outcome be proven on every operating system. Steps:
 
 1. Parse the root into a prefix and segments.
 2. Parse each argument. On Windows rules a backslash is first converted to `/`. An argument is absolute when,
@@ -55,7 +58,10 @@ lets both rule sets be proven on every operating system. Steps:
    directory (with `.` and empty segments dropped and `..` removing the previous segment) and the rest, as typed,
    is the pattern. Without a wildcard the argument names a directory when it ends with a separator or names no
    segment, and the pattern is `**`; otherwise its last segment is a file name and the earlier segments are the
-   directory.
+   directory. The one exception is an argument that, written in full, names an existing directory: the look-up is
+   asked about the literal path (in forward-slash form) and, when it says yes, the whole path is the directory and
+   the pattern is `**`, exactly as if a separator had been typed. The look-up is not asked about arguments with a
+   wildcard or a trailing separator, or about relative arguments, which already mean a directory or pattern.
 3. Choose the search directory. When every absolute argument lies inside the root (same prefix and the root's
    segments as a leading run, compared ignoring case on Windows rules and exactly otherwise), the root is the
    search directory, so an absolute argument means exactly what its relative form means and ignore patterns
@@ -83,7 +89,9 @@ reasons of `GlobPatternExpander` (empty, negated, `?`, backslash outside Windows
 segment, unbalanced braces), a drive-relative path, a rooted path without a drive, an incomplete network path, or
 a `..` that climbs above the root of the file system. Two combinations that cannot be searched from one
 directory throw `ArgumentException` with an explanation: a relative argument together with an absolute argument
-outside the root, and absolute arguments on different drives or network shares. Nothing is caught and swallowed,
+outside the root, and absolute arguments on different drives or network shares. A failure of the directory
+look-up other than "missing" is passed on unchanged (`UnauthorizedAccessException` or `IOException`) rather than
+read as "not a directory". Nothing is caught and swallowed,
 and nothing is logged.
 
 #### Dependencies
@@ -91,7 +99,8 @@ and nothing is logged.
 - **GlobPatternExpander** - validates each resulting pattern and supplies the reason for a rejection.
 - **InvalidGlobPatternException** - the error for a rejected argument; its internal reason is reused so the
   message names the typed argument.
-- **.NET BCL** - strings, collections, and `Path` for the platform form of the search directory.
+- **.NET BCL** - strings, collections, and `Path` for the platform form of the search directory, and `File` for
+  the attributes that tell a directory from a file.
 
 #### Callers
 

@@ -94,3 +94,8 @@ paths relative to it and named by absolute path. This scenario is tested by
 **FileSelectionSubsystem_ResolveCommandLine_BackslashRelativePath_FollowsPlatformRules**: A PowerShell-style relative
 path selects the file on Windows and is rejected on every other system. This scenario is tested by
 `FileSelectionSubsystem_ResolveCommandLine_BackslashRelativePath_FollowsPlatformRules`.
+
+**FileSelectionSubsystem_ResolveCommandLine_ExistingDirectory_SelectsEveryFileBelow**: An absolute path that names
+a directory without a trailing separator selects the files at every depth below it and none outside it, and the
+path of a directory that does not exist selects nothing. This scenario is tested by
+`FileSelectionSubsystem_ResolveCommandLine_ExistingDirectory_SelectsEveryFileBelow`.

@@ -40,7 +40,11 @@ checker, and its result types). No other tool subsystem is used.
 `Program` calls `LintRunner.Run` for everything that is not a request for the version, the help text, or
 self-validation. The runner works in this order:
 
-1. It makes the root directory absolute: the `--root` directory, or the current directory.
+1. It makes the root directory absolute: the `--root` directory, or the current directory. It then checks that the
+   directory exists, is a directory, and can be read, by enumerating one entry of it, so that a missing root
+   ("does not exist") is told apart from an unusable one (not a directory, or access denied) without asking
+   `Exists`. This happens before anything else, so that an absolute path cannot bypass an invalid root and no
+   misleading line about missing settings is written.
 2. It finds the settings. A file named by `--config` is loaded as typed. Otherwise `.textlint.yaml` in the root is
    loaded when it exists, and nothing else is searched, so a file from an unrelated directory is never applied by
    accident. When there is none, the default settings apply and one information line says so. Whether the file
@@ -49,8 +53,9 @@ self-validation. The runner works in this order:
    the file; every problem it reports is written as an error and nothing is checked.
 3. It selects the files. When the command line has patterns, the library's command-line path resolver turns them
    into a search directory and portable patterns, they replace the `files` setting, and the ignore patterns of
-   the settings still apply. When it has none, the `files` setting is used. When there are none anywhere, that is
-   a usage error with an example. The resolver also says whether files are to be named by absolute path.
+   the settings still apply. A command-line path that names an existing directory selects every file below it;
+   the library makes that decision. When it has none, the `files` setting is used. When there are none anywhere,
+   that is a usage error with an example. The resolver also says whether files are to be named by absolute path.
 4. It applies the language option over the settings, and the parallelism limit when one was given.
 5. It calls the library's spell checker and waits for the result once, at the boundary of the synchronous entry
    point.

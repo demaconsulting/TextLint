@@ -68,6 +68,11 @@ flags are passed together; the combined output is empty or whitespace-only while
 with code 0, confirming silent mode suppresses all console output. This scenario is tested by
 `TextLintTool_SilentFlag_Provided_SuppressesOutput`.
 
+**TextLintTool_SilentFlag_UnknownArgument_ReportsErrorOnStderr**: The `--silent` flag is combined with an unknown
+option; the command line cannot be understood, so the error that names the option is still written (to standard
+error) and the tool exits with code 1. This scenario is tested by
+`TextLintTool_SilentFlag_UnknownArgument_ReportsErrorOnStderr`.
+
 **TextLintTool_LogFlag_Provided_WritesOutputToFile**: The `--log <path>` flag is passed
 pointing to a temporary file; the tool exits with code 0 and the log file is created containing
 output that also appears in the combined console output. This scenario is tested by
@@ -140,6 +145,10 @@ tested by `TextLintTool_Check_RootOption_ResolvesPathsFromRoot`.
 directory; the finding is reported under that absolute path. This scenario is tested by
 `TextLintTool_Check_AbsolutePath_ReportsAbsolutePath`.
 
+**TextLintTool_Check_AbsoluteDirectory_ChecksFilesBelow**: A directory is named by its absolute path, without a
+trailing separator, from an unrelated working directory; the misspelling in a file two levels below it is reported
+under that file's absolute path. This scenario is tested by `TextLintTool_Check_AbsoluteDirectory_ChecksFilesBelow`.
+
 **TextLintTool_Check_PlatformRelativePath_ChecksFile**: A relative path is written the way the platform's shell
 completes it (with backslashes on Windows); the file is found and reported by its portable relative path. This
 scenario is tested by `TextLintTool_Check_PlatformRelativePath_ChecksFile`.
@@ -169,6 +178,11 @@ option, nothing is checked, and the exit code is 1. This scenario is tested by
 **TextLintTool_Check_MissingRoot_ReportsErrorAndExitsOne**: `--root` names a directory that does not exist; the
 output names the directory, contains no unhandled-exception report, and the exit code is 1. This scenario is
 tested by `TextLintTool_Check_MissingRoot_ReportsErrorAndExitsOne`.
+
+**TextLintTool_Check_InvalidRootWithAbsolutePath_ReportsErrorAndExitsOne**: `--root` names a directory that does not
+exist while a misspelled file is named by its absolute path; the root is reported, the file is not checked, no line
+about missing settings appears, and the exit code is 1. This scenario is tested by
+`TextLintTool_Check_InvalidRootWithAbsolutePath_ReportsErrorAndExitsOne`.
 
 **TextLintTool_Check_InvalidPattern_ReportsErrorAndExitsOne**: A pattern that uses an unsupported wildcard gives
 an error that names the pattern and exit code 1. This scenario is tested by

@@ -32,15 +32,22 @@ sections:
                   path on Windows, a path that starts with a slash elsewhere), treating the literal leading
                   directory as the place to search and the rest as the pattern within it, treating an absolute
                   argument inside the root directory as the equivalent relative argument, anchoring file names
-                  at their directory, selecting a whole directory when the argument ends with a separator, and
-                  never expanding a tilde.
+                  at their directory, selecting a whole directory when the argument ends with a separator or
+                  names an existing directory, treating an absolute argument that names nothing that exists
+                  as a file name, and never expanding a tilde.
                 justification: |
                   Editors, pre-commit hooks, and people who copy a path from a file manager supply absolute
                   paths. A path inside the project must behave exactly like its relative form so that settings
                   such as the ignore patterns still apply, and a file name must match only where it was
-                  written, not at every depth. A tilde is expanded by the shell and means nothing to the
-                  library; guessing a home directory would be wrong as often as right.
+                  written, not at every depth. A bare directory name already selects the whole folder when
+                  relative, so the absolute form must do the same, with or without a trailing separator. A
+                  tilde is expanded by the shell and means nothing to the library; guessing a home directory
+                  would be wrong as often as right.
                 tests:
+                  - CommandLinePathResolver_ResolveWithStyle_ExistingDirectory_SelectsEverythingBeneath
+                  - CommandLinePathResolver_ResolveWithStyle_NotADirectory_IsFileName
+                  - CommandLinePathResolver_ResolveWithStyle_DirectoryProbe_AskedOnlyAboutLiteralAbsolutePaths
+                  - CommandLinePathResolver_Resolve_RealPaths_DirectoryIsSearchedAndFileOrMissingIsName
                   - CommandLinePathResolver_ResolveWithStyle_WindowsAbsoluteFileInsideRoot_AnchorsBeneathRoot
                   - CommandLinePathResolver_ResolveWithStyle_AbsoluteFileDirectlyInRoot_IsAnchored
                   - CommandLinePathResolver_ResolveWithStyle_WindowsDifferentCase_IsInsideRoot
@@ -54,6 +61,16 @@ sections:
                   - CommandLinePathResolver_ResolveWithStyle_ParentSegmentsInLiteralPart_AreNormalized
                   - CommandLinePathResolver_Resolve_PlatformAbsolutePath_IsAnchoredInsideRoot
                   - CommandLinePathResolver_Resolve_RelativeRoot_BecomesAbsolute
+
+              - id: TextLint-FileSelection-CommandLinePathResolver-ProbeFailure
+                title: >-
+                  CommandLinePathResolver shall report a failure to examine an absolute argument, such as a
+                  denied permission, to its caller instead of treating the argument as a file name.
+                justification: |
+                  Only a path that is missing may fall back to being a file name. Guessing after a denied
+                  or failed look-up would hide a real access problem behind a misleading "no files matched".
+                tests:
+                  - CommandLinePathResolver_ResolveWithStyle_DirectoryProbeFails_Propagates
 
               - id: TextLint-FileSelection-CommandLinePathResolver-Combination
                 title: >-

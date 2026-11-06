@@ -37,7 +37,8 @@ cause. Nothing else is caught.
 - _Parameters_: `Context context`; `CancellationToken cancellationToken`.
 - _Returns_: `void`.
 
-It makes the root absolute, loads the settings through `LoadSettings`, and stops if that reported a problem. With
+It makes the root absolute, checks it through `IsRootUsable`, and stops if that reported a problem; only then does it
+load the settings through `LoadSettings`, and stops if that reported a problem. With
 command-line patterns it calls `CommandLinePathResolver.Resolve`, replaces the `Files` of the settings with the
 resolved patterns, searches the resolved directory, and uses the selection's display-path function; without them
 it uses the `files` setting and shows relative paths; with neither it writes the usage error. It applies the
@@ -45,6 +46,17 @@ language option with a `with` expression, builds the `SpellCheckOptions` (the li
 `--max-parallelism` was given), calls `SpellChecker.CheckAsync(...).GetAwaiter().GetResult()` once, writes the
 empty-selection error when nothing was checked, skipped, or failed and `--allow-empty` was not given, calls
 `LintReporter.Write`, and calls `Context.MarkFailed` when the result has problems.
+
+**IsRootUsable (private)**: Checks that the root directory can be used before anything else is done with it.
+
+- _Parameters_: `Context context`; `string root` - the absolute root.
+- _Returns_: `bool` - true when the root exists, is a directory, and can be read.
+
+It enumerates the first entry of the directory. A `DirectoryNotFoundException` is written as
+`The root directory '<root>' does not exist.`; any other `IOException` (including a root that is a file) or an
+`UnauthorizedAccessException` is written as `The root directory '<root>' cannot be read: <explanation>`. Asking
+`Directory.Exists` instead would answer "no" for a directory the process may not read and so blame the wrong
+thing.
 
 **LoadSettings (private)**: Finds and loads the settings, or reports why that was not possible.
 
@@ -73,7 +85,8 @@ and would silently discard the user's settings.
 
 Failures the user can cause are written with `Context.WriteError` and fail the run: an unusable settings file (one
 error per problem, with file, line, and column), a settings file that cannot be examined, a usage error (no
-files to check), an empty selection, a missing or invalid root directory, an unsupported pattern (the library's
+files to check), an empty selection, a missing, unreadable, or non-directory root directory (reported first), an
+unsupported pattern (the library's
 `InvalidGlobPatternException` names the argument as typed), an unsupported language, and a combination of paths that
 cannot be searched from one directory. Cancellation is written and fails the run. Defects (for example
 `InvalidDataException` from a damaged embedded dictionary, or any exception type not listed) are not caught and

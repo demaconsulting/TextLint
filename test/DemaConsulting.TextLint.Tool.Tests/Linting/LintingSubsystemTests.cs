@@ -278,6 +278,56 @@ public class LintingSubsystemTests
     }
 
     /// <summary>
+    ///     Test that an invalid root is reported first and cannot be bypassed by an absolute path.
+    /// </summary>
+    [Fact]
+    public void LintingSubsystem_Run_InvalidRoot_IsReportedBeforeAnythingElse()
+    {
+        // Arrange: a misspelled file that exists, a root that does not, and a root that is a file
+        using var temp = new TempDirectory();
+        using var other = new TempDirectory();
+        var file = other.CreateFile("a.md", "Hello wrold\n");
+        var missing = Path.Combine(temp.FullPath, "nowhere");
+        var fileRoot = temp.CreateFile("root.txt", "x");
+
+        // Act: run with each invalid root, naming the file by its absolute path
+        var missingResult = ContextRun.Execute(["--root", missing, file], context => LintRunner.Run(context, TestContext.Current.CancellationToken));
+        var fileResult = ContextRun.Execute(["--root", fileRoot, file], context => LintRunner.Run(context, TestContext.Current.CancellationToken));
+
+        // Assert: each run fails naming the root, with no settings notice and nothing checked
+        Assert.Multiple(
+            () => Assert.Equal(1, missingResult.ExitCode),
+            () => Assert.Contains($"The root directory '{missing}' does not exist.", missingResult.Output),
+            () => Assert.DoesNotContain("No settings file found", missingResult.Output),
+            () => Assert.DoesNotContain("Unknown word", missingResult.Output),
+            () => Assert.Equal(1, fileResult.ExitCode),
+            () => Assert.Contains($"The root directory '{fileRoot}' cannot be read", fileResult.Output),
+            () => Assert.DoesNotContain("Unknown word", fileResult.Output));
+    }
+
+    /// <summary>
+    ///     Test that an absolute directory argument checks everything below it, and a missing path matches nothing.
+    /// </summary>
+    [Fact]
+    public void LintingSubsystem_Run_AbsoluteDirectory_ChecksEveryFileBelow()
+    {
+        // Arrange: a directory with a nested misspelled file, and the path of a directory that does not exist
+        using var temp = new TempDirectory();
+        var file = temp.CreateFile("docs/deep/a.md", "Hello wrold\n");
+        var missing = Path.Combine(temp.FullPath, "nowhere");
+
+        // Act: name the existing directory, then the missing one
+        var existing = Run(temp, Path.Combine(temp.FullPath, "docs"));
+        var absent = Run(temp, missing);
+
+        // Assert: the existing directory is searched; the missing path is a file name that matches nothing
+        Assert.Multiple(
+            () => Assert.Contains($"{file}(1,7): error: Unknown word 'wrold'", existing.Lines),
+            () => Assert.Equal(1, absent.ExitCode),
+            () => Assert.Contains("No files matched", absent.Output));
+    }
+
+    /// <summary>
     ///     Test that only a clean run exits with success.
     /// </summary>
     [Fact]

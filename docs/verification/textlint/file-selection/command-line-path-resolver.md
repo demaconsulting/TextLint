@@ -2,8 +2,9 @@
 
 #### Verification Approach
 
-`CommandLinePathResolver` is verified with unit tests in `CommandLinePathResolverTests.cs`. The unit is pure string
-logic over its arguments, so no mocks, doubles, or file system entries are used. Most tests call the internal
+`CommandLinePathResolver` is verified with unit tests in `CommandLinePathResolverTests.cs`. The unit is string logic
+plus one file-system look-up, so nearly every test supplies the look-up as a function and no file system entry is
+used. Most tests call the internal
 overload that takes the path rules as a parameter, so every scenario proves both the Windows rules and the
 other rules on whatever operating system runs the tests; a few tests call the public method with paths of the
 running operating system and assert per platform where the rules differ. The supporting type `CommandLineSelection`
@@ -11,16 +12,19 @@ is verified through the same tests.
 
 #### Test Environment
 
-N/A - standard test environment. No test touches the file system; the public-method tests only read the current
-directory and the path of the temporary directory.
+N/A - standard test environment. One test creates a uniquely named directory and file under the temporary
+directory to prove the real look-up, and removes them afterwards; the other public-method tests only read the
+current directory and the path of the temporary directory.
 
 #### Acceptance Criteria
 
 - All unit tests pass with zero failures.
 - Backslashes are separators under the Windows rules and are rejected, naming the argument, under the others.
 - Absolute arguments are split at their first wildcard; those inside the root become anchored root-relative
-  patterns, those outside make their literal directory the search directory, and a trailing separator selects a
-  whole directory.
+  patterns, those outside make their literal directory the search directory, and a trailing separator, or a
+  name that the look-up reports as a directory, selects a whole directory.
+- A name that is not a directory, or is missing, stays a file name; a look-up failure reaches the caller.
+- The look-up is asked only about literal absolute arguments, in forward-slash form.
 - Windows comparisons ignore case and the others are exact.
 - Combinations that cannot be searched from one directory are rejected with an explanation.
 - Every rejection names the argument as typed.
@@ -71,6 +75,29 @@ trailing backslash becomes `/docs/**`. This scenario is tested by
 **CommandLinePathResolver_ResolveWithStyle_FileSystemRootDirectory_SelectsEverything**: `/` is the search directory
 with the pattern `/**`. This scenario is tested by
 `CommandLinePathResolver_ResolveWithStyle_FileSystemRootDirectory_SelectsEverything`.
+
+**CommandLinePathResolver_ResolveWithStyle_ExistingDirectory_SelectsEverythingBeneath**: Under both rule sets, a
+directory without a trailing separator that the look-up reports as existing becomes `/docs/**` inside the root,
+and becomes the search directory with `/**` outside it. This scenario is tested by
+`CommandLinePathResolver_ResolveWithStyle_ExistingDirectory_SelectsEverythingBeneath`.
+
+**CommandLinePathResolver_ResolveWithStyle_NotADirectory_IsFileName**: Under both rule sets, a path that the
+look-up denies, or that is resolved with no look-up, stays an anchored file name. This scenario is tested by
+`CommandLinePathResolver_ResolveWithStyle_NotADirectory_IsFileName`.
+
+**CommandLinePathResolver_ResolveWithStyle_DirectoryProbe_AskedOnlyAboutLiteralAbsolutePaths**: Of a literal
+absolute path, one with a trailing separator, one with a wildcard, and a relative one, the look-up is asked only
+about the first, in forward-slash form. This scenario is tested by
+`CommandLinePathResolver_ResolveWithStyle_DirectoryProbe_AskedOnlyAboutLiteralAbsolutePaths`.
+
+**CommandLinePathResolver_ResolveWithStyle_DirectoryProbeFails_Propagates**: A look-up that throws
+`UnauthorizedAccessException` makes the resolution throw it too. This scenario is tested by
+`CommandLinePathResolver_ResolveWithStyle_DirectoryProbeFails_Propagates`.
+
+**CommandLinePathResolver_Resolve_RealPaths_DirectoryIsSearchedAndFileOrMissingIsName**: With a real temporary
+directory, an existing directory becomes `/docs/**`, an existing file stays `/docs/a.md`, and a missing path stays
+the file name `/docs/nowhere`. This scenario is tested by
+`CommandLinePathResolver_Resolve_RealPaths_DirectoryIsSearchedAndFileOrMissingIsName`.
 
 **CommandLinePathResolver_ResolveWithStyle_TwoAbsoluteOutsideRoot_UsesCommonAncestor**: Two files in sibling
 directories outside the root share their parent as the search directory. This scenario is tested by
