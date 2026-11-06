@@ -264,3 +264,14 @@ sections:
                   - TextChecker_Check_FlaggedIssueWithSuggestions_FormatsSuggestions
                   - TextChecker_Check_UnsupportedDirectiveIssue_FormatsDirectiveMessage
                   - TextChecker_Check_IssueSuggestions_AreImmutable
+
+              - id: TextLint-SpellChecking-TextChecker-IssueFileName
+                title: >-
+                  TextChecker shall let a caller format a finding under a file name of the caller's choosing,
+                  in the same compiler style as the finding's own formatting.
+                justification: |
+                  A finding records the path relative to the root directory, but a user who typed an absolute
+                  path expects to see that path in the output. Letting the caller choose the name keeps the
+                  message wording and position format in one place instead of copied into every consumer.
+                tests:
+                  - TextChecker_Format_CallerFileName_ReplacesRecordedFileName

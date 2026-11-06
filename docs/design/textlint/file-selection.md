@@ -7,11 +7,13 @@
 The `FileSelection` subsystem applies glob include and ignore patterns to a root directory and returns
 the ordered list of files to check. It owns the glob pattern rules: which pattern forms are accepted, how
 brace alternatives and bare names are interpreted, case sensitivity, the hidden-file rule, and the
-order of the result. The subsystem contains three units: `GlobPatternExpander`, which validates
+order of the result. The subsystem contains four units: `GlobPatternExpander`, which validates
 and rewrites patterns; `HiddenPathPolicy`, which decides which hidden paths the patterns may
-reach; and `FileSelector`, which walks the directory and produces the result. The supporting types
+reach; `FileSelector`, which walks the directory and produces the result; and `CommandLinePathResolver`,
+which turns the path arguments a person types on a command line into a search directory and
+validated patterns. The supporting types
 `SelectedFile`, `InvalidGlobPatternException`, and an internal directory view are documented with
-the unit that uses them.
+the unit that uses them, and `CommandLineSelection` with `CommandLinePathResolver`.
 
 The subsystem reads directory listings but never opens a file, and it does no console output. It
 does not read settings files; that belongs to the `Configuration` subsystem.
@@ -35,6 +37,21 @@ does not read settings files; that belongs to the `Configuration` subsystem.
   token is cancelled before the call or while the directory tree is read; the walk stops at the next directory or
   directory entry. Matching is case-sensitive on every platform. The pattern
   lists are only read during the call.
+
+**CommandLinePathResolver.Resolve**: Turns command-line path arguments into a search directory and patterns.
+
+- _Type_: In-process .NET static method returning a `CommandLineSelection`.
+- _Role_: Provider.
+- _Contract_: Accepts a root directory path and a non-empty list of arguments as typed, and returns the absolute
+  search directory, the validated patterns relative to it, whether files are to be named by absolute path, and
+  `GetDisplayPath`, which gives the name under which a selected file is reported. Relative arguments are patterns
+  relative to the root; on Windows a backslash is a separator. Absolute arguments are split at their first wildcard
+  into a literal directory and a pattern, and one inside the root means the same as its relative form.
+- _Constraints_: Throws `ArgumentNullException` or `ArgumentException` for null, empty, or invalid input, and
+  `InvalidGlobPatternException`, naming the argument as typed, for anything the pattern rules or the absolute-path
+  rules reject. Throws `ArgumentException` for a relative argument combined with an absolute one outside the root
+  and for absolute arguments on different drives. The settings-file rules are not affected: they still reject
+  absolute paths and backslashes.
 
 **Supported pattern forms**: Patterns use `/` as the separator and `*` and `**` as wildcards.
 `**` matches any number of directory levels. Brace alternatives such as `*.{md,cs}` expand to one
@@ -75,3 +92,10 @@ paths are sorted by ordinal comparison, which makes the result identical on ever
 Case sensitivity is requested explicitly because the matcher is case-insensitive by default. Symbolic
 links and junctions are handled however the matcher's directory abstraction handles them; the
 subsystem adds no special treatment.
+
+Command-line input takes a separate, forgiving path in front of the same pipeline. `CommandLinePathResolver`
+rewrites what a person typed (backslashes on Windows, absolute paths) into a search directory and patterns that
+satisfy the strict rules, validates them with `GlobPatternExpander`, and hands the result to `FileSelector`
+unchanged, so selection itself has one implementation and the settings-file rules stay strict. The resolver
+touches no file system entry; it is pure string logic, so both the Windows and the other path rules are tested
+on every operating system.

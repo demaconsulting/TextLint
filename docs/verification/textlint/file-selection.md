@@ -4,7 +4,8 @@
 
 The `FileSelection` subsystem is verified by integration tests in `FileSelectionSubsystemTests.cs`. They build
 real directory trees in a per-test temporary directory and call `FileSelector.Select`, so `FileSelector`,
-`GlobPatternExpander`, and `HiddenPathPolicy` are exercised together with the real matcher (an OTS item).
+`GlobPatternExpander`, and `HiddenPathPolicy` are exercised together with the real matcher (an OTS item). The
+command-line scenarios also call `CommandLinePathResolver.Resolve` and select with its result.
 The subsystem has no dependencies on other subsystems: its inputs are plain pattern lists and a hidden-file
 switch, so the tests need no settings object. The only
 test double is a recording directory that wraps the real directory and records which directories are
@@ -28,6 +29,8 @@ that it holds on all of them.
 - Hidden entries are skipped by wildcards unless enabled, and hidden names written literally are selected.
 - Ignored and hidden directories are not enumerated.
 - Results are in ordinal order with forward-slash paths.
+- Command-line paths, absolute or with Windows separators, select the same files as their relative form, honor
+  the ignore patterns, and are named by absolute path in reports.
 
 ### Test Scenarios
 
@@ -77,3 +80,17 @@ subdirectory. This scenario is tested by `FileSelectionSubsystem_Select_Cancelle
 **FileSelectionSubsystem_Select_UnorderedTree_ReturnsOrdinalOrder**: Files created out of order across
 directories are returned in ordinal order. This scenario is tested by
 `FileSelectionSubsystem_Select_UnorderedTree_ReturnsOrdinalOrder`.
+
+**FileSelectionSubsystem_ResolveCommandLine_AbsolutePatternInsideRoot_SelectsAndHonorsIgnore**: A pattern written
+as an absolute path of the running platform, beneath the root, is resolved and used with an ignore pattern
+relative to the root; the ignored subtree is not selected and the file is named by its absolute path. This
+scenario is tested by `FileSelectionSubsystem_ResolveCommandLine_AbsolutePatternInsideRoot_SelectsAndHonorsIgnore`.
+
+**FileSelectionSubsystem_ResolveCommandLine_AbsolutePatternOutsideRoot_SelectsBeneathItsDirectory**: A pattern in an
+unrelated tree makes that tree's literal directory the search directory; the files below it are selected with
+paths relative to it and named by absolute path. This scenario is tested by
+`FileSelectionSubsystem_ResolveCommandLine_AbsolutePatternOutsideRoot_SelectsBeneathItsDirectory`.
+
+**FileSelectionSubsystem_ResolveCommandLine_BackslashRelativePath_FollowsPlatformRules**: A PowerShell-style relative
+path selects the file on Windows and is rejected on every other system. This scenario is tested by
+`FileSelectionSubsystem_ResolveCommandLine_BackslashRelativePath_FollowsPlatformRules`.

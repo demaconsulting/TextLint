@@ -26,6 +26,7 @@ input-files:
   - docs/verification/textlint/file-selection/glob-pattern-expander.md
   - docs/verification/textlint/file-selection/hidden-path-policy.md
   - docs/verification/textlint/file-selection/file-selector.md
+  - docs/verification/textlint/file-selection/command-line-path-resolver.md
   - docs/verification/textlint/dictionaries.md
   - docs/verification/textlint/dictionaries/spelling-dictionary.md
   - docs/verification/textlint/dictionaries/dictionary-image.md

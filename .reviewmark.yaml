@@ -206,6 +206,21 @@ reviews:
       - "src/DemaConsulting.TextLint/FileSelection/CancellableDirectory.cs"
       - "test/**/FileSelection/FileSelectorTests.cs"
 
+  - id: TextLint-FileSelection-CommandLinePathResolver
+    title: Review that TextLint FileSelection CommandLinePathResolver Implementation is Correct
+    context:
+      - docs/design/textlint.md
+      - docs/reqstream/textlint.yaml
+      - docs/design/textlint/file-selection.md
+      - docs/reqstream/textlint/file-selection.yaml
+    paths:
+      - "docs/reqstream/textlint/file-selection/command-line-path-resolver.yaml"
+      - "docs/design/textlint/file-selection/command-line-path-resolver.md"
+      - "docs/verification/textlint/file-selection/command-line-path-resolver.md"
+      - "src/DemaConsulting.TextLint/FileSelection/CommandLinePathResolver.cs"
+      - "src/DemaConsulting.TextLint/FileSelection/CommandLineSelection.cs"
+      - "test/**/FileSelection/CommandLinePathResolverTests.cs"
+
   # TextLint - Dictionaries
   - id: TextLint-Dictionaries
     title: Review that TextLint Dictionaries Satisfies Subsystem Requirements

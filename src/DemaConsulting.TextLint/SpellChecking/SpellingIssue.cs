@@ -124,7 +124,20 @@ public sealed class SpellingIssue
     ///     <see cref="Configuration.SettingsDiagnostic"/> too. Without a file name the location is just the position.
     /// </remarks>
     /// <returns>The formatted finding.</returns>
-    public override string ToString()
+    public override string ToString() => Format(FilePath);
+
+    /// <summary>
+    ///     Formats the finding in the compiler style, naming the file as the caller chooses.
+    /// </summary>
+    /// <remarks>
+    ///     The checker names a file by its path relative to the root directory, but a caller that was given
+    ///     absolute paths (the command-line tool) must show those instead, and must not copy the message
+    ///     wording to do so. This keeps the format in one place: <see cref="ToString"/> is this method
+    ///     applied to <see cref="FilePath"/>. Stateless apart from reading the finding; thread-safe.
+    /// </remarks>
+    /// <param name="filePath">The file name to show before the position; null shows only the position.</param>
+    /// <returns>The formatted finding.</returns>
+    public string Format(string? filePath)
     {
         // Describe the finding by its kind, adding any suggestions
         var message = Kind switch
@@ -139,6 +152,6 @@ public sealed class SpellingIssue
             message += $"; suggestions: {string.Join(", ", Suggestions)}";
         }
 
-        return $"{FilePath}({Line},{Column}): error: {message}";
+        return $"{filePath}({Line},{Column}): error: {message}";
     }
 }

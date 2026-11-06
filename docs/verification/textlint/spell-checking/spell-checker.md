@@ -164,6 +164,10 @@ message`. This scenario is tested by `SpellChecker_FileDiagnostic_ErrorToString_
 **SpellChecker_FileDiagnostic_SkipToString_UsesInfoSeverity**: A skip diagnostic formats as `file: info: message`.
 This scenario is tested by `SpellChecker_FileDiagnostic_SkipToString_UsesInfoSeverity`.
 
+**SpellChecker_FileDiagnostic_FormatCallerFileName_ReplacesRecordedFileName**: An error and a skip diagnostic are
+formatted under an absolute name chosen by the caller, keeping their severities, and a null name throws. This
+scenario is tested by `SpellChecker_FileDiagnostic_FormatCallerFileName_ReplacesRecordedFileName`.
+
 **SpellChecker_CheckAsync_CancelledToken_ThrowsOperationCanceledException**: A token that is already cancelled stops
 the run. This scenario is tested by `SpellChecker_CheckAsync_CancelledToken_ThrowsOperationCanceledException`.
 

@@ -1,0 +1,114 @@
+---
+# Software Unit Requirements for the CommandLinePathResolver Class
+#
+# The CommandLinePathResolver class turns the path and pattern arguments a user types on a command
+# line into a search directory and validated portable patterns, and it defines the supporting
+# CommandLineSelection result that names the files found. Settings-file patterns stay strict; this
+# unit is the forgiving front door for command-line input only.
+
+sections:
+  - title: TextLint Requirements
+    sections:
+      - title: FileSelection Requirements
+        sections:
+          - title: CommandLinePathResolver Requirements
+            requirements:
+              - id: TextLint-FileSelection-CommandLinePathResolver-Separators
+                title: >-
+                  CommandLinePathResolver shall accept backslashes as path separators in command-line
+                  arguments on Windows, and shall not accept them as separators on other operating systems.
+                justification: |
+                  PowerShell completes paths as .\docs\guide.md, so Windows users must be able to type what the
+                  shell gives them. Elsewhere a backslash is an ordinary file-name character, and treating it as
+                  a separator would silently change which files are selected.
+                tests:
+                  - CommandLinePathResolver_ResolveWithStyle_WindowsBackslashRelative_ConvertsSeparators
+                  - CommandLinePathResolver_ResolveWithStyle_UnixBackslashRelative_IsRejected
+                  - CommandLinePathResolver_Resolve_BackslashRelativePath_FollowsPlatformRules
+
+              - id: TextLint-FileSelection-CommandLinePathResolver-AbsolutePaths
+                title: >-
+                  CommandLinePathResolver shall accept absolute paths and patterns (a drive path or network
+                  path on Windows, a path that starts with a slash elsewhere), treating the literal leading
+                  directory as the place to search and the rest as the pattern within it, treating an absolute
+                  argument inside the root directory as the equivalent relative argument, anchoring file names
+                  at their directory, selecting a whole directory when the argument ends with a separator, and
+                  never expanding a tilde.
+                justification: |
+                  Editors, pre-commit hooks, and people who copy a path from a file manager supply absolute
+                  paths. A path inside the project must behave exactly like its relative form so that settings
+                  such as the ignore patterns still apply, and a file name must match only where it was
+                  written, not at every depth. A tilde is expanded by the shell and means nothing to the
+                  library; guessing a home directory would be wrong as often as right.
+                tests:
+                  - CommandLinePathResolver_ResolveWithStyle_WindowsAbsoluteFileInsideRoot_AnchorsBeneathRoot
+                  - CommandLinePathResolver_ResolveWithStyle_AbsoluteFileDirectlyInRoot_IsAnchored
+                  - CommandLinePathResolver_ResolveWithStyle_WindowsDifferentCase_IsInsideRoot
+                  - CommandLinePathResolver_ResolveWithStyle_UnixDifferentCase_IsOutsideRoot
+                  - CommandLinePathResolver_ResolveWithStyle_AbsoluteWildcardInsideRoot_KeepsWildcardPart
+                  - CommandLinePathResolver_ResolveWithStyle_AbsoluteOutsideRoot_UsesLiteralPartAsBase
+                  - CommandLinePathResolver_ResolveWithStyle_AbsoluteDirectory_SelectsEverythingBeneath
+                  - CommandLinePathResolver_ResolveWithStyle_FileSystemRootDirectory_SelectsEverything
+                  - CommandLinePathResolver_ResolveWithStyle_WindowsNetworkPath_UsesServerAndShareAsRoot
+                  - CommandLinePathResolver_ResolveWithStyle_Tilde_IsNotExpanded
+                  - CommandLinePathResolver_ResolveWithStyle_ParentSegmentsInLiteralPart_AreNormalized
+                  - CommandLinePathResolver_Resolve_PlatformAbsolutePath_IsAnchoredInsideRoot
+                  - CommandLinePathResolver_Resolve_RelativeRoot_BecomesAbsolute
+
+              - id: TextLint-FileSelection-CommandLinePathResolver-Combination
+                title: >-
+                  CommandLinePathResolver shall combine several arguments into one selection, using the
+                  deepest directory that contains every absolute argument as the search directory when any
+                  lies outside the root directory, and shall reject a combination that cannot be searched from
+                  one directory: a relative argument with an absolute argument outside the root directory, or
+                  absolute arguments on different drives or network shares.
+                justification: |
+                  A run searches beneath one directory. Relative arguments mean "relative to the root", so
+                  re-basing them would change their meaning, and paths on different drives have no common
+                  directory; both are better rejected with an explanation than silently misinterpreted.
+                tests:
+                  - CommandLinePathResolver_ResolveWithStyle_TwoAbsoluteOutsideRoot_UsesCommonAncestor
+                  - CommandLinePathResolver_ResolveWithStyle_DifferentDrives_ThrowsArgumentException
+                  - CommandLinePathResolver_ResolveWithStyle_RelativeAndOutsideAbsolute_ThrowsArgumentException
+                  - CommandLinePathResolver_ResolveWithStyle_RelativeAndInsideAbsolute_AreCombined
+
+              - id: TextLint-FileSelection-CommandLinePathResolver-Validation
+                title: >-
+                  CommandLinePathResolver shall reject missing, empty, and white-space input, and shall reject
+                  every argument that the pattern rules reject, a drive-relative path, a path that starts with a
+                  separator but names no drive on Windows, an incomplete network path, and a path that climbs
+                  above the root of the file system, with an error that names the argument as the user typed it.
+                justification: |
+                  A rejected argument must be recognizable to the person who typed it. Reporting the rewritten
+                  form (a converted separator or an anchored pattern the user never wrote) would point at text
+                  that is not on their command line.
+                tests:
+                  - CommandLinePathResolver_ResolveWithStyle_WindowsNetworkPathWithoutShare_IsRejected
+                  - CommandLinePathResolver_ResolveWithStyle_WindowsDriveRelative_IsRejected
+                  - CommandLinePathResolver_ResolveWithStyle_WindowsRootedWithoutDrive_IsRejected
+                  - CommandLinePathResolver_ResolveWithStyle_UnixDriveLetterPath_IsRejected
+                  - CommandLinePathResolver_ResolveWithStyle_ParentAboveFileSystemRoot_IsRejected
+                  - CommandLinePathResolver_ResolveWithStyle_PatternRuleViolation_NamesTypedArgument
+                  - CommandLinePathResolver_ResolveWithStyle_BlankArgument_IsRejected
+                  - CommandLinePathResolver_Resolve_InvalidInput_Throws
+
+              - id: TextLint-FileSelection-CommandLinePathResolver-DisplayPath
+                title: >-
+                  CommandLineSelection shall name a selected file by its absolute path when any argument was
+                  absolute, and by its relative path unchanged otherwise.
+                justification: |
+                  A user who typed a full path expects to see a full path in the output, and one who typed a
+                  relative path expects a relative one; keeping the decision with the selection means every
+                  consumer reports files the same way.
+                tests:
+                  - CommandLinePathResolver_GetDisplayPath_RelativeAndAbsoluteReporting_FollowsSelection
+
+              - id: TextLint-FileSelection-CommandLinePathResolver-ImmutableResult
+                title: >-
+                  CommandLineSelection shall keep its own copy of the patterns, so that neither the caller's
+                  argument list nor a consumer holding the selection can change them afterwards.
+                justification: |
+                  The patterns decide which files are checked; a list that could change between resolution
+                  and use would make the result of a run depend on code that has nothing to do with it.
+                tests:
+                  - CommandLinePathResolver_Resolve_Patterns_AreImmutableCopy

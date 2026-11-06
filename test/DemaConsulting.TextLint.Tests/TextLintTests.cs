@@ -28,6 +28,7 @@ using System.Text;
 using DemaConsulting.TextLint.Configuration;
 using DemaConsulting.TextLint.Dictionaries;
 using DemaConsulting.TextLint.FileSelection;
+using DemaConsulting.TextLint.SpellChecking;
 using DemaConsulting.TextLint.Tests.TestSupport;
 using Microsoft.Extensions.FileSystemGlobbing.Abstractions;
 
@@ -614,6 +615,46 @@ public class TextLintTests
         Assert.Multiple(
             () => Assert.Contains("'C:/docs/**'", exception.Message),
             () => Assert.Contains("absolute paths", exception.Message));
+    }
+
+    /// <summary>
+    ///     Test that an absolute path argument is checked and its findings are named by absolute path.
+    /// </summary>
+    [Fact]
+    public async Task TextLint_CommandLinePaths_AbsolutePath_ChecksFileAndNamesItAbsolute()
+    {
+        // Arrange: a file with a misspelling, named on the command line by its absolute path
+        using var temp = new TempDirectory();
+        var file = temp.CreateFile("docs/a.md", "Hello xyzzyq\n");
+
+        // Act: resolve the argument, check what it selects, and name the finding as a command-line front-end would
+        var selection = CommandLinePathResolver.Resolve(temp.FullPath, [file]);
+        var settings = new TextLintSettings { Files = selection.Patterns };
+        var result = await SpellChecker.CheckAsync(settings, selection.RootDirectory, cancellationToken: TestContext.Current.CancellationToken);
+        var issue = Assert.Single(result.Issues);
+
+        // Assert: the finding is named by the absolute path the user typed
+        Assert.Equal($"{file}(1,7): error: Unknown word 'xyzzyq'", issue.Format(selection.GetDisplayPath(issue.FilePath!)));
+    }
+
+    /// <summary>
+    ///     Test that a relative path argument is checked and its findings are named by relative path.
+    /// </summary>
+    [Fact]
+    public async Task TextLint_CommandLinePaths_RelativePath_ChecksFileAndNamesItRelative()
+    {
+        // Arrange: a file with a misspelling, named on the command line by a relative path
+        using var temp = new TempDirectory();
+        temp.CreateFile("docs/a.md", "Hello xyzzyq\n");
+
+        // Act: resolve the argument, check what it selects, and name the finding as a command-line front-end would
+        var selection = CommandLinePathResolver.Resolve(temp.FullPath, ["docs/*.md"]);
+        var settings = new TextLintSettings { Files = selection.Patterns };
+        var result = await SpellChecker.CheckAsync(settings, selection.RootDirectory, cancellationToken: TestContext.Current.CancellationToken);
+        var issue = Assert.Single(result.Issues);
+
+        // Assert: the finding is named by the relative path with forward slashes
+        Assert.Equal("docs/a.md(1,7): error: Unknown word 'xyzzyq'", issue.Format(selection.GetDisplayPath(issue.FilePath!)));
     }
 
     /// <summary>

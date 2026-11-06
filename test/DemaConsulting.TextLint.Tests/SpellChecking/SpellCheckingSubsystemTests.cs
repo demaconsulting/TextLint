@@ -583,4 +583,31 @@ public class SpellCheckingSubsystemTests
         await Assert.ThrowsAnyAsync<OperationCanceledException>(
             () => SpellChecker.CheckAsync(settings, temp.FullPath, cancellationToken: source.Token));
     }
+
+    /// <summary>
+    ///     Test that findings and file diagnostics of a run can be formatted under names chosen by the caller.
+    /// </summary>
+    [Fact]
+    public async Task SpellCheckingSubsystem_CheckAsync_CallerFileNames_NameIssueAndDiagnostic()
+    {
+        // Arrange: a text file with a misspelling and a binary file, checked in one run
+        using var temp = new TempDirectory();
+        temp.CreateFile("a.md", $"Hello {Unknown}\n");
+        WriteBytes(temp, "b.bin", [0, 1, 2]);
+        var settings = new TextLintSettings { Files = ["*.md", "*.bin"] };
+
+        // Act: run the check, then format each entry under its absolute path
+        var result = await SpellChecker.CheckAsync(settings, temp.FullPath, cancellationToken: TestContext.Current.CancellationToken);
+        var issue = Assert.Single(result.Issues);
+        var diagnostic = Assert.Single(result.FileDiagnostics);
+        var issueName = Path.Combine(temp.FullPath, issue.FilePath!);
+        var diagnosticName = Path.Combine(temp.FullPath, diagnostic.FilePath);
+
+        // Assert: the caller's names replace the relative names and nothing else changes
+        Assert.Multiple(
+            () => Assert.Equal($"{issueName}(1,7): error: Unknown word '{Unknown}'", issue.Format(issueName)),
+            () => Assert.StartsWith($"{diagnosticName}: info: ", diagnostic.Format(diagnosticName)),
+            () => Assert.Equal(issue.ToString(), issue.Format(issue.FilePath)),
+            () => Assert.Equal(diagnostic.ToString(), diagnostic.Format(diagnostic.FilePath)));
+    }
 }

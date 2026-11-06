@@ -10,5 +10,6 @@ package TextLint {
         part globPatternExpander : GlobPatternExpander;
         part hiddenPathPolicy : HiddenPathPolicy;
         part fileSelector : FileSelector;
+        part commandLinePathResolver : CommandLinePathResolver;
     }
 }

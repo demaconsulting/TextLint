@@ -1661,6 +1661,26 @@ public class TextCheckerTests
     }
 
     /// <summary>
+    ///     Test that a finding can be formatted under a file name chosen by the caller.
+    /// </summary>
+    [Fact]
+    public void TextChecker_Format_CallerFileName_ReplacesRecordedFileName()
+    {
+        // Arrange: a finding recorded under a relative name, and an absolute name to show instead
+        var issue = Assert.Single(Check("hello wrold", sourceName: "docs/a.md"));
+        var shown = Path.GetFullPath("docs/a.md");
+
+        // Act: format the finding under the caller's name, and with no name at all
+        var formatted = issue.Format(shown);
+        var withoutName = issue.Format(null);
+
+        // Assert: only the file name changes; the position and message stay in the compiler style
+        Assert.Multiple(
+            () => Assert.Equal($"{shown}(1,7): error: Unknown word 'wrold'", formatted),
+            () => Assert.Equal("(1,7): error: Unknown word 'wrold'", withoutName));
+    }
+
+    /// <summary>
     ///     Test that a finding without a file name is formatted with the position only.
     /// </summary>
     [Fact]

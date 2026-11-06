@@ -134,4 +134,9 @@ zero and a negative one are rejected when the options are created. This scenario
 cancelled stops the run with a cancellation and no result. This scenario is tested by
 `SpellCheckingSubsystem_CheckAsync_CancelledToken_ThrowsOperationCanceledException`.
 
+**SpellCheckingSubsystem_CheckAsync_CallerFileNames_NameIssueAndDiagnostic**: A run over a text file with a
+misspelling and a binary file is formatted under absolute names chosen by the caller; the names replace the
+relative names, and formatting under the recorded names gives the same text as the default formatting. This
+scenario is tested by `SpellCheckingSubsystem_CheckAsync_CallerFileNames_NameIssueAndDiagnostic`.
+
 <!-- cspell:ignore wrold speling -->

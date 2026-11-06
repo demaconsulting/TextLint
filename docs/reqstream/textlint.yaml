@@ -222,6 +222,28 @@ sections:
           - TextLint_Settings_AbsolutePathPattern_ReportsFileLineAndColumn
           - TextLint_Settings_QuestionMarkPattern_ReportsErrorSuggestingStar
 
+      - id: TextLint-System-CommandLinePaths
+        title: >-
+          The library shall turn path and pattern arguments typed on a command line, relative or
+          absolute and written with the separators of the operating system, into a validated search
+          directory and patterns, and shall let the caller name each file found by absolute path when
+          an absolute path was given and by relative path otherwise, while settings-file patterns
+          remain relative and portable.
+        tags: [system]
+        justification: |
+          Command-line users type what their shell and editor give them, including backslash paths on
+          Windows and absolute paths from editors, and expect to see paths in the form they typed in
+          the results. Every program built on the library must interpret such input the same way, so
+          the rules belong to the library and not to each command-line front-end, while settings files
+          stay strict so that one file selects the same files on every platform.
+        children:
+          - TextLint-FileSelection-CommandLinePaths
+          - TextLint-FileSelection-CommandLineReporting
+          - TextLint-SpellChecking-ReportFileNames
+        tests:
+          - TextLint_CommandLinePaths_AbsolutePath_ChecksFileAndNamesItAbsolute
+          - TextLint_CommandLinePaths_RelativePath_ChecksFileAndNamesItRelative
+
       - id: TextLint-System-WordLookup
         title: >-
           The library shall report whether a word is known to the selected language, ignoring

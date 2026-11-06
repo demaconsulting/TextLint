@@ -283,4 +283,86 @@ public class FileSelectionSubsystemTests
         // Assert: ordinal order with forward-slash paths
         Assert.Equal(["a/first.md", "m.md", "z/last.md"], paths);
     }
+
+    /// <summary>
+    ///     Test that an absolute pattern inside the root selects the same files as its relative form and honors the ignore patterns.
+    /// </summary>
+    [Fact]
+    public void FileSelectionSubsystem_ResolveCommandLine_AbsolutePatternInsideRoot_SelectsAndHonorsIgnore()
+    {
+        // Arrange: a tree with an old subtree, and a pattern written as an absolute path of this platform
+        using var temp = new TempDirectory();
+        temp.CreateFile("docs/a.md");
+        temp.CreateFile("docs/old/b.md");
+        temp.CreateFile("docs/c.txt");
+        var argument = Path.Combine(temp.FullPath, "docs", "**", "*.md");
+
+        // Act: resolve the argument, then select with an ignore pattern that is relative to the root
+        var selection = CommandLinePathResolver.Resolve(temp.FullPath, [argument]);
+        var files = FileSelector.Select(
+            selection.RootDirectory,
+            selection.Patterns,
+            ["docs/old/**"],
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        // Assert: the old subtree is ignored, and the file is named by its absolute path
+        Assert.Multiple(
+            () => Assert.Equal(["docs/a.md"], files.Select(file => file.RelativePath)),
+            () => Assert.Equal(Path.Combine(temp.FullPath, "docs", "a.md"), selection.GetDisplayPath(files[0].RelativePath)));
+    }
+
+    /// <summary>
+    ///     Test that an absolute pattern outside the root selects files beneath its own directory.
+    /// </summary>
+    [Fact]
+    public void FileSelectionSubsystem_ResolveCommandLine_AbsolutePatternOutsideRoot_SelectsBeneathItsDirectory()
+    {
+        // Arrange: a working root, and a separate tree that holds the files
+        using var workRoot = new TempDirectory();
+        using var other = new TempDirectory();
+        other.CreateFile("notes/a.md");
+        other.CreateFile("notes/deep/b.md");
+        other.CreateFile("notes/c.txt");
+        var argument = Path.Combine(other.FullPath, "notes", "**", "*.md");
+
+        // Act: resolve against the unrelated root, then select
+        var selection = CommandLinePathResolver.Resolve(workRoot.FullPath, [argument]);
+        var files = FileSelector.Select(
+            selection.RootDirectory,
+            selection.Patterns,
+            [],
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        // Assert: the search base is the literal directory, and the files are named by absolute path
+        Assert.Multiple(
+            () => Assert.Equal(Path.Combine(other.FullPath, "notes"), selection.RootDirectory),
+            () => Assert.Equal(["a.md", "deep/b.md"], files.Select(file => file.RelativePath)),
+            () => Assert.Equal(
+                [Path.Combine(other.FullPath, "notes", "a.md"), Path.Combine(other.FullPath, "notes", "deep", "b.md")],
+                files.Select(file => selection.GetDisplayPath(file.RelativePath))));
+    }
+
+    /// <summary>
+    ///     Test that a path with backslashes selects a file on Windows and is rejected elsewhere.
+    /// </summary>
+    [Fact]
+    public void FileSelectionSubsystem_ResolveCommandLine_BackslashRelativePath_FollowsPlatformRules()
+    {
+        // Arrange: a tree with one file and the PowerShell-style path to it
+        using var temp = new TempDirectory();
+        temp.CreateFile("docs/guide.md");
+        var argument = @".\docs\guide.md";
+
+        // Act / Assert: Windows selects the file; other systems reject the backslash
+        if (OperatingSystem.IsWindows())
+        {
+            var selection = CommandLinePathResolver.Resolve(temp.FullPath, [argument]);
+            var files = FileSelector.Select(selection.RootDirectory, selection.Patterns, [], cancellationToken: TestContext.Current.CancellationToken);
+            Assert.Equal(["docs/guide.md"], files.Select(file => file.RelativePath));
+        }
+        else
+        {
+            Assert.Throws<InvalidGlobPatternException>(() => CommandLinePathResolver.Resolve(temp.FullPath, [argument]));
+        }
+    }
 }

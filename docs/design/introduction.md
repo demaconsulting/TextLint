@@ -22,8 +22,9 @@ Local items:
   - **Configuration** subsystem: **TextLintSettings** (the immutable settings value) and
     **SettingsLoader** (reads a `.textlint.yaml` file, with its result and diagnostic types)
   - **FileSelection** subsystem: **GlobPatternExpander** (pattern validation and rewriting),
-    **HiddenPathPolicy** (the hidden-name rule), and **FileSelector** (selects files, with its
-    result and exception types)
+    **HiddenPathPolicy** (the hidden-name rule), **FileSelector** (selects files, with its
+    result and exception types), and **CommandLinePathResolver** (turns command-line path arguments
+    into a search directory and patterns, with its result type)
   - **Dictionaries** subsystem: **SpellingDictionary** (the public word lookup and language
     selection) and **DictionaryImage** (loads, validates, and probes one embedded binary dictionary)
   - **TextScanning** subsystem: **WordTokenizer** (what a word is: words, tokens, case-change pieces, and

@@ -87,6 +87,20 @@ sections:
               - SpellCheckingSubsystem_CheckAsync_UnreadableFile_IsReportedAndRunContinues
               - SpellCheckingSubsystem_CheckAsync_MissingRoot_ThrowsDirectoryNotFoundException
 
+          - id: TextLint-SpellChecking-ReportFileNames
+            title: >-
+              The SpellChecking subsystem shall let a caller format each finding and each file diagnostic
+              of a run under a file name of the caller's choosing.
+            justification: |
+              A consumer that was given absolute paths must show them, while the run itself names files
+              relative to its root directory; formatting under a caller-chosen name keeps the message
+              wording and severity rules in the subsystem instead of copied into every consumer.
+            children:
+              - TextLint-SpellChecking-TextChecker-IssueFileName
+              - TextLint-SpellChecking-SpellChecker-DiagnosticFileName
+            tests:
+              - SpellCheckingSubsystem_CheckAsync_CallerFileNames_NameIssueAndDiagnostic
+
           - id: TextLint-SpellChecking-ParallelDeterminism
             title: >-
               The SpellChecking subsystem shall return the same results in the same order, by file path,
