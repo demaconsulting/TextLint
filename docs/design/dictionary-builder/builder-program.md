@@ -24,7 +24,8 @@ names, the technical folder's sub-folders and keep list, and output file paths),
 file system `alpha` and `ALPHA` are one folder and one file. The parsed command line is held in a private record
 with the
 absolute input folder, the absolute output folder, the list of dictionary names in command-line order, the name
-of the technical dictionary (or none), the names of the variant dictionaries, and the file operations to use. The
+of the technical dictionary (or none), the names of the variant dictionaries, the absolute path of the exclusions
+list (or none), and the file operations to use. The
 names and the technical and variant references are stored in immutable collections, in the spelling in which the
 dictionaries were declared. A
 dictionary that has been read is held in a private record of its name, the on-disk folder it was read from, its words,
@@ -58,16 +59,19 @@ instance, which calls the file system directly; tests pass a subclass that throw
   changed and no temporary file remains; with exit code 3 the error stream names every file that may be
   inconsistent or was left behind.
 
-`Run` first parses the arguments. It then lists the input folder once, reads every declared dictionary (resolving
+`Run` first parses the arguments. It then lists the input folder once, reads the exclusions list when one was given,
+reads every declared dictionary (resolving
 each name against that listing), collecting every problem into one
-list; it reports each folder in the same listing that holds word lists but was not declared; and when the
+list; it reports each folder in the same listing that holds word lists but was not declared; when the exclusions list
+was read without problems and no other problem was found it applies the exclusions; and when the
 list of problems is still empty it serializes every dictionary through `DictionaryWriter` in memory. Only after
 all of that does it either print the problems and return 1, or write the files.
 
 **ParseArguments**: parses the command line into the private options record. The options `--input`, `--output`,
-`--technical`, and `--variants` each need a value that is present, not empty or blank, and does not itself start
-with a hyphen (an empty output folder, for example, would otherwise silently resolve to the working folder); the
-first three may
+`--technical`, `--variants`, and `--exclusions` each need a value that is present, not empty or blank, and does not
+itself start
+with a hyphen (an empty output folder, for example, would otherwise silently resolve to the working folder); all but
+`--variants` may
 appear once and `--variants` may repeat with different values. Every other argument is a dictionary name, which
 must consist of ASCII letters, digits, hyphens, and underscores and must not repeat ignoring letter case, so that a
 name can never contain a path separator and climb out of the input or output folder and two names can never be
@@ -111,6 +115,18 @@ silently strip approved words. The three sets and the variant words go to `Varia
 that the filter reports as not being a spelling variant becomes a problem naming the keep list and the word. The
 summary text for the technical dictionary states how many variants were kept through language lists, kept
 through the keep list, and stripped.
+
+**ReadExclusions**: when an exclusions list was given, has `WordListReader` read that one file, which is validated
+like every word list, so a bad entry is reported with its file and line. A list that cannot be read (including one
+that does not exist) is a problem and never an empty list, because ignoring it would let every excluded word back
+into the product; a list with no words is allowed. It returns the excluded words, or nothing when no list was given
+or the list had a problem.
+
+**ApplyExclusions**: gives the words of every dictionary to `ExclusionFilter` together with the excluded words and
+returns the dictionaries without them. Each excluded word that no dictionary had becomes a problem naming the
+exclusions list and the word ("not in any dictionary"), so a stale entry is noticed. It runs only when no other
+problem exists, because a dictionary that failed to read would make every exclusion look unused. The summary text of
+each dictionary gains the number of words excluded from it.
 
 **ReportUndeclaredFolders**: looks at every folder of the same listing, in ordinal order, and reports one that
 contains word-list files but is not declared (matched ignoring case), or that cannot be searched to find out, which
@@ -170,6 +186,7 @@ Anything else is a defect and propagates as an unhandled exception, which also f
 - **WordListReader** - reads and validates the word lists of one dictionary or of an explicit list of files,
   and finds word-list files.
 - **VariantFilter** - applies the spelling-variant rule to the technical lists.
+- **ExclusionFilter** - removes the excluded words from every dictionary.
 - **DictionaryWriter** - serializes the words of one dictionary.
 - **.NET BCL** - file system access, text writers, and collections.
 

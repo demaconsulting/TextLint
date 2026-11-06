@@ -349,12 +349,24 @@ an unknown word are looked up with the correct answers. This scenario is tested 
 dictionary resources under their stable names, and each starts with the dictionary file identifier. This scenario
 is tested by `TextLint_Assembly_Loaded_EmbedsDictionaries`.
 
-**TextLint_Dictionary_EveryListedWord_IsKnown**: Every entry of every word list in the repository is looked up as
+**TextLint_Dictionary_EveryListedWord_IsKnown**: Every entry of every word list in the repository, except the words
+of the reviewed exclusions list (which are skipped explicitly and checked by the next scenario), is looked up as
 written, in lower case, and in upper case, in each language selection that must know the list: the common words
 in the American and the British selection, the regional lists in their own selection, the programming-language
 lists and the reviewed variant list in both single-language selections, and the general technical lists in the
 combined selection. Every lookup is known, and the test fails for a word list in a folder it does not know, so a
-new list cannot go unchecked. This scenario is tested by `TextLint_Dictionary_EveryListedWord_IsKnown`.
+new list cannot go unchecked; the exclusions list itself is not a word list of any dictionary and is not looked
+up. This scenario is tested by `TextLint_Dictionary_EveryListedWord_IsKnown`.
+
+**TextLint_Dictionary_EveryExcludedWord_IsUnknown**: Every word of the reviewed exclusions list is looked up as
+written, capitalized, and in upper case in the American, the British, and the combined selection; none is known,
+and the list is not empty. This scenario is tested by `TextLint_Dictionary_EveryExcludedWord_IsUnknown`.
+
+**TextLint_Dictionary_DerivedFormsAndRegionalSpellings_FollowTheLanguageSelection**: Derived forms that a base word
+list lacks (`testability`, `reviewable`, `precomputed`, `unannotated`, `untestable`) are known in the American and
+the British selection; British-only spellings (`catalogue`, `labelled`, `honoured`, `modelling`) are known only in
+the British selection, and `favorite` only in the American one. This scenario is tested by
+`TextLint_Dictionary_DerivedFormsAndRegionalSpellings_FollowTheLanguageSelection`.
 
 **TextLint_Dictionary_ParallelLookups_ReturnCorrectAnswers**: Twenty thousand lookups spread over the three
 selections are made from many threads at once; every answer is correct. This scenario is tested by

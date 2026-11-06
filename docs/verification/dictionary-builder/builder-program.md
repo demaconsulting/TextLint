@@ -4,7 +4,8 @@
 
 `BuilderProgram` is verified with unit tests in `BuilderProgramTests.cs`. The tests call `BuilderProgram.Run`
 in-process with `StringWriter` instances for the output and error streams, so no process is started and the
-console is not touched. The unit's dependencies, `WordListReader`, `VariantFilter`, and `DictionaryWriter`, are used
+console is not touched. The unit's dependencies, `WordListReader`, `VariantFilter`, `ExclusionFilter`, and
+`DictionaryWriter`, are used
 as they are and not replaced by doubles, because the behavior under test (which dictionaries are produced and
 which problems are reported) is their combined effect; each test works with real, temporary folders. The one
 substitution is the unit's own file system seam, `FileOperations`: failures that cannot be provoked portably
@@ -32,6 +33,8 @@ N/A - standard test environment. Each test creates and removes its own temporary
   spelling is replaced by the declared one), and a match that is ambiguous on a case-sensitive file system is
   reported naming every candidate rather than chosen.
 - An unchanged file keeps its timestamp and a changed one is rewritten.
+- An exclusions list removes its words from every dictionary and is validated like a word list; an excluded word
+  that no dictionary has, and an exclusions list that cannot be read, return exit code 1 and name the word or file.
 
 ### Test Scenarios
 
@@ -171,6 +174,37 @@ keep list would have saved is stripped. This scenario is tested by
 and **BuilderProgram_Run_TechnicalWithoutLanguageLists_ReturnsOneNamingLists**: a stray list in the technical
 folder, an ordinary word in the keep list, and a missing language list each return exit code 1, name the file,
 word, or lists at fault, and write nothing. These scenarios are tested by the tests of the same names.
+
+**BuilderProgram_Run_ExclusionsList_RemovesWordsFromEveryDictionary**: in the small variant tree an exclusions list
+names `tokenizer` and `Grey` in other letter cases; the run succeeds, neither word is in any dictionary
+(including the technical dictionary, where one is a keep-list word and the other a language-list word), the other
+words remain, and the summary lines state the number of excluded words. This scenario is tested by
+`BuilderProgram_Run_ExclusionsList_RemovesWordsFromEveryDictionary`.
+
+**BuilderProgram_Run_ExclusionInNoDictionary_ReturnsOneNamingWord**: an exclusions list with one real and one
+unknown word returns exit code 1, names the exclusions file and the unknown word only, and creates no output. This
+scenario is tested by `BuilderProgram_Run_ExclusionInNoDictionary_ReturnsOneNamingWord`.
+
+**BuilderProgram_Run_ExclusionsFileMissing_ReturnsOneNamingFile**: an exclusions option that names a file that
+does not exist returns exit code 1, names the file as unreadable, and creates no output. This scenario is tested by
+`BuilderProgram_Run_ExclusionsFileMissing_ReturnsOneNamingFile`.
+
+**BuilderProgram_Run_ExclusionsInvalidEntry_ReturnsOneNamingFileAndLine**: an exclusions list with an invalid
+entry and a dictionary with another invalid entry return exit code 1 and both problems are reported at once, each
+with its file and line. This scenario is tested by
+`BuilderProgram_Run_ExclusionsInvalidEntry_ReturnsOneNamingFileAndLine`.
+
+**BuilderProgram_Run_ExclusionsListWithoutWords_BuildsEverything**: an exclusions list with only a comment is
+accepted, every word remains, and the summary states that nothing was excluded. This scenario is tested by
+`BuilderProgram_Run_ExclusionsListWithoutWords_BuildsEverything`.
+
+**BuilderProgram_Run_ExclusionsWithMissingDictionary_ReportsOnlyTheMissingDictionary**: a declared dictionary has no
+folder and the exclusions list has a word that therefore looks unused; only the missing folder is reported. This
+scenario is tested by `BuilderProgram_Run_ExclusionsWithMissingDictionary_ReportsOnlyTheMissingDictionary`.
+
+**BuilderProgram_Run_DuplicateExclusionsOption_ReturnsUsageError**: the exclusions option given twice returns the
+usage exit code, names the option, and creates nothing. This scenario is tested by
+`BuilderProgram_Run_DuplicateExclusionsOption_ReturnsUsageError`.
 
 **BuilderProgram_Run_LaterOutputBlocked_LeavesEarlierOutputUntouched**: the first dictionary was built earlier,
 its list then changes, and a folder occupies the second dictionary's file path; the run returns 1, the first file

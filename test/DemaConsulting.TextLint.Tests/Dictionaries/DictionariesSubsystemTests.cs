@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-// cspell:ignore colour neighbour organise favourite kubernetes xyzzyq cafè tabel καλημέρα
+// cspell:ignore colour neighbour organise favourite kubernetes xyzzyq cafè tabel καλημέρα catalogue labelled honoured modelling ageing curser operants programing milage writeable unannotated mockable
 
 using System.Collections.Concurrent;
 using DemaConsulting.TextLint.Dictionaries;
@@ -246,5 +246,62 @@ public class DictionariesSubsystemTests
             () => Assert.True(american.IsKnown("favorite") && !british.IsKnown("favorite")),
             () => Assert.True(british.IsKnown("organise") && !american.IsKnown("organise")),
             () => Assert.True(american.IsKnown("kubernetes") && british.IsKnown("kubernetes")));
+    }
+
+    /// <summary>
+    ///     Test that derived forms of English words, which the base word list alone does not have, are known in every selection.
+    /// </summary>
+    [Fact]
+    public void DictionariesSubsystem_IsKnown_DerivedForms_AreKnownInEveryLanguage()
+    {
+        // Arrange: derived forms that are common in technical writing, and the three selections
+        var words = new[] { "testability", "reviewable", "precomputed", "unannotated", "untestable", "lookups", "mockable" };
+        var selections = new[] { "en-US", "en-GB", "en-US,en-GB" }.Select(SpellingDictionary.ForLanguages).ToArray();
+
+        // Act: look up every word in every selection
+        var unknown = words.Where(word => selections.Any(selection => !selection.IsKnown(word))).ToArray();
+
+        // Assert: all of them are known everywhere
+        Assert.Empty(unknown);
+    }
+
+    /// <summary>
+    ///     Test that British-only spellings are known for British English only, so that the language selection still decides them.
+    /// </summary>
+    [Fact]
+    public void DictionariesSubsystem_ForLanguages_BritishOnlySpellings_AreKnownOnlyForBritish()
+    {
+        // Arrange: British spellings that other English word lists also accept for American English
+        var words = new[] { "catalogue", "labelled", "honoured", "modelling", "colour", "ageing" };
+        var american = SpellingDictionary.ForLanguages("en-US");
+        var british = SpellingDictionary.ForLanguages("en-GB");
+
+        // Act: look each word up in both selections
+        var knownToAmerican = words.Where(word => american.IsKnown(word)).ToArray();
+        var unknownToBritish = words.Where(word => !british.IsKnown(word)).ToArray();
+
+        // Assert: no American selection knows them and the British selection knows all of them
+        Assert.Empty(knownToAmerican);
+        Assert.Empty(unknownToBritish);
+    }
+
+    /// <summary>
+    ///     Test that words of the reviewed exclusions list are unknown in every selection, while accepted variants stay known.
+    /// </summary>
+    [Fact]
+    public void DictionariesSubsystem_IsKnown_ExcludedWords_AreUnknownInEveryLanguage()
+    {
+        // Arrange: words that imported lists contain but that are almost always a typo of another word, and accepted variants that are not excluded
+        var excluded = new[] { "curser", "operants", "programing", "Curser" };
+        var variants = new[] { "milage", "writeable" };
+        var selections = new[] { "en-US", "en-GB", "en-US,en-GB" }.Select(SpellingDictionary.ForLanguages).ToArray();
+
+        // Act: look the words up in every selection
+        var knownExcluded = excluded.Where(word => selections.Any(selection => selection.IsKnown(word))).ToArray();
+        var unknownVariants = variants.Where(word => selections.Any(selection => !selection.IsKnown(word))).ToArray();
+
+        // Assert: no excluded word is known and every accepted variant is
+        Assert.Empty(knownExcluded);
+        Assert.Empty(unknownVariants);
     }
 }

@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-// cspell:ignore favourite neighbour organise tokenizer kubernetes powershell textlint xyzzyq cafè tabel
+// cspell:ignore favourite neighbour organise tokenizer kubernetes powershell textlint xyzzyq cafè tabel catalogue labelled honoured modelling curser operants programing milage writeable unannotated mockable
 
 using System.Collections.Concurrent;
 using System.Reflection;
@@ -82,6 +82,11 @@ public class TextLintTests
     ///     The number of words below which the word lists are considered not to have been found.
     /// </summary>
     private const int MinimumCheckedWords = 100_000;
+
+    /// <summary>
+    ///     The file name of the reviewed exclusions list inside the word-list folder.
+    /// </summary>
+    private const string ExclusionsFileName = "exclusions.txt";
 
     /// <summary>
     ///     The distance from a lower-case ASCII or Latin-1 letter to its upper-case partner.
@@ -999,14 +1004,23 @@ public class TextLintTests
     }
 
     /// <summary>
-    ///     Test that every word of every word list is known for the language selection that includes its list.
+    ///     Test that every word of every word list is known for the language selection that includes its list, except the excluded words.
     /// </summary>
+    /// <remarks>
+    ///     The reviewed exclusions list names words that the builder removes from every dictionary, so
+    ///     they are skipped here explicitly; <see cref="TextLint_Dictionary_EveryExcludedWord_IsUnknown"/>
+    ///     checks that they are unknown instead. The exclusions list is not a word list of any
+    ///     dictionary and is not itself checked as one.
+    /// </remarks>
     [Fact]
     public void TextLint_Dictionary_EveryListedWord_IsKnown()
     {
-        // Arrange: every word list under the word-list folder copied beside the tests
+        // Arrange: every word list under the word-list folder copied beside the tests, and the words the exclusions list removes
         var root = Path.Combine(AppContext.BaseDirectory, "dictionaries");
-        var files = Directory.GetFiles(root, "*.txt", SearchOption.AllDirectories).Order(StringComparer.Ordinal).ToArray();
+        var excluded = ReadExcludedWords(root);
+        var files = Directory.GetFiles(root, "*.txt", SearchOption.AllDirectories)
+            .Where(file => !string.Equals(Path.GetFileName(file), ExclusionsFileName, StringComparison.OrdinalIgnoreCase))
+            .Order(StringComparer.Ordinal).ToArray();
         var failures = new List<string>();
         var checkedWords = 0;
 
@@ -1017,6 +1031,11 @@ public class TextLintTests
             var dictionaries = SelectionsFor(relative).Select(SpellingDictionary.ForLanguages).ToArray();
             foreach (var entry in File.ReadLines(file).Select(line => line.Trim()).Where(line => line.Length > 0 && line[0] != '#'))
             {
+                if (excluded.Contains(entry.ToLowerInvariant()))
+                {
+                    continue;
+                }
+
                 foreach (var form in new[] { entry, entry.ToLowerInvariant(), UpperCaseLatin1(entry) })
                 {
                     checkedWords++;
@@ -1033,6 +1052,72 @@ public class TextLintTests
             () => Assert.Empty(failures.Take(MaxReportedFailures)),
             () => Assert.True(checkedWords > MinimumCheckedWords, $"Only {checkedWords} words were checked."));
     }
+
+    /// <summary>
+    ///     Test that derived forms are known everywhere and regional spellings only for their own language selection.
+    /// </summary>
+    [Fact]
+    public void TextLint_Dictionary_DerivedFormsAndRegionalSpellings_FollowTheLanguageSelection()
+    {
+        // Arrange: derived forms the base word list lacks, British-only spellings, and an American-only spelling
+        var american = SpellingDictionary.ForLanguages("en-US");
+        var british = SpellingDictionary.ForLanguages("en-GB");
+        var derived = new[] { "testability", "reviewable", "precomputed", "unannotated", "untestable" };
+        var britishOnly = new[] { "catalogue", "labelled", "honoured", "modelling" };
+
+        // Act: look the words up through the public lookup of each selection
+        var derivedUnknown = derived.Where(word => !american.IsKnown(word) || !british.IsKnown(word)).ToArray();
+        var britishKnownToAmerican = britishOnly.Where(word => american.IsKnown(word)).ToArray();
+        var britishUnknownToBritish = britishOnly.Where(word => !british.IsKnown(word)).ToArray();
+
+        // Assert: derived forms are known in both, and British spellings only in the British selection
+        Assert.Multiple(
+            () => Assert.Empty(derivedUnknown),
+            () => Assert.Empty(britishKnownToAmerican),
+            () => Assert.Empty(britishUnknownToBritish),
+            () => Assert.True(american.IsKnown("favorite") && !british.IsKnown("favorite")));
+    }
+
+    /// <summary>
+    ///     Test that every word of the reviewed exclusions list is unknown in every language selection, in every letter case.
+    /// </summary>
+    [Fact]
+    public void TextLint_Dictionary_EveryExcludedWord_IsUnknown()
+    {
+        // Arrange: the excluded words and each language selection
+        var excluded = ReadExcludedWords(Path.Combine(AppContext.BaseDirectory, "dictionaries"));
+        var dictionaries = new[] { "en-US", "en-GB", "en-US,en-GB" }.Select(SpellingDictionary.ForLanguages).ToArray();
+        var failures = new List<string>();
+
+        // Act: look up each excluded word as written, capitalized, and in upper case
+        foreach (var word in excluded)
+        {
+            foreach (var form in new[] { word, char.ToUpperInvariant(word[0]) + word[1..], UpperCaseLatin1(word) })
+            {
+                if (dictionaries.Any(dictionary => dictionary.IsKnown(form)))
+                {
+                    failures.Add(form);
+                }
+            }
+        }
+
+        // Assert: the exclusions list is not empty and every excluded word is unknown
+        Assert.Multiple(
+            () => Assert.NotEmpty(excluded),
+            () => Assert.Empty(failures.Take(MaxReportedFailures)));
+    }
+
+    /// <summary>
+    ///     Reads the words of the reviewed exclusions list.
+    /// </summary>
+    /// <param name="root">The word-list folder copied beside the tests.</param>
+    /// <returns>The distinct lower-case excluded words.</returns>
+    private static HashSet<string> ReadExcludedWords(string root) =>
+        File.ReadLines(Path.Combine(root, ExclusionsFileName))
+            .Select(line => line.Trim())
+            .Where(line => line.Length > 0 && line[0] != '#')
+            .Select(line => line.ToLowerInvariant())
+            .ToHashSet(StringComparer.Ordinal);
 
     /// <summary>
     ///     Test that lookups from many threads at once all return the correct answers.

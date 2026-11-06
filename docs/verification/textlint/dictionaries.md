@@ -26,6 +26,8 @@ project references.
 - The American, British, and combined selections each know their own spellings, and an unsupported language is
   rejected naming it.
 - Technical terms are known in every selection.
+- Derived forms of English words are known in every selection, British-only spellings only in the British
+  selection, and words of the reviewed exclusions list in no selection.
 - Equal selections are the same instance, and many threads get consistent answers.
 - Each of the four parts of the shipped vocabulary contributes words that the selection needs.
 
@@ -80,3 +82,20 @@ American-only word, a British-only word, and a technical term are looked up in t
 each is known exactly where the part of the vocabulary that holds it is selected, which shows that all four parts of
 the shipped vocabulary are loaded and used. This scenario is tested by
 `DictionariesSubsystem_ForLanguages_ShippedVocabulary_ContainsSampleWordsOfEachPart`.
+
+**DictionariesSubsystem_IsKnown_DerivedForms_AreKnownInEveryLanguage**: Derived forms that a base English word list
+lacks (`testability`, `reviewable`, `precomputed`, `unannotated`, `untestable`, `lookups`, `mockable`) are known in
+the American, the British, and the combined selection. This scenario is tested by
+`DictionariesSubsystem_IsKnown_DerivedForms_AreKnownInEveryLanguage`.
+
+<!-- cspell:ignore colour -->
+
+**DictionariesSubsystem_ForLanguages_BritishOnlySpellings_AreKnownOnlyForBritish**: British spellings that other
+English word lists also accept for American English (`catalogue`, `labelled`, `honoured`, `modelling`, `colour`,
+`ageing`) are unknown in the American selection and known in the British one. This scenario is tested by
+`DictionariesSubsystem_ForLanguages_BritishOnlySpellings_AreKnownOnlyForBritish`.
+
+**DictionariesSubsystem_IsKnown_ExcludedWords_AreUnknownInEveryLanguage**: Words of the reviewed exclusions list
+(`curser`, `operants`, and a capitalized form) are unknown in every selection, while the accepted
+variants `milage` and `writeable`, which are not on the list, are known. This scenario is tested by
+`DictionariesSubsystem_IsKnown_ExcludedWords_AreUnknownInEveryLanguage`.

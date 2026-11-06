@@ -33,6 +33,7 @@ sections:
               - BuilderProgram_Run_OptionWithoutValue_ReturnsUsageError
               - BuilderProgram_Run_EmptyOptionValue_ReturnsUsageError
               - BuilderProgram_Run_DuplicateOption_ReturnsUsageError
+              - BuilderProgram_Run_DuplicateExclusionsOption_ReturnsUsageError
               - BuilderProgram_Run_NameWithPathSeparator_ReturnsUsageError
               - BuilderProgram_Run_DuplicateName_ReturnsUsageError
               - BuilderProgram_Run_DuplicateNameDifferingInCase_ReturnsUsageError
@@ -108,6 +109,28 @@ sections:
               - BuilderProgram_Run_TechnicalListOutsideKnownPlaces_ReturnsOneNamingFile
               - BuilderProgram_Run_KeepWordNotVariant_ReturnsOneNamingWord
               - BuilderProgram_Run_TechnicalWithoutLanguageLists_ReturnsOneNamingLists
+
+          - id: DictionaryBuilder-BuilderProgram-Exclusions
+            title: >-
+              BuilderProgram shall, when given an exclusions list, validate it like a word list, remove its
+              words from every dictionary it writes, and state in the summary how many words were removed
+              from each dictionary; shall return the failure exit code, naming the list and the word, for an
+              excluded word that is in no dictionary; and shall return the failure exit code, naming the
+              list, when the list cannot be read, without treating it as empty.
+            justification: |
+              The exclusions list is reviewed project data that decides which imported words are never
+              known. A list that is silently ignored (because it is missing or unreadable) would let every
+              excluded typo back into the product, and a stale entry would hide the effect of the list, so
+              both are failures that name what is wrong. A problem in the list is reported together with the
+              problems of the word lists, and a missing dictionary is reported on its own, because it would
+              make every exclusion look unused.
+            tests:
+              - BuilderProgram_Run_ExclusionsList_RemovesWordsFromEveryDictionary
+              - BuilderProgram_Run_ExclusionInNoDictionary_ReturnsOneNamingWord
+              - BuilderProgram_Run_ExclusionsFileMissing_ReturnsOneNamingFile
+              - BuilderProgram_Run_ExclusionsInvalidEntry_ReturnsOneNamingFileAndLine
+              - BuilderProgram_Run_ExclusionsListWithoutWords_BuildsEverything
+              - BuilderProgram_Run_ExclusionsWithMissingDictionary_ReportsOnlyTheMissingDictionary
 
           - id: DictionaryBuilder-BuilderProgram-Misconfiguration
             title: >-

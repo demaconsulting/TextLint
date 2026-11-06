@@ -49,6 +49,7 @@ This document covers the verification design for the following software items:
   - **BuilderProgram** — command line, orchestration, and error reporting
   - **WordListReader** — word-list reading, validation, and merging
   - **VariantFilter** — spelling-variant rule for the technical lists
+  - **ExclusionFilter** — removal of the reviewed excluded words from every dictionary
   - **DictionaryWriter** — dictionary file serialization
   - **DictionaryFormat** — shared format definitions
 

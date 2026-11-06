@@ -106,19 +106,21 @@ public class DictionaryBuilderTests
     [Fact]
     public void DictionaryBuilder_Build_RepositoryWordLists_BuildsAllDictionaries()
     {
-        // Arrange: the repository's word-list folders, copied beside the test assembly
+        // Arrange: the repository's word-list folders and exclusions list, copied beside the test assembly
         using var temp = new TempDirectory();
         var listRoot = Path.Combine(AppContext.BaseDirectory, "dictionaries");
+        var excluded = ReadEntries([RepositoryExclusionsFile(listRoot)]).Select(entry => entry.ToLowerInvariant()).ToHashSet(StringComparer.Ordinal);
 
-        // Act: run the builder over all four real dictionaries with the spelling-variant rule
+        // Act: run the builder over all four real dictionaries with the spelling-variant rule and the exclusions
         var result = BuilderRunner.Run(RepositoryArguments(listRoot, temp.PathOf("out")));
 
-        // Assert: success, and every dictionary file holds exactly the distinct folded entries it should
+        // Assert: success, and every dictionary file holds exactly the distinct folded entries it should, except the excluded words
         Assert.Equal(0, result.ExitCode);
         Assert.Equal(string.Empty, result.Error);
         foreach (var name in new[] { "en-common", "en-US", "en-GB" })
         {
-            var entries = ReadEntries(Directory.GetFiles(Path.Combine(listRoot, name), "*.txt", SearchOption.AllDirectories));
+            var entries = ReadEntries(Directory.GetFiles(Path.Combine(listRoot, name), "*.txt", SearchOption.AllDirectories))
+                .Where(entry => !excluded.Contains(entry.ToLowerInvariant())).ToList();
             var reader = ReadOutput(temp, name);
 
             Assert.NotEmpty(entries);
@@ -129,6 +131,7 @@ public class DictionaryBuilderTests
         // The technical dictionary holds the language and keep words and the general words that are not stripped variants
         var technical = ReadOutput(temp, "technical");
         var (kept, stripped) = ClassifyTechnicalEntries(listRoot);
+        kept = [.. kept.Where(entry => !excluded.Contains(entry.ToLowerInvariant()))];
         Assert.NotEmpty(kept);
         Assert.NotEmpty(stripped);
         Assert.Equal(kept.Select(entry => entry.ToLowerInvariant()).Distinct().Count(), (int)technical.WordCount);
@@ -148,6 +151,103 @@ public class DictionaryBuilderTests
         Assert.True(technical.TryFind("tokenizer", out _));
         Assert.True(technical.TryFind("textlint", out _));
     }
+
+    /// <summary>
+    ///     Test that no word of the repository's reviewed exclusions list is known in any dictionary the builder produces.
+    /// </summary>
+    [Fact]
+    public void DictionaryBuilder_Build_RepositoryExclusions_AreUnknownInEveryDictionary()
+    {
+        // Arrange: the repository's lists and exclusions, read independently of the builder
+        using var temp = new TempDirectory();
+        var listRoot = Path.Combine(AppContext.BaseDirectory, "dictionaries");
+        var excluded = ReadEntries([RepositoryExclusionsFile(listRoot)]);
+
+        // Act: run the builder over the real dictionaries
+        var result = BuilderRunner.Run(RepositoryArguments(listRoot, temp.PathOf("out")));
+
+        // Assert: success, and each excluded word is unknown, in every letter case, in all four dictionaries
+        Assert.Equal(0, result.ExitCode);
+        Assert.NotEmpty(excluded);
+        foreach (var name in RepositoryDictionaryNames)
+        {
+            var reader = ReadOutput(temp, name);
+            Assert.All(excluded, word =>
+            {
+                Assert.False(reader.TryFind(word.ToLowerInvariant(), out _), $"{name}: '{word}' is known");
+                Assert.False(reader.TryFind(word.ToUpperInvariant(), out _), $"{name}: '{word}' is known in upper case");
+            });
+        }
+    }
+
+    /// <summary>
+    ///     Test that an excluded word is removed from every dictionary the builder produces, whatever list it came from.
+    /// </summary>
+    [Fact]
+    public void DictionaryBuilder_Build_ExcludedWord_IsUnknownInEveryDictionary()
+    {
+        // Arrange: the variant fixture, where tokenizer is in en-US, a general list, and the reviewed list, and an exclusions list
+        using var temp = new TempDirectory();
+        VariantFixture.Create(temp);
+        var exclusions = temp.CreateFile("exclusions.txt", "tokenizer\n");
+
+        // Act: run the builder with the exclusions
+        var result = BuilderRunner.Run([.. VariantFixture.Arguments(temp), "--exclusions", exclusions]);
+
+        // Assert: success, the word is in no dictionary, and the other words remain
+        Assert.Equal(0, result.ExitCode);
+        Assert.False(ReadOutput(temp, "en-US").TryFind("tokenizer", out _));
+        Assert.False(ReadOutput(temp, "technical").TryFind("tokenizer", out _));
+        Assert.True(ReadOutput(temp, "en-US").TryFind("favorite", out _));
+        Assert.True(ReadOutput(temp, "technical").TryFind("kubernetes", out _));
+    }
+
+    /// <summary>
+    ///     Test that an exclusion that no dictionary has fails the build and is named.
+    /// </summary>
+    [Fact]
+    public void DictionaryBuilder_Build_ExclusionInNoDictionary_FailsNamingWord()
+    {
+        // Arrange: the variant fixture and an exclusions list with a word that no list has
+        using var temp = new TempDirectory();
+        VariantFixture.Create(temp);
+        var exclusions = temp.CreateFile("exclusions.txt", "zebra\n");
+
+        // Act: run the builder with the exclusions
+        var result = BuilderRunner.Run([.. VariantFixture.Arguments(temp), "--exclusions", exclusions]);
+
+        // Assert: failure that names the word and the list, and nothing was written
+        Assert.Equal(1, result.ExitCode);
+        Assert.Contains($"{exclusions}: error: 'zebra' is not in any dictionary", result.Error);
+        Assert.False(Directory.Exists(temp.PathOf("out")));
+    }
+
+    /// <summary>
+    ///     Test that an exclusions list that cannot be read fails the build and is named, instead of being treated as empty.
+    /// </summary>
+    [Fact]
+    public void DictionaryBuilder_Build_ExclusionsFileMissing_FailsNamingFile()
+    {
+        // Arrange: the variant fixture and an exclusions option that names a file that does not exist
+        using var temp = new TempDirectory();
+        VariantFixture.Create(temp);
+        var missing = temp.PathOf("missing-exclusions.txt");
+
+        // Act: run the builder with the exclusions
+        var result = BuilderRunner.Run([.. VariantFixture.Arguments(temp), "--exclusions", missing]);
+
+        // Assert: failure that names the file, and nothing was written
+        Assert.Equal(1, result.ExitCode);
+        Assert.Contains($"{missing}: error: the file cannot be read", result.Error);
+        Assert.False(Directory.Exists(temp.PathOf("out")));
+    }
+
+    /// <summary>
+    ///     Gets the path of the repository's exclusions list beside the copied word lists.
+    /// </summary>
+    /// <param name="listRoot">The folder that holds the repository's word-list folders.</param>
+    /// <returns>The path of the exclusions list.</returns>
+    private static string RepositoryExclusionsFile(string listRoot) => Path.Combine(listRoot, "exclusions.txt");
 
     /// <summary>
     ///     Test that every word of the repository's reviewed keep list is a variant that would otherwise be stripped.
@@ -181,7 +281,8 @@ public class DictionaryBuilderTests
     private static string[] RepositoryArguments(string listRoot, string outputFolder) =>
     [
         "--input", listRoot, "--output", outputFolder, .. RepositoryDictionaryNames,
-        "--technical", "technical", "--variants", "en-US", "--variants", "en-GB"
+        "--technical", "technical", "--variants", "en-US", "--variants", "en-GB",
+        "--exclusions", RepositoryExclusionsFile(listRoot)
     ];
 
     /// <summary>

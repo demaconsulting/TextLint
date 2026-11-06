@@ -240,3 +240,40 @@ sections:
         tests:
           - DictionaryBuilder_Build_TechnicalListOutsideKnownPlaces_FailsNamingFile
           - DictionaryBuilder_Build_KeepListWordNotVariant_FailsNamingWord
+
+      - id: DictionaryBuilder-System-Exclusions
+        title: >-
+          The builder shall make every word of a reviewed exclusions list unknown in every dictionary it
+          builds, whichever list the word comes from and in whatever letter case, and shall report the
+          number of words it removed from each dictionary.
+        tags: [system]
+        justification: |
+          The imported English lists are large and are kept faithful to their upstream sources, and some of
+          their entries hide real typos: misspellings the source contains, fragments, and rare words that
+          are almost always a mistyped common word. The project must be able to make such a word unknown
+          everywhere without editing the imported data, which the next refresh would undo, so a single
+          reviewed list is applied when the dictionaries are combined.
+        children:
+          - DictionaryBuilder-BuilderProgram-Exclusions
+          - DictionaryBuilder-ExclusionFilter-RemoveExcluded
+        tests:
+          - DictionaryBuilder_Build_ExcludedWord_IsUnknownInEveryDictionary
+          - DictionaryBuilder_Build_RepositoryExclusions_AreUnknownInEveryDictionary
+          - DictionaryBuilder_Build_RepositoryWordLists_BuildsAllDictionaries
+
+      - id: DictionaryBuilder-System-ExclusionsList
+        title: >-
+          The builder shall fail, naming the list and the word or file at fault, when an excluded word is
+          in no dictionary or when the exclusions list cannot be read, and shall never treat an unreadable
+          list as an empty one.
+        tags: [system]
+        justification: |
+          A list that is silently ignored would let every excluded typo back into the product, and an
+          entry that no list contains is stale and would hide the real effect of the list. Failing the
+          build keeps the reviewed list both effective and short.
+        children:
+          - DictionaryBuilder-BuilderProgram-Exclusions
+          - DictionaryBuilder-ExclusionFilter-UnusedExclusions
+        tests:
+          - DictionaryBuilder_Build_ExclusionInNoDictionary_FailsNamingWord
+          - DictionaryBuilder_Build_ExclusionsFileMissing_FailsNamingFile

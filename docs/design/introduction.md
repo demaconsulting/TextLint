@@ -41,7 +41,8 @@ Local items:
   lists under `dictionaries/` into the binary dictionary files embedded in the library. It is not
   packaged. Its units are **BuilderProgram** (command line and orchestration), **WordListReader**
   (reads and validates word lists, with its result and diagnostic types), **VariantFilter** (the
-  spelling-variant rule for the technical lists, with its result type), **DictionaryWriter**
+  spelling-variant rule for the technical lists, with its result type), **ExclusionFilter** (removes the
+  reviewed excluded words from every dictionary, with its result type), **DictionaryWriter**
   (serializes a dictionary file), and **DictionaryFormat** (the definitions shared with the library).
 
 OTS items:
@@ -105,8 +106,8 @@ on nothing but the .NET base class library.
 ## Folder Layout
 
 - **dictionaries/** - plain-text word lists, one sub-folder per dictionary (the technical dictionary's
-  folder is split into `language/` and `general/` lists plus a reviewed `variant-keep.txt`), and the script
-  that regenerates the imported lists (data, not a software item)
+  folder is split into `language/` and `general/` lists plus a reviewed `variant-keep.txt`), the reviewed
+  `exclusions.txt`, and the scripts that regenerate the imported lists (data, not a software item)
 - **third-party/** - license notices for the third-party data in the word lists and the rules ported from cspell,
   packed into both NuGet packages
 - **src/** - source files and projects
@@ -117,7 +118,7 @@ on nothing but the .NET base class library.
       DictionaryBuilder project)
     - **TextScanning/** - word, ignored-text, and directive subsystem (pure text logic; no file or setting access)
     - **SpellChecking/** - text checking, file reading, and parallel file checking subsystem
-  - **DemaConsulting.TextLint.DictionaryBuilder/** - build-time dictionary builder source (five units)
+  - **DemaConsulting.TextLint.DictionaryBuilder/** - build-time dictionary builder source (six units)
   - **DemaConsulting.TextLint.Tool/** - main application source
     - **Cli/** - command-line interface subsystem
     - **Linting/** - one check run: settings resolution, calling the library, and reporting

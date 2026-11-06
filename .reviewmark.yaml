@@ -15,8 +15,10 @@ needs-review:
   - "docs/user_guide/**/*.md"     # User guide documentation
   - "docs/sysml2/**/*.sysml"      # SysML2 architecture model
   - "dictionaries/refresh.py"     # Word list import script (code that produces the builder's input data)
+  - "dictionaries/word_forms.py"  # Hunspell expansion and spelling-region routing used by the import script
   - "dictionaries/README.md"      # Word list documentation: provenance, format rules, and refresh procedure
   - "dictionaries/technical/variant-keep.txt"   # Curated list of reviewed spelling variants (human-reviewed data)
+  - "dictionaries/exclusions.txt"   # Curated list of words that must never be known (human-reviewed data)
   - "dictionaries/technical/general/additions.txt"   # Curated project-owned technical terms (human-reviewed data)
   - "test/DemaConsulting.TextLint.Tests/SpellChecking/Parity/**"   # cspell parity corpora and output (reviewed data)
   - "third-party/THIRD-PARTY-NOTICES.txt"   # Legal notices for the third-party word list data
@@ -694,7 +696,21 @@ reviews:
       - "src/**/VariantFilterResult.cs"
       - "test/**/VariantFilterTests.cs"
 
-  # DictionaryBuilder - Word List Import (the script that produces the builder's input data)
+  # DictionaryBuilder - ExclusionFilter
+  - id: DictionaryBuilder-ExclusionFilter
+    title: Review that DictionaryBuilder ExclusionFilter Implementation is Correct
+    context:
+      - docs/design/dictionary-builder.md
+      - docs/reqstream/dictionary-builder.yaml
+    paths:
+      - "docs/reqstream/dictionary-builder/exclusion-filter.yaml"
+      - "docs/design/dictionary-builder/exclusion-filter.md"
+      - "docs/verification/dictionary-builder/exclusion-filter.md"
+      - "src/**/ExclusionFilter.cs"
+      - "src/**/ExclusionFilterResult.cs"
+      - "test/**/ExclusionFilterTests.cs"
+
+  # DictionaryBuilder - Word List Import (the scripts that produce the builder's input data)
   - id: DictionaryBuilder-WordListImport
     title: Review that DictionaryBuilder Word List Import Script is Correct
     context:
@@ -702,6 +718,7 @@ reviews:
       - docs/design/dictionary-builder/word-list-reader.md
     paths:
       - "dictionaries/refresh.py"
+      - "dictionaries/word_forms.py"
       - "dictionaries/README.md"
 
   # DictionaryBuilder - Curated Lists (human-reviewed data that the variant rule depends on)
@@ -709,9 +726,11 @@ reviews:
     title: Review that DictionaryBuilder Curated Word Lists are Justified
     context:
       - docs/design/dictionary-builder/variant-filter.md
+      - docs/design/dictionary-builder/exclusion-filter.md
       - dictionaries/README.md
     paths:
       - "dictionaries/technical/variant-keep.txt"
+      - "dictionaries/exclusions.txt"
       - "dictionaries/technical/general/additions.txt"
 
   # DictionaryBuilder - Third-Party Notices (legal notices for the imported data)

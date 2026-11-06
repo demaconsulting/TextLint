@@ -9,8 +9,10 @@ judges only what is observable from outside: the exit code, the two output strea
 appear. The dictionary files are read back with `TldReader`, an independent minimal reader in the test support
 that restates the file format from its specification and shares no code with the builder, so a mistake in the
 builder's own definitions cannot cancel itself out. One test runs the builder over the repository's real word
-lists (copied beside the test assembly) and checks that every entry of every list, in its original, lower, and
-upper case, can be found in the resulting dictionary, which proves the committed lists and the builder agree.
+lists (copied beside the test assembly) and checks that every entry of every list that is not excluded, in its
+original, lower, and
+upper case, can be found in the resulting dictionary, and that every excluded word cannot, which proves the
+committed lists, the exclusions, and the builder agree.
 
 ## Test Environment
 
@@ -26,8 +28,10 @@ output folder by the test project, so no repository root has to be located.
   be deleted, needs an injected file system failure and is verified by the unit tests of `BuilderProgram`.
 - No dictionary file exists after a run that reported a problem.
 - Every entry of every committed word list is found in the dictionary built from it, except the stripped
-  spelling variants of the technical dictionary, which are not found.
+  spelling variants of the technical dictionary and the words of the exclusions list, which are not found.
 - A general technical variant spelling is removed unless a language list or the reviewed list has it.
+- An excluded word is unknown in every dictionary; an excluded word that no dictionary has, and an exclusions list
+  that cannot be read, fail the run and are named.
 - A failure leaves every dictionary file as it was.
 - Two builds of the same lists are byte-identical, and CRLF lists build the same bytes as LF lists.
 
@@ -43,13 +47,33 @@ scenario is tested by `DictionaryBuilder_Build_WordListFolders_WritesOneDictiona
 evidence for the platform requirements on each operating system and on .NET 10.
 
 **DictionaryBuilder_Build_RepositoryWordLists_BuildsAllDictionaries**: The four real dictionaries are built
-from the repository's lists with the spelling-variant rule; the run succeeds with empty standard error, the
-word count of each ordinary dictionary equals the number of distinct folded entries of its lists, and that of the
+from the repository's lists with the spelling-variant rule and the reviewed exclusions list; the run succeeds with
+empty standard error, the
+word count of each ordinary dictionary equals the number of distinct folded entries of its lists that are not
+excluded, and that of the
 technical dictionary equals the distinct folded entries of the language lists, the keep list, and the general
-lists that the rule does not strip, computed independently of the builder. Every kept entry is found as written, in
+lists that the rule does not strip (and that are not excluded), computed independently of the builder. Every kept
+entry is found as written, in
 lower case, and in upper case; every stripped variant is not found; American and British spellings land in their
 own dictionaries; and `favorite` is stripped while `color`, `grey`, and `tokenizer` are known. This scenario is
 tested by `DictionaryBuilder_Build_RepositoryWordLists_BuildsAllDictionaries`.
+
+**DictionaryBuilder_Build_RepositoryExclusions_AreUnknownInEveryDictionary**: Each word of the repository's
+exclusions list is not found, in lower or upper case, in any of the four dictionaries built from the real lists.
+This scenario is tested by `DictionaryBuilder_Build_RepositoryExclusions_AreUnknownInEveryDictionary`.
+
+**DictionaryBuilder_Build_ExcludedWord_IsUnknownInEveryDictionary**: In the small variant tree, `tokenizer` is in
+the American list, a general list, and the keep list and is named by an exclusions list; the run succeeds, the word
+is in neither the American nor the technical dictionary, and the other words remain. This scenario is tested by
+`DictionaryBuilder_Build_ExcludedWord_IsUnknownInEveryDictionary`.
+
+**DictionaryBuilder_Build_ExclusionInNoDictionary_FailsNamingWord**: An exclusions list with a word that no list
+has fails the run with an error that names the exclusions file and the word and writes nothing. This scenario is
+tested by `DictionaryBuilder_Build_ExclusionInNoDictionary_FailsNamingWord`.
+
+**DictionaryBuilder_Build_ExclusionsFileMissing_FailsNamingFile**: An exclusions option that names a file that does
+not exist fails the run with an error that names the file, rather than treating it as an empty list, and writes
+nothing. This scenario is tested by `DictionaryBuilder_Build_ExclusionsFileMissing_FailsNamingFile`.
 
 **DictionaryBuilder_Build_RepositoryVariantKeepList_ContainsOnlyOtherwiseStrippedVariants**: Every word of the
 repository's reviewed keep list is a variant spelling, is in a general list, and is in no language list, so the
