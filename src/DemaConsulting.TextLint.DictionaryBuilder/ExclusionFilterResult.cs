@@ -51,7 +51,7 @@ internal sealed class ExclusionFilterResult
         IReadOnlyList<int> removed,
         IReadOnlyList<string> unusedWords)
     {
-        Dictionaries = [.. dictionaries.Select(words => (IReadOnlyDictionary<string, uint>)words.ToFrozenDictionary(StringComparer.Ordinal))];
+        Dictionaries = dictionaries.Select(words => (IReadOnlyDictionary<string, uint>)words.ToFrozenDictionary(StringComparer.Ordinal)).ToImmutableArray();
         Removed = removed.ToImmutableArray();
         UnusedWords = unusedWords.ToImmutableArray();
     }

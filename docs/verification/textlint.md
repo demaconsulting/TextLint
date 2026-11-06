@@ -381,14 +381,18 @@ the absence from the British word lists is checked by the next-but-one scenario 
 `TextLint_Dictionary_CuratedSpellingPairs_StayInTheirOwnRegion`.
 
 **TextLint_Dictionary_IzeFormsWithAnIseCounterpart_AreUnknownToBritishEnglish**: -ize forms that have a British -ise
-counterpart and are not programming terms (`colourize`, `glamourize`, `decolourize`, `recognize`, `emphasize`, and
-others) are unknown in the British selection, because British English here is -ise only. This scenario is tested by
+counterpart and are not programming terms (`colourize`, `glamourize`, `decolourize`, `recognize`, `emphasize`,
+`organizational`, `organizationally`, and others) are unknown in the British selection, because British English here
+is -ise only. This scenario is tested by
 `TextLint_Dictionary_IzeFormsWithAnIseCounterpart_AreUnknownToBritishEnglish`.
 
 **TextLint_Dictionary_CommittedWordLists_HaveNoCrossRegionLeaks**: The words of every list in the common, American,
 and British folders are compared in lower case, as the builder combines them: for each curated pair the American
 spelling is in the American folder and in neither of the others, the British spelling is in the British folder and
-in neither of the others, and the British folder holds no -ize form whose -ise counterpart is also there. This
+in neither of the others, and the British folder holds no -ize form whose -ise counterpart is also there. The
+definition of an -ize form is read from the routing script (`IZE_FORM` in `word_forms.py`, copied beside the test
+assembly), so the test cannot drift from the definition the lists were routed with; the scenario also asserts that
+the pattern matches the verb endings and the derived endings (`organizational`, `organizationally`). This
 scenario is tested by `TextLint_Dictionary_CommittedWordLists_HaveNoCrossRegionLeaks`.
 
 **TextLint_Dictionary_ParallelLookups_ReturnCorrectAnswers**: Twenty thousand lookups spread over the three

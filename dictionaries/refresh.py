@@ -937,7 +937,9 @@ def build_technical(workdir: Path, stage: Path) -> tuple:
         spec = f"@cspell/dict-{package}@{version}"
         tarball = workdir / f"cspell-dict-{package}-{version}.tgz"
         remove_file(tarball)
-        run([npm, "pack", spec, "--silent", "--pack-destination", workdir])
+        # --ignore-scripts: npm pack would otherwise run the package's prepack and postpack lifecycle scripts, which is
+        # package code that runs before the SHA-256 check below; nothing from the package may run before it is verified
+        run([npm, "pack", spec, "--silent", "--ignore-scripts", "--pack-destination", workdir])
 
         # Verify the tarball before opening it: a package that is not byte-identical to the pinned one is never read
         data = read_if_present(tarball)

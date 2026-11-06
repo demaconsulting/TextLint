@@ -177,4 +177,29 @@ public class ExclusionFilterTests
         Assert.Equal(["zebra"], result.UnusedWords);
         Assert.Throws<NotSupportedException>(() => ((IDictionary<string, uint>)result.Dictionaries[0]).Add("cherry", DictionaryFormat.CaseLower));
     }
+
+    /// <summary>
+    ///     Test that no list of a result can be changed by casting it back to a mutable collection interface.
+    /// </summary>
+    [Fact]
+    public void ExclusionFilter_Result_ListsCastToMutableInterfaces_CannotBeChanged()
+    {
+        // Arrange: a result with one dictionary, one count, and one unused word
+        var result = new ExclusionFilterResult([Words("apple")], [1], ["zebra"]);
+        var dictionaries = (IList<IReadOnlyDictionary<string, uint>>)result.Dictionaries;
+        var removed = (IList<int>)result.Removed;
+        var unused = (IList<string>)result.UnusedWords;
+
+        // Act and assert: every attempt to add, replace, or clear through the mutable interface is refused, and the contents stay
+        Assert.Multiple(
+            () => Assert.Throws<NotSupportedException>(() => dictionaries.Add(Words("banana"))),
+            () => Assert.Throws<NotSupportedException>(() => dictionaries[0] = Words("banana")),
+            () => Assert.Throws<NotSupportedException>(() => removed.Add(2)),
+            () => Assert.Throws<NotSupportedException>(() => removed[0] = 5),
+            () => Assert.Throws<NotSupportedException>(() => unused.Add("yak")),
+            () => Assert.Throws<NotSupportedException>(unused.Clear),
+            () => Assert.Equal(["apple"], result.Dictionaries[0].Keys),
+            () => Assert.Equal([1], result.Removed),
+            () => Assert.Equal(["zebra"], result.UnusedWords));
+    }
 }

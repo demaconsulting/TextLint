@@ -49,3 +49,8 @@ given still hold their original words. This scenario is tested by `ExclusionFilt
 dictionary, a count list, and an unused-word list; after each is changed, the result still holds the original
 contents, and its words reject modification even through a cast. This scenario is tested by
 `ExclusionFilter_Result_SourceMutatedAfterConstruction_ResultUnchanged`.
+
+**ExclusionFilter_Result_ListsCastToMutableInterfaces_CannotBeChanged**: the lists of a result (dictionaries,
+removal counts, unused words) are cast back to the mutable list interface; every attempt to add, replace, or clear
+is refused with `NotSupportedException` and the contents stay as built. This scenario is tested by
+`ExclusionFilter_Result_ListsCastToMutableInterfaces_CannotBeChanged`.

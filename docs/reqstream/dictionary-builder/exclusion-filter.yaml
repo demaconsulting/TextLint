@@ -38,3 +38,4 @@ sections:
             tests:
               - ExclusionFilter_Apply_ExclusionInNoDictionary_IsReportedInOrder
               - ExclusionFilter_Result_SourceMutatedAfterConstruction_ResultUnchanged
+              - ExclusionFilter_Result_ListsCastToMutableInterfaces_CannotBeChanged

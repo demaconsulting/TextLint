@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-// cspell:ignore favourite neighbour organise tokenizer kubernetes powershell textlint xyzzyq cafè tabel catalogue labelled honoured modelling curser operants programing milage writeable unannotated mockable honour colour centre analyse judgement colourize colourized decolourize glamourize glamourized ation ations
+// cspell:ignore favourite neighbour organise tokenizer kubernetes powershell textlint xyzzyq cafè tabel catalogue labelled honoured modelling curser operants programing milage writeable unannotated mockable honour colour centre analyse judgement colourize colourized decolourize glamourize glamourized ation ations organizability
 
 using System.Collections.Concurrent;
 using System.Reflection;
@@ -90,6 +90,11 @@ public class TextLintTests
     private const string ExclusionsFileName = "exclusions.txt";
 
     /// <summary>
+    ///     The file name of the routing script, which defines the -ize endings, inside the word-list folder.
+    /// </summary>
+    private const string RoutingScriptFileName = "word_forms.py";
+
+    /// <summary>
     ///     The distance from a lower-case ASCII or Latin-1 letter to its upper-case partner.
     /// </summary>
     private const int UpperCaseOffset = 32;
@@ -110,9 +115,9 @@ public class TextLintTests
     ];
 
     /// <summary>
-    ///     Matches an -ize ending (a verb form or a common derived noun or adjective) and captures what follows the -iz.
+    ///     Matches the line of the routing script that defines the -ize endings and captures the pattern text.
     /// </summary>
-    private static readonly Regex IzeForm = new("iz(e|es|ed|ing|er|ers|ation|ations|able|ability)$", RegexOptions.Compiled | RegexOptions.CultureInvariant);
+    private static readonly Regex IzeFormDefinition = new("^IZE_FORM = re\\.compile\\(r\"([^\"]+)\"\\)", RegexOptions.Multiline | RegexOptions.CultureInvariant);
 
     /// <summary>
     ///     Loads the TextLint library assembly by name.
@@ -1153,7 +1158,7 @@ public class TextLintTests
         var izeForms = new[]
         {
             "colourize", "colourized", "decolourize", "glamourize", "glamourized", "recognize", "realize", "emphasize",
-            "summarizing", "criticized",
+            "summarizing", "criticized", "organizational", "organizationally",
         };
         var british = SpellingDictionary.ForLanguages("en-GB");
 
@@ -1177,6 +1182,7 @@ public class TextLintTests
     {
         // Arrange: the words of the common, American, and British folders (lower-cased) and the curated pairs
         var root = Path.Combine(AppContext.BaseDirectory, "dictionaries");
+        var izeForm = ReadProductionIzeForm(root);
         var common = ReadFolderWords(root, "en-common");
         var american = ReadFolderWords(root, "en-US");
         var british = ReadFolderWords(root, "en-GB");
@@ -1197,17 +1203,35 @@ public class TextLintTests
             }
         }
 
-        foreach (var word in british.Where(word => IzeForm.IsMatch(word)))
+        foreach (var word in british.Where(word => izeForm.IsMatch(word)))
         {
-            var counterpart = IzeForm.Replace(word, "is$1");
+            var counterpart = izeForm.Replace(word, "is$1");
             if (british.Contains(counterpart) || british.Contains(counterpart.Replace("our", "or", StringComparison.Ordinal)))
             {
                 failures.Add($"{word} is an -ize form in the British folder");
             }
         }
 
-        // Assert: no leaks
-        Assert.Empty(failures.Take(MaxReportedFailures));
+        // Assert: no leaks, and the pattern read from the routing script recognizes the derived endings (organizational, organizationally) as well as the verb endings
+        Assert.Multiple(
+            () => Assert.Empty(failures.Take(MaxReportedFailures)),
+            () => Assert.All(
+                new[] { "organize", "organizes", "organized", "organizing", "organizer", "organizers", "organization", "organizations", "organizable", "organizability", "organizational", "organizationally" },
+                word => Assert.Matches(izeForm, word)),
+            () => Assert.DoesNotMatch(izeForm, "organise"));
+    }
+
+    /// <summary>
+    ///     Reads the -ize ending pattern from the routing script, so the tests use exactly the definition that the word lists were routed with.
+    /// </summary>
+    /// <param name="root">The word-list folder copied beside the tests.</param>
+    /// <returns>The pattern that matches an -ize ending and captures what follows the -iz.</returns>
+    private static Regex ReadProductionIzeForm(string root)
+    {
+        var script = File.ReadAllText(Path.Combine(root, RoutingScriptFileName));
+        var match = IzeFormDefinition.Match(script);
+        Assert.True(match.Success, "The routing script no longer defines IZE_FORM in the expected form.");
+        return new Regex(match.Groups[1].Value, RegexOptions.CultureInvariant);
     }
 
     /// <summary>

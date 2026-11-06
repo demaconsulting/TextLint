@@ -74,6 +74,10 @@
          'dictionaries'). -->
     <Content Include="..\..\dictionaries\**\*.txt" Link="dictionaries\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
 
+    <!-- The routing script that defines which -ize endings the word lists treat as -ize forms; the tests read the
+         pattern from it so they use exactly the production definition (it is not a word list and is not a .txt file). -->
+    <Content Include="..\..\dictionaries\word_forms.py" Link="dictionaries\word_forms.py" CopyToOutputDirectory="PreserveNewest" />
+
     <!-- The cspell parity corpora, their settings, the recorded cspell output, and the list of deliberate
          differences, copied beside the test assembly (the folder layout is preserved under 'SpellChecking/Parity'). -->
     <Content Include="SpellChecking\Parity\corpus\*;SpellChecking\Parity\expected\*;SpellChecking\Parity\known-divergences.txt" CopyToOutputDirectory="PreserveNewest" />

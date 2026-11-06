@@ -224,6 +224,7 @@ file, the number of entries that were dropped, and how many words each routing t
 pull request description. Every download is checked against the SHA-256 value pinned in the script, whether it was
 just fetched or reused from the work folder, and so are the cspell npm package tarballs, the exported SCOWL word
 lists, and the installed `hunspell-reader` package tree; a mismatch stops the run with an error that names the input.
+Every `npm` command runs with `--ignore-scripts`, so no package code runs before its hash or integrity is verified.
 The run is all-or-nothing: every list is generated into a staging folder inside the work folder, checked, and only
 then moved over the committed lists, with the old files restored if the move fails part way. To move to a new
 upstream release, change the pinned versions and hashes at the top of the script and in
