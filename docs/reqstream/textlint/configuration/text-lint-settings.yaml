@@ -56,8 +56,9 @@ sections:
               - id: TextLint-Configuration-TextLintSettings-ValueValidation
                 title: >-
                   TextLintSettings shall reject a missing language, a minimum word length below 1,
-                  and a negative maximum file size when they are assigned, and shall accept a
-                  minimum word length of 1 and a maximum file size of 0.
+                  a minimum random length below 1, and a negative maximum file size when they are
+                  assigned, and shall accept a minimum word length of 1, a minimum random length
+                  of 1, and a maximum file size of 0.
                 justification: |
                   A value outside these ranges can never be meaningful: no word is shorter than one
                   character, and a size cannot be negative. Refusing it where it is assigned names
@@ -70,6 +71,17 @@ sections:
                   - TextLintSettings_Init_MinWordLengthOne_IsAccepted
                   - TextLintSettings_Init_MaxFileSizeNegative_ThrowsArgumentOutOfRangeException
                   - TextLintSettings_Init_MaxFileSizeZeroAndLargest_AreAccepted
+                  - TextLintSettings_Init_MinRandomLength_IsValidatedAtOne
+
+              - id: TextLint-Configuration-TextLintSettings-PatternDefaults
+                title: >-
+                  TextLintSettings shall default to no ignoreRegExpList entries, no patterns, random
+                  strings ignored, and a minimum random length of 40, as cspell does.
+                justification: |
+                  A project without these keys must see the behavior of cspell without them, so the
+                  defaults are the cspell defaults and not an empty or disabled state.
+                tests:
+                  - TextLintSettings_New_NoValues_HasDocumentedPatternDefaults
 
               - id: TextLint-Configuration-TextLintSettings-Immutable
                 title: >-
@@ -88,3 +100,6 @@ sections:
                   - TextLintSettings_Init_NullFiles_ThrowsArgumentNullException
                   - TextLintSettings_Init_NullIgnorePaths_ThrowsArgumentNullException
                   - TextLintSettings_Files_ExposedList_CannotBeMutatedThroughInterface
+                  - TextLintSettings_Init_PatternLists_AreCopied
+                  - TextLintSettings_Init_NullPatternListOrEntry_ThrowsArgumentNullException
+                  - TextLintSettings_With_PatternSettings_AreCopiedAndIndependent

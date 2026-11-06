@@ -104,3 +104,6 @@ threads.
   those of the directives.
 - **DocumentDirectives** (same subsystem) - reads `MatchTimeoutMilliseconds`, so the directive patterns share the
   time limit of the default patterns.
+- **PatternParser** (same subsystem) - reads `MatchTimeoutMilliseconds` as its own limit, which `PatternCatalog`,
+  `MarkdownPatterns`, and `RandomStringDetector` in turn read from it, so one constant bounds every regular expression
+  of the subsystem.

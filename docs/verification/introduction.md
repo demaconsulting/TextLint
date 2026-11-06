@@ -32,6 +32,10 @@ This document covers the verification design for the following software items:
   - **TextScanning** subsystem
     - **WordTokenizer** — words, tokens, case-change pieces, and word-list entries
     - **DefaultPatterns** — the text that is never checked
+    - **PatternParser** — cspell-style pattern entries turned into safe .NET regular expressions
+    - **PatternCatalog** — predefined and user-defined pattern names, and the ranges the patterns exclude
+    - **MarkdownPatterns** — link targets, labels, anchors, and entities of Markdown files
+    - **RandomStringDetector** — tokens that look like random data, and hexadecimal sequences inside tokens
     - **DocumentDirectives** — directives in comments
   - **SpellChecking** subsystem
     - **TextChecker** — spell checking of a string

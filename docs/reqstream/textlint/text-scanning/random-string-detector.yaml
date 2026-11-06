@@ -1,0 +1,69 @@
+---
+# Software Unit Requirements for the RandomStringDetector Class
+#
+# The RandomStringDetector class recognizes the strings that look like random data rather than words, such as keys and
+# tokens, and the hexadecimal sequences inside a token, so that they are not reported as unknown words. It follows the
+# random-string rules of cspell so a migrated project stays quiet where it was quiet.
+
+sections:
+  - title: TextLint Requirements
+    sections:
+      - title: TextScanning Requirements
+        sections:
+          - title: RandomStringDetector Requirements
+            requirements:
+              - id: TextLint-TextScanning-RandomStringDetector-RandomScore
+                title: >-
+                  RandomStringDetector shall judge a token to look random when its structure reduced to one symbol
+                  per run of digits, per word (a run of lower-case letters, optionally after one capital), per run of
+                  capitals, and per run of separators (hyphen, dot, apostrophe), with underscores removed and every
+                  other character kept, is at least half as long as the token, counting combining marks with their
+                  letter and a character outside the basic plane as two code units.
+                justification: |
+                  Tokens, keys, and encoded data are made of digits, capitals, and punctuation mixed together, while
+                  identifiers and prose are a few long words. The score is cspell's, so that a migrated project finds
+                  the same long tokens skipped and the same long identifiers checked.
+                tests:
+                  - RandomStringDetector_IsRandom_MixedTokens_AreRandom
+                  - RandomStringDetector_IsRandom_IdentifiersAndLongRuns_AreNotRandom
+                  - RandomStringDetector_IsRandom_ExactlyHalf_IsRandom
+                  - RandomStringDetector_IsRandom_UnderscoresAndSeparatorRuns_FollowTheCategorization
+                  - RandomStringDetector_IsRandom_CombiningMarks_AreCategorizedWithTheirLetter
+                  - RandomStringDetector_IsRandom_LetterOutsideBasicPlane_CountsTwoCodeUnits
+
+              - id: TextLint-TextScanning-RandomStringDetector-LargeTokens
+                title: >-
+                  RandomStringDetector shall judge an empty token not to be random and shall judge a token of one
+                  million characters in one pass.
+                justification: |
+                  A minified file can hold a single token of enormous length, and judging it must neither fail nor
+                  take more than linear time.
+                tests:
+                  - RandomStringDetector_IsRandom_EmptyAndVeryLargeTokens_AreHandled
+
+              - id: TextLint-TextScanning-RandomStringDetector-HexSequences
+                title: >-
+                  RandomStringDetector shall find the runs of hexadecimal digits and hyphens of a token that start and
+                  end with a hexadecimal digit, are delimited by anything that is not an ASCII letter or digit, have
+                  at least eight characters, are written in one letter case, contain a digit or a hyphen, and neither
+                  follow nor precede a letter, and shall report them as ranges of the text, adding them to the list
+                  it is given.
+                justification: |
+                  Data such as a partial UUID is made of words that no dictionary knows, and cspell does not report
+                  unknown words inside such a sequence. The ranges are relative to the whole text so that findings
+                  can be compared with them.
+                tests:
+                  - RandomStringDetector_FindHexSequences_QualifyingSequences_AreFound
+                  - RandomStringDetector_FindHexSequences_NonQualifyingSequences_AreNotFound
+                  - RandomStringDetector_FindHexSequences_TokenInsideText_ReportsTextOffsetsAndKeepsList
+                  - RandomStringDetector_FindHexSequences_MinimumLength_IsTheDocumentedOne
+
+              - id: TextLint-TextScanning-RandomStringDetector-ArgumentValidation
+                title: >-
+                  RandomStringDetector shall reject a missing text or list with a null-argument error and a token
+                  that is not inside the text with an out-of-range error.
+                justification: |
+                  A caller that passes bad arguments has a defect, and it is better found at once than as a failure
+                  deep inside a search.
+                tests:
+                  - RandomStringDetector_FindHexSequences_InvalidArguments_Throw

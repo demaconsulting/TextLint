@@ -1,0 +1,49 @@
+---
+# Software Unit Requirements for the MarkdownPatterns Class
+#
+# The MarkdownPatterns class finds the parts of a Markdown document that are not prose: link targets, link reference
+# labels, definitions of references, anchors, and HTML entities. It follows the patterns that cspell applies to Markdown
+# files, so a migrated project stays quiet where it was quiet.
+# cspell:ignore mdtext mdtxt mdwn
+
+sections:
+  - title: TextLint Requirements
+    sections:
+      - title: TextScanning Requirements
+        sections:
+          - title: MarkdownPatterns Requirements
+            requirements:
+              - id: TextLint-TextScanning-MarkdownPatterns-Patterns
+                title: >-
+                  MarkdownPatterns shall find the target of a link, the label of a reference link, the definition of
+                  a reference, the id of an anchor, and a lower-case HTML entity, matching what cspell's patterns
+                  for Markdown match, and shall find nothing in the text around them.
+                justification: |
+                  Link targets and labels are names and addresses, and their fragments would be reported as
+                  unknown words. cspell excludes them in Markdown files, and a migrated project must find them
+                  excluded here too, while the link text and the prose around it stay checked.
+                tests:
+                  - MarkdownPatterns_All_Pattern_FindsWhatCspellFinds
+
+              - id: TextLint-TextScanning-MarkdownPatterns-Applicability
+                title: >-
+                  MarkdownPatterns shall apply to a source whose name ends in one of the extensions that cspell reads
+                  as Markdown (.md, .markdown, .markdn, .mdown, .mdtext, .mdtxt, .mdwn, .mkd, .workbook, and .mdx),
+                  in any letter case, and shall not apply to any other name, to a directory that looks like a
+                  Markdown file, or to no name.
+                justification: |
+                  Prose in other files is not Markdown, and a pattern for link targets applied to source code would
+                  hide real findings. The decision is made from the name alone, so it is the same on every platform.
+                tests:
+                  - MarkdownPatterns_AppliesTo_MarkdownExtension_IsTrue
+                  - MarkdownPatterns_AppliesTo_OtherNames_IsFalse
+
+              - id: TextLint-TextScanning-MarkdownPatterns-BoundedMatching
+                title: >-
+                  MarkdownPatterns shall limit the time every pattern may spend on a text to five seconds, so that
+                  hostile input ends with a time-out error instead of hanging a run.
+                justification: |
+                  A repository can contain a file built to make a pattern backtrack. A run that never finishes is
+                  worse than one that reports the file as not checked.
+                tests:
+                  - MarkdownPatterns_All_EveryPattern_HasDocumentedMatchTimeout

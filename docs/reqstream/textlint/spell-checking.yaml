@@ -52,6 +52,40 @@ sections:
               - SpellCheckingSubsystem_Check_CrLfAndLoneCr_CountLinesByLineFeed
               - SpellCheckingSubsystem_Check_UnusableSettings_Throw
 
+          - id: TextLint-SpellChecking-ExcludedTextAndForms
+            title: >-
+              The SpellChecking subsystem shall not check text that matches the patterns of the settings, the
+              link targets and labels of Markdown files, long tokens that look like random data, and unknown
+              words inside hexadecimal sequences, shall accept contractions whose parts are acceptable, and shall
+              reject settings with a pattern that cannot be used.
+            justification: |
+              Projects hold text that is not prose and that the default ignore list does not recognize, and
+              cspell lets them exclude it. The same rules must apply to a string and to the files of a run, and
+              a pattern that cannot work must be found when the checker is created, not silently ignored.
+            children:
+              - TextLint-SpellChecking-TextChecker-CustomPatterns
+              - TextLint-SpellChecking-TextChecker-InvalidPatterns
+              - TextLint-SpellChecking-TextChecker-MarkdownFiles
+              - TextLint-SpellChecking-TextChecker-RandomStrings
+              - TextLint-SpellChecking-TextChecker-Contractions
+            tests:
+              - SpellCheckingSubsystem_CheckText_CustomPatternsFromSettings_SkipMatches
+              - SpellCheckingSubsystem_Constructor_UnusablePattern_ThrowsInvalidPatternException
+              - SpellCheckingSubsystem_CheckAsync_MarkdownFile_SkipsLinkTargetsOfThatFileOnly
+              - SpellCheckingSubsystem_CheckText_RandomLookingToken_IsSkippedUnlessSwitchedOff
+              - SpellCheckingSubsystem_CheckText_Contraction_IsAcceptedWhenItsPartsAre
+
+          - id: TextLint-SpellChecking-PatternTimeout
+            title: >-
+              The SpellChecking subsystem shall report a file whose check exceeds the time limit of a
+              pattern as a file that took too long, an error, and shall continue with the other files.
+            justification: |
+              A pattern of the settings can backtrack catastrophically on a file built to make it, and
+              one such file must neither hang a run nor fail the files that can be checked.
+            children:
+              - TextLint-SpellChecking-TextChecker-PatternTimeout
+              - TextLint-SpellChecking-SpellChecker-FileDiagnostics
+
           - id: TextLint-SpellChecking-FileChecking
             title: >-
               The SpellChecking subsystem shall check the files that the settings select under a root

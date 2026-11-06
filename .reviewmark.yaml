@@ -324,6 +324,65 @@ reviews:
       - "src/DemaConsulting.TextLint/TextScanning/DirectiveScan.cs"
       - "test/**/TextScanning/DocumentDirectivesTests.cs"
 
+  - id: TextLint-TextScanning-PatternParser
+    title: Review that TextLint TextScanning PatternParser Implementation is Correct
+    context:
+      - docs/design/textlint.md
+      - docs/reqstream/textlint.yaml
+      - docs/design/textlint/text-scanning.md
+      - docs/reqstream/textlint/text-scanning.yaml
+    paths:
+      - "docs/reqstream/textlint/text-scanning/pattern-parser.yaml"
+      - "docs/design/textlint/text-scanning/pattern-parser.md"
+      - "docs/verification/textlint/text-scanning/pattern-parser.md"
+      - "src/DemaConsulting.TextLint/TextScanning/PatternParser.cs"
+      - "src/DemaConsulting.TextLint/TextScanning/JavaScriptRegexTranslator.cs"
+      - "src/DemaConsulting.TextLint/TextScanning/InvalidPatternException.cs"
+      - "test/**/TextScanning/PatternParserTests.cs"
+
+  - id: TextLint-TextScanning-PatternCatalog
+    title: Review that TextLint TextScanning PatternCatalog Implementation is Correct
+    context:
+      - docs/design/textlint.md
+      - docs/reqstream/textlint.yaml
+      - docs/design/textlint/text-scanning.md
+      - docs/reqstream/textlint/text-scanning.yaml
+    paths:
+      - "docs/reqstream/textlint/text-scanning/pattern-catalog.yaml"
+      - "docs/design/textlint/text-scanning/pattern-catalog.md"
+      - "docs/verification/textlint/text-scanning/pattern-catalog.md"
+      - "src/DemaConsulting.TextLint/TextScanning/PatternCatalog.cs"
+      - "src/DemaConsulting.TextLint/TextScanning/NamedPattern.cs"
+      - "test/**/TextScanning/PatternCatalogTests.cs"
+
+  - id: TextLint-TextScanning-MarkdownPatterns
+    title: Review that TextLint TextScanning MarkdownPatterns Implementation is Correct
+    context:
+      - docs/design/textlint.md
+      - docs/reqstream/textlint.yaml
+      - docs/design/textlint/text-scanning.md
+      - docs/reqstream/textlint/text-scanning.yaml
+    paths:
+      - "docs/reqstream/textlint/text-scanning/markdown-patterns.yaml"
+      - "docs/design/textlint/text-scanning/markdown-patterns.md"
+      - "docs/verification/textlint/text-scanning/markdown-patterns.md"
+      - "src/DemaConsulting.TextLint/TextScanning/MarkdownPatterns.cs"
+      - "test/**/TextScanning/MarkdownPatternsTests.cs"
+
+  - id: TextLint-TextScanning-RandomStringDetector
+    title: Review that TextLint TextScanning RandomStringDetector Implementation is Correct
+    context:
+      - docs/design/textlint.md
+      - docs/reqstream/textlint.yaml
+      - docs/design/textlint/text-scanning.md
+      - docs/reqstream/textlint/text-scanning.yaml
+    paths:
+      - "docs/reqstream/textlint/text-scanning/random-string-detector.yaml"
+      - "docs/design/textlint/text-scanning/random-string-detector.md"
+      - "docs/verification/textlint/text-scanning/random-string-detector.md"
+      - "src/DemaConsulting.TextLint/TextScanning/RandomStringDetector.cs"
+      - "test/**/TextScanning/RandomStringDetectorTests.cs"
+
   # TextLint - SpellChecking
   - id: TextLint-SpellChecking
     title: Review that TextLint SpellChecking Satisfies Subsystem Requirements

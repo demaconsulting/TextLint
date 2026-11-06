@@ -26,14 +26,17 @@ supported yet.
 The project currently provides:
 
 - **Settings File**: The library loads a cspell-compatible `.textlint.yaml` (keys `version`, `files`,
-  `ignorePaths`, `enableGlobDot`, `language`, `words`, `ignoreWords`, `flagWords`, `minWordLength`, and
-  `maxFileSize`), reporting every problem with its file, line, and column; unsupported keys are errors
+  `ignorePaths`, `enableGlobDot`, `language`, `words`, `ignoreWords`, `flagWords`, `minWordLength`, `maxFileSize`,
+  `ignoreRegExpList`, `patterns`, `ignoreRandomStrings`, and `minRandomLength`), reporting every problem with its
+  file, line, and column; unsupported keys are errors
 - **File Selection**: The library selects files from glob patterns (brace alternatives, bare names at any
   depth, case-sensitive matching, cspell-style hidden-file rules), skipping excluded directories without
   scanning them
 - **Spell Checking**: The library checks the spelling of a string or of every selected file, in parallel, and
   returns deterministic findings with file, line, column, and word. It splits camelCase and snake_case
-  identifiers, ignores URLs, email addresses, hashes, and encoded data, honors `cspell:disable`-style comments
+  identifiers, ignores URLs, email addresses, hashes, and encoded data, skips text that matches the
+  `ignoreRegExpList` patterns of the settings (JavaScript regular expressions, translated and validated when the
+  settings are loaded), Markdown link targets, and random-looking tokens, honors `cspell:disable`-style comments
   (also with the prefix `textlint:`), and reads UTF-8 and UTF-16 files. A parity test compares it with the real
   cspell, and the differences are documented
 - **Word Lookup**: The library reports whether a word is known to American English (the default), British
@@ -167,8 +170,10 @@ foreach (var file in files)
 ```
 
 The supported `.textlint.yaml` keys are `version`, `files`, `ignorePaths`, `enableGlobDot`, `language`,
-`words`, `ignoreWords`, `flagWords`, `minWordLength`, and `maxFileSize`; any other key is an error. See the
-[User Guide][link-guide] for the settings reference, the glob pattern rules, the comment directives, and the
+`words`, `ignoreWords`, `flagWords`, `minWordLength`, `maxFileSize`, `ignoreRegExpList`, `patterns`,
+`ignoreRandomStrings`, and `minRandomLength`; any other key is an error. See the
+[User Guide][link-guide] for the settings reference, the glob pattern rules, the pattern rules and predefined
+names, the comment directives, and the
 differences from cspell.
 
 Look words up in the embedded dictionaries. The default is American English; pass a language name, or a

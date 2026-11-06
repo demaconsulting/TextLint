@@ -38,6 +38,14 @@ Windows, Linux, and macOS.
   stopping the run, and a missing root directory is an error.
 - Results are identical and in the same order for one worker and for many, also when runs overlap; an invalid degree
   of parallelism is rejected; a cancelled run throws and returns nothing.
+- Text that matches an expression or a named pattern of the settings is not checked, and a pattern that cannot be used
+  is rejected when the checker is created.
+- The link targets of a Markdown file are not checked, and the same text in a file with another name is.
+- A token that looks like random data is not checked unless the setting is off, and a contraction is accepted when its
+  parts are, and reported whole otherwise.
+- A file on which a pattern exceeds its time limit is reported as a file that took too long and the run continues. No
+  subsystem test waits for the limit; this behavior is proved by the unit tests of `TextChecker` and `SpellChecker`
+  and by a system test with a catastrophic pattern.
 
 ### Test Scenarios
 
@@ -138,5 +146,25 @@ cancelled stops the run with a cancellation and no result. This scenario is test
 misspelling and a binary file is formatted under absolute names chosen by the caller; the names replace the
 relative names, and formatting under the recorded names gives the same text as the default formatting. This
 scenario is tested by `SpellCheckingSubsystem_CheckAsync_CallerFileNames_NameIssueAndDiagnostic`.
+
+**SpellCheckingSubsystem_CheckText_CustomPatternsFromSettings_SkipMatches**: Settings with an expression and a named
+pattern, a text with a match of each, and a word that neither matches yield a finding only for that word. This scenario
+is tested by `SpellCheckingSubsystem_CheckText_CustomPatternsFromSettings_SkipMatches`.
+
+**SpellCheckingSubsystem_Constructor_UnusablePattern_ThrowsInvalidPatternException**: Settings with an invalid
+expression and settings with a name that nothing defines each fail when the checker is created, with the documented
+exception. This scenario is tested by `SpellCheckingSubsystem_Constructor_UnusablePattern_ThrowsInvalidPatternException`.
+
+**SpellCheckingSubsystem_CheckAsync_MarkdownFile_SkipsLinkTargetsOfThatFileOnly**: A Markdown file and a text file hold
+the same link and the same misspelling; the link target is skipped in the Markdown file and reported in the text file.
+This scenario is tested by `SpellCheckingSubsystem_CheckAsync_MarkdownFile_SkipsLinkTargetsOfThatFileOnly`.
+
+**SpellCheckingSubsystem_CheckText_RandomLookingToken_IsSkippedUnlessSwitchedOff**: A long token of non-words, digits,
+and hyphens yields no finding with the default settings and findings when the random-string setting is off. This
+scenario is tested by `SpellCheckingSubsystem_CheckText_RandomLookingToken_IsSkippedUnlessSwitchedOff`.
+
+**SpellCheckingSubsystem_CheckText_Contraction_IsAcceptedWhenItsPartsAre**: A contraction of a known word and a short
+part is accepted, and one with an unknown part is reported whole with its apostrophe. This scenario is tested by
+`SpellCheckingSubsystem_CheckText_Contraction_IsAcceptedWhenItsPartsAre`.
 
 <!-- cspell:ignore wrold speling -->

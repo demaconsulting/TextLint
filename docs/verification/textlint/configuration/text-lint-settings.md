@@ -5,7 +5,9 @@
 `TextLintSettings` is verified with unit tests in `TextLintSettingsTests.cs`. The type uses only .NET
 base class library types, so no mocking or test doubles are needed; tests construct settings, derive copies, and
 assert on the exposed values and thrown exceptions. Boundary values (a length of 0 and 1, a size of -1, 0, and
-the largest 64-bit integer) are tested on both sides.
+the largest 64-bit integer, and a minimum random length of -1, 0, and 1) are tested on both sides. The `NamedPattern`
+type of the `TextScanning` subsystem is used as a plain value in the pattern list; the validity of the patterns is not
+judged by the settings, so it is not tested here.
 
 #### Test Environment
 
@@ -22,6 +24,12 @@ N/A - standard test environment.
   array after assignment do not change the settings.
 - A minimum word length below 1 and a negative maximum file size are rejected; 1 and 0 (and the largest size)
   are accepted; an unsupported language is accepted, because it is validated where it is consumed.
+- New settings have no ignoreRegExpList entries and no patterns, ignore random strings, and have a minimum random
+  length of 40.
+- The pattern lists are copied on assignment and cannot be mutated through their interfaces, and a null list or entry
+  is rejected.
+- A minimum random length below 1 is rejected and 1 is accepted.
+- A copy made with `with` keeps the pattern settings, and changing the copy does not change the original.
 
 #### Test Scenarios
 
@@ -112,3 +120,22 @@ throws. This scenario is tested by `TextLintSettings_Init_MaxFileSizeNegative_Th
 
 **TextLintSettings_Init_MaxFileSizeZeroAndLargest_AreAccepted**: The sizes 0 (no limit) and the largest 64-bit
 integer are stored. This scenario is tested by `TextLintSettings_Init_MaxFileSizeZeroAndLargest_AreAccepted`.
+
+**TextLintSettings_New_NoValues_HasDocumentedPatternDefaults**: Settings are created without assigning anything; the
+ignore list and the pattern list are empty (never null), random strings are ignored, and the minimum random length is
+40. This scenario is tested by `TextLintSettings_New_NoValues_HasDocumentedPatternDefaults`.
+
+**TextLintSettings_Init_PatternLists_AreCopied**: Mutable lists of entries and definitions are assigned and then
+changed; the settings keep the original items, and an add through the mutable interface of each exposed list throws.
+This scenario is tested by `TextLintSettings_Init_PatternLists_AreCopied`.
+
+**TextLintSettings_Init_NullPatternListOrEntry_ThrowsArgumentNullException**: A null ignore list, a null pattern list,
+a null entry in the first, and a null definition in the second each throw. This scenario is tested by
+`TextLintSettings_Init_NullPatternListOrEntry_ThrowsArgumentNullException`.
+
+**TextLintSettings_Init_MinRandomLength_IsValidatedAtOne**: The boundary length 1 is stored, and 0 and -1 throw. This
+scenario is tested by `TextLintSettings_Init_MinRandomLength_IsValidatedAtOne`.
+
+**TextLintSettings_With_PatternSettings_AreCopiedAndIndependent**: A copy is derived that changes the ignore list and
+the minimum random length; the copy has the new values and keeps the definitions and the random-string switch, and the
+original keeps every value. This scenario is tested by `TextLintSettings_With_PatternSettings_AreCopiedAndIndependent`.

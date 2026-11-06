@@ -361,25 +361,37 @@ flagWords:
   - "utilize->use"
 minWordLength: 4
 maxFileSize: 1MB
+ignoreRegExpList:
+  - /\bticket-\d+\b/i
+  - ProductCode
+patterns:
+  - name: ProductCode
+    pattern: /\bPC-[A-Z]{3}\d+\b/
+ignoreRandomStrings: true
+minRandomLength: 40
 ```
 
 ## Supported Keys
 
-| Key             | Type             | Default  | Meaning                                                           |
-| :-------------- | :--------------- | :------- | :---------------------------------------------------------------- |
-| `version`       | text             | none     | Schema version; carried but not validated.                        |
-| `files`         | list of patterns | empty    | Glob patterns that select the files to check. Empty selects none. |
-| `ignorePaths`   | list of patterns | empty    | Glob patterns for files and directories to exclude.               |
-| `enableGlobDot` | `true`/`false`   | `false`  | Let wildcards match hidden (dot-prefixed) files and directories.  |
-| `language`      | text             | `en`     | The English dictionaries: `en`, `en-US`, `en-GB`, or a list.      |
-| `words`         | list of words    | empty    | Words that are accepted as correct.                               |
-| `ignoreWords`   | list of words    | empty    | Words that are never reported, even if flagged.                   |
-| `flagWords`     | list of words    | empty    | Words that are always reported, even if they are known.           |
-| `minWordLength` | whole number     | `4`      | Words shorter than this are not checked (at least 1).             |
-| `maxFileSize`   | size             | no limit | Files larger than this are skipped and reported.                  |
+| Key                   | Type             | Default  | Meaning                                                    |
+| :-------------------- | :--------------- | :------- | :--------------------------------------------------------- |
+| `version`             | text             | none     | Schema version; carried but not validated.                 |
+| `files`               | list of patterns | empty    | Glob patterns that select the files; empty selects none.   |
+| `ignorePaths`         | list of patterns | empty    | Glob patterns for files and directories to exclude.        |
+| `enableGlobDot`       | `true`/`false`   | `false`  | Let wildcards match hidden (dot-prefixed) names.           |
+| `language`            | text             | `en`     | English dictionaries: `en`, `en-US`, `en-GB`, or a list.   |
+| `words`               | list of words    | empty    | Words that are accepted as correct.                        |
+| `ignoreWords`         | list of words    | empty    | Words that are never reported, even if flagged.            |
+| `flagWords`           | list of words    | empty    | Words that are always reported, even if known.             |
+| `minWordLength`       | whole number     | `4`      | Words shorter than this are not checked (at least 1).      |
+| `maxFileSize`         | size             | no limit | Files larger than this are skipped and reported.           |
+| `ignoreRegExpList`    | list of text     | empty    | Patterns, or pattern names, whose matches are not checked. |
+| `patterns`            | list of mappings | empty    | Named patterns for use in `ignoreRegExpList`.              |
+| `ignoreRandomStrings` | `true`/`false`   | `true`   | Skip long tokens that look like random data.               |
+| `minRandomLength`     | whole number     | `40`     | Length from which a token may be random (at least 1).      |
 
 An empty file, or one holding only comments, is valid and gives the defaults. A key with no value is
-treated as absent. The spelling keys are described under _Spell Checking_ below.
+treated as absent. The spelling keys and the pattern keys are described under _Spell Checking_ below.
 
 Any other key, such as `caseSensitive` or `overrides`, is an **error**: loading fails, and the message names the
 file, the line and column, and the key, for example
@@ -387,7 +399,9 @@ file, the line and column, and the key, for example
 use them are implemented. Key names are case-sensitive, and a file must contain a single YAML document.
 Every problem found is reported, not just the first, as `file(line,column): error: message`. A value that is
 not valid is reported at the value: an unsupported language, a word-list entry that could never match, a
-`minWordLength` that is not a whole number of at least 1, or a `maxFileSize` that is not a size.
+`minWordLength` that is not a whole number of at least 1, a `maxFileSize` that is not a size, a pattern that
+cannot be used, an `ignoreRandomStrings` that is not `true` or `false`, or a `minRandomLength` that is not a whole
+number of at least 1.
 
 ## Glob Patterns
 
@@ -440,7 +454,8 @@ terms, and the word lists of the settings:
   dictionaries contain Latin-script words only, so every word in Cyrillic or Greek is unknown.
 - These are not checked at all: URLs, email addresses, C and CSS hexadecimal values, commit hashes that contain a
   digit, UUIDs, Unicode references such as `U+1F600`, SHA digests and hash strings, Base64 data, SSH keys, and PEM
-  certificate and key blocks.
+  certificate and key blocks. The text that the patterns of the settings match, the link targets and labels of Markdown
+  files, and long random-looking tokens are not checked either (see the sections below).
 
 Each finding has a kind: an **unknown word**, a **flagged word**, or an **unsupported directive**. Positions are
 1-based; the line is counted by line feed characters only, and the column counts UTF-16 code units from the start
@@ -472,6 +487,127 @@ An entry in a word list that could never match is an error when the file is load
 silently has no effect: a blank entry, an entry with white space, an entry with a character that cannot be part of
 a word, an entry with no letter or digit, and an entry that starts with `!` (the forbidden-word marker of cspell;
 use `flagWords` instead).
+
+## Patterns for Text That Is Not Prose
+
+<!-- cspell:ignore dgimsuvxy mdtext mdtxt mdwn -->
+
+Some text is not prose and not covered by the built-in ignore list: ticket numbers, product codes, hash-like names,
+and so on. The `ignoreRegExpList` setting lists regular expressions; text that matches one is never checked. The
+`patterns` setting gives a pattern a name, so a list entry, or a long expression, can be written once and used by name.
+
+```yaml
+ignoreRegExpList:
+  - /\bticket-\d+\b/i      # a literal between slashes, with flags
+  - "[A-Z]{2,}-\\d+"       # a bare expression: no slashes, so the flags are i and m
+  - ProductCode            # the name of a pattern defined below
+  - Base64                 # the name of a predefined pattern
+patterns:
+  - name: ProductCode
+    pattern: /\bPC-[A-Z]{3}\d+\b/
+```
+
+- **Entry forms.** An entry that starts with a slash and ends with a slash followed only by flag letters (`dgimsuvxy`)
+  is a literal: only the flags that are written are in force, so `/text/` is case-sensitive. Any other entry is a bare
+  expression, which is read with the flags `i` and `m`, as cspell reads it: case-insensitive, with `^` and `$` matching
+  at every line. A path such as `/usr/lib/x` is therefore a bare expression. Every match is wanted, so the `g` flag
+  never changes anything.
+- **Names.** An entry written only with letters, digits, `_`, and `-`, starting with a letter, is a name: it must be
+  defined by `patterns` (before or after the entry) or be one of the predefined names below, or loading fails and the
+  entry is named. cspell would read an unknown name as a literal expression and silently match the word; to match a
+  word literally, write it between slashes (`/word/`). Names are compared without regard to letter case. A pattern
+  definition has a `name` and a `pattern`, and may have a `description`, which is ignored. A name may not be defined
+  twice or reuse a predefined name. A definition that fails still defines its name, so one mistake does not report an
+  error for every use.
+- **Matching.** The text a match covers is not checked, and an empty match hides nothing. The patterns apply to the
+  whole document, as in cspell.
+- **Where the patterns come from.** A pattern is read when the settings are loaded, so every problem is reported with
+  the file, line, and column of the entry, for example
+  `.textlint.yaml(7,5): error: Cannot use the 'ignoreRegExpList' entry '/(?i)x/': the group syntax '(?i' is not
+  supported.` A project that builds its settings in code gets an `InvalidPatternException` that names the entry when
+  the `TextChecker` is created.
+
+### Predefined Pattern Names
+
+TextLint supports 28 of the predefined pattern names of cspell, in any letter case. Nineteen are always in force, so
+listing one is accepted and changes nothing; they exist so that a configuration written for cspell keeps loading:
+
+`Urls`, `Email`, `RsaCert`, `SshRsa`, `Base64MultiLine`, `Base64SingleLine`, `CommitHash`, `CommitHashLink`,
+`CStyleHexValue`, `CSSHexValue`, `SHA`, `HashStrings`, `UnicodeRef`, `UUID`, `SpellCheckerDisable`,
+`SpellCheckerDisableBlock`, `SpellCheckerDisableLine`, `SpellCheckerDisableNext`, and `SpellCheckerIgnoreInDocSetting`.
+
+Nine apply only when listed:
+
+| Name               | Text it hides                                                                      |
+| :----------------- | :--------------------------------------------------------------------------------- |
+| `HexValues`        | `#` colors, `0x` numbers, and `\u` and `\x{}` escapes                              |
+| `PublicKey`        | A `BEGIN PUBLIC KEY` block (also `RSA PUBLIC KEY`) up to its `END`                 |
+| `EscapeCharacters` | Backslash escapes such as `\n`, `\t`, `\x41`, and `\u0041`                         |
+| `Base64`           | Runs of Base64 text (at least 40 characters)                                       |
+| `href`             | An `href="..."` attribute                                                          |
+| `string`           | Quoted strings, in single, double, and back quotes                                 |
+| `CStyleComment`    | `//` comments and `/* */` comments                                                 |
+| `PhpHereDoc`       | A PHP heredoc, from `<<<NAME` to `NAME;`                                           |
+| `Everything`       | Every character, which switches checking off                                       |
+
+Any other name, such as the Markdown or language-specific names of cspell, is an error unless the `patterns` setting
+defines it. The Markdown patterns need no name: they are always on for Markdown files (see below).
+
+### Regular Expression Rules
+
+The expressions are JavaScript regular expressions, as in cspell, translated to .NET by a strict translator that
+gives each construct its JavaScript meaning or rejects it with a reason, so a pattern that loads means what its author
+wrote:
+
+- `\w`, `\d`, and `\b` are ASCII-only; `\s` is the JavaScript white space set (which includes U+FEFF and U+00A0).
+- `.` does not match `\n`, `\r`, U+2028, or U+2029; with the `m` flag, `^` and `$` match at those line breaks; without
+  it they match only at the start and the end of the text.
+- Groups are numbered by their opening parenthesis, and named groups (`(?<name>...)`, `\k<name>`) are numbered with
+  the others, as in JavaScript.
+- The flags `g`, `i`, `m`, and `u` are accepted. `\p{...}` and `\P{...}` need the `u` flag and accept the general
+  categories (`\p{Lu}`, `\p{Letter}` is not accepted: use the short names). Look-ahead and look-behind are supported.
+- Rejected, with a message that names the construct: the flags `s`, `x`, `y`, `d`, and `v` (for example
+  `the flag 's' is not supported; use only g, i, m, and u.`); inline options such as
+  `(?i)`; atomic groups, conditionals, and every other `(?...)` form that JavaScript lacks; octal escapes; the .NET
+  escapes `\A`, `\z`, `\Z`, `\G`, `\e`, `\a`, and `\h`; a back-reference to a group that is not complete; properties
+  other than the general categories; a quantifier with nothing to repeat; a pattern longer than 4,096 characters or
+  nested deeper than 100 groups; and an empty expression.
+- A back-reference to a group that did not take part in a match matches the empty text in JavaScript and fails in
+  .NET; `.` matches one UTF-16 code unit, so with the `u` flag it matches half of a character outside the basic plane.
+
+**Time limit.** Every expression has a limit of 5 seconds for one match operation on one text. A pattern that
+backtracks catastrophically on a file (for example `/^(a|aa)+$/` on a long run of `a` followed by `b`) stops the check
+of that file, and the file is listed in the result as one that took too long, an error, while the run continues with
+the other files. The limit is a safety net and not a guarantee of speed: the processor is busy until the limit is
+reached, so one hostile file can cost up to 5 seconds for each pattern, and a pattern file should be reviewed like code.
+
+## Random Strings
+
+Keys, tokens, and similar data are made of fragments that no dictionary knows. As cspell does, TextLint does not check
+a token that looks random: a token (a run of letters, digits, and `_ ' ’ . + -`) that is at least `minRandomLength`
+characters long (40 by default), and whose structure is not made of few long words. The structure is judged as cspell
+judges it: digits, words, runs of capitals, and runs of separators each count as one part, and the token is random when
+the parts are at least half as many as its characters. A long identifier such as
+`getTheCustomerAccountBalanceForTheCurrentFinancialYear` is a few words, so it is checked. Setting `ignoreRandomStrings`
+to `false` checks every token, and `minRandomLength` changes the length from which a token is judged (at least 1).
+
+When `ignoreRandomStrings` is on, an unknown word that begins inside a run of hexadecimal digits and hyphens is not
+reported either, as in cspell: the run must be at least 8 characters, in one letter case, contain a digit or a hyphen,
+and not touch a letter, so a partial UUID is skipped and a word made only of the letters `a` to `f` is not.
+
+## Markdown Files
+
+In a Markdown file (an extension of `.md`, `.markdown`, `.markdn`, `.mdown`, `.mdtext`, `.mdtxt`, `.mdwn`, `.mkd`,
+`.workbook`, or `.mdx`, in any letter case) the following are not checked, as in cspell: the target of a link
+(`[text](target)`), the label of a reference link (`[text][label]`), the definition of a reference (`[label]: target`),
+the id of an anchor (`<a id="...">`), and an HTML entity such as `&clubs;` (lower case only). In any other file, and in
+text checked without a name, they are checked.
+
+## Words with Apostrophes
+
+A word with apostrophes, such as `rock'n'roll`, `exec'd`, or `she'd've`, is accepted when each part between the
+apostrophes is a known word, a possessive or ending that is accepted, or too short to check (under `minWordLength`).
+Otherwise the whole word is reported, with the apostrophes.
 
 ## Directives in Comments
 
@@ -522,15 +658,26 @@ corpora (see the verification of TextLint). These differences are deliberate:
 - **Different dictionaries.** TextLint embeds its own English and technical word lists, so a real project shows
   words that cspell knows and TextLint does not, and the reverse. Add such words to `words`.
 - **Unsupported settings are errors,** and unsupported directives are reported; cspell has more settings (for
-  example `caseSensitive`, `allowCompoundWords`, `overrides`, `dictionaries`, and `ignoreRegExpList`), which are
+  example `caseSensitive`, `allowCompoundWords`, `overrides`, `dictionaries`, and `includeRegExpList`), which are
   not available yet.
+- **Patterns are translated, and unusual ones are rejected.** `ignoreRegExpList` and `patterns` accept JavaScript
+  regular expressions, but the flags `s`, `x`, `y`, `d`, and `v`, and constructs without a safe .NET equivalent, are
+  load errors where cspell would run them as the JavaScript engine decides. A name in `ignoreRegExpList` that is
+  neither defined nor predefined is an error, where cspell reads it as a literal expression; only 28 predefined names
+  are supported, and every other name is an error. The `ignoreRegExp` directive in a comment is reported as
+  unsupported. A back-reference to a group that did not match, and `.` beside characters outside the basic plane,
+  differ as described under _Regular Expression Rules_. Every pattern has a 5-second limit, which cspell lacks.
+- **The Markdown rules are the five link, anchor, and entity patterns only** (not the other patterns that the
+  language-specific settings of cspell add).
+- **A word accepted by escape.** After cspell accepts a word through the backslash-escape rule (`\nfoo` accepts
+  `foo`), it also accepts `nfoo` anywhere later in the same file, a side effect of its cache. TextLint does not.
 - **No limit on repeats.** cspell stops reporting a word after five repeats and a file after 100 problems by
   default; TextLint reports every occurrence.
 - **Stricter language names.** Only `en`, `en-US`, and `en-GB` are accepted; cspell also accepts forms such as
   `en_US`.
-- **Default ignore patterns are the same list, but not the per-language additions** (for example the Markdown link
-  patterns), and cspell's random-string detection is not available. The patterns are .NET regular expressions with
-  the ASCII meaning of a word character and a word boundary, as in JavaScript.
+- **Default ignore patterns are the same list, and the Markdown link patterns and random-string rule are ported;** the
+  per-language additions of cspell are not. The patterns are .NET regular expressions with the ASCII meaning of a word
+  character and a word boundary, as in JavaScript.
 - **Binary files** are recognized by a NUL character in the first 1,024 characters, whatever the file extension; UTF-32
   files and UTF-16 files without a byte order mark are therefore skipped as binary.
 - **Per-file problems are results.** A file that cannot be read, is binary, is too large, or takes too long to check

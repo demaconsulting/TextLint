@@ -128,3 +128,64 @@ sections:
               - TextScanningSubsystem_Scan_UnsupportedDirective_IsReportedAtItsName
               - TextScanningSubsystem_Scan_EveryPrefix_SwitchesOffCheckingAlike
               - TextScanningSubsystem_ScanDocument_DisabledBlockUrlAndIgnoreDirective_LeavesOnlyCheckedWords
+
+          - id: TextLint-TextScanning-CustomPatterns
+            title: >-
+              The TextScanning subsystem shall turn the patterns of the ignoreRegExpList and patterns settings,
+              written between slashes with flags, as bare expressions, or as the names of defined or predefined
+              patterns, into the ranges of a text that they match, with the meaning the patterns have in
+              cspell, and shall reject a pattern that cannot be used with the entry and the reason, and shall
+              bound the work and the time of reading and matching every pattern.
+            justification: |
+              Projects exclude text that is not prose with patterns, and a project migrated from cspell brings
+              its patterns unchanged, so each must exclude the same text. The patterns come from files that
+              anyone who can change the repository may write, so reading and matching them must be bounded.
+            children:
+              - TextLint-TextScanning-PatternParser-Forms
+              - TextLint-TextScanning-PatternParser-Flags
+              - TextLint-TextScanning-PatternParser-JavaScriptMeaning
+              - TextLint-TextScanning-PatternParser-UnsupportedConstructs
+              - TextLint-TextScanning-PatternParser-InvalidEntries
+              - TextLint-TextScanning-PatternParser-BoundedInput
+              - TextLint-TextScanning-PatternParser-BoundedMatching
+              - TextLint-TextScanning-PatternCatalog-PredefinedNames
+              - TextLint-TextScanning-PatternCatalog-OptionalPatterns
+              - TextLint-TextScanning-PatternCatalog-NamedPatterns
+              - TextLint-TextScanning-PatternCatalog-InvalidNames
+              - TextLint-TextScanning-PatternCatalog-ExcludedRanges
+              - TextLint-TextScanning-PatternCatalog-ArgumentValidation
+            tests:
+              - TextScanningSubsystem_ResolvePatterns_ExpressionsAndNames_FindMatchedRanges
+              - TextScanningSubsystem_ResolvePatterns_UnusableEntry_ThrowsWithEntryAndReason
+
+          - id: TextLint-TextScanning-MarkdownLinks
+            title: >-
+              The TextScanning subsystem shall find the link targets, link reference labels, reference
+              definitions, anchors, and HTML entities of a text whose source name has a Markdown extension, and
+              shall not apply that rule to any other name.
+            justification: |
+              Link targets and labels are names and addresses, and their fragments would be reported as unknown
+              words. cspell excludes them in Markdown files only, so a migrated project must find them excluded
+              there and checked everywhere else.
+            children:
+              - TextLint-TextScanning-MarkdownPatterns-Patterns
+              - TextLint-TextScanning-MarkdownPatterns-Applicability
+              - TextLint-TextScanning-MarkdownPatterns-BoundedMatching
+            tests:
+              - TextScanningSubsystem_MarkdownPatterns_LinkTarget_IsExcludedOnlyForMarkdownNames
+
+          - id: TextLint-TextScanning-RandomStrings
+            title: >-
+              The TextScanning subsystem shall recognize a token that looks like random data, such as a key or a
+              token, and the hexadecimal sequences inside a token, for any token however long.
+            justification: |
+              Random data is made of fragments that no dictionary knows, and cspell skips it by default, so a
+              migrated project must find the same tokens skipped, while long identifiers made of words must stay
+              checked.
+            children:
+              - TextLint-TextScanning-RandomStringDetector-RandomScore
+              - TextLint-TextScanning-RandomStringDetector-LargeTokens
+              - TextLint-TextScanning-RandomStringDetector-HexSequences
+              - TextLint-TextScanning-RandomStringDetector-ArgumentValidation
+            tests:
+              - TextScanningSubsystem_RandomStrings_TokenAndHexSequence_AreRecognized

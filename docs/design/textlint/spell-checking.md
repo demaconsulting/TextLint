@@ -28,11 +28,15 @@ verdict a gate should use.
 - _Role_: Provider.
 - _Contract_: Accepts the text and an optional source name, and returns a read-only list of `SpellingIssue`, each
   with the source name, a 1-based line, a 1-based column in UTF-16 code units, the text of the finding, its kind
-  (unknown word, flagged word, or unsupported directive), and its suggestions. The list is in text order.
+  (unknown word, flagged word, or unsupported directive), and its suggestions. The list is in text order. The text is
+  not checked in the parts that the default patterns, the patterns of the settings, the directives, and, for a source
+  name with a Markdown extension, the Markdown patterns match, nor in a long token that looks like random data.
 - _Constraints_: Creating the checker throws `ArgumentNullException` for null settings and `ArgumentException` for
-  an unsupported language or a word-list entry that could never match; both messages name what is wrong.
-  `Check` throws `ArgumentNullException` for a null text. A checker is immutable and safe for any number of
-  concurrent calls.
+  an unsupported language or a word-list entry that could never match, and `InvalidPatternException` (an
+  `ArgumentException`) for an `ignoreRegExpList` entry or a `patterns` definition that cannot be used; all messages
+  name what is wrong.
+  `Check` throws `ArgumentNullException` for a null text, and `RegexMatchTimeoutException` when a pattern exceeds
+  its time limit on the text. A checker is immutable and safe for any number of concurrent calls.
 
 **SpellChecker.CheckAsync**: Checks the files that the settings select.
 
@@ -51,12 +55,14 @@ verdict a gate should use.
 **Dependencies on other subsystems**: The subsystem consumes four others and none consumes it.
 
 - `Configuration` supplies `TextLintSettings`, the immutable value that carries the file patterns, the ignore
-  patterns, the hidden-file switch, the language, the three word lists, the minimum word length, and the maximum
-  file size. The subsystem never reads or writes a settings file.
+  patterns, the hidden-file switch, the language, the three word lists, the minimum word length, the maximum
+  file size, the `ignoreRegExpList` and `patterns` settings, and the two random-string settings. The subsystem never
+  reads or writes a settings file.
 - `Dictionaries` supplies `SpellingDictionary`, which answers whether a word is known in the chosen language.
 - `FileSelection` supplies `FileSelector`, which turns the patterns into the ordered list of files to check.
-- `TextScanning` supplies the word tokenizer, the default ignore patterns, and the document directives, which
-  decide what text is checked and how it is cut into words.
+- `TextScanning` supplies the word tokenizer, the default ignore patterns, the document directives, the catalog that
+  resolves the patterns of the settings, the Markdown patterns, and the random-string detector, which decide what text
+  is checked and how it is cut into words.
 
 These are the documented dependencies for the subsystem and unit tests: tests may use the settings value, the file
 selector, the spelling dictionary, and the text scanning units for real, and no test double replaces any of them.
@@ -94,8 +100,24 @@ contain digits or punctuation (`k8s`, `foo-bar`) are matched against whole token
 otherwise cut them apart before they could match. The order of precedence is the one cspell uses: an ignored word is
 never reported, a flagged word always is (whatever its length), then the accepted words and the dictionary decide.
 The known word forms that cspell allows (the possessive, a word after a backslash escape, a run of capitals with a
-plural or verb ending, and a piece that is one repeated letter) are part of the checker so that prose, string
-literals, acronyms, and placeholders do not produce findings that cspell does not.
+plural or verb ending, a contraction whose parts are acceptable, and a piece that is one repeated letter) are part of
+the checker so that prose, string literals, acronyms, and placeholders do not produce findings that cspell does not.
+
+**Excluded text, patterns, and random strings.** What is not checked at all is decided before any word is looked at,
+by ranges that are merged and sorted: the directives, the default ignore patterns, the patterns of the `ignoreRegExpList`
+and `patterns` settings, and, only when the source name has a Markdown extension, the Markdown patterns for link
+targets, labels, anchors, and entities. The checker resolves the settings' patterns once, when it is created, so a
+pattern is parsed once for any number of texts, and an unusable one stops the checker from being created instead of
+failing in the middle of a run. The Markdown decision is made from the source name alone, which is why `Check` takes the
+name (`SpellChecker` passes the relative path of each file), and a text with no name is never treated as Markdown. Two
+further rules work on tokens: a long token that looks
+like random data, such as a key, is skipped before anything else is asked about it, and the unknown words that lie inside
+a hexadecimal sequence of a token are dropped from its findings unless they are flagged; both follow cspell and both
+are switched by `ignoreRandomStrings`, with `minRandomLength` as the length from which a token is judged. A contraction
+such as `exec'd` or `rock'n'roll` is accepted when each part between the apostrophes is acceptable, and is otherwise
+reported whole, so a misspelled part still shows. The rules of each part are in the designs of the units that hold them
+(see _TextChecker_ and the _TextScanning Design_), and the parity corpora of the system tests cover custom patterns,
+the predefined patterns, Markdown links, random strings, and contractions next to the original corpora.
 
 **Where the subsystem deliberately differs from cspell.** These differences are documented for users, and the
 parity test compares the full list of them with the actual output so that a fixed or a new difference is noticed.
@@ -108,6 +130,12 @@ parity test compares the full list of them with the actual output so that a fixe
 - Findings for repeated occurrences of a word are not capped.
 - A directive that cspell supports and the checker does not (`locale`, `dictionary`, `flag`, and others) is reported
   at its position instead of being ignored, because an author who writes a directive believes it is in force.
+- A pattern that cannot be used is an error when the settings are loaded or the checker is created: a flag or construct
+  that has no safe equivalent in .NET (the flags `s`, `y`, `d`, `v`, and `x`, inline group options, and a few others) and
+  a name in `ignoreRegExpList` that no `patterns` entry defines. cspell drops some flags silently and reads an unknown
+  name as a literal regular expression.
+- Every pattern has a match time limit of five seconds, where cspell has none, so a file that makes a pattern backtrack
+  catastrophically is reported as timed out instead of hanging the run.
 - UTF-32 files are not supported and are skipped as binary data.
 - Language names are limited to the ones the dictionaries know; cspell also accepts forms such as `en_US`.
 - Problems with a single file are returned as data, with a severity, instead of being printed by a tool.
@@ -120,7 +148,8 @@ character inside text is an ordinary character.
 **Failures: data versus defects.** A repository holds binary files, huge generated files, and files that another
 program has locked. One such file must not fail a whole run, and it must not be silently dropped either, so
 `FileTextReader` returns the expected problems (binary, too large, unreadable) as an outcome, and `SpellChecker`
-turns them, and the time-out of an ignore pattern on hostile content, into a `FileDiagnostic` with a severity:
+turns them, and the time-out of a pattern on hostile content (whether a default pattern, a Markdown pattern, or a pattern
+of the settings), into a `FileDiagnostic` with a severity:
 unreadable and timed-out files are errors, because they were meant to be checked, while binary and too-large files
 are information, because they were skipped by design. Any other exception, such as a damaged embedded dictionary or
 a bug, is a defect: it propagates to the caller, because swallowing it would turn a broken checker into a clean
@@ -138,7 +167,8 @@ both, no file larger than 1 GiB is ever read, because a .NET string cannot hold 
 and the bytes and the text are in memory together.
 
 **Settings are validated once, up front.** Settings built in code bypass the checks of the settings file loader, so
-the checker validates the language and every word-list entry when it is created, and `SpellChecker` creates the
-checker before it touches the file system. An entry that could never match (blank, containing white space, using the
-forbidden-word marker, or with no letter or digit) is an error that names the setting and the entry, because a
+the checker validates the language, every word-list entry, and every pattern when it is created, and `SpellChecker` creates
+the checker before it touches the file system. An entry that could never match (blank, containing white space, using the
+forbidden-word marker, or with no letter or digit) and a pattern that cannot be used (an unsupported flag or construct,
+an invalid expression, or a name that is not defined) are errors that name the setting and the entry, because a
 setting the user believes is in force must not silently do nothing.

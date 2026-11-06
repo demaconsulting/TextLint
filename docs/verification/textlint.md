@@ -49,6 +49,20 @@ configuration checks are design-constraint guards that are not linked to a requi
   match exactly, a difference that is fixed or newly introduced fails the test, so the documented differences from
   cspell cannot drift from the real ones. The corpora that exist only to show the differences are kept apart from
   the others, so that every other corpus must match without exceptions.
+  The corpora of the pattern, Markdown, random-string, and contraction rules are `custom-patterns`,
+  `predefined-patterns`, `predefined-everything`, `markdown-links`, `random-strings`, `random-strings-off`,
+  `random-strings-short`, and `contractions`. The random-string corpora hold the same tokens under three settings (the
+  defaults, random strings not ignored, and a lowered minimum random length). The corpora whose result depends on line
+  endings, `custom-patterns` and `markdown-links`, also have a recording made with every line ending turned into a
+  carriage return and a line feed. The `markdown-links` corpus has the neutral extension of the others, so cspell is
+  told the Markdown language when it is recorded, and TextLint checks it under a source name with a Markdown extension.
+  These outputs were recorded with the real cspell 10.1.1 by `record-cspell.ps1`, which states the version in the
+  header of every recording.
+  The one new deliberate difference is a quirk of the escape retry of cspell: after a word has been accepted through
+  the retry that drops the escape letter after a backslash (`\nzorbq` accepted as `zorbq`), cspell accepts that word
+  anywhere later in the same file, where TextLint accepts it only directly after a backslash. It is recorded in the
+  divergences file as the finding of the word `nzorbq` that only TextLint reports, in the corpus of deliberate
+  differences.
 
 The trim and AOT analyzers run on every build with warnings treated as errors, so any trim- or
 AOT-unsafe construct fails the build; the assembly-level test confirms the resulting assembly
@@ -120,6 +134,14 @@ requires the DictionaryBuilder project, which the library project builds first; 
 - The results are identical and identically ordered at every degree of parallelism, an invalid degree is rejected,
   and a cancelled run throws.
 - On every corpus the findings equal those that cspell recorded, except for exactly the documented differences.
+- Text that matches the ignoreRegExpList patterns of the settings, written between slashes, as bare expressions, or
+  as names of defined and predefined patterns, is not checked, and a pattern that cannot be used in a settings file is
+  reported with its file, line, and column.
+- A file on which a pattern exceeds its time limit is reported as a file that took too long, an error, and the run
+  continues with the other files.
+- The link targets, labels, anchors, and entities of a Markdown file are not checked and those of another file are;
+  a long token that looks like random data is not checked unless the setting is off; a contraction of acceptable parts
+  is accepted and one with an unknown part is reported whole.
 
 ## Test Scenarios
 
@@ -219,6 +241,19 @@ tested by `TextLint_Settings_InvalidMaxFileSize_ReportsFileLineAndColumn`.
 pattern uses a backslash is loaded; the error is at that list item, line 3 column 5, names the file,
 and names the pattern. This scenario is tested by
 `TextLint_Settings_InvalidPattern_ReportsFileLineAndColumn`.
+
+**TextLint_Settings_PatternKeysConfigFile_LoadsConfiguredValues**: A settings file that uses `ignoreRegExpList`,
+`patterns`, `ignoreRandomStrings`, and `minRandomLength` is loaded; the list keeps its order, the definition keeps its
+name, and the two random-string values are present. This scenario is tested by
+`TextLint_Settings_PatternKeysConfigFile_LoadsConfiguredValues`.
+
+**TextLint_Settings_InvalidRegularExpression_ReportsFileLineAndColumn**: A settings file whose `ignoreRegExpList` has an
+expression with an unsupported flag is loaded; the error is at the entry (line 2), names the file and the flag, and no
+settings are returned. This scenario is tested by `TextLint_Settings_InvalidRegularExpression_ReportsFileLineAndColumn`.
+
+**TextLint_Settings_UnknownPatternName_ReportsFileLineAndColumn**: A settings file whose `ignoreRegExpList` has a
+misspelled predefined name is loaded; the error is at the entry (line 2) and says that the name is not a defined or
+predefined pattern name. This scenario is tested by `TextLint_Settings_UnknownPatternName_ReportsFileLineAndColumn`.
 
 **TextLint_Files_IncludePatterns_SelectsMatchingFiles**: An include pattern for markdown files is
 applied to a tree holding markdown and C# files; only the markdown files are selected. This scenario is
@@ -472,6 +507,39 @@ checked; only the second line is reported. This scenario is tested by
 unsupported directive named `locale` at the position of its name. This scenario is tested by
 `TextLint_CheckText_UnsupportedDirective_ReportsPosition`.
 
+**TextLint_CheckText_IgnoreRegExpList_SkipsMatches**: Settings with an expression between slashes, a bare expression,
+and a defined name are applied to a text with a match of each and one unmatched word; only the unmatched word is
+reported, at its position. This scenario is tested by `TextLint_CheckText_IgnoreRegExpList_SkipsMatches`.
+
+**TextLint_CheckText_PredefinedPatternNames_ExcludeTheirText**: Settings that list the predefined names `string`,
+`CStyleComment`, `href`, and `Urls` are applied to a text with a string, a comment, an attribute, and one unmatched
+word; the listed patterns exclude their text, the name that is always applied is accepted, and only the unmatched word
+is reported. This scenario is tested by `TextLint_CheckText_PredefinedPatternNames_ExcludeTheirText`.
+
+**TextLint_SpellCheck_PatternsFromConfigFile_SkipMatchesInFiles**: A settings file with a pattern is loaded and a text
+file and a Markdown file with the same matched text, link target, and unknown word are checked; the pattern hides its
+match in both files, and only the Markdown file also hides the link target. This scenario is tested by
+`TextLint_SpellCheck_PatternsFromConfigFile_SkipMatchesInFiles`.
+
+**TextLint_SpellCheck_CatastrophicPattern_ReportsTimedOutDiagnostic**: A pattern that backtracks without end is applied
+to a file that almost matches it and to a file that does not start to match; the first file is reported as a file that
+took too long, an error that has problems, and the second file is still checked. The test uses the real five-second
+limit. This scenario is tested by `TextLint_SpellCheck_CatastrophicPattern_ReportsTimedOutDiagnostic`.
+
+**TextLint_CheckText_MarkdownLinkTargets_AreNotChecked**: A line of Markdown with a link target, a reference label,
+an anchor id, and an entity is checked under a Markdown source name and under a text name; nothing is reported in the
+Markdown file and the words are reported in the text file. This scenario is tested by
+`TextLint_CheckText_MarkdownLinkTargets_AreNotChecked`.
+
+**TextLint_CheckText_RandomLookingToken_IsNotChecked**: A long token of non-words, digits, and hyphens is checked with
+the defaults, with random strings not ignored, and with a minimum random length above its length; it is skipped by
+default and checked in the other two cases, with the same findings. This scenario is tested by
+`TextLint_CheckText_RandomLookingToken_IsNotChecked`.
+
+**TextLint_CheckText_ContractionOfKnownWords_IsAccepted**: Contractions of known words or of parts too short to check
+are accepted, and a contraction with an unknown part is reported whole. This scenario is tested by
+`TextLint_CheckText_ContractionOfKnownWords_IsAccepted`.
+
 **TextLint_SpellCheck_BritishLanguage_AcceptsBritishNotAmericanSpelling**: A file that uses an American and a British
 spelling of one word is checked with the default language and with British English; each language reports the other's
 spelling only. This scenario is tested by `TextLint_SpellCheck_BritishLanguage_AcceptsBritishNotAmericanSpelling`.
@@ -568,8 +636,43 @@ apostrophes at the edges of words is checked; the findings equal cspell's record
 `TextLint_CspellParity_PossessiveCorpus_MatchesRecordedCspellOutput`.
 
 **TextLint_CspellParity_KnownDivergences_AreExactlyTheDocumentedOnes**: The corpora that exist only to show the
-deliberate differences (the heuristic splitter and dictionaries, the unsupported directives, and the directive names
-that cspell's range patterns and its directive reader end differently) are checked; the findings that only TextLint
+deliberate differences (the heuristic splitter and dictionaries, the unsupported directives, the directive names
+that cspell's range patterns and its directive reader end differently, and the escape-retry cache of cspell, described
+under the cspell parity corpus above) are checked; the findings that only TextLint
 reports and the findings that only cspell reports are exactly the ones listed with their reasons in the divergences
 file, every listed difference belongs to a corpus, and every corpus has a settings file and recorded output. This
 scenario is tested by `TextLint_CspellParity_KnownDivergences_AreExactlyTheDocumentedOnes`.
+
+**TextLint_CspellParity_CustomPatternCorpus_MatchesRecordedCspellOutput**: The corpus of `ignoreRegExpList` entries
+written between slashes and as bare expressions, flags, named patterns, and the constructs whose meaning differs
+between the JavaScript and .NET engines is checked with the settings stored beside it; the findings equal the output
+that cspell recorded, with no listed differences. This scenario is tested by
+`TextLint_CspellParity_CustomPatternCorpus_MatchesRecordedCspellOutput`.
+
+**TextLint_CspellParity_CrlfPatternCorpora_MatchRecordedCspellOutput**: The corpus of custom patterns and the corpus of
+Markdown links are checked with every line ending turned into a carriage return and a line feed; the findings equal the
+output that cspell recorded for those line endings, which differs from the output for line feeds wherever a line anchor
+or the dot meets a line end. This scenario is tested by
+`TextLint_CspellParity_CrlfPatternCorpora_MatchRecordedCspellOutput`.
+
+**TextLint_CspellParity_PredefinedPatternCorpora_MatchRecordedCspellOutput**: The corpus of the predefined patterns that
+exclude text only when listed, and the corpus of the predefined pattern that matches every line, are checked; the
+findings equal cspell's recorded output. This scenario is tested by
+`TextLint_CspellParity_PredefinedPatternCorpora_MatchRecordedCspellOutput`.
+
+**TextLint_CspellParity_MarkdownLinkCorpus_MatchesRecordedCspellOutput**: The corpus of links, references, anchors, and
+entities is checked under a source name with a Markdown extension, as cspell was told the Markdown language when the
+output was recorded; the findings equal cspell's recorded output. This scenario is tested by
+`TextLint_CspellParity_MarkdownLinkCorpus_MatchesRecordedCspellOutput`.
+
+**TextLint_CspellParity_RandomStringCorpora_MatchRecordedCspellOutput**: The same random-looking tokens and
+hexadecimal sequences are checked with the default settings, with random strings not ignored, and with a lowered
+minimum random length; the findings of each equal cspell's recorded output. This scenario is tested by
+`TextLint_CspellParity_RandomStringCorpora_MatchRecordedCspellOutput`.
+
+**TextLint_CspellParity_ContractionCorpus_MatchesRecordedCspellOutput**: The corpus of contractions built from accepted
+invented words and from unknown invented words is checked with the word lists stored beside it; the findings equal
+cspell's recorded output. This scenario is tested by
+`TextLint_CspellParity_ContractionCorpus_MatchesRecordedCspellOutput`.
+
+<!-- cspell:ignore nzorbq zorbq -->
