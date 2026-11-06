@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-// cspell:ignore colour neighbour organise favourite kubernetes xyzzyq cafè tabel καλημέρα catalogue labelled honoured modelling ageing curser operants programing milage writeable unannotated mockable honour analyse colourize decolourize colourized glamourize
+// cspell:ignore colour neighbour organise favourite kubernetes xyzzyq cafè tabel καλημέρα catalogue labelled honoured modelling ageing curser operants programing milage writeable unannotated mockable honour analyse colourize decolourize colourized glamourize glamourized unmanoeuvrable
 
 using System.Collections.Concurrent;
 using DemaConsulting.TextLint.Dictionaries;
@@ -297,8 +297,8 @@ public class DictionariesSubsystemTests
     public void DictionariesSubsystem_ForLanguages_CapitalizedAndIzeForms_DoNotCrossRegions()
     {
         // Arrange: capitalized American and British spellings, and -ize forms with a British -ise counterpart
-        var americanOnly = new[] { "Honor", "HONOR", "Judgment", "Recognize" };
-        var britishOnly = new[] { "Honour", "HONOUR", "Organise", "Analyse" };
+        var americanOnly = new[] { "Honor", "HONOR", "Judgment", "Recognize", "Unmaneuverable" };
+        var britishOnly = new[] { "Honour", "HONOUR", "Organise", "Analyse", "Unmanoeuvrable" };
         var izeForms = new[] { "colourize", "Glamourize", "decolourize", "colourized", "recognize" };
         var american = SpellingDictionary.ForLanguages("en-US");
         var british = SpellingDictionary.ForLanguages("en-GB");

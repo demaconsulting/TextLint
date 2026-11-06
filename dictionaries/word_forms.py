@@ -57,10 +57,21 @@ ROUTING RULE (the single, documented classification rule)
     3. ``counterpart``: the word is unknown to SCOWL, but rewriting it with a regional spelling pattern
        (for example ``-or`` to ``-our``, ``-ize`` to ``-ise``, ``-er`` to ``-re``) gives a word that SCOWL lists for
        exactly one region. The word is then the other region's spelling of that word.
-    4. ``hint``: none of the above decided, so the region of the source applies: a word generated from a
+    4. ``contained``: the word is unknown to SCOWL and no pattern applies, but it is a regional word with
+       affixes: a SCOWL word of at least five letters that only one region lists, optionally preceded by a
+       prefix and followed by a suffix that the Hunspell affix rules add (``un``, ``re``, ``s``, ``'s``,
+       ``able``, ``ing``, ...). For example ``unmaneuverable`` is ``un`` plus ``maneuverable``, so it belongs to
+       the American list. This catches words built on a regional spelling whose spelling differences the
+       patterns cannot express (the several changes between ``maneuver`` and ``manoeuvre``) and every affixed
+       form of a regional word that a source lists but SCOWL does not. The affixes are required because a
+       regional word also occurs by accident inside unrelated words (``liter`` in ``alliteration``). The
+       longest regional stem decides; if the longest ones of both regions tie, nothing is decided. A stem
+       that the other region also lists (``license``) is not regional and never decides. The few genuine
+       exceptions are listed, with a reason, in ``CONTAINMENT_ALLOWED``.
+    5. ``hint``: none of the above decided, so the region of the source applies: a word generated from a
        regional stem inherits the region of the stem, and a word from an explicitly regional list (an
        -ize list or an -ise list) gets that list's region.
-    5. ``neutral``: otherwise the word is common to both regions.
+    6. ``neutral``: otherwise the word is common to both regions.
 
     The first test that applies wins, so SCOWL's own variant data always overrides a hint, and a hint only
     ever decides a word that SCOWL knows nothing about.
@@ -214,6 +225,13 @@ def parse_affix_file(text: str, source: str = "<affix>") -> AffixTable:
     return table
 
 
+def affix_strings(table: AffixTable) -> Tuple[FrozenSet[str], FrozenSet[str]]:
+    """Returns the strings that the prefix rules and the suffix rules of an affix table add (never empty)."""
+    prefixes = {rule.add for rules in table.prefixes.values() for rule in rules if rule.add}
+    suffixes = {rule.add for rules in table.suffixes.values() for rule in rules if rule.add}
+    return frozenset(prefixes), frozenset(suffixes)
+
+
 def expand_stem(stem: str, flags: str, table: AffixTable) -> Set[str]:
     """Returns every word form of one stem, including the stem itself.
 
@@ -291,20 +309,55 @@ REGION_NONE = "none"
 TIER_STRICT = "strict"
 TIER_WIDE = "wide"
 TIER_COUNTERPART = "counterpart"
+TIER_CONTAINED = "contained"
 TIER_HINT = "hint"
 TIER_NEUTRAL = "neutral"
 TIER_ISE_RULE = "ise-rule"
+
+# The shortest regional word (in letters) that can decide the region of a longer word that contains it. Shorter
+# stems are ordinary short words or word fragments (``tire``, ``curb``, ``plow``) that occur inside unrelated words.
+MIN_CONTAINED_STEM = 5
+
+# Words that are an affixed regional word only by accident of spelling (a genuine false positive of the containment
+# test), each with the reason. A word is only ever added after a review of the data; the refresh output lists
+# every word that the containment test moves, so a new false positive is seen when it appears.
+CONTAINMENT_ALLOWED: Dict[str, str] = {
+    "bourges": "the French city, not the plural of the SCOWL British-only word 'bourg'",
+    "reprise's": "the possessive of 'reprise' (a repeated passage), not 'prise' (the British prise/prize) with a prefix",
+    "deventer": "the Dutch city, not 'de' plus the SCOWL American-only word 'venter'",
+    "formers": "the plural of 'former', not the SCOWL American-only word 'forme' with a suffix",
+}
 
 # Regional spelling patterns as (American, British -ise) substrings. A pattern is only ever used to
 # look up the rewritten word in SCOWL's own regional lists, so a pattern that is too general cannot
 # misclassify a word: it must produce a word that SCOWL lists for exactly one region. The patterns are
 # the regular differences that SCOWL's variant data documents: -or/-our, -er/-re, -ize/-ise,
 # -yze/-yse, -ense/-ence, -og/-ogue, -l/-ll, -ll/-l, -dgment/-dgement, e/ae, e/oe, -ow/-ough, -ck/-que,
-# -um/-ium, -ay/-ey, -ire/-yre, -sk/-sc, -o/-ou, -ogram/-ogramme.
+# -um/-ium, -ay/-ey, -ire/-yre, -sk/-sc, -o/-ou, -ogram/-ogramme. The second group was added after measuring which
+# single-edit differences between SCOWL's American-only and British-only words the first group did not express;
+# each pattern below covers this many SCOWL word pairs that no other pattern covers: -ered/-red (accoutered/
+# accoutred, 13), -ering/-ring (sceptering/sceptring, 13), -aft/-aught (draft/draught, 22), -lf/-lph (sulfur/
+# sulphur, 15), -p/-pp (worshiper/worshipper, 10), -ab/-eab (likable/likeable, 13), -n/-ne (chaperon/chaperone,
+# 13), -lty/-lity (specialty/speciality, 4), and -neuver/-noeuvr(e) (maneuver/manoeuvre, 16). The pairs
+# -ae-/-e-, -oe-/-e-, -ense/-ence, and -yze/-yse that were asked about are already expressed by the first
+# group (anemia/anaemia, estrogen/oestrogen, defense/defence, analyze/analyse). These were checked and not added:
+# -ce/-se (license/licence, practice/practise) because British English accepts the -se verb form, so those
+# words are not regional (a spelling check is blind to the part of speech), and -m/-mme (program/programme)
+# because "program" is also British in computing and stays common (the self-check asserts it).
 REGIONAL_PATTERNS: Tuple[Tuple[str, str], ...] = (
     ("or", "our"), ("er", "re"), ("iz", "is"), ("yz", "ys"), ("ense", "ence"), ("og", "ogue"),
     ("l", "ll"), ("ll", "l"), ("dgm", "dgem"), ("e", "ae"), ("e", "oe"), ("ow", "ough"), ("ck", "que"),
     ("um", "ium"), ("ay", "ey"), ("ire", "yre"), ("sk", "sc"), ("o", "ou"), ("ogram", "ogramme"),
+    ("ered", "red"), ("ering", "ring"), ("aft", "aught"), ("lf", "lph"), ("p", "pp"), ("ab", "eab"),
+    ("n", "ne"), ("lty", "lity"), ("neuver", "noeuvr"), ("neuver", "noeuvre"),
+)
+
+# Words that are valid in BOTH American and British English although a related spelling is regional, so a router
+# that treated them as regional would be wrong: British English keeps "program" for computing, and accepts the
+# verb "license" and the noun "practice" (a spelling check is blind to the part of speech). The refresh
+# self-check requires each of them to be known to both dialects.
+VALID_IN_BOTH_DIALECTS: Tuple[str, ...] = (
+    "program", "programs", "programmer", "programming", "license", "licensed", "licensing", "practice", "practices",
 )
 
 # An -ize form at the end of a word: the verb and its inflections and the common derived nouns and adjectives.
@@ -378,12 +431,15 @@ class RegionClassifier:
         wide_us: Iterable[str],
         wide_gb: Iterable[str],
         british_ise_forms: Iterable[str] = (),
+        prefixes: Iterable[str] = (),
+        suffixes: Iterable[str] = (),
     ) -> None:
         """Builds the classifier from the four SCOWL lists (any letter case) and generated -ise forms.
 
         ``british_ise_forms`` are additional words known to be British -ise spellings, for example the forms
         of the Hunspell British dictionary; they only widen the set of -ise counterparts that the -ise policy
-        recognizes.
+        recognizes. ``prefixes`` and ``suffixes`` are the strings that the Hunspell affix rules add (see
+        ``affix_strings``); they define what may surround a regional word in the containment test.
         """
         strict_us, strict_gb, wide_us, wide_gb = list(strict_us), list(strict_gb), list(wide_us), list(wide_gb)
         lower_keys = {word for words in (strict_us, strict_gb, wide_us, wide_gb) for word in words if word == word.lower()}
@@ -395,6 +451,48 @@ class RegionClassifier:
         self._british_known: FrozenSet[str] = frozenset(
             self._strict_gb | self._wide_gb | {word.lower() for word in british_ise_forms if ise_counterpart(word.lower()) is None}
         )
+        self._listed = self._strict_us | self._strict_gb | self._wide_us | self._wide_gb
+        # The regional stems that can decide a longer word: alphabetic regional words of at least the minimum length
+        self._stems: Dict[str, str] = {}
+        for stems, region in ((self.us_exclusive, REGION_US), (self.gb_exclusive, REGION_GB)):
+            for stem in stems:
+                if len(stem) >= MIN_CONTAINED_STEM and stem.isalpha() and stem.isascii():
+                    self._stems[stem] = region
+        # The strings that the Hunspell prefix and suffix rules add: what may surround a regional stem (no affixes
+        # given means that the containment test is off)
+        self._prefixes = frozenset(prefixes)
+        self._suffixes = frozenset(suffixes)
+
+    def is_listed(self, word: str) -> bool:
+        """Returns True when SCOWL lists the word at either scope for either region (the data decides it)."""
+        return word.lower() in self._listed
+
+    def contained_region(self, word: str) -> Optional[Tuple[str, str]]:
+        """Returns ``(region, stem)`` when the word is a regional SCOWL word with affixes, else None.
+
+        The word must be ``prefix + stem + suffix`` where the stem is a SCOWL word of at least the minimum length
+        that only one region lists, the prefix is empty or one of the strings that the Hunspell prefix rules add
+        (``un``, ``re``, ...), and the suffix is empty or one of the strings that the Hunspell suffix rules add
+        (``s``, ``'s``, ``able``, ``ing``, ...). Requiring the affixes keeps a regional word that merely occurs inside
+        an unrelated word (``liter`` in ``alliteration``) from deciding it. The longest stem decides; when the
+        longest stems of both regions tie, nothing is decided. A word that SCOWL lists, or that is in
+        ``CONTAINMENT_ALLOWED``, is never decided here, and a stem that the other region also lists
+        (``license`` for British English) is not a regional stem at all.
+        """
+        key = word.lower()
+        if key in self._listed or key in CONTAINMENT_ALLOWED:
+            return None
+        best: Dict[int, Set[Tuple[str, str]]] = defaultdict(set)
+        for prefix in ("", *(prefix for prefix in self._prefixes if key.startswith(prefix))):
+            rest = key[len(prefix):]
+            for suffix in ("", *(suffix for suffix in self._suffixes if rest.endswith(suffix))):
+                core = rest[: len(rest) - len(suffix)]
+                if (prefix or suffix) and core in self._stems:
+                    best[len(core)].add((self._stems[core], core))
+        if not best:
+            return None
+        found = best[max(best)]
+        return None if len({region for region, _ in found}) > 1 else min(found, key=lambda item: item[1])
 
     @property
     def british_known(self) -> FrozenSet[str]:
@@ -424,7 +522,7 @@ class RegionClassifier:
         return self._apply_ise_policy(key, region, tier)
 
     def _route_by_data(self, key: str, hint: Optional[str]) -> Tuple[str, str]:
-        """Applies tests 1-5 of the routing rule to a folded word."""
+        """Applies tests 1-6 of the routing rule to a folded word."""
         in_us, in_gb = key in self._strict_us, key in self._strict_gb
         if in_us or in_gb:
             return (REGION_COMMON if in_us and in_gb else REGION_US if in_us else REGION_GB), TIER_STRICT
@@ -436,6 +534,9 @@ class RegionClassifier:
                 return REGION_US, TIER_COUNTERPART
             if any(candidate in self.us_exclusive for candidate in _rewrites(key, british, american)):
                 return REGION_GB, TIER_COUNTERPART
+        contained = self.contained_region(key)
+        if contained is not None:
+            return contained[0], TIER_CONTAINED
         if hint is not None:
             return hint, TIER_HINT
         return REGION_COMMON, TIER_NEUTRAL
@@ -467,12 +568,15 @@ class RegionClassifier:
         american: Iterable[str],
         british: Iterable[str],
         pairs: Iterable[Tuple[str, str]] = CURATED_SPELLING_PAIRS,
+        shared: Iterable[str] = VALID_IN_BOTH_DIALECTS,
     ) -> List[str]:
         """Checks finished region lists and returns a description of every violation (empty when sound).
 
         The lists are checked on folded words, the way the builder combines them. A violation is: a known
         British-only spelling in the common or American list; a known American-only spelling in the common or
-        British list; an -ize form in the British dictionary whose -ise counterpart is a known British word; or
+        British list; an unlisted word that contains a regional SCOWL word (the containment test of the routing rule)
+        but is in the other region's dictionary; an -ize form in the British dictionary whose -ise counterpart is
+        a known British word; or
         a curated spelling pair that is not American-only (American spelling) and British-only (British spelling).
         """
         common_keys = {word.lower() for word in common}
@@ -485,6 +589,14 @@ class RegionClassifier:
             problems.append(f"'{key}' is a British-only spelling but is in the common or American list")
         for key in sorted(british_dictionary & self.us_exclusive):
             problems.append(f"'{key}' is an American-only spelling but is in the common or British list")
+        for key in sorted(american_dictionary):
+            contained = self.contained_region(key)
+            if contained is not None and contained[0] == REGION_GB:
+                problems.append(f"'{key}' contains the British-only word '{contained[1]}' but is in the common or American list")
+        for key in sorted(british_dictionary):
+            contained = self.contained_region(key)
+            if contained is not None and contained[0] == REGION_US:
+                problems.append(f"'{key}' contains the American-only word '{contained[1]}' but is in the common or British list")
         british_known = self._british_known | british_dictionary
         for key in sorted(british_dictionary):
             counterpart = known_ise_counterpart(key, british_known)
@@ -495,6 +607,9 @@ class RegionClassifier:
                 problems.append(f"'{american_spelling}' must be American-only")
             if british_spelling not in british_dictionary or british_spelling in american_dictionary:
                 problems.append(f"'{british_spelling}' must be British-only")
+        for word in shared:
+            if word not in american_dictionary or word not in british_dictionary:
+                problems.append(f"'{word}' is valid in both American and British English but is missing from one")
         return problems
 
 
@@ -598,11 +713,83 @@ class _SelfTests(unittest.TestCase):
         british = ["colour", "honour", "organise"]
         classifier = RegionClassifier(american, british, american, british)
         pairs = (("color", "colour"), ("honor", "honour"), ("organize", "organise"))
-        self.assertEqual([], classifier.check_regions(["table"], ["color", "honor", "organize"], ["colour", "honour", "organise"], pairs))
-        leaked = classifier.check_regions(["table", "honor"], ["color", "organize"], ["colour", "honour", "organise"], pairs)
+        self.assertEqual([], classifier.check_regions(["table"], ["color", "honor", "organize"], ["colour", "honour", "organise"], pairs, ()))
+        leaked = classifier.check_regions(["table", "honor"], ["color", "organize"], ["colour", "honour", "organise"], pairs, ())
         self.assertTrue(any("'honor' must be American-only" in problem for problem in leaked))
-        british_ize = classifier.check_regions(["table"], ["color", "honor", "organize"], ["colour", "honour", "organise", "colourise", "colourize"], pairs)
+        british_ize = classifier.check_regions(["table"], ["color", "honor", "organize"], ["colour", "honour", "organise", "colourise", "colourize"], pairs, ())
         self.assertTrue(any("-ize form" in problem for problem in british_ize))
+
+    def test_check_regions_requires_the_words_valid_in_both_dialects_to_be_in_both(self) -> None:
+        classifier = RegionClassifier(["program"], ["program"], ["program"], ["program"])
+        self.assertEqual([], classifier.check_regions(["program"], [], [], (), ("program",)))
+        problems = classifier.check_regions([], ["program"], ["programme"], (), ("program",))
+        self.assertEqual(["'program' is valid in both American and British English but is missing from one"], problems)
+
+    def test_affix_strings_collects_what_the_prefix_and_suffix_rules_add(self) -> None:
+        prefixes, suffixes = affix_strings(parse_affix_file(_SAMPLE_AFFIX))
+        self.assertEqual(frozenset(["un"]), prefixes)
+        self.assertEqual(frozenset(["able", "d", "ied", "ed"]), suffixes)
+
+    @staticmethod
+    def _affixed_classifier() -> RegionClassifier:
+        american = ["maneuverable", "liter", "licenses", "forme"]
+        british = ["manoeuvrable", "litre", "licences", "formes"]
+        return RegionClassifier(american, british, american, british, (), ["un", "re"], ["s", "'s", "able", "ing"])
+
+    def test_a_regional_word_with_affixes_decides_the_region_of_an_unlisted_word(self) -> None:
+        classifier = self._affixed_classifier()
+        self.assertEqual((REGION_US, TIER_CONTAINED), classifier.route("unmaneuverable"))
+        self.assertEqual((REGION_GB, TIER_CONTAINED), classifier.route("Unmanoeuvrable"))
+        self.assertEqual((REGION_US, TIER_CONTAINED), classifier.route("remaneuverable's"))
+        self.assertEqual((REGION_US, "maneuverable"), classifier.contained_region("unmaneuverable"))
+
+    def test_containment_needs_the_affixes_and_an_unlisted_word(self) -> None:
+        classifier = self._affixed_classifier()
+        # "alliteration" contains "liter" but is not liter plus an affix, and "x" is not an affix; a listed word is
+        # decided by SCOWL's own data, and without any affixes the test is off
+        self.assertEqual((REGION_COMMON, TIER_NEUTRAL), classifier.route("alliteration"))
+        self.assertEqual((REGION_COMMON, TIER_NEUTRAL), classifier.route("xmaneuverable"))
+        self.assertEqual((REGION_US, TIER_STRICT), classifier.route("maneuverable"))
+        self.assertIsNone(RegionClassifier(["maneuverable"], ["manoeuvrable"], [], []).contained_region("unmaneuverable"))
+
+    def test_a_stem_that_both_regions_list_never_decides(self) -> None:
+        shared = ["license", "practice"]
+        classifier = RegionClassifier(shared, shared, [], [], (), ["un"], ["s", "ing"])
+        self.assertEqual((REGION_COMMON, TIER_NEUTRAL), classifier.route("unlicense"))
+        self.assertEqual((REGION_COMMON, TIER_NEUTRAL), classifier.route("practicing"))
+
+    def test_a_tie_between_the_regions_decides_nothing(self) -> None:
+        # "abcdef" is the prefix "a" and the American word "bcdef", and also the British word "abcde" and the suffix "f"
+        classifier = RegionClassifier(["bcdef"], ["abcde"], [], [], (), ["a"], ["f"])
+        self.assertIsNone(classifier.contained_region("abcdef"))
+        self.assertEqual((REGION_COMMON, TIER_NEUTRAL), classifier.route("abcdef"))
+
+    def test_listed_exceptions_are_not_moved_but_their_other_forms_are(self) -> None:
+        classifier = RegionClassifier(["venter"], ["vented"], ["venter"], ["vented"], (), ["de"], ["s"])
+        self.assertEqual((REGION_COMMON, TIER_NEUTRAL), classifier.route("deventer"))
+        self.assertEqual((REGION_US, TIER_CONTAINED), classifier.route("deventers"))
+
+    def test_check_regions_reports_an_unlisted_word_that_contains_a_regional_word_in_the_wrong_list(self) -> None:
+        classifier = self._affixed_classifier()
+        self.assertEqual(
+            ["'unmaneuverable' contains the American-only word 'maneuverable' but is in the common or British list"],
+            classifier.check_regions(["unmaneuverable"], [], [], (), ()),
+        )
+        self.assertEqual(
+            ["'unmanoeuvrable' contains the British-only word 'manoeuvrable' but is in the common or American list"],
+            classifier.check_regions(["unmanoeuvrable"], [], [], (), ()),
+        )
+        self.assertEqual([], classifier.check_regions([], ["unmaneuverable"], ["unmanoeuvrable"], (), ()))
+
+    def test_the_added_spelling_patterns_find_the_other_regions_spelling(self) -> None:
+        british = ["accoutred", "sulphur", "worshipper", "likeable", "chaperone", "speciality", "manoeuvre", "draught"]
+        american = ["accoutered", "sulfur", "worshiper", "likable", "chaperon", "specialty", "maneuver", "draft"]
+        classifier = RegionClassifier([], british, [], british)
+        for word in american:
+            self.assertEqual((REGION_US, TIER_COUNTERPART), classifier.route(word), word)
+        reverse = RegionClassifier(american, [], american, [])
+        for word in british:
+            self.assertEqual((REGION_GB, TIER_COUNTERPART), reverse.route(word), word)
 
 
 def self_test() -> int:

@@ -64,11 +64,21 @@ lower-case comparison and the first test that applies:
 2. **Wide**: the word is in the wider SCOWL lists (size 80, variant level 3). In only one region's list it belongs to
    that region; in both it is common. This data is used only to classify; it never adds a word by itself.
 3. **Counterpart**: SCOWL does not know the word, but a regular spelling pattern (`-or`/`-our`, `-ize`/`-ise`,
-   `-er`/`-re`, `-og`/`-ogue`, `-l`/`-ll`, and a few more) turns it into a word that SCOWL lists for exactly one
-   region. The word is then the other region's spelling.
-4. **Hint**: otherwise the region of the source applies: a form generated from a regional stem inherits the region of
+   `-er`/`-re`, `-og`/`-ogue`, `-l`/`-ll`, `-ered`/`-red`, `-aft`/`-aught`, `-lf`/`-lph`, `-p`/`-pp`, and the others
+   listed in `word_forms.py` with the SCOWL word pairs each covers) turns it into a word that SCOWL lists for exactly
+   one region. The word is then the other region's spelling.
+4. **Contained**: SCOWL does not know the word and no pattern applies, but the word is a SCOWL word of at least five
+   letters that only one region lists, with prefixes and suffixes that the Hunspell affix rules add (`un`, `re`,
+   `s`, `'s`, `able`, `ing`, and so on). `unmaneuverable` is `un` plus `maneuverable` and is therefore American;
+   no pattern reaches it, because maneuver and manoeuvre differ in several places. The affixes are required because
+   a regional word also occurs by accident inside unrelated words (`liter` in `alliteration`); without them 188
+   common words would have moved to American and 68 to British, nearly all wrongly. The longest regional word
+   decides, a tie decides nothing, and a word that the other region also lists (`license`) never decides. The
+   handful of genuine accidents (the cities Bourges and Deventer, `reprise's`, `formers`) are listed with a reason
+   in `CONTAINMENT_ALLOWED`; the refresh output lists every word this test moves, so a new one is seen at once.
+5. **Hint**: otherwise the region of the source applies: a form generated from a regional stem inherits the region of
    the stem, the cspell `-ize` list is American, and the `-ise` list is British.
-5. **Neutral**: otherwise the word is common.
+6. **Neutral**: otherwise the word is common.
 
 A British spelling therefore never lands in `en-common` or `en-US` (for example `catalogue`, `labelled`, `honoured`,
 and `modelling` are in `en-GB` only), even when a source such as cspell's legacy list accepts it for American
@@ -91,10 +101,14 @@ Three further rules keep the split sound:
 
 `refresh.py` checks the finished lists before it writes anything and stops when a word that SCOWL lists only for
 British English is in `en-common` or `en-US`, when a word that SCOWL lists only for American English is in
-`en-common` or `en-GB`, when `en-GB` has an -ize form with an -ise counterpart, or when one of a curated set of well
+`en-common` or `en-GB`, when an unlisted word in `en-common` or `en-US` is a British-only SCOWL word with affixes (or
+the reverse), when `en-GB` has an -ize form with an -ise counterpart, when one of a curated set of well
 known pairs (`honor`/`honour`, `color`/`colour`, `center`/`centre`, `catalog`/`catalogue`, `labeled`/`labelled`,
 `organize`/`organise`, `analyze`/`analyse`, `modeling`/`modelling`, `judgment`/`judgement`, and a few more) is in the
-wrong region. The library test suite repeats the pair check over the committed lists and through the public lookup.
+wrong region, or when a word that is valid in both dialects (`program`, `license`, `practice`, and a few more; British
+English keeps `program` for computing and accepts the verb `license`) is missing from either. Patterns were not added
+for `-ce`/`-se` (`license`/`licence`) and `-m`/`-mme` (`program`/`programme`) for that reason. The library test suite
+repeats the pair check over the committed lists and through the public lookup.
 
 ## Exclusions
 
@@ -205,7 +219,8 @@ build or by CI.
 Prerequisites:
 
 <!-- cspell:ignore PYTHONUTF ogue Kuenning Moby wordlist -->
-<!-- cspell:ignore organise glamorise colourize colourized licence practise colour analyse -->
+<!-- cspell:ignore organise glamorise colourize colourized licence practise colour analyse ered manoeuvre -->
+<!-- cspell:ignore Bourges Deventer unmaneuverable maneuverable -->
 
 - Python 3.7 or later with SQLite 3.33.0 or later, git, and npm on the path.
 - Network access to GitHub and the npm registry.

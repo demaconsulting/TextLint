@@ -362,8 +362,9 @@ sections:
         tags: [system]
         justification: |
           The language setting only means something if the data keeps the dialects apart. Letter
-          case folding, generated word forms, and imported lists are the ways a spelling of one
-          dialect can leak into the other, so a curated set of well-known pairs is checked both in
+          case folding, generated word forms, imported lists, and words built on a regional spelling
+          with prefixes or suffixes (unmaneuverable) are the ways a spelling of one
+          dialect can leak into the other, so a curated set of well-known pairs and words is checked both in
           the committed word lists and through the public lookup. Spelling checks do not know the
           part of speech, so a word such as license (verb) and licence (noun) is accepted in both
           forms by British English; that is inherent and not a leak.
@@ -373,6 +374,7 @@ sections:
           - TextLint_Dictionary_CuratedSpellingPairs_StayInTheirOwnRegion
           - TextLint_Dictionary_IzeFormsWithAnIseCounterpart_AreUnknownToBritishEnglish
           - TextLint_Dictionary_CommittedWordLists_HaveNoCrossRegionLeaks
+          - TextLint_Dictionary_AffixedRegionalWords_StayInTheirOwnRegion
 
       - id: TextLint-System-ExcludedWords
         title: >-

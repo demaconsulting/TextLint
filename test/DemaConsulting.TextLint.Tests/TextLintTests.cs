@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-// cspell:ignore favourite neighbour organise tokenizer kubernetes powershell textlint xyzzyq cafè tabel catalogue labelled honoured modelling curser operants programing milage writeable unannotated mockable honour colour centre analyse judgement colourize colourized decolourize glamourize glamourized ation ations organizability
+// cspell:ignore favourite neighbour organise tokenizer kubernetes powershell textlint xyzzyq cafè tabel catalogue labelled honoured modelling curser operants programing milage writeable unannotated mockable honour colour centre analyse judgement colourize colourized decolourize glamourize glamourized ation ations organizability unmaneuverable unmanoeuvrable manoeuvre
 
 using System.Collections.Concurrent;
 using System.Reflection;
@@ -1232,6 +1232,58 @@ public class TextLintTests
         var match = IzeFormDefinition.Match(script);
         Assert.True(match.Success, "The routing script no longer defines IZE_FORM in the expected form.");
         return new Regex(match.Groups[1].Value, RegexOptions.CultureInvariant);
+    }
+
+    /// <summary>
+    ///     Test that words built on a regional spelling by affixes stay in the region of that spelling, in the lists and in lookups.
+    /// </summary>
+    /// <remarks>
+    ///     The word unmaneuverable comes from an imported list that SCOWL does not cover, and the spelling
+    ///     patterns cannot reach it from manoeuvre, so the routing must recognize it as the American word
+    ///     maneuverable with the prefix un. It must be known to American English and unknown to British
+    ///     English, and the reverse for unmanoeuvrable. The words are checked in the common, American, and
+    ///     British folders, and through the public lookup.
+    /// </remarks>
+    [Fact]
+    public void TextLint_Dictionary_AffixedRegionalWords_StayInTheirOwnRegion()
+    {
+        // Arrange: the lower-cased words of the three folders, the two selections, and the American word with its British counterpart
+        const string americanWord = "unmaneuverable";
+        const string britishWord = "unmanoeuvrable";
+        var root = Path.Combine(AppContext.BaseDirectory, "dictionaries");
+        var common = ReadFolderWords(root, "en-common");
+        var american = ReadFolderWords(root, "en-US");
+        var british = ReadFolderWords(root, "en-GB");
+        var americanSelection = SpellingDictionary.ForLanguages("en-US");
+        var britishSelection = SpellingDictionary.ForLanguages("en-GB");
+        var failures = new List<string>();
+
+        // Act: check the lists and the lookups, in three letter cases
+        if (common.Contains(americanWord) || british.Contains(americanWord) || !american.Contains(americanWord))
+        {
+            failures.Add($"{americanWord} must be in the American folder only");
+        }
+
+        if (common.Contains(britishWord) || american.Contains(britishWord) || !british.Contains(britishWord))
+        {
+            failures.Add($"{britishWord} must be in the British folder only");
+        }
+
+        foreach (var form in new Func<string, string>[] { word => word, Capitalize, UpperCaseLatin1 })
+        {
+            if (!americanSelection.IsKnown(form(americanWord)) || britishSelection.IsKnown(form(americanWord)))
+            {
+                failures.Add($"{form(americanWord)} is not American-only");
+            }
+
+            if (americanSelection.IsKnown(form(britishWord)) || !britishSelection.IsKnown(form(britishWord)))
+            {
+                failures.Add($"{form(britishWord)} is not British-only");
+            }
+        }
+
+        // Assert: neither word crossed into the other region
+        Assert.Empty(failures);
     }
 
     /// <summary>
