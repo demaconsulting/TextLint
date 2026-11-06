@@ -1,0 +1,8 @@
+---
+# cspell:disable
+# Settings of the random-strings parity corpus: the cspell defaults for ignoreRandomStrings (on) and
+# minRandomLength (40), and one flagged word.
+version: "0.2"
+language: en
+flagWords:
+  - zorbflag

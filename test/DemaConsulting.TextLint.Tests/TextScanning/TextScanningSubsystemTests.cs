@@ -20,17 +20,20 @@
 
 using DemaConsulting.TextLint.TextScanning;
 
+// cspell:ignore zorb quix flib cabdab quixes flibber Urlz zorbx zorbquix
+
 namespace DemaConsulting.TextLint.Tests.TextScanning;
 
 /// <summary>
 ///     Subsystem tests for the TextScanning subsystem.
 /// </summary>
 /// <remarks>
-///     These tests exercise <see cref="WordTokenizer"/>, <see cref="DefaultPatterns"/>, and
-///     <see cref="DocumentDirectives"/> together the way a spell checker uses them: the excluded ranges of
-///     the patterns and the directives are combined, and the words and tokens of the tokenizer are then
-///     filtered and compared with the entries of a word list. The subsystem has no dependencies on other
-///     subsystems, so no other part of the library is used.
+///     These tests exercise <see cref="WordTokenizer"/>, <see cref="DefaultPatterns"/>,
+///     <see cref="DocumentDirectives"/>, <see cref="PatternCatalog"/> (with <see cref="PatternParser"/>),
+///     <see cref="MarkdownPatterns"/>, and <see cref="RandomStringDetector"/> together the way a spell checker uses
+///     them: the excluded ranges of the patterns and the directives are combined, and the words and tokens of the
+///     tokenizer are then filtered and compared with the entries of a word list. The subsystem has no dependencies
+///     on other subsystems, so no other part of the library is used.
 /// </remarks>
 public class TextScanningSubsystemTests
 {
@@ -386,5 +389,95 @@ public class TextScanningSubsystemTests
         // Assert: the ignored word is reported and only the visible prose is checked
         Assert.Equal(["tarball"], scan.IgnoredWords.ToArray());
         Assert.Equal(["visible", "one", "see", "and", "visible", "two"], words);
+    }
+
+    /// <summary>
+    ///     Test that patterns written in the settings, and the names they use, find the ranges they match.
+    /// </summary>
+    [Fact]
+    public void TextScanningSubsystem_ResolvePatterns_ExpressionsAndNames_FindMatchedRanges()
+    {
+        // Arrange: an expression, a bare expression, a defined name, and a predefined name
+        var patterns = PatternCatalog.Resolve(
+            ["/zorb\\d+/", "quix\\w*", "Flib", "string"],
+            [new NamedPattern("Flib", "/flib[a-z]+/i")]);
+        const string text = "zorb12 QUIXES FLIBBER \"zorb\" zorbx";
+
+        // Act: find the ranges the patterns match
+        var ranges = new List<TextRange>();
+        PatternCatalog.FindExcludedRanges(patterns, text, ranges);
+
+        // Assert: each pattern matched its text, with the case rules of its form
+        Assert.Equal(
+            ["zorb12", "QUIXES", "FLIBBER", "\"zorb\""],
+            ranges.Select(range => text.Substring(range.Start, range.Length)));
+    }
+
+    /// <summary>
+    ///     Test that an unusable pattern is rejected with the entry and the reason.
+    /// </summary>
+    [Fact]
+    public void TextScanningSubsystem_ResolvePatterns_UnusableEntry_ThrowsWithEntryAndReason()
+    {
+        // Arrange: an expression with an unsupported flag, a name that nothing defines, and an invalid expression
+        // Act: resolve each
+        var flag = Assert.Throws<InvalidPatternException>(() => PatternCatalog.Resolve(["/zorb/s"], []));
+        var name = Assert.Throws<InvalidPatternException>(() => PatternCatalog.Resolve(["Urlz"], []));
+        var invalid = Assert.Throws<InvalidPatternException>(() => PatternCatalog.Resolve(["/(/"], []));
+
+        // Assert: each names its entry and gives a reason
+        Assert.Multiple(
+            () => Assert.Equal("/zorb/s", flag.Pattern),
+            () => Assert.Contains("flag 's'", flag.Reason, StringComparison.Ordinal),
+            () => Assert.Equal("Urlz", name.Pattern),
+            () => Assert.Contains("pattern name", name.Reason, StringComparison.Ordinal),
+            () => Assert.Equal("/(/", invalid.Pattern),
+            () => Assert.Contains("not closed", invalid.Reason, StringComparison.Ordinal));
+    }
+
+    /// <summary>
+    ///     Test that the Markdown patterns apply to Markdown source names only, and find link targets and entities.
+    /// </summary>
+    [Fact]
+    public void TextScanningSubsystem_MarkdownPatterns_LinkTarget_IsExcludedOnlyForMarkdownNames()
+    {
+        // Arrange: a line with a link target, an entity, and a source name that is and one that is not Markdown
+        const string text = "[a](zorb-target) &zorb;";
+
+        // Act: decide where the patterns apply and find the ranges for the Markdown name
+        var markdown = MarkdownPatterns.AppliesTo("docs/a.md");
+        var notMarkdown = MarkdownPatterns.AppliesTo("docs/a.txt");
+        var ranges = new List<TextRange>();
+        PatternCatalog.FindExcludedRanges(MarkdownPatterns.All, text, ranges);
+
+        // Assert: the patterns apply to the Markdown name, and find the target and the entity
+        Assert.Multiple(
+            () => Assert.True(markdown),
+            () => Assert.False(notMarkdown),
+            () => Assert.Equal(["zorb-target", "&zorb;"], ranges.Select(range => text.Substring(range.Start, range.Length))));
+    }
+
+    /// <summary>
+    ///     Test that a random-looking token and the hexadecimal sequence of a token are recognized together.
+    /// </summary>
+    [Fact]
+    public void TextScanningSubsystem_RandomStrings_TokenAndHexSequence_AreRecognized()
+    {
+        // Arrange: a random-looking token, an identifier, and a token that holds a hexadecimal sequence
+        const string random = "zorb-1-quix-2-flib-3-zorb-4-quix-5-flib-6-zorb";
+        const string identifier = "ZorbQuixFlibZorbQuixFlibZorbQuixFlibZorbQuixFlib";
+        const string hexToken = "zorbquix-cabdab-0123";
+
+        // Act: score the tokens and find the sequence
+        var randomLooks = RandomStringDetector.IsRandom(random);
+        var identifierLooks = RandomStringDetector.IsRandom(identifier);
+        var sequences = new List<TextRange>();
+        RandomStringDetector.FindHexSequences(hexToken, new TextRange(0, hexToken.Length), sequences);
+
+        // Assert: only the first token looks random, and the sequence is the hexadecimal part
+        Assert.Multiple(
+            () => Assert.True(randomLooks),
+            () => Assert.False(identifierLooks),
+            () => Assert.Equal(["cabdab-0123"], sequences.Select(range => hexToken.Substring(range.Start, range.Length))));
     }
 }

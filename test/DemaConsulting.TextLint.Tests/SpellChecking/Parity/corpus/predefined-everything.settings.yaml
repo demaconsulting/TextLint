@@ -1,0 +1,8 @@
+---
+# cspell:disable
+# Settings of the predefined-everything parity corpus: the predefined pattern that matches every line, so
+# nothing but empty lines is left to check.
+version: "0.2"
+language: en
+ignoreRegExpList:
+  - Everything

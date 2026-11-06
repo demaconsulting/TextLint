@@ -1,0 +1,18 @@
+---
+# cspell:disable
+# Settings of the predefined-patterns parity corpus: the predefined cspell patterns that exclude text only when
+# they are listed, plus predefined names that are always applied and so change nothing.
+version: "0.2"
+language: en
+ignoreRegExpList:
+  - HexValues
+  - PublicKey
+  - EscapeCharacters
+  - Base64
+  - href
+  - string
+  - CStyleComment
+  - PhpHereDoc
+  - Urls
+  - SpellCheckerDisable
+  - spellcheckerignoreindocsetting

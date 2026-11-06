@@ -1,0 +1,13 @@
+# Recorded with cspell 10.1.1 by record-cspell.ps1 from corpus/contractions.input (line feed line endings) and corpus/contractions.settings.yaml. # One finding per line: LINE:COLUMN WORD [flagged]. Do not edit by hand; run the script again.
+2:1 zorbknown'zorbunk
+2:19 quixunk'zorbknown
+2:37 zorbunk'd
+2:47 zorbunk'quixunk
+3:14 zorbknown'dzorb
+5:26 zorbknown’zorbunk
+7:13 zorbunk's
+8:22 zorbunk
+8:41 Zorbunk
+9:1 zorbknown'zorbflagged
+9:23 zorbflagged'd
+9:37 zorbknown'zorbflagged'd

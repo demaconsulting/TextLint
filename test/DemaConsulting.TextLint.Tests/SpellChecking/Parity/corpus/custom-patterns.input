@@ -1,0 +1,37 @@
+zorbstartfirst zorbstartsame
+zorbstartlater later
+zorbcase123 ZORBCASE123 zorbcasex
+zorbup ZORBUP ZorbUp
+zorbbare zorbbarewords ZORBBAREX zorbbare_x
+zorbtagone zorbtag_two ZORBTAGTHREE
+zorbmark whole line ignored
+ZORBMARK UPPER too
+x zorbmark not at start
+say "zorbquoted words" then zorbunquoted
+zorbcolor #ff00aa and 0x1f zorbhexafter
+https://zorburl.example/zorbpath zorbafterurl
+zorbgrpzorbgrp zorbgrp
+zorbdotXquixdot zorbdotquixdot
+zorbflibnflibn zorbflibn
+zorbbehindquixbehind quixbehind
+zorbaltxone zorbaltxtwo zorbaltxthree
+zorbclsabcabc zorbclsd
+zorbnegxyz zorbnegabc
+zorbnestflibquix zorbnestquixx
+zorbspan one
+two zorbspanend three zorbspanafter
+zorbunié zorbuni1 zorbunix
+zorbasciiéxy zorbasciiabc
+ézorbbound zorbbound zorbboundé
+zorblookquixlook zorblookother
+zorbesc.zorbslash/ zorbesc.zorbslash
+12 3 zorbclass x zorbclass
+zorbqqx zorbqx zorbqqqqx
+zorblazyone end two end zorblazyafter
+zorbend
+zorbmulti line
+ zorbmulti indented
+zorbnotwordx zorbnotword
+zorbAhex zorbbhex
+zorbspace zorbafter zorbspacezorbafter
+last line zorbend

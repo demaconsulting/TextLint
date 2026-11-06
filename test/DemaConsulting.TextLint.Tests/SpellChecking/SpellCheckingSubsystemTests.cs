@@ -18,12 +18,13 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-// cspell:ignore wrold speling xqzv klingon favourite
+// cspell:ignore wrold speling xqzv klingon favourite Urlz
 
 using System.Text;
 using DemaConsulting.TextLint.Configuration;
 using DemaConsulting.TextLint.SpellChecking;
 using DemaConsulting.TextLint.Tests.TestSupport;
+using DemaConsulting.TextLint.TextScanning;
 
 namespace DemaConsulting.TextLint.Tests.SpellChecking;
 
@@ -609,5 +610,100 @@ public class SpellCheckingSubsystemTests
             () => Assert.StartsWith($"{diagnosticName}: info: ", diagnostic.Format(diagnosticName)),
             () => Assert.Equal(issue.ToString(), issue.Format(issue.FilePath)),
             () => Assert.Equal(diagnostic.ToString(), diagnostic.Format(diagnostic.FilePath)));
+    }
+
+    /// <summary>
+    ///     Test that patterns from the settings exclude text when a string is checked.
+    /// </summary>
+    [Fact]
+    public void SpellCheckingSubsystem_CheckText_CustomPatternsFromSettings_SkipMatches()
+    {
+        // Arrange: settings with an expression and a named pattern, and a text with a match of each and a word
+        var settings = new TextLintSettings
+        {
+            IgnoreRegExpList = ["/wrold\\d+/", "Marker"],
+            Patterns = [new NamedPattern("Marker", "^speling.*$")],
+        };
+        var checker = new TextChecker(settings);
+
+        // Act: check the text
+        var issues = checker.Check("wrold1 ok\nspeling is a marker line\nxqzv");
+
+        // Assert: only the word that no pattern matches is reported
+        Assert.Equal(["xqzv"], issues.Select(issue => issue.Text));
+    }
+
+    /// <summary>
+    ///     Test that a checker cannot be built from a pattern that cannot be used.
+    /// </summary>
+    [Fact]
+    public void SpellCheckingSubsystem_Constructor_UnusablePattern_ThrowsInvalidPatternException()
+    {
+        // Arrange: settings with an invalid expression, and settings with an unknown name
+        var invalid = new TextLintSettings { IgnoreRegExpList = ["/(/"] };
+        var unknown = new TextLintSettings { IgnoreRegExpList = ["Urlz"] };
+
+        // Act / Assert: each is rejected with the documented exception
+        Assert.Multiple(
+            () => Assert.Throws<InvalidPatternException>(() => new TextChecker(invalid)),
+            () => Assert.Throws<InvalidPatternException>(() => new TextChecker(unknown)));
+    }
+
+    /// <summary>
+    ///     Test that the Markdown patterns apply to the files of a run that have a Markdown extension.
+    /// </summary>
+    [Fact]
+    public async Task SpellCheckingSubsystem_CheckAsync_MarkdownFile_SkipsLinkTargetsOfThatFileOnly()
+    {
+        // Arrange: a Markdown file and a text file with the same link, and settings that select both
+        using var temp = new TempDirectory();
+        temp.CreateFile("a.md", $"[x]({OtherUnknown}) {Unknown}\n");
+        temp.CreateFile("b.txt", $"[x]({OtherUnknown}) {Unknown}\n");
+        var settings = new TextLintSettings { Files = ["*.md", "*.txt"] };
+
+        // Act: run the check
+        var result = await SpellChecker.CheckAsync(settings, temp.FullPath, cancellationToken: TestContext.Current.CancellationToken);
+
+        // Assert: the target is skipped in the Markdown file only
+        Assert.Equal(
+            [$"a.md:{Unknown}", $"b.txt:{OtherUnknown}", $"b.txt:{Unknown}"],
+            result.Issues.Select(issue => $"{issue.FilePath}:{issue.Text}"));
+    }
+
+    /// <summary>
+    ///     Test that a random-looking token is skipped unless the setting is switched off.
+    /// </summary>
+    [Fact]
+    public void SpellCheckingSubsystem_CheckText_RandomLookingToken_IsSkippedUnlessSwitchedOff()
+    {
+        // Arrange: a token of non-words, digits, and hyphens that looks like random data, and two settings
+        const string token = "xqzv-1-wrold-2-xqzv-3-wrold-4-xqzv-5-wrold-6-xqzv";
+        var defaults = new TextLintSettings();
+        var off = new TextLintSettings { IgnoreRandomStrings = false };
+
+        // Act: check the token with each
+        var skipped = new TextChecker(defaults).Check(token);
+        var reported = new TextChecker(off).Check(token);
+
+        // Assert: it is skipped by default and reported when the setting is off
+        Assert.Multiple(
+            () => Assert.Empty(skipped),
+            () => Assert.NotEmpty(reported));
+    }
+
+    /// <summary>
+    ///     Test that a contraction is accepted when each of its parts is known or too short, and reported whole otherwise.
+    /// </summary>
+    [Fact]
+    public void SpellCheckingSubsystem_CheckText_Contraction_IsAcceptedWhenItsPartsAre()
+    {
+        // Arrange: a contraction of a known word and a short part, and one with an unknown part
+        const string text = "exec'd wrold'd";
+
+        // Act: check the text
+        var issues = new TextChecker(new TextLintSettings()).Check(text);
+
+        // Assert: only the contraction with an unknown part is reported, with its apostrophe
+        Assert.Equal(["wrold'd"], issues.Select(issue => issue.Text));
     }
 }

@@ -24,6 +24,7 @@ divergences | + | 3:1 quix | TextLint never treats Han characters as part of a w
 divergences | + | 3:7 zorb | The second Latin word of the same run
 divergences | + | 5:9 zorv | A listed word with punctuation followed by more punctuated text: cspell's search finds the listed prefix
 divergences | + | 5:19 zorv | The same with letters after the listed word; TextLint matches a list entry only against a whole token
+divergences | + | 6:9 nzorbq | cspell remembers that nzorbq was accepted through the escape rule (\nzorbq) and accepts it later in the same file; TextLint accepts it only directly after a backslash
 
 # --- Dictionaries differ: TextLint embeds its own word lists, cspell its own.
 divergences | - | 4:2 nbsp | The word nbsp is in TextLint's HTML word list and not in cspell's dictionaries

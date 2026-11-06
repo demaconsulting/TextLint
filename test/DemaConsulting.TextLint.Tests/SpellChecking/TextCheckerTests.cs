@@ -20,9 +20,13 @@
 
 // cspell:ignore wrold Wrold speling xqzv xqz zorb ZORB zorbs ZORBs nwrold wroldspeling wrolhttp wrol qqq
 // cspell:ignore favourite textlint FEFF cspe
+// cspell:ignore quix flib cabdab fedacb xqzvw zorbquix zorbflag zorbstart zorbend neverpresent zorbinside quixone zorbq
+// cspell:ignore Dowd Artagnan quixwords nflibquix Urlz
 
+using System.Text.RegularExpressions;
 using DemaConsulting.TextLint.Configuration;
 using DemaConsulting.TextLint.SpellChecking;
+using DemaConsulting.TextLint.TextScanning;
 
 namespace DemaConsulting.TextLint.Tests.SpellChecking;
 
@@ -1742,6 +1746,402 @@ public class TextCheckerTests
         // Act / Assert: the suggestions are not a mutable collection
         var suggestions = Assert.IsAssignableFrom<IList<string>>(issue.Suggestions);
         Assert.Throws<NotSupportedException>(() => suggestions.Add("other"));
+    }
+
+    /// <summary>
+    ///     Test that text matched by an expression of <c>ignoreRegExpList</c> is not checked.
+    /// </summary>
+    [Fact]
+    public void TextChecker_Check_IgnoreRegExpListExpression_SkipsMatches()
+    {
+        // Arrange: settings that ignore zorb followed by digits, and a text with a match and a near miss
+        var settings = new TextLintSettings { IgnoreRegExpList = ["/zorb\\d+/"] };
+
+        // Act: check the text
+        var issues = Check("zorb12 zorbq", settings);
+
+        // Assert: only the near miss is reported, at its position
+        Assert.Equal(["1:8 zorbq"], Positions(issues));
+    }
+
+    /// <summary>
+    ///     Test that a named pattern and a predefined pattern are applied when the list names them.
+    /// </summary>
+    [Fact]
+    public void TextChecker_Check_IgnoreRegExpListNames_ApplyNamedAndPredefinedPatterns()
+    {
+        // Arrange: settings that name a user pattern and the predefined string pattern
+        var settings = new TextLintSettings
+        {
+            IgnoreRegExpList = ["ZorbWord", "string"],
+            Patterns = [new NamedPattern("ZorbWord", "/quix\\w+/")],
+        };
+
+        // Act: check a text with a match of each and an unmatched word
+        var issues = Check("quixone \"zorbinside\" wrold", settings);
+
+        // Assert: only the unmatched word is reported
+        Assert.Equal(["1:22 wrold"], Positions(issues));
+    }
+
+    /// <summary>
+    ///     Test that a pattern is applied to the whole text, so it can span lines and cut a word in two.
+    /// </summary>
+    [Fact]
+    public void TextChecker_Check_PatternSpanningLinesAndCuttingAWord_ExcludesOnlyTheMatch()
+    {
+        // Arrange: a pattern that matches from one marker to the next across lines, and one that cuts a word
+        var settings = new TextLintSettings { IgnoreRegExpList = ["/zorbstart[\\s\\S]*?zorbend/", "/flib/"] };
+
+        // Act: check a text with a block across lines and a word that the second pattern cuts in two
+        var issues = Check("zorbstart one\ntwo zorbend wrold\nflibquix", settings);
+
+        // Assert: the block is skipped, and the rest of the cut word is checked as its own word
+        Assert.Equal(["2:13 wrold", "3:5 quix"], Positions(issues));
+    }
+
+    /// <summary>
+    ///     Test that a pattern that can match the empty string excludes nothing by doing so.
+    /// </summary>
+    [Fact]
+    public void TextChecker_Check_PatternMatchingEmptyText_ExcludesOnlyRealMatches()
+    {
+        // Arrange: a pattern that matches any run of z, including none
+        var settings = new TextLintSettings { IgnoreRegExpList = ["/z*/"] };
+
+        // Act: check a text in which the run of z is part of a word
+        var issues = Check("wrold zzzz wrold", settings);
+
+        // Assert: both words are still reported, and the run of z is skipped
+        Assert.Equal(["1:1 wrold", "1:12 wrold"], Positions(issues));
+    }
+
+    /// <summary>
+    ///     Test that the default patterns still apply when custom patterns are set.
+    /// </summary>
+    [Fact]
+    public void TextChecker_Check_CustomPatterns_AreAddedToTheDefaultPatterns()
+    {
+        // Arrange: settings with a custom pattern, and a text with a URL, a custom match, and an unknown word
+        var settings = new TextLintSettings { IgnoreRegExpList = ["/zorb/"] };
+
+        // Act: check the text
+        var issues = Check("https://wrold.example/speling zorb wrold", settings);
+
+        // Assert: the URL and the custom match are skipped
+        Assert.Equal(["1:36 wrold"], Positions(issues));
+    }
+
+    /// <summary>
+    ///     Test that a pattern that does not match anything changes nothing.
+    /// </summary>
+    [Fact]
+    public void TextChecker_Check_PatternWithoutMatch_ChangesNothing()
+    {
+        // Arrange: a pattern that matches nothing in the text
+        var settings = new TextLintSettings { IgnoreRegExpList = ["/neverpresent/"] };
+
+        // Act: check the text with and without the pattern
+        var with = Check("wrold speling", settings);
+        var without = Check("wrold speling");
+
+        // Assert: the findings are identical
+        Assert.Equal(Positions(without), Positions(with));
+    }
+
+    /// <summary>
+    ///     Test that an unusable pattern in settings built in code is rejected by the constructor.
+    /// </summary>
+    /// <param name="entry">An entry of <c>ignoreRegExpList</c> that cannot be used.</param>
+    [Theory]
+    [InlineData("/(/")]
+    [InlineData("/zorb/s")]
+    [InlineData("/\\z/")]
+    [InlineData("Urlz")]
+    [InlineData("")]
+    public void TextChecker_Constructor_InvalidIgnoreRegExpListEntry_ThrowsInvalidPatternException(string entry)
+    {
+        // Arrange: settings with the entry from the theory data
+        var settings = new TextLintSettings { IgnoreRegExpList = [entry] };
+
+        // Act: create the checker
+        var exception = Assert.Throws<InvalidPatternException>(() => new TextChecker(settings));
+
+        // Assert: the exception names the entry, and is an argument exception
+        Assert.Multiple(
+            () => Assert.Equal(entry, exception.Pattern),
+            () => Assert.IsAssignableFrom<ArgumentException>(exception));
+    }
+
+    /// <summary>
+    ///     Test that unusable named patterns in settings built in code are rejected by the constructor.
+    /// </summary>
+    [Fact]
+    public void TextChecker_Constructor_InvalidNamedPatterns_ThrowInvalidPatternException()
+    {
+        // Arrange: a predefined name, a repeated name, and an invalid expression
+        var predefined = new TextLintSettings { Patterns = [new NamedPattern("Urls", "/zorb/")] };
+        var repeated = new TextLintSettings { Patterns = [new NamedPattern("Zorb", "/a/"), new NamedPattern("zorb", "/b/")] };
+        var invalid = new TextLintSettings { Patterns = [new NamedPattern("Zorb", "/(/")] };
+
+        // Act / Assert: each is rejected with the documented exception
+        Assert.Multiple(
+            () => Assert.Throws<InvalidPatternException>(() => new TextChecker(predefined)),
+            () => Assert.Throws<InvalidPatternException>(() => new TextChecker(repeated)),
+            () => Assert.Throws<InvalidPatternException>(() => new TextChecker(invalid)));
+    }
+
+    /// <summary>
+    ///     Test that a pattern that backtracks without end ends with a time-out error instead of hanging.
+    /// </summary>
+    [Fact]
+    public void TextChecker_Check_CatastrophicCustomPattern_ThrowsRegexMatchTimeoutException()
+    {
+        // Arrange: a nested quantifier that backtracks exponentially, and a text that almost matches it
+        var settings = new TextLintSettings { IgnoreRegExpList = ["/^(a|aa)+$/"] };
+        var checker = new TextChecker(settings);
+        var text = new string('a', 60) + "b";
+
+        // Act / Assert: the check gives up at the time limit with the documented exception
+        Assert.Throws<RegexMatchTimeoutException>(() => checker.Check(text));
+    }
+
+    /// <summary>
+    ///     Test that the Markdown link, label, anchor, and entity patterns apply to Markdown files only.
+    /// </summary>
+    [Fact]
+    public void TextChecker_Check_MarkdownFile_SkipsLinkTargetsLabelsAnchorsAndEntities()
+    {
+        // Arrange: a Markdown line with a link, a reference, an anchor, an entity, and an unknown word
+        const string text = "[a](wrold) [b][speling] <a id=\"xqzvw\"></a> &wrold; hello wrold";
+
+        // Act: check it as a Markdown file and as a text file
+        var markdown = Check(text, sourceName: "docs/guide.MD");
+        var plain = Check(text, sourceName: "docs/guide.txt");
+
+        // Assert: in Markdown only the last word is reported; in a text file everything is
+        Assert.Multiple(
+            () => Assert.Equal(["1:58 wrold"], Positions(markdown)),
+            () => Assert.True(plain.Count > markdown.Count));
+    }
+
+    /// <summary>
+    ///     Test that a source without a name is not treated as Markdown.
+    /// </summary>
+    [Fact]
+    public void TextChecker_Check_NoSourceName_DoesNotApplyMarkdownPatterns()
+    {
+        // Arrange: a Markdown link with an unknown target
+        const string text = "[a](wrold)";
+
+        // Act: check it without a source name
+        var issues = Check(text);
+
+        // Assert: the target is reported
+        Assert.Equal(["1:5 wrold"], Positions(issues));
+    }
+
+    /// <summary>
+    ///     Test that a long token that looks random is skipped by default.
+    /// </summary>
+    [Fact]
+    public void TextChecker_Check_LongRandomLookingToken_IsSkipped()
+    {
+        // Arrange: a 46-character token made of invented words, digits, and hyphens, which scores above one half
+        const string token = "zorb-1-quix-2-flib-3-zorb-4-quix-5-flib-6-zorb";
+
+        // Act: check it with the default settings
+        var issues = Check(token);
+
+        // Assert: nothing is reported
+        Assert.Empty(issues);
+    }
+
+    /// <summary>
+    ///     Test that the token is checked when random strings are not ignored, or it is shorter than the minimum length.
+    /// </summary>
+    [Fact]
+    public void TextChecker_Check_RandomLookingTokenWhenNotSkipped_IsCheckedAsWords()
+    {
+        // Arrange: the same token, with the skipping switched off, with a minimum above its length, and at its length
+        const string token = "zorb-1-quix-2-flib-3-zorb-4-quix-5-flib-6-zorb";
+        var off = new TextLintSettings { IgnoreRandomStrings = false };
+        var above = new TextLintSettings { MinRandomLength = token.Length + 1 };
+        var exact = new TextLintSettings { MinRandomLength = token.Length };
+
+        // Act: check it each way
+        var checkedOff = Check(token, off);
+        var checkedAbove = Check(token, above);
+        var checkedExact = Check(token, exact);
+
+        // Assert: it is checked when off and when too short for the minimum, and skipped at exactly the minimum
+        Assert.Multiple(
+            () => Assert.Equal(["1:1 zorb", "1:8 quix", "1:15 flib"], Positions(checkedOff).Take(3)),
+            () => Assert.Equal(Positions(checkedOff), Positions(checkedAbove)),
+            () => Assert.Empty(checkedExact));
+    }
+
+    /// <summary>
+    ///     Test that a long identifier of words is still checked.
+    /// </summary>
+    [Fact]
+    public void TextChecker_Check_LongIdentifierOfWords_IsStillChecked()
+    {
+        // Arrange: a 48-character identifier made of three invented words, which does not look random
+        const string identifier = "ZorbQuixFlibZorbQuixFlibZorbQuixFlibZorbQuixFlib";
+
+        // Act: check it
+        var issues = Check(identifier);
+
+        // Assert: its pieces are reported
+        Assert.Equal(12, issues.Count);
+    }
+
+    /// <summary>
+    ///     Test that a token that looks random hides a flagged word inside it, as in cspell.
+    /// </summary>
+    [Fact]
+    public void TextChecker_Check_FlaggedWordInsideRandomLookingToken_IsNotReported()
+    {
+        // Arrange: a random-looking token that holds a flagged word
+        var settings = new TextLintSettings { FlagWords = ["zorbflag"] };
+
+        // Act: check the token and the flagged word alone
+        var inside = Check("zorbflag-1-quix-2-flib-3-zorb-4-quix-5-flib-6-zorb", settings);
+        var alone = Check("zorbflag", settings);
+
+        // Assert: the flagged word is reported alone, and not inside the random-looking token
+        Assert.Multiple(
+            () => Assert.Empty(inside),
+            () => Assert.Single(alone));
+    }
+
+    /// <summary>
+    ///     Test that unknown words inside a hexadecimal sequence of a token are not reported.
+    /// </summary>
+    [Fact]
+    public void TextChecker_Check_WordsInsideHexSequence_AreNotReported()
+    {
+        // Arrange: a word before a hexadecimal sequence made of two unknown hexadecimal words and a number
+        const string token = "zorbquix-cabdab-0123-fedacb";
+
+        // Act: check the token with the default settings and with random strings not ignored
+        var skipped = Check(token);
+        var reported = Check(token, new TextLintSettings { IgnoreRandomStrings = false });
+
+        // Assert: only the word before the sequence is reported by default, and all three when not ignoring
+        Assert.Multiple(
+            () => Assert.Equal(["1:1 zorbquix"], Positions(skipped)),
+            () => Assert.Equal(["1:1 zorbquix", "1:10 cabdab", "1:22 fedacb"], Positions(reported)));
+    }
+
+    /// <summary>
+    ///     Test that a hexadecimal sequence in mixed letter case, or a flagged word inside one, does not hide words.
+    /// </summary>
+    [Fact]
+    public void TextChecker_Check_MixedCaseHexSequenceOrFlaggedWord_StaysReported()
+    {
+        // Arrange: a sequence in mixed case, and a flagged word inside a sequence
+        var flagged = new TextLintSettings { FlagWords = ["cabdab"] };
+
+        // Act: check both
+        var mixed = Check("Cabdab-0123-fedacb");
+        var flaggedInside = Check("cabdab-0123-fedacb", flagged);
+
+        // Assert: the mixed-case sequence hides nothing, and the flagged word is still reported
+        Assert.Multiple(
+            () => Assert.Equal(["1:1 Cabdab", "1:13 fedacb"], Positions(mixed)),
+            () => Assert.Equal([SpellingIssueKind.FlaggedWord], flaggedInside.Select(issue => issue.Kind)));
+    }
+
+    /// <summary>
+    ///     Test that a contraction made of acceptable parts is accepted, as in cspell.
+    /// </summary>
+    /// <param name="text">A contraction whose parts are all known or too short to check.</param>
+    /// <param name="words">The invented words that the settings accept so that the contraction has known parts.</param>
+    [Theory]
+    [InlineData("exec'd")]
+    [InlineData("OR'd")]
+    [InlineData("typo'd")]
+    [InlineData("rock'n'roll")]
+    [InlineData("she'd've")]
+    [InlineData("dd'T'HH")]
+    [InlineData("hello'z")]
+    [InlineData("ZORB'd", "zorb")]
+    [InlineData("zorb\u2019d", "zorb")]
+    [InlineData("zorb\\'d", "zorb")]
+    [InlineData("d'zorb", "zorb")]
+    [InlineData("zorb'quix", "zorb", "quix")]
+    [InlineData("zorbQuix'd", "zorb", "quix")]
+    public void TextChecker_Check_ContractionOfAcceptableParts_IsAccepted(string text, params string[] words)
+    {
+        // Arrange: settings that accept any invented words the contraction needs
+        var settings = new TextLintSettings { Words = words };
+
+        // Act: check the contraction
+        var issues = Check(text, settings);
+
+        // Assert: nothing is reported
+        Assert.Empty(issues);
+    }
+
+    /// <summary>
+    ///     Test that a contraction with an unknown part of the minimum length or more is reported whole.
+    /// </summary>
+    /// <param name="text">A contraction with an unknown part.</param>
+    /// <param name="expected">The finding that must result.</param>
+    [Theory]
+    [InlineData("D'Artagnan", "1:1 D'Artagnan")]
+    [InlineData("O'Dowd", "1:1 O'Dowd")]
+    [InlineData("wrold'd", "1:1 wrold'd")]
+    [InlineData("hello'wrold", "1:1 hello'wrold")]
+    [InlineData("wrold's", "1:1 wrold's")]
+    [InlineData("hello'xqzvw", "1:1 hello'xqzvw")]
+    [InlineData("ZORB'd", "1:1 ZORB'd")]
+    public void TextChecker_Check_ContractionWithUnknownPart_IsReportedWhole(string text, string expected)
+    {
+        // Arrange: the contraction is passed in by the theory data
+        // Act: check it with the default settings
+        var issues = Check(text);
+
+        // Assert: it is reported as one word, with its apostrophe
+        Assert.Equal([expected], Positions(issues));
+    }
+
+    /// <summary>
+    ///     Test that a flagged part, and a part that is long enough once the minimum length is lowered, keep the word reported.
+    /// </summary>
+    [Fact]
+    public void TextChecker_Check_ContractionWithFlaggedOrCheckedPart_IsReported()
+    {
+        // Arrange: a contraction whose second part is flagged, and one whose short part is checked at a low minimum
+        var flagged = new TextLintSettings { FlagWords = ["wrold"], Words = ["zorb"] };
+        var low = new TextLintSettings { MinWordLength = 2, Words = ["zorb"] };
+
+        // Act: check both
+        var flaggedIssues = Check("zorb'wrold zorb'", flagged);
+        var lowIssues = Check("zorb'xq", low);
+
+        // Assert: the flagged part keeps the word reported, and with a minimum of 2 the part xq is checked
+        Assert.Multiple(
+            () => Assert.Equal(["1:1 zorb'wrold"], Positions(flaggedIssues)),
+            () => Assert.Equal(["1:1 zorb'xq"], Positions(lowIssues)));
+    }
+
+    /// <summary>
+    ///     Test that the accepted parts of a contraction that follows a backslash use the escape rule for the first part.
+    /// </summary>
+    [Fact]
+    public void TextChecker_Check_ContractionAfterBackslash_RetriesWithoutEscapeLetter()
+    {
+        // Arrange: a contraction whose first part is a known word with an escape letter in front of it
+        const string text = "\\nhello'd";
+
+        // Act: check it
+        var issues = Check(text);
+
+        // Assert: the first part is accepted without the n of the escape, so nothing is reported
+        Assert.Empty(issues);
     }
 
     /// <summary>

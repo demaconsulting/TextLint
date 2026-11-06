@@ -91,6 +91,51 @@ public class CspellParityTests
     private const string DirectiveBoundariesCorpus = "directive-boundaries";
 
     /// <summary>
+    ///     The corpus of <c>ignoreRegExpList</c> entries and named patterns.
+    /// </summary>
+    private const string CustomPatternsCorpus = "custom-patterns";
+
+    /// <summary>
+    ///     The corpus of the predefined patterns that exclude text only when listed.
+    /// </summary>
+    private const string PredefinedPatternsCorpus = "predefined-patterns";
+
+    /// <summary>
+    ///     The corpus of the predefined pattern that matches every line.
+    /// </summary>
+    private const string PredefinedEverythingCorpus = "predefined-everything";
+
+    /// <summary>
+    ///     The corpus of the Markdown patterns, which TextLint checks under a source name with a Markdown extension.
+    /// </summary>
+    private const string MarkdownLinksCorpus = "markdown-links";
+
+    /// <summary>
+    ///     The corpus of random-looking strings and hexadecimal sequences with the default settings.
+    /// </summary>
+    private const string RandomStringsCorpus = "random-strings";
+
+    /// <summary>
+    ///     The corpus of random-looking strings with random strings not ignored.
+    /// </summary>
+    private const string RandomStringsOffCorpus = "random-strings-off";
+
+    /// <summary>
+    ///     The corpus of random-looking strings with a lowered minimum random length.
+    /// </summary>
+    private const string RandomStringsShortCorpus = "random-strings-short";
+
+    /// <summary>
+    ///     The corpus of contractions.
+    /// </summary>
+    private const string ContractionsCorpus = "contractions";
+
+    /// <summary>
+    ///     The source name extension under which TextLint checks the Markdown corpus.
+    /// </summary>
+    private const string MarkdownExtension = ".md";
+
+    /// <summary>
     ///     The suffix of the name of the recording that cspell made for the CRLF variant of a corpus.
     /// </summary>
     private const string CrLfRecordingSuffix = ".crlf";
@@ -146,8 +191,21 @@ public class CspellParityTests
             text = text.Replace("\r\n", "\n", StringComparison.Ordinal).Replace("\n", "\r\n", StringComparison.Ordinal);
         }
 
-        return [.. new TextChecker(loaded.Settings!).Check(text, corpus + ".input").Select(FormatFinding)];
+        return [.. new TextChecker(loaded.Settings!).Check(text, SourceName(corpus)).Select(FormatFinding)];
     }
+
+    /// <summary>
+    ///     Gets the source name under which TextLint checks a corpus.
+    /// </summary>
+    /// <remarks>
+    ///     Every corpus has the neutral extension <c>.input</c> so that no other tool checks it, except the Markdown
+    ///     corpus, which TextLint checks as a Markdown file because the Markdown patterns apply by extension; cspell is
+    ///     told the language when the corpus is recorded.
+    /// </remarks>
+    /// <param name="corpus">The name of the corpus.</param>
+    /// <returns>The name of the corpus with the extension of the source it stands for.</returns>
+    private static string SourceName(string corpus) =>
+        corpus + (corpus == MarkdownLinksCorpus ? MarkdownExtension : ".input");
 
     /// <summary>
     ///     Formats a finding in the form of the recorded cspell output.
@@ -300,6 +358,101 @@ public class CspellParityTests
 
         // Assert: the findings equal cspell's, with no listed differences
         AssertMatchesRecorded(PossessivesCorpus, ours, PossessivesCorpus);
+    }
+
+    /// <summary>
+    ///     Test that the corpus of <c>ignoreRegExpList</c> entries and named patterns gives the same findings as cspell.
+    /// </summary>
+    [Fact]
+    public async Task TextLint_CspellParity_CustomPatternCorpus_MatchesRecordedCspellOutput()
+    {
+        // Arrange: the corpus of slash and bare expressions, flags, named patterns, and the constructs whose meaning differs
+        // between the JavaScript and .NET engines
+        // Act: check it with the settings stored beside it
+        var ours = await CheckCorpusAsync(CustomPatternsCorpus);
+
+        // Assert: the findings equal cspell's, with no listed differences
+        AssertMatchesRecorded(CustomPatternsCorpus, ours, CustomPatternsCorpus);
+    }
+
+    /// <summary>
+    ///     Test that the pattern corpora with Windows line endings give the same findings as the cspell output recorded for them.
+    /// </summary>
+    [Fact]
+    public async Task TextLint_CspellParity_CrlfPatternCorpora_MatchRecordedCspellOutput()
+    {
+        // Arrange: the corpora of custom patterns and of Markdown patterns with every line ending turned into CRLF; cspell's
+        // output for them is recorded separately because the line anchors and the dot depend on the line endings
+        // Act: check them
+        var custom = await CheckCorpusAsync(CustomPatternsCorpus, useCrLf: true);
+        var markdown = await CheckCorpusAsync(MarkdownLinksCorpus, useCrLf: true);
+
+        // Assert: the findings equal the output recorded for the CRLF variant, with no listed differences
+        AssertMatchesRecorded(CustomPatternsCorpus, custom, CustomPatternsCorpus + CrLfRecordingSuffix);
+        AssertMatchesRecorded(MarkdownLinksCorpus, markdown, MarkdownLinksCorpus + CrLfRecordingSuffix);
+    }
+
+    /// <summary>
+    ///     Test that the corpora of the predefined patterns give the same findings as cspell.
+    /// </summary>
+    [Fact]
+    public async Task TextLint_CspellParity_PredefinedPatternCorpora_MatchRecordedCspellOutput()
+    {
+        // Arrange: the corpus of the optional predefined patterns and the corpus of the pattern that matches every line
+        // Act: check both with the settings stored beside them
+        var patterns = await CheckCorpusAsync(PredefinedPatternsCorpus);
+        var everything = await CheckCorpusAsync(PredefinedEverythingCorpus);
+
+        // Assert: the findings equal cspell's, with no listed differences
+        AssertMatchesRecorded(PredefinedPatternsCorpus, patterns, PredefinedPatternsCorpus);
+        AssertMatchesRecorded(PredefinedEverythingCorpus, everything, PredefinedEverythingCorpus);
+    }
+
+    /// <summary>
+    ///     Test that the Markdown corpus, checked as a Markdown file, gives the same findings as cspell.
+    /// </summary>
+    [Fact]
+    public async Task TextLint_CspellParity_MarkdownLinkCorpus_MatchesRecordedCspellOutput()
+    {
+        // Arrange: the corpus of links, references, anchors, and entities, checked under a name with a Markdown extension
+        // Act: check it with the settings stored beside it
+        var ours = await CheckCorpusAsync(MarkdownLinksCorpus);
+
+        // Assert: the findings equal cspell's, with no listed differences
+        AssertMatchesRecorded(MarkdownLinksCorpus, ours, MarkdownLinksCorpus);
+    }
+
+    /// <summary>
+    ///     Test that the random-string corpora give the same findings as cspell with each setting.
+    /// </summary>
+    [Fact]
+    public async Task TextLint_CspellParity_RandomStringCorpora_MatchRecordedCspellOutput()
+    {
+        // Arrange: the same random-looking tokens and hexadecimal sequences with the defaults, with random strings not
+        // ignored, and with a minimum random length of 20
+        // Act: check each with the settings stored beside it
+        var defaults = await CheckCorpusAsync(RandomStringsCorpus);
+        var off = await CheckCorpusAsync(RandomStringsOffCorpus);
+        var shortMinimum = await CheckCorpusAsync(RandomStringsShortCorpus);
+
+        // Assert: the findings equal cspell's, with no listed differences
+        AssertMatchesRecorded(RandomStringsCorpus, defaults, RandomStringsCorpus);
+        AssertMatchesRecorded(RandomStringsOffCorpus, off, RandomStringsOffCorpus);
+        AssertMatchesRecorded(RandomStringsShortCorpus, shortMinimum, RandomStringsShortCorpus);
+    }
+
+    /// <summary>
+    ///     Test that the contraction corpus gives the same findings as cspell.
+    /// </summary>
+    [Fact]
+    public async Task TextLint_CspellParity_ContractionCorpus_MatchesRecordedCspellOutput()
+    {
+        // Arrange: contractions built from accepted invented words and invented unknown words
+        // Act: check it with the word lists stored beside it
+        var ours = await CheckCorpusAsync(ContractionsCorpus);
+
+        // Assert: the findings equal cspell's, with no listed differences
+        AssertMatchesRecorded(ContractionsCorpus, ours, ContractionsCorpus);
     }
 
     /// <summary>

@@ -1,0 +1,28 @@
+zorbhexone #abc123 zorbhextwo 0xDEADzorbhexthree \u00e9zorbhexfour \x{00e9}zorbhexfive
+\nzorbescone \tzorbesctwo \x41zorbescthree \u0041zorbescfour \qzorbescfive
+zorbquixzorbquixzorbquixzorbquixzorbquixzorb and zorbquixzorbquixzorbquixzorbquixzorbquixzorbquixzorbquixzorbquix
+Alpha1Beta2Gamma3Delta4Epsilon5Zeta6Eta7Theta8Iota9Kappa
+<a href="zorbhrefone/zorbhreftwo">zorbhreftext</a> <A HREF = "zorbhrefthree">x</A> href=zorbhreffour
+var one = "zorbstringone words"; var two = 'zorbstringtwo'; var three = `zorbstringthree
+zorbstringmore`; var four = "zorbstring\"four"; var five = "zorb\\" zorbstringafter;
+x = 1; // zorbcommentone words
+y = 2; /* zorbcommentblock
+  zorbcommentmore */ z = 3; zorbcommentafter
+zorbscheme://zorbnotcomment
+$text = <<<EOT
+zorbheredoc words
+EOT; zorbheredocafter
+$other = <<<'ZORBTAG'
+zorbheredoctwo
+ZORBTAG;
+-----BEGIN PUBLIC KEY-----
+zorbpublickeyone
+-----END PUBLIC KEY-----
+-----BEGIN RSA PUBLIC KEY-----
+zorbpublickeytwo
+-----END RSA PUBLIC KEY----- zorbkeyafter
+-----BEGIN PRIVATE KEY-----
+zorbprivatekey
+-----END PRIVATE KEY-----
+https://zorburl.example/zorbpath zorburlafter
+zorbplain words remain

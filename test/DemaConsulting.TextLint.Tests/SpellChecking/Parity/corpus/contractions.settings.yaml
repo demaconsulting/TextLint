@@ -1,0 +1,11 @@
+---
+# cspell:disable
+# Settings of the contractions parity corpus: two accepted words, so that contractions can be built from known
+# parts without depending on a dictionary, and one flagged word.
+version: "0.2"
+language: en
+words:
+  - zorbknown
+  - quixknown
+flagWords:
+  - zorbflagged
