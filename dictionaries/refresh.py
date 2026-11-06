@@ -71,13 +71,23 @@ ALL OR NOTHING
 
 VERIFIED INPUTS
     Every input is verified against a pinned hash before it is used: the downloaded SCOWL and cspell-dicts
-    files and the npm package tarballs (SHA-256), the cached SCOWL database (SHA-256 of each word list it
+    files and the npm package tarballs (SHA-256; a cached file with the wrong hash is downloaded again, and a
+    download is cached only after its hash matched), the SCOWL database (SHA-256 of each word list it
     exports; a database that does not match is rebuilt once), and the packages installed for
-    ``--verify-expander`` (npm integrity of the whole installed tree). The verified hashes are written into the
-    header of each generated list.
+    ``--verify-expander`` (npm integrity of the whole installed tree). Code is never run before its source is
+    verified: ``npm`` runs with ``--ignore-scripts``, and the SCOWL repository (whose scripts are run) is cloned
+    afresh on every run and checked against the pinned commit instead of trusting a checkout left in the work
+    folder. The verified hashes are written into the header of each generated list.
+
+STALE LISTS
+    Before anything is downloaded, the run fails if a managed folder holds a ``.txt`` list that no source
+    declares and that is not curated (``additions.txt``, ``variant-keep.txt``): that is what a removed, renamed,
+    or emptied source leaves behind, and the build would keep shipping its words. The files are named, and a
+    person deletes them or declares the source. A source that yields no entries is an error, not an empty list.
 
 PREREQUISITES
-    * Python 3.7 or later, built with SQLite 3.33.0 or later (SCOWL requirement).
+    * Python 3.7 or later, built with SQLite 3.33.0 or later (SCOWL requirement). The script itself uses nothing
+      newer than 3.7 (checked with the ``vermin`` tool); an older Python fails on the first line.
     * git and npm on the PATH (``--verify-expander`` also needs Node.js 22.18 or later).
     * Network access (GitHub and the npm registry).
     * ``PYTHONUTF8=1`` in the environment. The script sets it for the child processes it starts,
@@ -89,15 +99,17 @@ USAGE
     python dictionaries/refresh.py [--workdir <dir>] --verify-expander
     python dictionaries/refresh.py --self-test
 
-    Creating the SCOWL database takes about five minutes. Pass the same ``--workdir`` again to
-    reuse the clone and the database from an earlier run.
+    Creating the SCOWL database takes about five minutes. Pass the same ``--workdir`` again to reuse the
+    database from an earlier run (the SCOWL clone itself is deleted and cloned afresh on every run, because its
+    scripts are executed, and the cached database is verified through the lists it exports).
 
     ``--verify-expander`` checks the Hunspell expander of ``word_forms.py`` against the independent
     ``hunspell-reader`` npm package (the expander cspell itself uses) on every pinned dictionary and
     exits with an error if the two produce different word sets; no list is written.
 
     ``--self-test`` runs the unit tests of ``word_forms.py`` (expansion, rejection of malformed input with
-    the source and line, the fold, the -ise policy, and the region self-check); it needs no network.
+    the source and line, the fold, the -ise policy, and the region self-check) and of the file handling of this
+    script (verified downloads, stale lists, all-or-nothing installation); it needs no network.
 
     A problem with an input (a hash that does not match, malformed Hunspell data, an unreadable file) ends the
     run with exit code 1 and a message that names it. This script is a manual maintenance tool. It is never
@@ -113,10 +125,12 @@ import json
 import os
 import re
 import shutil
+import stat
 import subprocess
 import sys
 import tarfile
 import tempfile
+import unittest
 import urllib.error
 import urllib.request
 import zipfile
@@ -267,6 +281,8 @@ REGION_MEANINGS = {
 # ----------------------------------------------------------------------------------------------
 
 MAX_WORD_LENGTH = 64
+# The longest wait for a download to answer; a stalled transfer then ends the run with a message instead of hanging
+DOWNLOAD_TIMEOUT_SECONDS = 120
 APOSTROPHE = "'"
 TYPOGRAPHIC_APOSTROPHE = "\u2019"
 MIN_LETTERS_IN_RUN = 2
@@ -340,11 +356,20 @@ def read_if_present(path: Path) -> Optional[bytes]:
 
 
 def remove_tree(path: Path) -> None:
-    """Deletes a folder tree; a folder that is not there is fine, any other failure propagates."""
+    """Deletes a folder tree; a folder that is not there is fine, any other failure propagates.
+
+    Git marks its object files read-only, which makes ``shutil.rmtree`` fail on Windows; the read-only
+    flag is cleared and the deletion retried once.
+    """
     try:
         shutil.rmtree(path)
     except FileNotFoundError:
         pass
+    except PermissionError:
+        for root, folders, files in os.walk(path):
+            for name in folders + files:
+                os.chmod(os.path.join(root, name), stat.S_IREAD | stat.S_IWRITE | stat.S_IEXEC)
+        shutil.rmtree(path)
 
 
 def remove_file(path: Path) -> None:
@@ -360,31 +385,43 @@ def sha256_of(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
+def write_text_lf(path: Path, text: str) -> None:
+    """Writes UTF-8 text with LF line endings and no BOM (``Path.write_text(newline=)`` needs Python 3.10)."""
+    with open(path, "w", encoding="utf-8", newline="\n") as handle:
+        handle.write(text)
+
+
 def write_list(path: Path, header: list, words: list) -> None:
     """Writes a list file: comment header, then one word per line, LF line endings, no BOM."""
     path.parent.mkdir(parents=True, exist_ok=True)
     lines = [("# " + line) if line else "" for line in header]
     lines.extend(words)
-    with open(path, "w", encoding="utf-8", newline="\n") as handle:
-        handle.write("\n".join(lines) + "\n")
+    write_text_lf(path, "\n".join(lines) + "\n")
 
 
 def fetch_pinned(url: str, sha256: str, destination: Path) -> Path:
-    """Returns a downloaded file whose SHA-256 has been verified, downloading it first when it is not cached.
+    """Returns a downloaded file whose SHA-256 has been verified, downloading it first when needed.
 
-    A cached file is verified like a fresh download, so a damaged or tampered cache is never used. Only a file
-    that does not exist is downloaded; a cached file that exists but cannot be read is an error.
+    A cached file is verified like a fresh download, so a damaged or tampered cache is never used: a cached
+    file with the wrong hash is deleted and downloaded again. A download is written to the cache only after its
+    hash matched, so unverified bytes are never cached, and a download whose hash does not match is an error
+    (the pinned release itself changed, or the transfer was tampered with). A cached file that exists but
+    cannot be read is an error.
     """
     data = read_if_present(destination)
+    if data is not None and sha256_of(data) != sha256:
+        print(f"  cached {destination} has the wrong SHA-256; downloading it again", flush=True)
+        remove_file(destination)
+        data = None
     if data is None:
         destination.parent.mkdir(parents=True, exist_ok=True)
         print(f"  download {url}", flush=True)
-        with urllib.request.urlopen(url) as response:
+        with urllib.request.urlopen(url, timeout=DOWNLOAD_TIMEOUT_SECONDS) as response:
             data = response.read()
+        actual = sha256_of(data)
+        if actual != sha256:
+            raise InputError(f"{url} has SHA-256 {actual}, expected {sha256}.")
         destination.write_bytes(data)
-    actual = sha256_of(data)
-    if actual != sha256:
-        raise InputError(f"{destination} has SHA-256 {actual}, expected {sha256}. Delete it to download it again.")
     return destination
 
 
@@ -455,28 +492,34 @@ def install_outputs(stage: Path, output: Path, produced: Set[str], managed: Set[
 
 
 def prepare_scowl(workdir: Path, rebuild: bool = False) -> Path:
-    """Clones the pinned SCOWL tag (if absent), verifies the commit, and creates scowl.db (if absent or when asked).
+    """Clones the pinned SCOWL tag afresh, verifies the commit, and puts the SCOWL database into the clone.
 
-    Whether the clone and the database exist is learned by trying to use them: only a folder or file that is
-    not there is created, any other failure propagates. ``rebuild`` deletes the database first (used when a
-    cached database does not hold the pinned data).
+    The scripts of the clone are run, so the clone must be exactly the pinned commit: a checkout left in the
+    work folder by an earlier run could have been modified since (or hold stale compiled Python files), and
+    ``git rev-parse HEAD`` says nothing about the working tree. The clone is therefore deleted and cloned again
+    on every run (a shallow clone of one tag is small), and the commit is verified.
+
+    Only the database is cached, as ``scowl.db`` in the work folder, because creating it takes about five
+    minutes. It holds data, not code, and is not trusted either: every list exported from it is checked against
+    its pinned SHA-256 (see ``scowl_words``). ``rebuild`` deletes the cached database first (used when a cached
+    database does not export the pinned data). Whether the cached database exists is learned by trying to copy
+    it: only a file that is not there is created, any other failure propagates.
     """
     clone = workdir / "wordlist"
-    try:
-        clone.stat()
-    except FileNotFoundError:
-        run(["git", "clone", "--quiet", "--depth", "1", "--branch", SCOWL_TAG, SCOWL_REPOSITORY, clone])
+    remove_tree(clone)
+    run(["git", "clone", "--quiet", "--depth", "1", "--branch", SCOWL_TAG, SCOWL_REPOSITORY, clone])
     commit = run(["git", "rev-parse", "HEAD"], cwd=clone, capture=True).strip()
     if commit != SCOWL_COMMIT:
         raise InputError(f"SCOWL tag {SCOWL_TAG} resolves to {commit}, expected {SCOWL_COMMIT}.")
-    database = clone / "scowl.db"
+    cached = workdir / "scowl.db"
     if rebuild:
-        remove_file(database)
+        remove_file(cached)
     try:
-        database.stat()
+        shutil.copyfile(cached, clone / "scowl.db")
     except FileNotFoundError:
         print("Creating the SCOWL database (about five minutes)...", flush=True)
         run([sys.executable, "combine.py", "create-db", "scowl.db"], cwd=clone)
+        shutil.copyfile(clone / "scowl.db", cached)
     return clone
 
 
@@ -545,7 +588,10 @@ def fetch_scowl_hunspell(workdir: Path) -> dict:
         url = f"{SCOWL_REPOSITORY}/releases/download/{SCOWL_TAG}/{asset}"
         archive = fetch_pinned(url, sha256, workdir / "scowl-hunspell" / asset)
         with zipfile.ZipFile(archive) as bundle:
-            result[name] = (bundle.read(f"{name}.dic").decode("utf-8"), bundle.read(f"{name}.aff").decode("utf-8"))
+            try:
+                result[name] = (bundle.read(f"{name}.dic").decode("utf-8"), bundle.read(f"{name}.aff").decode("utf-8"))
+            except KeyError as problem:
+                raise InputError(f"{asset} does not contain the expected file: {problem}") from None
     return result
 
 
@@ -635,6 +681,31 @@ def read_cspell_excludes(texts: dict) -> set:
             content = line.split("#", 1)[0]
             excluded.update(found.lower() for found in LETTER_RUN.findall(content))
     return excluded
+
+
+def technical_managed_paths() -> Set[str]:
+    """The relative paths of every technical list this script may write or delete: every declared package."""
+    return {f"technical/{group}/{list_name}.txt" for list_name, group, *_ in CSPELL_PACKAGES}
+
+
+# Curated lists that live beside the generated ones; the script never writes, replaces, or deletes them
+CURATED_LISTS = frozenset({"technical/variant-keep.txt", "technical/general/additions.txt"})
+
+
+def unexpected_lists(output: Path, folders: Iterable[str], declared: Set[str]) -> list:
+    """Returns the ``.txt`` lists in the managed folders that no source declares and that are not curated.
+
+    Such a file is what a removed, renamed, or emptied source leaves behind: the script cannot tell it from a
+    list somebody added by hand, so it never deletes it silently, and the build would keep shipping its words.
+    The caller fails the run and names the files, and a person deletes them or declares the source.
+    """
+    found = []
+    for folder in folders:
+        for path in sorted((output / folder).rglob("*.txt")):
+            relative = path.relative_to(output).as_posix()
+            if relative not in declared and relative not in CURATED_LISTS:
+                found.append(relative)
+    return found
 
 
 def english_managed_paths() -> Set[str]:
@@ -896,9 +967,10 @@ def verify_expander(workdir: Path) -> None:
         stem = name.split(" ")[0]
         folder = workdir / "verify" / re.sub(r"[^A-Za-z0-9_-]+", "-", name)
         folder.mkdir(parents=True, exist_ok=True)
-        (folder / f"{stem}.dic").write_text(dictionary_text, encoding="utf-8", newline="\n")
-        (folder / f"{stem}.aff").write_text(affix_text, encoding="utf-8", newline="\n")
+        write_text_lf(folder / f"{stem}.dic", dictionary_text)
+        write_text_lf(folder / f"{stem}.aff", affix_text)
         reference_file = folder / "reference.txt"
+        remove_file(reference_file)  # a stale reference from an earlier run must never be mistaken for this run's output
         run([node, reader_script, "words", folder / f"{stem}.dic", "-o", reference_file])
         reference = {line for line in reference_file.read_text(encoding="utf-8").splitlines() if line}
         ours = {form for _, forms in expand_hunspell(dictionary_text, affix_text, name) for form in forms}
@@ -918,13 +990,24 @@ def verify_expander(workdir: Path) -> None:
 # ----------------------------------------------------------------------------------------------
 
 
+def read_member(archive: tarfile.TarFile, name: str, package: str) -> bytes:
+    """Reads one file of an npm package tarball; a missing member or a non-file is an error that names the package."""
+    try:
+        member = archive.extractfile(name)
+    except KeyError:
+        raise InputError(f"{package} has no file '{name}'.") from None
+    if member is None:
+        raise InputError(f"{package}: '{name}' is not a regular file.")
+    return member.read()
+
+
 def read_package_file(archive: tarfile.TarFile, base_name: str) -> str:
     """Reads one dictionary source (plain or gzip) from an npm package tarball."""
     for candidate in (f"dict/{base_name}.txt", f"dict/{base_name}.txt.gz", f"{base_name}.txt", f"{base_name}.txt.gz"):
         try:
             member = archive.extractfile("package/" + candidate)
         except KeyError:
-            continue
+            continue  # this package keeps the file under another name; the next candidate is tried, and none is an error below
         if member is None:
             continue
         data = member.read()
@@ -968,11 +1051,13 @@ def build_technical(workdir: Path, stage: Path) -> tuple:
         words = set()
         dropped = 0
         with tarfile.open(tarball) as archive:
-            metadata = json.loads(archive.extractfile("package/package.json").read().decode("utf-8"))
+            metadata = json.loads(read_member(archive, "package/package.json", spec).decode("utf-8"))
             if metadata.get("license") != "MIT":
                 raise InputError(f"{spec} is licensed '{metadata.get('license')}', expected MIT.")
-            license_text = archive.extractfile("package/LICENSE").read().decode("utf-8")
-            copyright_line = next(line for line in license_text.splitlines() if line.startswith("Copyright"))
+            license_text = read_member(archive, "package/LICENSE", spec).decode("utf-8")
+            copyright_line = next((line for line in license_text.splitlines() if line.startswith("Copyright")), None)
+            if copyright_line is None:
+                raise InputError(f"{spec} has no copyright line in its LICENSE file.")
             for source in sources:
                 for line in read_package_file(archive, source).splitlines():
                     for run_text in split_entry(line):
@@ -999,10 +1084,88 @@ def build_technical(workdir: Path, stage: Path) -> tuple:
             "",
         ]
         relative = f"technical/{group}/{list_name}.txt"
+        if not words:
+            raise InputError(f"{spec} produced no entries for {relative}; refusing to write an empty list.")
         write_list(stage / relative, header, sorted(words))
         produced.add(relative)
         rows.append((relative, len(words), dropped))
     return rows, produced
+
+
+# ----------------------------------------------------------------------------------------------
+# Self-test
+# ----------------------------------------------------------------------------------------------
+
+
+class _RefreshSelfTests(unittest.TestCase):
+    """Tests of the file handling of this script (no network: downloads use ``file:`` URLs)."""
+
+    def setUp(self) -> None:
+        self._folder = Path(tempfile.mkdtemp(prefix="refresh-selftest-"))
+        self.addCleanup(remove_tree, self._folder)
+
+    def test_a_cached_download_with_the_wrong_hash_is_downloaded_again(self) -> None:
+        source = self._folder / "source.txt"
+        write_text_lf(source, "pinned\n")
+        cached = self._folder / "cache" / "file.txt"
+        cached.parent.mkdir()
+        write_text_lf(cached, "tampered\n")
+        fetch_pinned(source.as_uri(), sha256_of(b"pinned\n"), cached)
+        self.assertEqual(b"pinned\n", cached.read_bytes())
+
+    def test_a_download_with_the_wrong_hash_is_an_error_and_is_not_cached(self) -> None:
+        source = self._folder / "source.txt"
+        write_text_lf(source, "changed\n")
+        cached = self._folder / "cache" / "file.txt"
+        with self.assertRaises(InputError):
+            fetch_pinned(source.as_uri(), sha256_of(b"pinned\n"), cached)
+        self.assertFalse(cached.exists())
+
+    def test_lists_that_no_source_declares_are_found_but_curated_lists_are_not(self) -> None:
+        for relative in ("technical/general/a.txt", "technical/general/stale.txt", "technical/language/old.txt",
+                         "technical/variant-keep.txt", "technical/general/additions.txt"):
+            target = self._folder / relative
+            target.parent.mkdir(parents=True, exist_ok=True)
+            write_text_lf(target, "x\n")
+        found = unexpected_lists(self._folder, ["technical"], {"technical/general/a.txt"})
+        self.assertEqual(["technical/general/stale.txt", "technical/language/old.txt"], found)
+
+    def test_every_declared_package_is_managed_and_the_curated_lists_are_not(self) -> None:
+        managed = technical_managed_paths()
+        self.assertEqual(len(CSPELL_PACKAGES), len(managed))
+        self.assertTrue(managed.isdisjoint(CURATED_LISTS))
+
+    def test_a_list_that_a_refresh_no_longer_produces_is_removed_and_a_failed_install_restores_everything(self) -> None:
+        output, stage = self._folder / "out", self._folder / "stage"
+        for folder in (output, stage):
+            (folder / "technical").mkdir(parents=True)
+        write_text_lf(output / "technical" / "old.txt", "old\n")
+        write_text_lf(output / "technical" / "kept.txt", "before\n")
+        write_text_lf(stage / "technical" / "kept.txt", "after\n")
+        install_outputs(stage, output, {"technical/kept.txt"}, {"technical/kept.txt", "technical/old.txt"}, self._folder / "b1")
+        self.assertEqual(["kept.txt"], sorted(path.name for path in (output / "technical").iterdir()))
+        self.assertEqual("after\n", (output / "technical" / "kept.txt").read_text(encoding="utf-8"))
+        with self.assertRaises(OSError):
+            install_outputs(stage, output, {"technical/missing.txt"}, set(), self._folder / "b2")
+        self.assertEqual("after\n", (output / "technical" / "kept.txt").read_text(encoding="utf-8"))
+
+    def test_a_folder_with_read_only_files_can_be_removed(self) -> None:
+        folder = self._folder / "git-like"
+        folder.mkdir()
+        target = folder / "object"
+        write_text_lf(target, "x\n")
+        os.chmod(target, stat.S_IREAD)
+        remove_tree(folder)
+        self.assertFalse(folder.exists())
+
+
+def self_test() -> int:
+    """Runs the self-tests of ``word_forms.py`` and of this script's file handling; returns the exit code."""
+    suite = unittest.TestSuite()
+    suite.addTests(word_forms.self_test_suite())
+    suite.addTests(unittest.defaultTestLoader.loadTestsFromTestCase(_RefreshSelfTests))
+    result = unittest.TextTestRunner(verbosity=1).run(suite)
+    return 0 if result.wasSuccessful() else 1
 
 
 # ----------------------------------------------------------------------------------------------
@@ -1023,7 +1186,7 @@ def main() -> int:
     arguments = parser.parse_args()
 
     if arguments.self_test:
-        return word_forms.self_test()
+        return self_test()
 
     output = Path(__file__).resolve().parent
     created_workdir = arguments.workdir is None
@@ -1033,6 +1196,21 @@ def main() -> int:
     if arguments.verify_expander:
         verify_expander(workdir)
         return 0
+
+    # A list that no source declares (left by a removed or renamed source) would keep shipping; refuse before any
+    # download rather than after
+    families = []
+    if arguments.only in ("english", "all"):
+        families.append((list(REGION_FOLDERS.values()), english_managed_paths()))
+    if arguments.only in ("technical", "all"):
+        families.append((["technical"], technical_managed_paths()))
+    for folders, declared in families:
+        stale = unexpected_lists(output, folders, declared)
+        if stale:
+            raise InputError(
+                "these lists are in the managed folders but no source declares them (was a source removed or renamed?); "
+                f"delete them, or declare the source in refresh.py: {', '.join(stale)}"
+            )
 
     # Generate everything into the staging folder first; nothing under dictionaries/ changes until all of it exists
     stage = workdir / "staging"
@@ -1051,7 +1229,7 @@ def main() -> int:
             technical_rows, technical_paths = build_technical(workdir, stage)
             rows.extend(technical_rows)
             produced |= technical_paths
-            managed |= technical_paths
+            managed |= technical_managed_paths()
         install_outputs(stage, output, produced, managed, workdir / "backup")
     finally:
         remove_tree(stage)

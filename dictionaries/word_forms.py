@@ -792,10 +792,14 @@ class _SelfTests(unittest.TestCase):
             self.assertEqual((REGION_GB, TIER_COUNTERPART), reverse.route(word), word)
 
 
+def self_test_suite() -> unittest.TestSuite:
+    """Returns the self-tests of this module as a suite (so ``refresh.py`` can run them with its own)."""
+    return unittest.defaultTestLoader.loadTestsFromTestCase(_SelfTests)
+
+
 def self_test() -> int:
     """Runs the self-tests and returns the process exit code (0 when every test passes)."""
-    suite = unittest.defaultTestLoader.loadTestsFromTestCase(_SelfTests)
-    result = unittest.TextTestRunner(verbosity=1).run(suite)
+    result = unittest.TextTestRunner(verbosity=1).run(self_test_suite())
     return 0 if result.wasSuccessful() else 1
 
 

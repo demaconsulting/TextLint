@@ -222,7 +222,8 @@ Prerequisites:
 <!-- cspell:ignore organise glamorise colourize colourized licence practise colour analyse ered manoeuvre -->
 <!-- cspell:ignore Bourges Deventer unmaneuverable maneuverable -->
 
-- Python 3.7 or later with SQLite 3.33.0 or later, git, and npm on the path.
+- Python 3.7 or later with SQLite 3.33.0 or later, git, and npm on the path. The scripts use nothing newer than
+  Python 3.7 (checked with the `vermin` tool).
 - Network access to GitHub and the npm registry.
 - UTF-8 mode for Python, enabled by setting the environment variable `PYTHONUTF8` to `1` (on Windows, set it
   for the session, because the SCOWL importer fails on accented words otherwise).
@@ -233,23 +234,30 @@ Run it from the repository root:
 python dictionaries/refresh.py --workdir <scratch-folder>
 ```
 
-Creating the SCOWL database takes about five minutes the first time; pass the same `--workdir` again to reuse it.
+Creating the SCOWL database takes about five minutes the first time; pass the same `--workdir` again to reuse it. The
+SCOWL repository itself is deleted and cloned again on every run, because its scripts are executed and a checkout left
+in the work folder could have been modified; the cached database is trusted only through the word lists it exports,
+which are checked against pinned hashes.
 Use `--only english` or `--only technical` to refresh one family. The script prints the number of entries per
 file, the number of entries that were dropped, and how many words each routing test decided, which belongs in the
 pull request description. Every download is checked against the SHA-256 value pinned in the script, whether it was
-just fetched or reused from the work folder, and so are the cspell npm package tarballs, the exported SCOWL word
+just fetched or reused from the work folder (a cached file with the wrong hash is downloaded again), and so are the
+cspell npm package tarballs, the exported SCOWL word
 lists, and the installed `hunspell-reader` package tree; a mismatch stops the run with an error that names the input.
 Every `npm` command runs with `--ignore-scripts`, so no package code runs before its hash or integrity is verified.
 The run is all-or-nothing: every list is generated into a staging folder inside the work folder, checked, and only
-then moved over the committed lists, with the old files restored if the move fails part way. To move to a new
-upstream release, change the pinned versions and hashes at the top of the script and in
+then moved over the committed lists, with the old files restored if the move fails part way. Before it downloads
+anything the run fails if a managed folder holds a list that no source declares and that is not curated, which is what
+a removed or renamed source leaves behind; the files are named and a person deletes them or declares the source. To
+move to a new upstream release, change the pinned versions and hashes at the top of the script and in
 the table above, and recheck `exclusions.txt`: the build fails for an entry that no list has any more.
 
 The Hunspell expander rejects a malformed `.aff` or `.dic` file with an error that names the file and line (for
 example `en_US.aff:12: SFX line has 3 fields, at least 4 are needed`) instead of producing a wrong word set.
 `python dictionaries/word_forms.py --self-test` runs the expander and routing self-tests (sample affix files,
 malformed-input errors, case folding, the -ise rule, and the region check), and `python dictionaries/refresh.py
---self-test` runs the same tests. Run one of them after changing either script.
+--self-test` runs the same tests plus tests of the script's file handling (verified downloads, stale lists, the
+all-or-nothing installation). Run one of them after changing either script.
 
 The imported English lists are generated data, not curated text, and are deliberately outside the review scope of
 `.reviewmark.yaml`: a reviewer cannot judge two hundred thousand words, so the generator, its self-tests, the curated
