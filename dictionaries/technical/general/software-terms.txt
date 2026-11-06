@@ -3,6 +3,7 @@
 # Version: @cspell/dict-software-terms@5.4.8; source files: softwareTerms, software-tools, webServices, computing-acronyms, coding-compound-terms
 # License: MIT, Copyright (c) 2017-2025 Street Side Software <support@streetsidesoftware.nl>
 #   See third-party/THIRD-PARTY-NOTICES.txt for the full notice.
+# Verified SHA-256 of the package tarball: 4ea4907a9d9a066d53efbd964b44a8712c34014b5e6c7a5cf605a6ff2d0f11a1
 # Generation: npm pack of the package above; every entry is split into runs of letters, runs of fewer
 #   than two letters and runs that are not ASCII/Latin-1 are dropped, then duplicates are removed.
 #   The list is faithful to upstream: spelling variants are NOT filtered here; the dictionary builder

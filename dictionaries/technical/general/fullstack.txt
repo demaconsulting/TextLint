@@ -3,6 +3,7 @@
 # Version: @cspell/dict-fullstack@3.2.9; source files: fullstack
 # License: MIT, Copyright (c) 2017-2025 Street Side Software <support@streetsidesoftware.nl>
 #   See third-party/THIRD-PARTY-NOTICES.txt for the full notice.
+# Verified SHA-256 of the package tarball: 2279d0309049ba69878dd4de93a4f67d7fbdd5019ee07e9c3b4b6cd3a2393f2a
 # Generation: npm pack of the package above; every entry is split into runs of letters, runs of fewer
 #   than two letters and runs that are not ASCII/Latin-1 are dropped, then duplicates are removed.
 #   The list is faithful to upstream: spelling variants are NOT filtered here; the dictionary builder

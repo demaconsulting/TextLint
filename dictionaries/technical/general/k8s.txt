@@ -3,6 +3,7 @@
 # Version: @cspell/dict-k8s@1.0.13; source files: k8s
 # License: MIT, Copyright (c) 2017-2022 Street Side Software <info@streetsidesoftware.nl>
 #   See third-party/THIRD-PARTY-NOTICES.txt for the full notice.
+# Verified SHA-256 of the package tarball: c013c3fd69cb6d1e5e242577d62d75825919b8814d1fb8769ed873beda70b756
 # Generation: npm pack of the package above; every entry is split into runs of letters, runs of fewer
 #   than two letters and runs that are not ASCII/Latin-1 are dropped, then duplicates are removed.
 #   The list is faithful to upstream: spelling variants are NOT filtered here; the dictionary builder

@@ -75,6 +75,27 @@ and `modelling` are in `en-GB` only), even when a source such as cspell's legacy
 English. When two sources disagree about a word, a regional proposal beats a common one, and a word proposed for both
 regions is common.
 
+Three further rules keep the split sound:
+
+- **Case is folded first.** The builder and the library fold every word to lower case, so the region of a word is
+  decided by its lower-case form and every capitalized form is written to that same region. A name such as `Honor`
+  therefore cannot carry `honor` into `en-GB`. A word that exists only in capitalized form (a proper name) is
+  decided by its capitalized forms.
+- **British English is -ise only.** An -ize form that has a known British -ise counterpart (`organize` for
+  `organise`, and `glamourize` for `glamorise`) is never written to `en-GB`; a Hunspell stem that is such a form is
+  skipped with all its generated forms (`colourize`, `colourized`), and a common -ize word with such a counterpart is
+  written to `en-US`. Words such as `size`, `capsized`, and `oversized` have no counterpart and are unaffected.
+- **A spell check does not know the part of speech.** Words whose British form differs only by part of speech
+  (`license` and `licence`, `practice` and `practise`) are accepted in both forms by `en-GB`, because one form is
+  common to both dialects. This is inherent and is not a leak.
+
+`refresh.py` checks the finished lists before it writes anything and stops when a word that SCOWL lists only for
+British English is in `en-common` or `en-US`, when a word that SCOWL lists only for American English is in
+`en-common` or `en-GB`, when `en-GB` has an -ize form with an -ise counterpart, or when one of a curated set of well
+known pairs (`honor`/`honour`, `color`/`colour`, `center`/`centre`, `catalog`/`catalogue`, `labeled`/`labelled`,
+`organize`/`organise`, `analyze`/`analyse`, `modeling`/`modelling`, `judgment`/`judgement`, and a few more) is in the
+wrong region. The library test suite repeats the pair check over the committed lists and through the public lookup.
+
 ## Exclusions
 
 The imported lists are faithful to their sources, and some entries hide real typos: a misspelling the source
@@ -184,6 +205,7 @@ build or by CI.
 Prerequisites:
 
 <!-- cspell:ignore PYTHONUTF ogue Kuenning Moby wordlist -->
+<!-- cspell:ignore organise glamorise colourize colourized licence practise colour analyse -->
 
 - Python 3.7 or later with SQLite 3.33.0 or later, git, and npm on the path.
 - Network access to GitHub and the npm registry.
@@ -199,9 +221,24 @@ python dictionaries/refresh.py --workdir <scratch-folder>
 Creating the SCOWL database takes about five minutes the first time; pass the same `--workdir` again to reuse it.
 Use `--only english` or `--only technical` to refresh one family. The script prints the number of entries per
 file, the number of entries that were dropped, and how many words each routing test decided, which belongs in the
-pull request description. Downloads are cached in the work folder and checked against the SHA-256 values pinned
-in the script. To move to a new upstream release, change the pinned versions at the top of the script and in
+pull request description. Every download is checked against the SHA-256 value pinned in the script, whether it was
+just fetched or reused from the work folder, and so are the cspell npm package tarballs, the exported SCOWL word
+lists, and the installed `hunspell-reader` package tree; a mismatch stops the run with an error that names the input.
+The run is all-or-nothing: every list is generated into a staging folder inside the work folder, checked, and only
+then moved over the committed lists, with the old files restored if the move fails part way. To move to a new
+upstream release, change the pinned versions and hashes at the top of the script and in
 the table above, and recheck `exclusions.txt`: the build fails for an entry that no list has any more.
+
+The Hunspell expander rejects a malformed `.aff` or `.dic` file with an error that names the file and line (for
+example `en_US.aff:12: SFX line has 3 fields, at least 4 are needed`) instead of producing a wrong word set.
+`python dictionaries/word_forms.py --self-test` runs the expander and routing self-tests (sample affix files,
+malformed-input errors, case folding, the -ise rule, and the region check), and `python dictionaries/refresh.py
+--self-test` runs the same tests. Run one of them after changing either script.
+
+The imported English lists are generated data, not curated text, and are deliberately outside the review scope of
+`.reviewmark.yaml`: a reviewer cannot judge two hundred thousand words, so the generator, its self-tests, the curated
+lists (`exclusions.txt`, `additions.txt`, `variant-keep.txt`), and the third-party notices are in scope and are
+reviewed instead, and the self-checks and library tests above guard the output.
 
 `python dictionaries/refresh.py --workdir <scratch-folder> --verify-expander` writes no list. It installs the pinned
 `hunspell-reader` npm package (MIT, Node.js 22.18 or later) and checks that the Hunspell expander of `word_forms.py`
