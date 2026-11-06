@@ -798,7 +798,9 @@ def build_english(workdir: Path, stage: Path) -> tuple:
     for key, entries in sources:
         forms: Dict[str, Set[str]] = defaultdict(set)
         proposals: Dict[str, Set[str]] = defaultdict(set)
+        raw_entries = 0
         for word, hint in entries:
+            raw_entries += 1
             folded = word.lower()
             if folded in claimed:
                 continue
@@ -814,6 +816,10 @@ def build_english(workdir: Path, stage: Path) -> tuple:
                 tier_samples[(key, tier, region)].append(word)
             forms[folded].add(word)
             proposals[folded].add(region)
+        # A source that yields nothing means a changed or broken upstream; failing here keeps its previous
+        # list from being silently deleted. A source whose entries were all claimed by earlier sources is fine.
+        if raw_entries == 0:
+            raise InputError(f"source {key} yielded no entries; refusing to remove its list.")
         regions: Dict[str, List[str]] = defaultdict(list)
         for folded, proposed in proposals.items():
             claimed.add(folded)
