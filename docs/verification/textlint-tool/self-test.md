@@ -49,3 +49,8 @@ scenario is tested by
 is created at the specified path, `context.ExitCode` is 1, and an error message identifying the
 unsupported format is written via `context.WriteError`. This scenario is tested by
 `SelfTestSubsystem_ValidationWorkflow_WithUnsupportedExtension_EmitsErrorAndNoFile`.
+
+**SelfTestSubsystem_ValidationWorkflow_LintScenarios_RunAndPass**: `Validation.Run` is called with a context that
+writes a log and a TRX file; exit code is 0, the log reports the misspelling, settings-file, and absolute-path
+scenarios as passed and contains no failure mark, and the TRX file names the misspelling scenario. This scenario
+is tested by `SelfTestSubsystem_ValidationWorkflow_LintScenarios_RunAndPass`.

@@ -49,3 +49,18 @@ sections:
           surface output configuration errors automatically.
         tests:
           - Validation_Run_WithUnsupportedResultsFormat_DoesNotWriteFile
+
+      - id: TextLintTool-Validation-LintScenarios
+        title: >-
+          The Validation class shall run, in private temporary directories and without changing the process's
+          current directory, a scenario for each of: a clean file, a misspelling, a settings file, a settings
+          error, patterns that replace the files setting, in-document directives, the language option, a
+          binary file, an empty selection, and an absolute path, and shall record each under its own name in the
+          results.
+        justification: |
+          Each scenario is the evidence that one behavior works on the platform that ran it, so each needs its
+          own name in the results, and running in private directories keeps scenarios from affecting each other
+          or the process that hosts them.
+        tests:
+          - Validation_Run_WithSilentContext_ReportsEveryScenarioPassed
+          - Validation_Run_WithTrxResultsFile_NamesEveryScenario

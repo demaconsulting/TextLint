@@ -7,7 +7,9 @@
 The `Cli` subsystem is the boundary between the host environment's command-line invocation and
 the tool's internal logic. It owns argument parsing, output channel management, and exit-code
 tracking. All other subsystems receive a `Context` object from this subsystem to read parsed
-flags and write output. The `Cli` subsystem contains one unit: `Context`.
+flags and write output. The `Cli` subsystem contains one unit: `Context`. It also owns the options of a check
+(`--config`, `--root`, `--language`, `--allow-empty`, `--max-parallelism`) and the positional file patterns, which
+it exposes exactly as typed; what they mean is decided by the `Linting` subsystem and the library.
 
 ### Interfaces
 
@@ -17,9 +19,11 @@ flags and write output. The `Cli` subsystem contains one unit: `Context`.
 - *Role*: Provider.
 - *Contract*: Parses `string[] args` into flag properties and opens the log file if `--log` is
   present. Returns a fully initialized `Context`. Accepts `--result` as a legacy alias for
-  `--results`.
-- *Constraints*: Throws `ArgumentException` for unknown or malformed arguments; throws
-  `InvalidOperationException` when the log file cannot be opened.
+  `--results`. Every argument that is not a known option is a file pattern and is kept as typed, in order.
+- *Constraints*: Throws `ArgumentException` for unknown or malformed arguments: an unknown option, an option
+  that needs a value and has none, an empty or white-space value or pattern, a value that looks like another
+  option, an out-of-range number, or a value option that is given twice (an option and its alias count as one);
+  throws `InvalidOperationException` when the log file cannot be opened.
 
 **Context.WriteLine**: Writes a message to stdout and to the log file.
 
@@ -38,11 +42,20 @@ flags and write output. The `Cli` subsystem contains one unit: `Context`.
   `ExitCode` is set to 1 regardless.
 - *Constraints*: Once set, `ExitCode` cannot return to 0 within the same invocation.
 
+**Context.MarkFailed**: Marks the run as failed without output.
+
+- *Type*: In-process .NET instance method.
+- *Role*: Provider.
+- *Contract*: Sets the error state so that `ExitCode` is 1, and writes nothing. Used by a check that has
+  already printed its findings as result lines.
+- *Constraints*: Once set, `ExitCode` cannot return to 0 within the same invocation.
+
 **Context.ExitCode**: Derived property returning 0 or 1.
 
 - *Type*: In-process .NET property.
 - *Role*: Provider.
-- *Contract*: Returns 1 if `WriteError` has been called at least once; returns 0 otherwise.
+- *Contract*: Returns 1 if `WriteError` or `MarkFailed` has been called at least once; returns 0 otherwise.
+  There is a single failure code, as in cspell.
 - *Constraints*: Read-only.
 
 **Context.Dispose**: Releases the log file `StreamWriter`.

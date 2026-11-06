@@ -484,6 +484,46 @@ reviews:
       - "src/**/Cli/Context.cs"
       - "test/**/Cli/ContextTests.cs"
 
+  # TextLintTool - Linting
+  - id: TextLintTool-Linting
+    title: Review that TextLintTool Linting Satisfies Subsystem Requirements
+    context:
+      - docs/design/textlint-tool.md
+      - docs/reqstream/textlint-tool.yaml
+    paths:
+      - "docs/reqstream/textlint-tool/linting.yaml"
+      - "docs/design/textlint-tool/linting.md"
+      - "docs/verification/textlint-tool/linting.md"
+      - "test/**/Linting/LintingSubsystemTests.cs"
+
+  - id: TextLintTool-Linting-LintRunner
+    title: Review that TextLintTool Linting LintRunner Implementation is Correct
+    context:
+      - docs/design/textlint-tool.md
+      - docs/reqstream/textlint-tool.yaml
+      - docs/design/textlint-tool/linting.md
+      - docs/reqstream/textlint-tool/linting.yaml
+    paths:
+      - "docs/reqstream/textlint-tool/linting/lint-runner.yaml"
+      - "docs/design/textlint-tool/linting/lint-runner.md"
+      - "docs/verification/textlint-tool/linting/lint-runner.md"
+      - "src/**/Linting/LintRunner.cs"
+      - "test/**/Linting/LintRunnerTests.cs"
+
+  - id: TextLintTool-Linting-LintReporter
+    title: Review that TextLintTool Linting LintReporter Implementation is Correct
+    context:
+      - docs/design/textlint-tool.md
+      - docs/reqstream/textlint-tool.yaml
+      - docs/design/textlint-tool/linting.md
+      - docs/reqstream/textlint-tool/linting.yaml
+    paths:
+      - "docs/reqstream/textlint-tool/linting/lint-reporter.yaml"
+      - "docs/design/textlint-tool/linting/lint-reporter.md"
+      - "docs/verification/textlint-tool/linting/lint-reporter.md"
+      - "src/**/Linting/LintReporter.cs"
+      - "test/**/Linting/LintReporterTests.cs"
+
   # TextLintTool - SelfTest
   - id: TextLintTool-SelfTest
     title: Review that TextLintTool SelfTest Satisfies Subsystem Requirements
@@ -535,6 +575,14 @@ reviews:
       - "docs/verification/textlint-tool/utilities/path-helpers.md"
       - "src/**/Utilities/PathHelpers.cs"
       - "test/**/Utilities/PathHelpersTests.cs"
+
+  - id: TextLintTool-TestSupport
+    title: Review that TextLintTool Test Support Helpers are Correct
+    context:
+      - docs/verification/textlint-tool.md
+      - docs/verification/textlint-tool/linting.md
+    paths:
+      - "test/DemaConsulting.TextLint.Tool.Tests/TestSupport/*.cs"
 
   # DictionaryBuilder - Specials
   - id: DictionaryBuilder-Architecture

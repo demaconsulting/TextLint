@@ -20,6 +20,7 @@
 
 using System.Reflection;
 using DemaConsulting.TextLint.Tool.Cli;
+using DemaConsulting.TextLint.Tool.Linting;
 using DemaConsulting.TextLint.Tool.SelfTest;
 
 namespace DemaConsulting.TextLint.Tool;
@@ -65,13 +66,24 @@ internal static class Program
     /// </remarks>
     public static int Main(string[] args)
     {
+        // Ctrl+C asks the running check to stop instead of killing the process, so the user gets a clear
+        // message and a failure exit code, not a half-written result
+        using var cancellation = new CancellationTokenSource();
+        void OnCancelKeyPress(object? sender, ConsoleCancelEventArgs eventArgs)
+        {
+            eventArgs.Cancel = true;
+            cancellation.Cancel();
+        }
+
+        Console.CancelKeyPress += OnCancelKeyPress;
+
         try
         {
             // Create context from command-line arguments
             using var context = Context.Create(args);
 
             // Run the program logic
-            Run(context);
+            RunCancellable(context, cancellation.Token);
 
             // Return the exit code from the context
             return context.ExitCode;
@@ -94,17 +106,37 @@ internal static class Program
             Console.Error.WriteLine($"Unexpected error: {ex.Message}");
             throw;
         }
+        finally
+        {
+            // The handler must not outlive the token source it cancels
+            Console.CancelKeyPress -= OnCancelKeyPress;
+        }
     }
 
     /// <summary>
-    ///     Runs the program logic based on the provided context.
+    ///     Runs the program logic based on the provided context, without a way to cancel it.
     /// </summary>
     /// <param name="context">The context containing command line arguments and program state.</param>
     /// <remarks>
-    ///     Dispatch is priority-ordered: version check first, then help, then self-validation,
-    ///     then main tool logic. Only the highest-priority matching action is executed per invocation.
+    ///     Equivalent to <see cref="RunCancellable"/> with a token that is never cancelled; it is the form
+    ///     used by self-validation, which runs short fixed checks.
     /// </remarks>
     public static void Run(Context context)
+    {
+        RunCancellable(context, CancellationToken.None);
+    }
+
+    /// <summary>
+    ///     Runs the program logic based on the provided context and stops a running check when asked.
+    /// </summary>
+    /// <param name="context">The context containing command line arguments and program state.</param>
+    /// <param name="cancellationToken">Token that stops a running check, for example on Ctrl+C.</param>
+    /// <remarks>
+    ///     Dispatch is priority-ordered: version check first, then help, then self-validation,
+    ///     then main tool logic. Only the highest-priority matching action is executed per invocation.
+    ///     Self-validation runs short fixed checks and is not cancellable.
+    /// </remarks>
+    public static void RunCancellable(Context context, CancellationToken cancellationToken)
     {
         // Priority 1: Version query
         if (context.Version)
@@ -131,7 +163,7 @@ internal static class Program
         }
 
         // Priority 4: Main tool functionality
-        RunToolLogic(context);
+        RunToolLogic(context, cancellationToken);
     }
 
     /// <summary>
@@ -151,7 +183,7 @@ internal static class Program
     /// <param name="context">The context for output.</param>
     private static void PrintHelp(Context context)
     {
-        context.WriteLine("Usage: textlint [options]");
+        context.WriteLine("Usage: textlint [options] [globs...]");
         context.WriteLine("");
         context.WriteLine("Options:");
         context.WriteLine("  -v, --version              Display version information");
@@ -161,17 +193,32 @@ internal static class Program
         context.WriteLine("  --results <file>           Write validation results to file (.trx or .xml)");
         context.WriteLine("  --depth <#>                Set heading depth for markdown output (default: 1)");
         context.WriteLine("  --log <file>               Write output to log file");
+        context.WriteLine("  --config <file>            Settings file (default: .textlint.yaml in the root directory, if present)");
+        context.WriteLine("  --root <dir>               Directory that patterns and the default settings file are relative to");
+        context.WriteLine("                             (default: current directory)");
+        context.WriteLine("  --language <languages>     Language of the dictionaries, e.g. en-US or en-GB (overrides the settings)");
+        context.WriteLine("  --allow-empty              Accept a selection that matches no files (default: exit code 1)");
+        context.WriteLine("  --max-parallelism <#>      Maximum number of files checked at the same time (default: processor count)");
+        context.WriteLine("");
+        context.WriteLine("[globs...] are the files to check: paths or glob patterns, relative or absolute, replacing the");
+        context.WriteLine("'files' setting; the 'ignorePaths' setting still applies. Quote globs so the shell does not");
+        context.WriteLine("expand them.");
+        context.WriteLine("");
+        context.WriteLine("Exit codes: 0 = no issues; 1 = issues found, a file could not be checked, no files matched, or an error");
+        context.WriteLine("occurred.");
     }
 
     /// <summary>
     ///     Runs the main tool logic.
     /// </summary>
     /// <param name="context">The context containing command line arguments and program state.</param>
-    private static void RunToolLogic(Context context)
+    /// <param name="cancellationToken">Token that stops the check.</param>
+    /// <remarks>
+    ///     The tool is a thin front-end, so the whole check is delegated to <see cref="LintRunner"/>,
+    ///     which calls the library; nothing about linting is decided here.
+    /// </remarks>
+    private static void RunToolLogic(Context context, CancellationToken cancellationToken)
     {
-        context.WriteLine("TextLint Tool");
-        context.WriteLine("Fast text linting for code and documentation.");
-        context.WriteLine("");
-        context.WriteLine("Text linting is not yet implemented. Use --help to see the available options.");
+        LintRunner.Run(context, cancellationToken);
     }
 }

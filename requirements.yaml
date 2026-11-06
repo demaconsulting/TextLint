@@ -33,6 +33,9 @@ includes:
   - docs/reqstream/textlint-tool/program.yaml
   - docs/reqstream/textlint-tool/cli.yaml
   - docs/reqstream/textlint-tool/cli/context.yaml
+  - docs/reqstream/textlint-tool/linting.yaml
+  - docs/reqstream/textlint-tool/linting/lint-runner.yaml
+  - docs/reqstream/textlint-tool/linting/lint-reporter.yaml
   - docs/reqstream/textlint-tool/self-test.yaml
   - docs/reqstream/textlint-tool/self-test/validation.yaml
   - docs/reqstream/textlint-tool/utilities.yaml

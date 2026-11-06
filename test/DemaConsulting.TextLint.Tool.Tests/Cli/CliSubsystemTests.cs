@@ -18,7 +18,10 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+// cspell:ignore wrold favourite
+
 using DemaConsulting.TextLint.Tool.Cli;
+using DemaConsulting.TextLint.Tool.Tests.TestSupport;
 
 namespace DemaConsulting.TextLint.Tool.Tests.Cli;
 
@@ -443,6 +446,109 @@ public class CliSubsystemTests
             {
                 File.Delete(logFile);
             }
+        }
+    }
+
+    /// <summary>
+    ///     Test that Context and Program work together to pass the patterns to the check.
+    /// </summary>
+    [Fact]
+    public void CliSubsystem_PatternFlow_ContextAndProgram_ChecksNamedFiles()
+    {
+        // Arrange: a misspelled file and a clean file in a private root directory
+        using var temp = new TempDirectory();
+        temp.CreateFile("bad.md", "Hello wrold\n");
+        temp.CreateFile("good.md", "Hello world.\n");
+
+        // Act: name only the misspelled file
+        var result = ContextRun.RunProgram("--root", temp.FullPath, "bad.md");
+
+        // Assert: the parsed pattern reached the check, which reported the file and failed
+        Assert.Multiple(
+            () => Assert.Contains("bad.md(1,7): error: Unknown word 'wrold'", result.Lines),
+            () => Assert.DoesNotContain("good.md", result.Output),
+            () => Assert.Equal(1, result.ExitCode));
+    }
+
+    /// <summary>
+    ///     Test that Context and Program work together to apply every check option.
+    /// </summary>
+    [Fact]
+    public void CliSubsystem_OptionFlow_ContextAndProgram_AppliesCheckOptions()
+    {
+        // Arrange: a settings file outside the root that selects British English, and a file with both spellings
+        using var temp = new TempDirectory();
+        using var other = new TempDirectory();
+        var config = other.CreateFile("c.yaml", "language: en-GB\n");
+        temp.CreateFile("a.md", "favorite favourite\n");
+
+        // Act: name the settings file, override its language, and limit the parallelism
+        var result = ContextRun.RunProgram(
+            "--root", temp.FullPath, "--config", config, "--language", "en-US", "--max-parallelism", "2", "a.md");
+
+        // Assert: the root, the settings file, the language override, and the limit all took effect
+        Assert.Multiple(
+            () => Assert.Contains("a.md(1,10): error: Unknown word 'favourite'", result.Lines),
+            () => Assert.DoesNotContain("Unknown word 'favorite'", result.Output),
+            () => Assert.Equal(1, result.ExitCode));
+    }
+
+    /// <summary>
+    ///     Test that Context and Program work together to turn the allow-empty option into an exit code.
+    /// </summary>
+    [Fact]
+    public void CliSubsystem_ExitCodeFlow_ContextAndProgram_FailsUnlessEmptyAllowed()
+    {
+        // Arrange: a directory with a clean file
+        using var temp = new TempDirectory();
+        temp.CreateFile("a.md", "Hello world.\n");
+
+        // Act: check a clean file, then a pattern that matches nothing without and with the option
+        var clean = ContextRun.RunProgram("--root", temp.FullPath, "a.md");
+        var empty = ContextRun.RunProgram("--root", temp.FullPath, "*.nomatch");
+        var allowed = ContextRun.RunProgram("--root", temp.FullPath, "--allow-empty", "*.nomatch");
+
+        // Assert: only the empty selection without the option fails
+        Assert.Multiple(
+            () => Assert.Equal(0, clean.ExitCode),
+            () => Assert.Equal(1, empty.ExitCode),
+            () => Assert.Equal(0, allowed.ExitCode));
+    }
+
+    /// <summary>
+    ///     Test that Context and Program work together to reject malformed options with a failure code.
+    /// </summary>
+    [Fact]
+    public void CliSubsystem_InvalidOptionFlow_ContextAndProgram_RejectsMalformedOptions()
+    {
+        // Arrange: capture standard error, because Main reports argument errors there
+        var originalError = Console.Error;
+        try
+        {
+            using var errorWriter = new StringWriter();
+            Console.SetError(errorWriter);
+
+            // Act: a missing value, a repeated option, an out-of-range number, and an unknown option
+            var missing = Program.Main(["--config"]);
+            var duplicate = Program.Main(["--language", "en-US", "--language", "en-GB"]);
+            var range = Program.Main(["--max-parallelism", "0"]);
+            var unknown = Program.Main(["a.md", "--bogus"]);
+
+            // Assert: each is a failure with a message that names the problem
+            var errors = errorWriter.ToString();
+            Assert.Multiple(
+                () => Assert.Equal(1, missing),
+                () => Assert.Equal(1, duplicate),
+                () => Assert.Equal(1, range),
+                () => Assert.Equal(1, unknown),
+                () => Assert.Contains("--config requires", errors),
+                () => Assert.Contains("--language was specified more than once", errors),
+                () => Assert.Contains("--max-parallelism requires an integer between 1 and", errors),
+                () => Assert.Contains("Unsupported argument '--bogus'", errors));
+        }
+        finally
+        {
+            Console.SetError(originalError);
         }
     }
 }

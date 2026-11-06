@@ -1,0 +1,64 @@
+---
+# Software Unit Requirements for the LintReporter Class
+#
+# The LintReporter class writes the result of one check: each finding, each file that was skipped or could not be
+# checked, and a one-line summary. The wording of each line belongs to the TextLint library.
+
+sections:
+  - title: TextLintTool Requirements
+    sections:
+      - title: Linting Requirements
+        sections:
+          - title: LintReporter Requirements
+            requirements:
+              - id: TextLintTool-Linting-LintReporter-Issues
+                title: >-
+                  LintReporter shall write one line for each finding in the order the result gives, formatted by
+                  the library under the name for the file that the caller chooses, before any other line of the
+                  result.
+                justification: |
+                  Findings are the product of the run: they must be complete, in a stable order, understood by
+                  editors and CI, and shown under the file name the user typed.
+                tests:
+                  - LintReporter_Write_IssuesAndDiagnostics_WritesInOrderThenSummary
+                  - LintReporter_Write_DisplayPath_NamesFilesAsMapped
+
+              - id: TextLintTool-Linting-LintReporter-FileDiagnostics
+                title: >-
+                  LintReporter shall write one line for each file that was skipped or could not be checked,
+                  showing a skip as information and a file that could not be checked as an error.
+                justification: |
+                  Nothing may be silently left out of a check, and the user must be able to tell a deliberate
+                  skip from a failure.
+                tests:
+                  - LintReporter_Write_UnreadableFile_ShownAsErrorAndCounted
+
+              - id: TextLintTool-Linting-LintReporter-Summary
+                title: >-
+                  LintReporter shall end every result with one summary line that gives the number of files
+                  checked, the number of findings and of the files they are in, the number of files skipped, and
+                  the number of files that could not be checked.
+                justification: |
+                  The totals let a person see at a glance that files were checked, and let a script find them in
+                  a fixed place and shape.
+                tests:
+                  - LintReporter_Write_CleanResult_WritesOnlySummary
+                  - LintReporter_Write_SeveralIssuesInOneFile_CountsFilesOnce
+
+              - id: TextLintTool-Linting-LintReporter-InvalidArguments
+                title: >-
+                  LintReporter shall reject a missing context, result, or name mapping.
+                justification: |
+                  A missing argument is a programming error that must be reported at once and not as a failure
+                  in the middle of the output.
+                tests:
+                  - LintReporter_Write_NullArguments_ThrowsArgumentNullException
+
+              - id: TextLintTool-Linting-LintReporter-ExitStatusIndependent
+                title: >-
+                  LintReporter shall leave the exit status to its caller.
+                justification: |
+                  Whether a result is a failure is a decision about the whole run, made once, by the unit that
+                  owns the run; reporting must not decide it a second time.
+                tests:
+                  - LintReporter_Write_ResultWithIssues_LeavesExitCodeToCaller

@@ -130,8 +130,10 @@ sections:
           programmatically via the process exit code.
         children:
           - TextLintTool-Context-ExitCode
+          - TextLintTool-Context-MarkFailed
         tests:
           - CliSubsystem_InvalidArgs_ContextAndProgram_RejectsUnknownArgumentsAndExitsNonZero
+          - CliSubsystem_ExitCodeFlow_ContextAndProgram_FailsUnlessEmptyAllowed
 
       - id: TextLintTool-Cli-ResultAlias
         title: The Cli subsystem shall accept `--result` as a legacy alias for `--results` when parsing arguments.
@@ -140,3 +142,75 @@ sections:
           prevents breakage when upgrading to newer tool versions.
         tests:
           - CliSubsystem_ResultAliasFlow_ContextAndProgram_WritesResultsFile
+
+      - id: TextLintTool-Cli-Globs
+        title: >-
+          The Cli subsystem shall accept any number of file patterns as positional arguments, mixed with options
+          in any order, and expose them to callers exactly as typed.
+        justification: |
+          The files to check are the main input of the tool and are most naturally written as plain
+          arguments. Interpreting them (separators, absolute paths) is the library's job, so the parser must not
+          alter them.
+        children:
+          - TextLintTool-Context-Globs
+        tests:
+          - CliSubsystem_PatternFlow_ContextAndProgram_ChecksNamedFiles
+
+      - id: TextLintTool-Cli-Config
+        title: The Cli subsystem shall support a --config option that names the settings file.
+        justification: |
+          Projects keep settings files in different places or under different names.
+        children:
+          - TextLintTool-Context-ConfigOption
+        tests:
+          - CliSubsystem_OptionFlow_ContextAndProgram_AppliesCheckOptions
+
+      - id: TextLintTool-Cli-Root
+        title: The Cli subsystem shall support a --root option that names the root directory.
+        justification: |
+          Build scripts run the tool from anywhere and need to name the project folder without changing
+          their own working directory.
+        children:
+          - TextLintTool-Context-RootOption
+        tests:
+          - CliSubsystem_OptionFlow_ContextAndProgram_AppliesCheckOptions
+
+      - id: TextLintTool-Cli-Language
+        title: The Cli subsystem shall support a --language option that names the dictionary languages.
+        justification: |
+          American and British spellings differ, and the language must be selectable per run.
+        children:
+          - TextLintTool-Context-LanguageOption
+        tests:
+          - CliSubsystem_OptionFlow_ContextAndProgram_AppliesCheckOptions
+
+      - id: TextLintTool-Cli-AllowEmpty
+        title: The Cli subsystem shall support an --allow-empty flag that accepts a selection that matches no files.
+        justification: |
+          A selection that matches nothing fails by default, and scripts that may legitimately select
+          nothing must be able to say so.
+        children:
+          - TextLintTool-Context-AllowEmpty
+        tests:
+          - CliSubsystem_ExitCodeFlow_ContextAndProgram_FailsUnlessEmptyAllowed
+
+      - id: TextLintTool-Cli-MaxParallelism
+        title: The Cli subsystem shall support a --max-parallelism option that limits the files checked at once.
+        justification: |
+          Shared build machines need to leave processors free for other work.
+        children:
+          - TextLintTool-Context-MaxParallelism
+        tests:
+          - CliSubsystem_OptionFlow_ContextAndProgram_AppliesCheckOptions
+
+      - id: TextLintTool-Cli-OptionValidation
+        title: >-
+          The Cli subsystem shall reject a missing, empty, repeated, or out-of-range option value with an error
+          that names the option.
+        justification: |
+          A script that gives an option twice, or an empty value from an unset variable, has a bug; taking the
+          last or an empty value silently would hide it.
+        children:
+          - TextLintTool-Context-OptionValidation
+        tests:
+          - CliSubsystem_InvalidOptionFlow_ContextAndProgram_RejectsMalformedOptions

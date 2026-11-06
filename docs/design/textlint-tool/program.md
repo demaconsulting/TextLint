@@ -24,14 +24,25 @@ locally.
 - *Preconditions*: None.
 - *Postconditions*: Exit code reflects whether any errors were reported during execution.
 
-Creates a `Context` using `Context.Create(args)`, calls `Run(context)`, and returns
-`context.ExitCode`. Catches `ArgumentException` and `InvalidOperationException` — writes
+Registers a handler for Ctrl+C that cancels a token (and cancels the console's default termination, so the check
+can stop cleanly), creates a `Context` using `Context.Create(args)`, calls `RunCancellable(context, token)`,
+and returns `context.ExitCode`; the handler is removed again in a `finally`. Catches `ArgumentException` and
+`InvalidOperationException` — writes
 `"Error: {message}"` to stderr and returns 1. Catches any other `Exception` — writes
 `"Unexpected error: {message}"` to stderr and re-throws so the runtime can record it.
 
-**Run**: Dispatches execution based on parsed flags.
+**Run**: Runs the program logic without a way to cancel it; it is `RunCancellable` with a token that is never
+cancelled, and is the form used by self-validation.
 
 - *Parameters*: `Context context` — the parsed context.
+- *Returns*: `void`.
+- *Preconditions*: `context` is not null.
+- *Postconditions*: Exactly one handler has been called.
+
+**RunCancellable**: Dispatches execution based on parsed flags.
+
+- *Parameters*: `Context context` — the parsed context; `CancellationToken cancellationToken` — stops a running
+  check.
 - *Returns*: `void`.
 - *Preconditions*: `context` is not null.
 - *Postconditions*: Exactly one handler has been called.
@@ -39,23 +50,23 @@ Creates a `Context` using `Context.Create(args)`, calls `Run(context)`, and retu
 Inspects flags in priority order: (1) if `context.Version` is true, calls
 `context.WriteLine(Version)` and returns; (2) calls `PrintBanner`; (3) if `context.Help` is
 true, calls `PrintHelp` and returns; (4) if `context.Validate` is true, calls
-`Validation.Run(context)`; (5) otherwise calls `RunToolLogic(context)`.
+`Validation.Run(context)`; (5) otherwise calls `RunToolLogic(context, cancellationToken)`.
 
 **PrintBanner**: Writes the tool name, version, and copyright line to `context`.
 
 - *Parameters*: `Context context` — output target.
 - *Returns*: `void`.
 
-**PrintHelp**: Writes the usage synopsis and options table to `context`.
+**PrintHelp**: Writes the usage synopsis, the options table, the meaning of the pattern arguments, and the exit
+codes to `context`.
 
 - *Parameters*: `Context context` — output target.
 - *Returns*: `void`.
 
-**RunToolLogic**: Placeholder for main tool logic; writes the tool name, tagline, and a
-"not yet implemented" notice to `context`. The text linting behavior will replace this method
-body as it is implemented.
+**RunToolLogic**: Runs the check by calling `LintRunner.Run(context, cancellationToken)`. The program holds no
+linting logic.
 
-- *Parameters*: `Context context` — output target.
+- *Parameters*: `Context context` — the parsed context; `CancellationToken cancellationToken` — stops the check.
 - *Returns*: `void`.
 
 ### Error Handling
@@ -64,15 +75,18 @@ body as it is implemented.
 `InvalidOperationException`) are written to stderr as `"Error: {message}"` and cause exit
 code 1 without a stack trace. Unexpected errors (`Exception`) are written to stderr as
 `"Unexpected error: {message}"` and re-thrown so the runtime can record them in event logs.
-`Run`, `PrintBanner`, `PrintHelp`, and `RunToolLogic` do not catch exceptions; all errors
-propagate to `Main`.
+`Run`, `RunCancellable`, `PrintBanner`, `PrintHelp`, and `RunToolLogic` do not catch exceptions; all errors
+propagate to `Main`. Failures a user can cause during a check are handled inside `LintRunner`, which reports
+them as errors; cancellation is reported there too.
 
 ### Dependencies
 
 - **Context** — `Program` reads parsed flags from `Context` and calls `Context.WriteLine` and
   `Context.WriteError` for all output.
-- **Validation** — `Program.Run` calls `Validation.Run(context)` when the `--validate` flag is
+- **Validation** — `Program.RunCancellable` calls `Validation.Run(context)` when the `--validate` flag is
   set.
+- **LintRunner** — `Program.RunCancellable` calls `LintRunner.Run` for everything that is not version, help, or
+  validation.
 
 ### Callers
 

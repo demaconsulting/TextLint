@@ -15,8 +15,10 @@ N/A - standard test environment.
 
 - All unit tests pass with zero failures.
 - All flag properties are correctly set for each recognized argument.
-- `ArgumentException` is thrown for all unknown or malformed arguments.
-- `ExitCode` is 1 after `WriteError` is called and 0 otherwise.
+- `ArgumentException` is thrown for all unknown or malformed arguments, including missing, empty, repeated, and
+  out-of-range option values.
+- `ExitCode` is 1 after `WriteError` or `MarkFailed` is called and 0 otherwise; `MarkFailed` writes nothing.
+- Positional patterns are kept exactly as typed, in order, as an immutable list.
 - Silent mode suppresses console output but does not affect the log file.
 
 #### Test Scenarios
@@ -135,3 +137,64 @@ scenario is tested by `Context_WriteError_WithLogFile_WritesToLogFile`.
 `Context.Create` is called with `["--log", "/invalid/\x00path.log"]`; an
 `InvalidOperationException` is thrown because the log file cannot be opened. This
 scenario is tested by `Context_Create_LogFlag_InvalidPath_ThrowsInvalidOperationException`.
+
+**Context_Create_NoCheckOptions_ReturnsCheckDefaults**: `Context.Create` is called with no arguments; `Globs` is
+empty, `ConfigFile`, `Root`, `Language`, and `MaxParallelism` are null, and `AllowEmpty` is false. This scenario
+is tested by `Context_Create_NoCheckOptions_ReturnsCheckDefaults`.
+
+**Context_Create_PositionalArguments_SetsGlobsInOrder**: A relative pattern, a backslash path, and an absolute
+path are passed; `Globs` holds them exactly as typed and in order. This scenario is tested by
+`Context_Create_PositionalArguments_SetsGlobsInOrder`.
+
+**Context_Create_Globs_AreImmutable**: The `Globs` of a context are cast to a mutable list interface and an item
+is added; `NotSupportedException` is thrown. This scenario is tested by `Context_Create_Globs_AreImmutable`.
+
+**Context_Create_OptionsAndGlobsMixed_ParsesBoth**: Patterns before, between, and after options, including an
+option value, are passed; the patterns are kept in order and the option values are not taken for patterns. This
+scenario is tested by `Context_Create_OptionsAndGlobsMixed_ParsesBoth`.
+
+**Context_Create_ConfigFlag_SetsConfigFile**: `["--config", "my settings.yaml"]` sets `ConfigFile` as typed. This
+scenario is tested by `Context_Create_ConfigFlag_SetsConfigFile`.
+
+**Context_Create_RootFlag_SetsRoot**: `["--root", "some/dir"]` sets `Root` as typed. This scenario is tested by
+`Context_Create_RootFlag_SetsRoot`.
+
+**Context_Create_LanguageFlag_SetsLanguage**: `["--language", "en-US,en-GB"]` sets `Language` unchanged. This
+scenario is tested by `Context_Create_LanguageFlag_SetsLanguage`.
+
+**Context_Create_AllowEmptyFlag_SetsAllowEmptyTrue**: `["--allow-empty"]` sets `AllowEmpty`. This scenario is
+tested by `Context_Create_AllowEmptyFlag_SetsAllowEmptyTrue`.
+
+**Context_Create_MaxParallelismFlag_SetsMaxParallelism**: `["--max-parallelism", "4"]` sets `MaxParallelism` to 4.
+This scenario is tested by `Context_Create_MaxParallelismFlag_SetsMaxParallelism`.
+
+**Context_Create_MaxParallelismFlag_InvalidValue_ThrowsArgumentException**: Values that are not integers, are zero
+or negative, exceed the largest integer, or are not whole numbers each throw an `ArgumentException` that states the
+allowed range. This scenario is tested by
+`Context_Create_MaxParallelismFlag_InvalidValue_ThrowsArgumentException`.
+
+**Context_Create_ValueOptionWithoutValue_ThrowsArgumentException**: Each of `--config`, `--root`, `--language`, and
+`--max-parallelism` given last without a value throws an `ArgumentException` that names the option. This scenario
+is tested by `Context_Create_ValueOptionWithoutValue_ThrowsArgumentException`.
+
+**Context_Create_ValueOptionWithBlankOrOptionValue_ThrowsArgumentException**: An empty value, a white-space value,
+and a value that is the next option each throw an `ArgumentException` that names the option. This scenario is
+tested by `Context_Create_ValueOptionWithBlankOrOptionValue_ThrowsArgumentException`.
+
+**Context_Create_DuplicateValueOption_ThrowsArgumentException**: Each of `--config`, `--root`, `--language`,
+`--max-parallelism`, `--log`, and `--depth` given twice throws an `ArgumentException` that names the option. This
+scenario is tested by `Context_Create_DuplicateValueOption_ThrowsArgumentException`.
+
+**Context_Create_ResultsAndAlias_ThrowsArgumentException**: `--results` followed by its alias `--result` is a
+duplicate. This scenario is tested by `Context_Create_ResultsAndAlias_ThrowsArgumentException`.
+
+**Context_Create_UnknownOptionAfterGlob_ThrowsArgumentException**: A pattern followed by an unknown option throws
+an `ArgumentException` that names the option, so a misspelled option is never taken for a file. This scenario is
+tested by `Context_Create_UnknownOptionAfterGlob_ThrowsArgumentException`.
+
+**Context_Create_BlankGlob_ThrowsArgumentException**: An empty or white-space positional argument throws an
+`ArgumentException`. This scenario is tested by `Context_Create_BlankGlob_ThrowsArgumentException`.
+
+**Context_MarkFailed_Called_SetsErrorExitCodeSilently**: A `Context` calls `MarkFailed`; `ExitCode` is 1 and
+nothing was written to standard output or standard error. This scenario is tested by
+`Context_MarkFailed_Called_SetsErrorExitCodeSilently`.

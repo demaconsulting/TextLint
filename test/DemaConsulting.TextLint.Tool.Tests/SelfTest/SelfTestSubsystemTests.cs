@@ -30,6 +30,42 @@ namespace DemaConsulting.TextLint.Tool.Tests.SelfTest;
 public class SelfTestSubsystemTests
 {
     /// <summary>
+    ///     Test that the validation workflow includes spell-checking scenarios that pass in the test environment.
+    /// </summary>
+    [Fact]
+    public void SelfTestSubsystem_ValidationWorkflow_LintScenarios_RunAndPass()
+    {
+        // Arrange: a silent validation run whose log captures each scenario line, and a TRX file for the results
+        var tempDir = Path.GetTempPath();
+        var logFile = Path.Combine(tempDir, $"test_{Guid.NewGuid()}.log");
+        var trxFile = Path.Combine(tempDir, $"test_{Guid.NewGuid()}.trx");
+        try
+        {
+            // Act: run validation through a context
+            using (var context = Context.Create(["--validate", "--silent", "--log", logFile, "--results", trxFile]))
+            {
+                Validation.Run(context);
+                Assert.Equal(0, context.ExitCode);
+            }
+
+            // Assert: the spell-checking scenarios ran and passed, and the results file names them
+            var log = File.ReadAllText(logFile);
+            var trx = File.ReadAllText(trxFile);
+            Assert.Multiple(
+                () => Assert.Contains("✓ TextLintTool_CheckMisspelling - Passed", log),
+                () => Assert.Contains("✓ TextLintTool_CheckSettingsFile - Passed", log),
+                () => Assert.Contains("✓ TextLintTool_CheckAbsolutePath - Passed", log),
+                () => Assert.Contains("TextLintTool_CheckMisspelling", trx),
+                () => Assert.DoesNotContain("✗", log));
+        }
+        finally
+        {
+            File.Delete(logFile);
+            File.Delete(trxFile);
+        }
+    }
+
+    /// <summary>
     ///     Test that self-test subsystem can run validation workflow without result files.
     /// </summary>
     [Fact]

@@ -6,8 +6,10 @@ The `Cli` subsystem is verified by integration tests defined in `CliSubsystemTes
 test exercises `Context.Create` and `Program.Run` together, treating the pair as the observable
 subsystem interface. Tests pass controlled argument arrays and assert on captured console output,
 file-system side-effects, and exit codes. `Validation` (part of the `SelfTest` subsystem)
-executes its real logic in scenarios that exercise the `--validate` path; no mocking is applied
-at any level.
+executes its real logic in scenarios that exercise the `--validate` path, and the `Linting` subsystem executes its
+real logic in the scenarios that exercise a check; no mocking is applied at any level. Check scenarios capture
+what is written through the log of a silent context and use `--root` with a private temporary directory, so
+they never depend on or change the current directory.
 
 ### Test Environment
 
@@ -19,6 +21,8 @@ N/A - standard test environment.
 - All supported flags produce the correct observable behavior when passed through `Context.Create`
   and `Program.Run`.
 - Invalid arguments produce exit code 1 and an error message.
+- Positional patterns and the check options reach the check unchanged, and a check that fails or has nothing to
+  check gives exit code 1.
 - Log files and results files are created at the specified paths when the corresponding flags
   are used.
 
@@ -85,3 +89,23 @@ at the specified path and exit code is 0. This scenario is tested by
 are passed; the heading depth is set to 2 and exit code is 0, confirming the `--depth` flag is
 correctly parsed and propagated through `Context`. This scenario is tested by
 `CliSubsystem_DepthFlow_ContextAndProgram_AdjustsHeadingDepth`.
+
+**CliSubsystem_PatternFlow_ContextAndProgram_ChecksNamedFiles**: Arguments `--root <tmp> bad.md` are passed with a
+clean file beside the named one; the finding of the named file is reported, the other file is not, and exit code
+is 1, confirming the positional pattern reaches the check. This scenario is tested by
+`CliSubsystem_PatternFlow_ContextAndProgram_ChecksNamedFiles`.
+
+**CliSubsystem_OptionFlow_ContextAndProgram_AppliesCheckOptions**: Arguments with `--root`, `--config` (a file
+outside the root that selects British English), `--language en-US`, and `--max-parallelism 2` are passed; the
+British spelling is reported at its column and the American one is not, confirming that each option took effect and
+that the language option wins over the settings. This scenario is tested by
+`CliSubsystem_OptionFlow_ContextAndProgram_AppliesCheckOptions`.
+
+**CliSubsystem_ExitCodeFlow_ContextAndProgram_FailsUnlessEmptyAllowed**: A clean file gives exit code 0; a pattern
+that matches nothing gives 1; the same pattern with `--allow-empty` gives 0. This scenario is tested by
+`CliSubsystem_ExitCodeFlow_ContextAndProgram_FailsUnlessEmptyAllowed`.
+
+**CliSubsystem_InvalidOptionFlow_ContextAndProgram_RejectsMalformedOptions**: `Program.Main` is called with a
+missing option value, a repeated option, an out-of-range number, and an unknown option after a pattern; each gives
+exit code 1 and an error that names the problem. This scenario is tested by
+`CliSubsystem_InvalidOptionFlow_ContextAndProgram_RejectsMalformedOptions`.

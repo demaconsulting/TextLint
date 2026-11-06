@@ -9,6 +9,7 @@ resource-path:
   - docs/design/textlint/spell-checking
   - docs/design/textlint-tool
   - docs/design/textlint-tool/cli
+  - docs/design/textlint-tool/linting
   - docs/design/textlint-tool/self-test
   - docs/design/textlint-tool/utilities
   - docs/design/dictionary-builder
@@ -42,6 +43,9 @@ input-files:
   - docs/design/textlint-tool/program.md
   - docs/design/textlint-tool/cli.md
   - docs/design/textlint-tool/cli/context.md
+  - docs/design/textlint-tool/linting.md
+  - docs/design/textlint-tool/linting/lint-runner.md
+  - docs/design/textlint-tool/linting/lint-reporter.md
   - docs/design/textlint-tool/self-test.md
   - docs/design/textlint-tool/self-test/validation.md
   - docs/design/textlint-tool/utilities.md

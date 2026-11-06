@@ -18,6 +18,10 @@ package TextLintTool {
         expose CliSubsystem;
     }
 
+    view LintingView {
+        expose LintingSubsystem;
+    }
+
     view SelfTestView {
         expose SelfTestSubsystem;
     }

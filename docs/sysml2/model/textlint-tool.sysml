@@ -17,6 +17,7 @@ package TextLintTool {
 
         part program : Program;
         part cli : CliSubsystem;
+        part linting : LintingSubsystem;
         part selfTest : SelfTestSubsystem;
         part utilities : UtilitiesSubsystem;
     }

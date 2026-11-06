@@ -1,4 +1,5 @@
 ---
+# cspell:ignore wrold
 on:
   workflow_call:
     inputs:
@@ -429,6 +430,48 @@ jobs:
           echo "Testing textlint --help..."
           textlint --help || { echo "✗ Help command failed"; exit 1; }
           echo "✓ Help command succeeded"
+
+      - name: Test spell check passes a clean file
+        shell: bash
+        run: |
+          echo "Testing textlint on a correctly spelled file..."
+          mkdir -p integration-sample
+          printf 'Hello world.\n' > integration-sample/clean.md
+          textlint --root integration-sample clean.md \
+            || { echo "✗ A correctly spelled file failed the check"; exit 1; }
+          echo "✓ Clean file passed the check"
+
+      - name: Test spell check reports a misspelling
+        shell: bash
+        run: |
+          echo "Testing textlint on a misspelled file..."
+          mkdir -p integration-sample
+          printf 'Hello wrold\n' > integration-sample/misspelled.md
+          # The step shell stops at the first failing command, but exit code 1 is the expected result here
+          set +e
+          output=$(textlint --root integration-sample misspelled.md)
+          exit_code=$?
+          set -e
+          echo "${output}"
+          [ "${exit_code}" -eq 1 ] || { echo "✗ Expected exit code 1 but got ${exit_code}"; exit 1; }
+          echo "${output}" | grep -F "misspelled.md(1,7): error: Unknown word 'wrold'" \
+            || { echo "✗ Expected issue line was not reported"; exit 1; }
+          echo "✓ Misspelling was reported with exit code 1"
+
+      - name: Test spell check without files fails
+        shell: bash
+        run: |
+          echo "Testing textlint with nothing to check..."
+          mkdir -p integration-empty
+          set +e
+          output=$(textlint --root integration-empty)
+          exit_code=$?
+          set -e
+          echo "${output}"
+          [ "${exit_code}" -eq 1 ] || { echo "✗ Expected exit code 1 but got ${exit_code}"; exit 1; }
+          echo "${output}" | grep -F "No files to check" \
+            || { echo "✗ Expected usage error was not reported"; exit 1; }
+          echo "✓ A run with nothing to check failed with guidance"
 
       - name: Run self-validation
         shell: bash

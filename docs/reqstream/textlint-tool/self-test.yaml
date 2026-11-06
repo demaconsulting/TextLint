@@ -52,3 +52,18 @@ sections:
           - TextLintTool-Validation-InvalidExtension
         tests:
           - SelfTestSubsystem_ValidationWorkflow_WithUnsupportedExtension_EmitsErrorAndNoFile
+
+      - id: TextLintTool-SelfTest-LintScenarios
+        title: >-
+          The tool shall include in its self-validation scenarios that check real spell-checking behavior in the
+          deployment environment: a clean file, a misspelling, a settings file, a settings error, patterns that
+          replace the files setting, in-document directives, the language option, a binary file, an empty
+          selection, and an absolute path.
+        justification: |
+          Qualifying the tool in a regulated environment must prove that it does its job on that operating
+          system and runtime, not only that it can print its version; each scenario names the behavior it
+          proves, so that platform requirements can link to the evidence for every platform.
+        children:
+          - TextLintTool-Validation-LintScenarios
+        tests:
+          - SelfTestSubsystem_ValidationWorkflow_LintScenarios_RunAndPass

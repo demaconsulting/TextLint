@@ -41,3 +41,34 @@ sections:
           programmatically via the process exit code.
         tests:
           - Program_Main_WithInvalidArgs_ReturnsNonZeroExitCode
+          - Program_Main_DuplicateOption_ReturnsNonZeroExitCode
+
+      - id: TextLintTool-Program-Check
+        title: >-
+          The Program class shall, when no version, help, or validation action is requested, print the banner and
+          run the check that the command line describes.
+        justification: |
+          The check is the purpose of the tool; the banner identifies the tool in every log, and the check is
+          delegated so that the program holds no linting logic.
+        tests:
+          - Program_Run_Patterns_RunsCheck
+          - Program_Run_NoPatterns_DisplaysBannerAndUsageError
+
+      - id: TextLintTool-Program-HelpOptions
+        title: >-
+          The Program class shall list in the usage text every option, the meaning of the pattern arguments, and
+          the exit codes.
+        justification: |
+          Users must be able to learn the full interface, including how failure is reported, from the tool
+          itself.
+        tests:
+          - Program_Run_HelpFlag_ListsAllOptionsAndExitCodes
+
+      - id: TextLintTool-Program-Cancellation
+        title: >-
+          The Program class shall turn a user interruption into the cancellation of the running check, so that
+          the check ends with a message and a failure exit code.
+        justification: |
+          A user who presses Ctrl+C expects a prompt, clean stop and not a half-written result or a stack trace.
+        tests:
+          - Program_RunCancellable_CancelledToken_ReportsCancellationAndFails

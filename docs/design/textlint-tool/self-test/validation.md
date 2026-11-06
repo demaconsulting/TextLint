@@ -12,7 +12,8 @@ tool's requirements; it verifies that the tool behaves correctly in the deployme
 #### Data Model
 
 `Validation` holds no instance state. The class is `internal static`; all state is local to
-`Run` and the private test methods.
+`Run` and the private test methods. The sample words used by the scenarios are named constants: a misspelling and
+a second one that no dictionary holds, and an American and a British spelling of one word.
 
 #### Key Methods
 
@@ -25,9 +26,39 @@ tool's requirements; it verifies that the tool behaves correctly in the deployme
   file has been written or an error has been recorded for an unsupported extension.
 
 Calls `PrintValidationHeader`, constructs a `TestResults` object named
-`"TextLint Tool Self-Validation"`, calls `RunVersionTest` and `RunHelpTest`, prints
+`"TextLint Tool Self-Validation"`, calls `RunVersionTest` and `RunHelpTest`, then `RunLintScenario` once for each
+of the ten spell-checking scenarios, prints
 totals (using `WriteError` if any tests failed), and calls `WriteResultsFile` if
 `context.ResultsFile` is set.
+
+**RunLintScenario**: Runs one spell-checking scenario and records its outcome.
+
+- *Parameters*: `Context context`, `DemaConsulting.TestResults.TestResults testResults`, `string testName`, and
+  `Func<LintSandbox, string?> scenario`, which returns null when the scenario passed and otherwise describes what
+  was wrong.
+- *Returns*: `void`.
+
+Creates a `LintSandbox`, runs the scenario in it, and records a pass or a failure (with the description) under
+`testName`. Any exception is caught by a broad `catch (Exception)` and recorded via `HandleTestException`, so one
+broken scenario cannot hide the others.
+
+The scenarios are each named after the behavior they prove, so that requirements and platform requirements can
+link to them: `TextLintTool_CheckCleanFile` (a correct file gives exit code 0 and no issue),
+`TextLintTool_CheckMisspelling` (a misspelling is reported at its line and column and gives exit code 1),
+`TextLintTool_CheckSettingsFile` (the settings file in the root is found and its file list, ignore list, accepted
+word, and flagged word apply), `TextLintTool_CheckSettingsError` (an unsupported key is reported with its position
+and nothing is checked), `TextLintTool_CheckGlobsReplaceFiles` (a command-line pattern replaces the `files`
+setting), `TextLintTool_CheckInlineDirective` (directives of both supported prefixes suppress findings),
+`TextLintTool_CheckLanguageOption` (American and British spellings are each accepted by their own language only),
+`TextLintTool_CheckBinaryFileSkipped` (a binary file is information and does not fail the run),
+`TextLintTool_CheckNoFilesMatched` (an empty selection fails unless allowed), and `TextLintTool_CheckAbsolutePath`
+(a file named by an absolute path is reported by that path).
+
+**LintSandbox** (nested class): A private working area for one scenario. Implements `IDisposable`. It owns a
+`TemporaryDirectory` that holds a `work` sample directory and the log files. `WriteFile` and `WriteBytes` create
+sample files; `RunTool` runs the tool in-process with `["--silent", "--log", log, "--root", work, ...]`, so the
+process's current directory is never changed, and returns the exit code and everything written. The log is kept
+beside the sample directory, so it can never be selected as a file to check. `Dispose` removes everything.
 
 **RunVersionTest**: Verifies that `--version` produces a version string.
 
@@ -101,7 +132,7 @@ the method returns without writing a file, causing `context.ExitCode` to return 
 #### Dependencies
 
 - **Context** — output channel for header lines, test result lines, and summary totals.
-- **Program** — `Program.Run` is called within each test runner to exercise the tool.
+- **Program** — `Program.Run` is called within each test runner and each scenario to exercise the tool.
 - **PathHelpers** — `SafePathCombine` constructs log file paths inside temporary directories.
 - **DemaConsulting.TestResults** — `TestResults`, `TestResult`, and `TestOutcome` types for
   accumulating and representing self-validation results.

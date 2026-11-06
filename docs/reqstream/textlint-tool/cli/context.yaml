@@ -95,3 +95,86 @@ sections:
           compliance workflows.
         tests:
           - Context_Create_LogFlag_InvalidPath_ThrowsInvalidOperationException
+
+      - id: TextLintTool-Context-Globs
+        title: >-
+          The Context class shall collect every positional argument as a file pattern, exactly as typed and in
+          order, as an immutable list, mixed with options in any order, and shall default to no patterns.
+        justification: |
+          The files to check are the main input of the tool; the parser must not alter them, because their
+          interpretation belongs to the library, and a list that a consumer could change would make the
+          parsed command line untrustworthy.
+        tests:
+          - Context_Create_NoCheckOptions_ReturnsCheckDefaults
+          - Context_Create_PositionalArguments_SetsGlobsInOrder
+          - Context_Create_Globs_AreImmutable
+          - Context_Create_OptionsAndGlobsMixed_ParsesBoth
+
+      - id: TextLintTool-Context-ConfigOption
+        title: The Context class shall expose the settings file named by the --config option as typed.
+        justification: |
+          The settings file is chosen by the user; its path must reach the check unchanged.
+        tests:
+          - Context_Create_ConfigFlag_SetsConfigFile
+
+      - id: TextLintTool-Context-RootOption
+        title: The Context class shall expose the root directory named by the --root option as typed.
+        justification: |
+          The root directory is chosen by the user; its path must reach the check unchanged.
+        tests:
+          - Context_Create_RootFlag_SetsRoot
+
+      - id: TextLintTool-Context-LanguageOption
+        title: >-
+          The Context class shall expose the languages named by the --language option unchanged, leaving their
+          validation to the library.
+        justification: |
+          The supported languages are defined once, in the library; the parser must not duplicate that list.
+        tests:
+          - Context_Create_LanguageFlag_SetsLanguage
+
+      - id: TextLintTool-Context-AllowEmpty
+        title: The Context class shall expose whether the --allow-empty flag was given.
+        justification: |
+          Whether an empty selection is acceptable is chosen by the user and decides the exit status.
+        tests:
+          - Context_Create_AllowEmptyFlag_SetsAllowEmptyTrue
+
+      - id: TextLintTool-Context-MaxParallelism
+        title: >-
+          The Context class shall expose the number given to the --max-parallelism option, and shall reject
+          anything that is not an integer from 1 to the largest integer.
+        justification: |
+          A limit below one cannot be honored, and a number that cannot be read must not become the default
+          silently.
+        tests:
+          - Context_Create_MaxParallelismFlag_SetsMaxParallelism
+          - Context_Create_MaxParallelismFlag_InvalidValue_ThrowsArgumentException
+
+      - id: TextLintTool-Context-OptionValidation
+        title: >-
+          The Context class shall reject an option that takes a value when the value is missing, empty, white
+          space, or looks like another option, shall reject a value option that is given more than once
+          (counting an option and its alias as one), shall reject an unknown option wherever it appears, and
+          shall reject an empty pattern, each with an error that names the option.
+        justification: |
+          A forgotten value would otherwise swallow the next option, a repeated option hides a scripting
+          mistake, and an empty value almost always comes from an unset variable; each must be reported where
+          it is made.
+        tests:
+          - Context_Create_ValueOptionWithoutValue_ThrowsArgumentException
+          - Context_Create_ValueOptionWithBlankOrOptionValue_ThrowsArgumentException
+          - Context_Create_DuplicateValueOption_ThrowsArgumentException
+          - Context_Create_ResultsAndAlias_ThrowsArgumentException
+          - Context_Create_UnknownOptionAfterGlob_ThrowsArgumentException
+          - Context_Create_BlankGlob_ThrowsArgumentException
+
+      - id: TextLintTool-Context-MarkFailed
+        title: >-
+          The Context class shall let a caller mark the run as failed without writing any output, which sets the
+          exit code to 1.
+        justification: |
+          A check that found issues has already printed each of them as a result line, so reporting the failure
+          again as an error message would only add noise, yet the exit code must still report it.
+        tests:
+          - Context_MarkFailed_Called_SetsErrorExitCodeSilently

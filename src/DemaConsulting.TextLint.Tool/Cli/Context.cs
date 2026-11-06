@@ -18,6 +18,9 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+using System.Collections.Immutable;
+using System.Globalization;
+
 namespace DemaConsulting.TextLint.Tool.Cli;
 
 /// <summary>
@@ -66,8 +69,51 @@ internal sealed class Context : IDisposable
     public int HeadingDepth { get; private init; } = 1;
 
     /// <summary>
-    ///     Gets the proposed exit code for the application (0 for success, 1 for errors).
+    ///     Gets the file patterns given on the command line, in the order they were typed.
     /// </summary>
+    /// <remarks>
+    ///     These are the positional arguments, exactly as typed: interpreting them (separators, absolute
+    ///     paths) belongs to the library, not to the argument parser. When any are given they replace the
+    ///     <c>files</c> setting. The list is an immutable copy.
+    /// </remarks>
+    public IReadOnlyList<string> Globs { get; private init; } = ImmutableArray<string>.Empty;
+
+    /// <summary>
+    ///     Gets the settings file named by <c>--config</c>, or <see langword="null"/> when none was named.
+    /// </summary>
+    public string? ConfigFile { get; private init; }
+
+    /// <summary>
+    ///     Gets the directory named by <c>--root</c>, or <see langword="null"/> for the current directory.
+    /// </summary>
+    public string? Root { get; private init; }
+
+    /// <summary>
+    ///     Gets the language selection named by <c>--language</c>, or <see langword="null"/> to keep the settings' language.
+    /// </summary>
+    /// <remarks>
+    ///     The text is passed on unchanged and is validated by the library when the check starts, so the
+    ///     list of supported languages is defined in one place.
+    /// </remarks>
+    public string? Language { get; private init; }
+
+    /// <summary>
+    ///     Gets a value indicating whether a selection that matches no files is accepted as success.
+    /// </summary>
+    public bool AllowEmpty { get; private init; }
+
+    /// <summary>
+    ///     Gets the maximum number of files checked at the same time, or <see langword="null"/> for the library default.
+    /// </summary>
+    public int? MaxParallelism { get; private init; }
+
+    /// <summary>
+    ///     Gets the proposed exit code for the application: 0 for success, 1 for anything else.
+    /// </summary>
+    /// <remarks>
+    ///     A single failure code, as in cspell, keeps scripts simple: every reason a run did not end clean
+    ///     (findings, unreadable files, a bad setting, a bad argument, or nothing to check) is 1.
+    /// </remarks>
     public int ExitCode => _hasErrors ? 1 : 0;
 
     /// <summary>
@@ -99,7 +145,13 @@ internal sealed class Context : IDisposable
             Silent = parser.Silent,
             Validate = parser.Validate,
             ResultsFile = parser.ResultsFile,
-            HeadingDepth = parser.HeadingDepth
+            HeadingDepth = parser.HeadingDepth,
+            Globs = parser.Globs.ToImmutableArray(),
+            ConfigFile = parser.ConfigFile,
+            Root = parser.Root,
+            Language = parser.Language,
+            AllowEmpty = parser.AllowEmpty,
+            MaxParallelism = parser.MaxParallelism
         };
 
         // Open log file if specified
@@ -173,6 +225,45 @@ internal sealed class Context : IDisposable
         public int HeadingDepth { get; private set; } = 1;
 
         /// <summary>
+        ///     Gets the positional file patterns, exactly as typed, in order.
+        /// </summary>
+        public List<string> Globs { get; } = [];
+
+        /// <summary>
+        ///     Gets the settings file path given by <c>--config</c>.
+        /// </summary>
+        public string? ConfigFile { get; private set; }
+
+        /// <summary>
+        ///     Gets the root directory given by <c>--root</c>.
+        /// </summary>
+        public string? Root { get; private set; }
+
+        /// <summary>
+        ///     Gets the language selection given by <c>--language</c>.
+        /// </summary>
+        public string? Language { get; private set; }
+
+        /// <summary>
+        ///     Gets a value indicating whether <c>--allow-empty</c> was specified.
+        /// </summary>
+        public bool AllowEmpty { get; private set; }
+
+        /// <summary>
+        ///     Gets the degree of parallelism given by <c>--max-parallelism</c>.
+        /// </summary>
+        public int? MaxParallelism { get; private set; }
+
+        /// <summary>
+        ///     The options that take a value and have been seen so far, by their canonical name.
+        /// </summary>
+        /// <remarks>
+        ///     Giving a value option twice is almost always a mistake in a script, and silently keeping
+        ///     the last value hides it, so the second occurrence is reported instead.
+        /// </remarks>
+        private readonly HashSet<string> _seenValueOptions = new(StringComparer.Ordinal);
+
+        /// <summary>
         ///     Parses command-line arguments
         /// </summary>
         /// <param name="args">Command-line arguments.</param>
@@ -220,34 +311,117 @@ internal sealed class Context : IDisposable
                     return index;
 
                 case "--log":
+                    RegisterValueOption(arg, "--log");
                     LogFile = GetRequiredStringArgument(arg, args, index, "a filename argument");
                     return index + 1;
 
                 case "--results":
                 case "--result":
+                    // The legacy alias shares the canonical name, so giving both is a duplicate
+                    RegisterValueOption(arg, "--results");
                     ResultsFile = GetRequiredStringArgument(arg, args, index, "a results filename argument");
                     return index + 1;
 
                 case "--depth":
+                    RegisterValueOption(arg, "--depth");
                     HeadingDepth = GetRequiredIntArgument(arg, args, index, "a heading depth argument", 1, 6);
                     return index + 1;
 
+                case "--config":
+                    RegisterValueOption(arg, "--config");
+                    ConfigFile = GetRequiredStringArgument(arg, args, index, "a settings filename argument");
+                    return index + 1;
+
+                case "--root":
+                    RegisterValueOption(arg, "--root");
+                    Root = GetRequiredStringArgument(arg, args, index, "a directory argument");
+                    return index + 1;
+
+                case "--language":
+                    RegisterValueOption(arg, "--language");
+                    Language = GetRequiredStringArgument(arg, args, index, "a language argument such as en-US or en-GB");
+                    return index + 1;
+
+                case "--allow-empty":
+                    AllowEmpty = true;
+                    return index;
+
+                case "--max-parallelism":
+                    RegisterValueOption(arg, "--max-parallelism");
+                    MaxParallelism = GetRequiredIntArgument(arg, args, index, "a maximum number of files to check at the same time");
+                    return index + 1;
+
                 default:
-                    throw new ArgumentException($"Unsupported argument '{arg}'", nameof(args));
+                    return ParsePositionalArgument(arg, index);
+            }
+        }
+
+        /// <summary>
+        ///     Treats an argument that is not a known option as a file pattern.
+        /// </summary>
+        /// <remarks>
+        ///     Anything that starts with a dash and is not a known option is reported as unsupported, so a
+        ///     misspelled option is never silently taken for a file name. Every other argument is a file
+        ///     pattern and is kept exactly as typed; what it means is decided by the library. A pattern
+        ///     that starts with a dash can be written with a leading <c>./</c>. Side effects: appends to
+        ///     <see cref="Globs"/>.
+        /// </remarks>
+        /// <param name="arg">The argument, which is not a known option.</param>
+        /// <param name="index">The index of the argument after <paramref name="arg"/>.</param>
+        /// <returns>The index of the next argument, which is unchanged because a pattern takes no value.</returns>
+        /// <exception cref="ArgumentException">Thrown when the argument starts with a dash, or is empty or white space.</exception>
+        private int ParsePositionalArgument(string arg, int index)
+        {
+            // A leading dash marks an option, so an unknown one is an error rather than a file name
+            if (arg.StartsWith('-'))
+            {
+                throw new ArgumentException($"Unsupported argument '{arg}'", nameof(arg));
+            }
+
+            // An empty pattern can only be a scripting mistake, such as an unset variable
+            if (string.IsNullOrWhiteSpace(arg))
+            {
+                throw new ArgumentException("A file pattern argument must not be empty", nameof(arg));
+            }
+
+            Globs.Add(arg);
+            return index;
+        }
+
+        /// <summary>
+        ///     Records that an option that takes a value has been seen.
+        /// </summary>
+        /// <remarks>
+        ///     Side effects: updates the set of seen options.
+        /// </remarks>
+        /// <param name="arg">The option as typed, used in the message.</param>
+        /// <param name="canonicalName">The option's canonical name, shared with its aliases.</param>
+        /// <exception cref="ArgumentException">Thrown when the option was already given.</exception>
+        private void RegisterValueOption(string arg, string canonicalName)
+        {
+            if (!_seenValueOptions.Add(canonicalName))
+            {
+                throw new ArgumentException($"{arg} was specified more than once; give {canonicalName} a single time");
             }
         }
 
         /// <summary>
         ///     Gets a required string argument value
         /// </summary>
+        /// <remarks>
+        ///     A value that starts with a dash is taken to be the next option, so a forgotten value is
+        ///     reported as missing instead of swallowing the option that follows it. A value that is empty
+        ///     or white space is also reported as missing, because it can only come from an unset variable.
+        /// </remarks>
         /// <param name="arg">Argument name</param>
         /// <param name="args">All arguments</param>
         /// <param name="index">Current index</param>
         /// <param name="description">Description of what's required</param>
         /// <returns>Argument value</returns>
+        /// <exception cref="ArgumentException">Thrown when the value is missing, empty, or looks like an option.</exception>
         private static string GetRequiredStringArgument(string arg, string[] args, int index, string description)
         {
-            if (index >= args.Length)
+            if (index >= args.Length || string.IsNullOrWhiteSpace(args[index]) || args[index].StartsWith('-'))
             {
                 throw new ArgumentException($"{arg} requires {description}", nameof(args));
             }
@@ -258,6 +432,12 @@ internal sealed class Context : IDisposable
         /// <summary>
         ///     Gets a required integer argument value
         /// </summary>
+        /// <remarks>
+        ///     Unlike a string value, an integer value may start with a dash (a negative number), so it is
+        ///     read as it is and rejected by the range check, which gives the user the allowed range instead
+        ///     of the less helpful "requires a value". The number is parsed with the invariant culture, so
+        ///     the result does not depend on the language of the machine.
+        /// </remarks>
         /// <param name="arg">Argument name</param>
         /// <param name="args">All arguments</param>
         /// <param name="index">Current index</param>
@@ -265,10 +445,13 @@ internal sealed class Context : IDisposable
         /// <param name="min">Minimum valid value (inclusive)</param>
         /// <param name="max">Maximum valid value (inclusive)</param>
         /// <returns>Argument value as an integer in [min, max]</returns>
+        /// <exception cref="ArgumentException">Thrown when the value is missing, not an integer, or out of range.</exception>
         private static int GetRequiredIntArgument(string arg, string[] args, int index, string description, int min = 1, int max = int.MaxValue)
         {
-            var value = GetRequiredStringArgument(arg, args, index, description);
-            if (!int.TryParse(value, out var result) || result < min || result > max)
+            if (index >= args.Length ||
+                !int.TryParse(args[index], NumberStyles.Integer, CultureInfo.InvariantCulture, out var result) ||
+                result < min ||
+                result > max)
             {
                 throw new ArgumentException($"{arg} requires an integer between {min} and {max} for {description}", nameof(args));
             }
@@ -295,6 +478,20 @@ internal sealed class Context : IDisposable
 
         // Write to log file if logging is enabled
         _logWriter?.WriteLine(message);
+    }
+
+    /// <summary>
+    ///     Marks the run as failed without printing anything.
+    /// </summary>
+    /// <remarks>
+    ///     A check that finds spelling issues has already printed each of them as a result line on stdout,
+    ///     so reporting the failure again as an error message would only add noise; the run still has to
+    ///     exit with a failure code, and this is the one way to do that without output. Side effects:
+    ///     makes <see cref="ExitCode"/> 1.
+    /// </remarks>
+    public void MarkFailed()
+    {
+        _hasErrors = true;
     }
 
     /// <summary>
