@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-// cspell:ignore wrold speling xqzv klingon favourite Urlz
+// cspell:ignore wrold speling xqzv klingon favourite Urlz qwzx qwzxabc
 
 using System.Text;
 using DemaConsulting.TextLint.Configuration;
@@ -631,6 +631,30 @@ public class SpellCheckingSubsystemTests
 
         // Assert: only the word that no pattern matches is reported
         Assert.Equal(["xqzv"], issues.Select(issue => issue.Text));
+    }
+
+    /// <summary>
+    ///     Test that an ignoreRegExp directive hides its matches in the whole text, and that an unusable pattern is reported.
+    /// </summary>
+    [Fact]
+    public void SpellCheckingSubsystem_CheckText_IgnoreRegExpDirective_HidesMatchesAndReportsUnusablePatterns()
+    {
+        // Arrange: a settings pattern that a directive names, a directive with an expression, an unusable directive, and words
+        var settings = new TextLintSettings { Patterns = [new NamedPattern("Marker", "/qwzx[a-z]+/")] };
+        var checker = new TextChecker(settings);
+        var text = "qwzxabc wrold\n// cspell:ignoreRegExp Marker\n// cspell:ignoreRegExp /speling/\nspeling\n// cspell:ignoreRegExp /(?i)x/";
+
+        // Act: check the text
+        var issues = checker.Check(text);
+
+        // Assert: the named pattern and the expression hide their words, wherever the directives are, and the unusable
+        // pattern is reported at its position
+        Assert.Equal(
+            [
+                (SpellingIssueKind.UnknownWord, 1, 9),
+                (SpellingIssueKind.InvalidDirective, 5, 24),
+            ],
+            issues.Select(issue => (issue.Kind, issue.Line, issue.Column)));
     }
 
     /// <summary>

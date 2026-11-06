@@ -1792,16 +1792,16 @@ public class SettingsLoaderTests
     [Fact]
     public void SettingsLoader_Parse_IgnoreRegExpListUnsupportedFlag_ReportsErrorAtItem()
     {
-        // Arrange: an expression with the dot-all flag, which cspell silently drops
-        const string yaml = "ignoreRegExpList:\n  - \"/zorb/s\"\n";
+        // Arrange: an expression with the extended flag, which has no safe equivalent and which cspell silently drops
+        const string yaml = "ignoreRegExpList:\n  - \"/zorb/x\"\n";
 
         // Act: parse the text
         var diagnostic = ParseSingleError(yaml);
 
         // Assert: the message names the setting, the entry, and the flag, at the item
         Assert.Multiple(
-            () => Assert.Contains("Cannot use the 'ignoreRegExpList' entry '/zorb/s'", diagnostic.Message, StringComparison.Ordinal),
-            () => Assert.Contains("the flag 's' is not supported", diagnostic.Message, StringComparison.Ordinal),
+            () => Assert.Contains("Cannot use the 'ignoreRegExpList' entry '/zorb/x'", diagnostic.Message, StringComparison.Ordinal),
+            () => Assert.Contains("the flag 'x' is not supported", diagnostic.Message, StringComparison.Ordinal),
             () => Assert.Equal(2, diagnostic.Line),
             () => Assert.Equal(ListItemColumn, diagnostic.Column));
     }

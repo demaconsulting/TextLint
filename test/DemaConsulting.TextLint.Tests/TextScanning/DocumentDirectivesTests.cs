@@ -20,7 +20,7 @@
 
 using DemaConsulting.TextLint.TextScanning;
 
-// cspell:ignore enablex nextline
+// cspell:ignore enablex nextline bareword yyxx zorbtrail zzxx
 
 namespace DemaConsulting.TextLint.Tests.TextScanning;
 
@@ -769,21 +769,189 @@ public class DocumentDirectivesTests
     }
 
     /// <summary>
-    ///     Test that an ignoreRegExp directive hides its line, because its text is an expression and not prose, and is reported.
+    ///     Test that an ignoreRegExp directive hides its line, because its text is a pattern and not prose, and adds its pattern.
     /// </summary>
     [Fact]
-    public void DocumentDirectives_Scan_IgnoreRegExpWithArgument_HidesItsLineAndIsReported()
+    public void DocumentDirectives_Scan_IgnoreRegExpWithArgument_HidesItsLineAndAddsItsPattern()
     {
-        // Arrange: a directive with an expression
+        // Arrange: a directive with a pattern
         var text = "alpha " + Cspell + "ignoreRegExp /beta/\ngamma";
 
         // Act: scan the text
         var scan = DocumentDirectives.Scan(text);
 
-        // Assert: the directive from its prefix to its line end is hidden, and its name is reported
-        Assert.Equal([Cspell + "ignoreRegExp /beta/"], Excluded(text));
-        Assert.Equal(["ignoreRegExp"], Unsupported(text));
-        Assert.Empty(scan.Words);
+        // Assert: the directive from its prefix to its line end is hidden, its pattern is found where it is written,
+        // and nothing is reported as unsupported
+        var pattern = Assert.Single(scan.PatternDirectives);
+        Assert.Multiple(
+            () => Assert.Equal([Cspell + "ignoreRegExp /beta/"], Excluded(text)),
+            () => Assert.Empty(scan.UnsupportedDirectives),
+            () => Assert.Empty(scan.Words),
+            () => Assert.Equal("/beta/", pattern.Text),
+            () => Assert.Equal(text.IndexOf("/beta/", StringComparison.Ordinal), pattern.Range.Start),
+            () => Assert.Equal(6, pattern.Range.Length),
+            () => Assert.True(pattern.IsReportable));
+    }
+
+    /// <summary>
+    ///     Test that the pattern of an ignoreRegExp directive is read from the line the way cspell reads it.
+    /// </summary>
+    /// <param name="argument">What follows the directive name on the line.</param>
+    /// <param name="expected">The pattern, as cspell's own reader returns it for that line.</param>
+    [Theory]
+    [InlineData("/ww[a-z]+/", "/ww[a-z]+/")]
+    [InlineData("/QQQ[a-z]+/i trailing zorbtrail", "/QQQ[a-z]+/i")]
+    [InlineData("/multi/ gx", "/multi/")]
+    [InlineData("bareword", "bareword")]
+    [InlineData("bare[a-z]+ other tail", "bare[a-z]+")]
+    [InlineData("/one/ then /two/", "/one/ then /two/")]
+    [InlineData("x /y/g", "/y/g")]
+    [InlineData("foo/bar", "foo/bar")]
+    [InlineData("/x/gimuy rest", "/x/gimuy")]
+    [InlineData("/x/s", "/x/")]
+    [InlineData("/(?i)bad/ zz", "/(?i)bad/")]
+    [InlineData("zzxx\\ yyxx trailing", "zzxx\\")]
+    [InlineData("   /spaced/i   ", "/spaced/i")]
+    [InlineData("\t/tabbed/", "/tabbed/")]
+    [InlineData("/unterminated", "/unterminated")]
+    public void DocumentDirectives_Scan_IgnoreRegExpArgument_IsReadLikeCspell(string argument, string expected)
+    {
+        // Arrange: a directive line with the argument
+        var text = "// " + Cspell + "ignoreRegExp " + argument + "\nnext";
+
+        // Act: scan the text
+        var scan = DocumentDirectives.Scan(text);
+
+        // Assert: the pattern is the one cspell finds, and its range is where it is written
+        var pattern = Assert.Single(scan.PatternDirectives);
+        Assert.Multiple(
+            () => Assert.Equal(expected, pattern.Text),
+            () => Assert.Equal(expected, text.Substring(pattern.Range.Start, pattern.Range.Length)));
+    }
+
+    /// <summary>
+    ///     Test that every prefix, in any letter case, and every spelling of the directive name reads a pattern.
+    /// </summary>
+    /// <param name="directive">The directive as written, up to the pattern.</param>
+    [Theory]
+    [InlineData("cspell:ignoreRegExp")]
+    [InlineData("cspell::ignoreRegExp")]
+    [InlineData("CSPELL:IGNOREREGEXP")]
+    [InlineData("spell:ignoreRegExp")]
+    [InlineData("spellchecker:ignoreRegExp")]
+    [InlineData("spell-checker:ignoreRegExp")]
+    [InlineData("textlint:ignoreRegExp")]
+    [InlineData("cspell:ignore_Reg_Exp")]
+    [InlineData("cspell: ignoreRegExp")]
+    public void DocumentDirectives_Scan_IgnoreRegExpPrefixesAndSpellings_AllAddThePattern(string directive)
+    {
+        // Arrange: a directive written with the prefix and spelling under test
+        var text = "// " + directive + " /alpha/";
+
+        // Act: scan the text
+        var scan = DocumentDirectives.Scan(text);
+
+        // Assert: the pattern is found and nothing is reported as unsupported
+        Assert.Multiple(
+            () => Assert.Equal(["/alpha/"], scan.PatternDirectives.Select(pattern => pattern.Text)),
+            () => Assert.Empty(scan.UnsupportedDirectives));
+    }
+
+    /// <summary>
+    ///     Test that a directive inside a disabled block still adds its pattern but is not reportable, and that a pattern
+    ///     directive is found wherever it is.
+    /// </summary>
+    [Fact]
+    public void DocumentDirectives_Scan_IgnoreRegExpInsideDisabledBlock_AddsPatternButIsNotReportable()
+    {
+        // Arrange: one directive before a disabled block, one inside it, and one after it
+        var text = Lines(
+            "\n",
+            Cspell + "ignoreRegExp /one/",
+            Cspell + "disable",
+            Cspell + "ignoreRegExp /two/",
+            Cspell + "enable",
+            Cspell + "ignoreRegExp /three/");
+
+        // Act: scan the text
+        var scan = DocumentDirectives.Scan(text);
+
+        // Assert: all three patterns are found in text order, and only the one in the block is not reportable
+        Assert.Multiple(
+            () => Assert.Equal(["/one/", "/two/", "/three/"], scan.PatternDirectives.Select(pattern => pattern.Text)),
+            () => Assert.Equal([true, false, true], scan.PatternDirectives.Select(pattern => pattern.IsReportable)));
+    }
+
+    /// <summary>
+    ///     Test that a directive with nothing after its name on its line has no pattern and is reported as unsupported.
+    /// </summary>
+    [Fact]
+    public void DocumentDirectives_Scan_IgnoreRegExpWithoutPattern_IsReportedAtItsName()
+    {
+        // Arrange: a directive whose argument would be on the next line, which cspell does not read
+        var text = "// " + Cspell + "ignoreRegExp\n  /alpha/";
+
+        // Act: scan the text
+        var scan = DocumentDirectives.Scan(text);
+
+        // Assert: no pattern is added, and the name is reported
+        Assert.Multiple(
+            () => Assert.Empty(scan.PatternDirectives),
+            () => Assert.Equal(["ignoreRegExp"], Unsupported(text)));
+    }
+
+    /// <summary>
+    ///     Test that the pattern of a directive ends at the line end, whichever line terminator the text uses.
+    /// </summary>
+    /// <param name="lineEnding">The line terminator of the text.</param>
+    [Theory]
+    [InlineData("\n")]
+    [InlineData("\r\n")]
+    [InlineData("\r")]
+    [InlineData("\u2028")]
+    public void DocumentDirectives_Scan_IgnoreRegExpLineTerminators_EndThePattern(string lineEnding)
+    {
+        // Arrange: two directives on consecutive lines
+        var text = Lines(lineEnding, "// " + Cspell + "ignoreRegExp /one/", "// " + Cspell + "ignoreRegExp two");
+
+        // Act: scan the text
+        var scan = DocumentDirectives.Scan(text);
+
+        // Assert: each pattern stops at the end of its own line
+        Assert.Equal(["/one/", "two"], scan.PatternDirectives.Select(pattern => pattern.Text));
+    }
+
+    /// <summary>
+    ///     Test that only the first readable prefix of a line is read for a pattern, as for the other directives.
+    /// </summary>
+    [Fact]
+    public void DocumentDirectives_Scan_IgnoreRegExpAfterAnotherPrefixOnTheLine_IsNotRead()
+    {
+        // Arrange: a line with a words directive followed by a second prefix with an ignoreRegExp directive
+        var text = "// " + Cspell + "words alpha " + Cspell + "ignoreRegExp /beta/";
+
+        // Act: scan the text
+        var scan = DocumentDirectives.Scan(text);
+
+        // Assert: the second prefix belongs to the first directive's text, so no pattern is added
+        Assert.Empty(scan.PatternDirectives);
+    }
+
+    /// <summary>
+    ///     Test that a pattern directive keeps its place among many lines of a very large text, in linear time.
+    /// </summary>
+    [Fact]
+    public void DocumentDirectives_Scan_IgnoreRegExpInLargeText_IsFound()
+    {
+        // Arrange: one megabyte of filler with a directive at the end
+        var text = new string('x', OneMegabyte) + "\n// " + Cspell + "ignoreRegExp /last/";
+
+        // Act: scan the text
+        var scan = DocumentDirectives.Scan(text);
+
+        // Assert: the pattern is found at the end of the text
+        var pattern = Assert.Single(scan.PatternDirectives);
+        Assert.Equal(text.Length - "/last/".Length, pattern.Range.Start);
     }
 
     /// <summary>
@@ -858,7 +1026,6 @@ public class DocumentDirectivesTests
     [InlineData("// " + Cspell + "language en-GB", "language")]
     [InlineData("// " + Cspell + "dictionary custom", "dictionary")]
     [InlineData("// " + Cspell + "dictionaries custom", "dictionaries")]
-    [InlineData("// " + Cspell + "ignoreRegExp /alpha/", "ignoreRegExp")]
     [InlineData("// " + Cspell + "includeRegExp /alpha/", "includeRegExp")]
     [InlineData("// " + Cspell + "enableCompoundWords", "enableCompoundWords")]
     [InlineData("// " + Cspell + "disableCompoundWords", "disableCompoundWords")]

@@ -21,7 +21,8 @@
 // cspell:ignore wrold Wrold speling xqzv xqz zorb ZORB zorbs ZORBs nwrold wroldspeling wrolhttp wrol qqq
 // cspell:ignore favourite textlint FEFF cspe
 // cspell:ignore quix flib cabdab fedacb xqzvw zorbquix zorbflag zorbstart zorbend neverpresent zorbinside quixone zorbq
-// cspell:ignore Dowd Artagnan quixwords nflibquix Urlz
+// cspell:ignore Dowd Artagnan quixwords nflibquix Urlz zorbcomment zorbinblockxx zorbinline zorbnamed zorbnamedxx
+// cspell:ignore zorbonexx zorbthreexx zorbtwoxx zorbxx zorbyy
 
 using System.Text.RegularExpressions;
 using DemaConsulting.TextLint.Configuration;
@@ -1855,7 +1856,7 @@ public class TextCheckerTests
     /// <param name="entry">An entry of <c>ignoreRegExpList</c> that cannot be used.</param>
     [Theory]
     [InlineData("/(/")]
-    [InlineData("/zorb/s")]
+    [InlineData("/zorb/x")]
     [InlineData("/\\z/")]
     [InlineData("Urlz")]
     [InlineData("")]
@@ -1897,10 +1898,231 @@ public class TextCheckerTests
     [Fact]
     public void TextChecker_Check_CatastrophicCustomPattern_ThrowsRegexMatchTimeoutException()
     {
-        // Arrange: a nested quantifier that backtracks exponentially, and a text that almost matches it
+        // Arrange: a nested quantifier that backtracks exponentially, and a text that almost matches it; the checker
+        // is made with the internal short limit so that the test is fast, and the production limit is tested elsewhere
         var settings = new TextLintSettings { IgnoreRegExpList = ["/^(a|aa)+$/"] };
-        var checker = new TextChecker(settings);
+        var checker = new TextChecker(settings, TimeSpan.FromMilliseconds(100));
         var text = new string('a', 60) + "b";
+
+        // Act / Assert: the check gives up at the time limit with the documented exception
+        Assert.Throws<RegexMatchTimeoutException>(() => checker.Check(text));
+    }
+
+    /// <summary>
+    ///     Test that the checker made for production has the five second limit, and that a limit that is not positive is rejected.
+    /// </summary>
+    [Fact]
+    public void TextChecker_New_MatchTimeout_IsFiveSecondsAndMustBePositive()
+    {
+        // Arrange: settings with a custom pattern
+        var settings = new TextLintSettings { IgnoreRegExpList = ["/zorb/"], Patterns = [new NamedPattern("Zorb", "/zorb/")] };
+
+        // Act: make the checker the public way, and with limits that are not allowed
+        var production = new TextChecker(settings);
+
+        // Assert: the default is five seconds, and a limit of zero or less is rejected
+        Assert.Multiple(
+            () => Assert.Equal(TimeSpan.FromSeconds(5), production.MatchTimeout),
+            () => Assert.Throws<ArgumentOutOfRangeException>(() => new TextChecker(settings, TimeSpan.Zero)),
+            () => Assert.Throws<ArgumentNullException>(() => new TextChecker(null!, TimeSpan.FromSeconds(1))));
+    }
+
+    /// <summary>
+    ///     Test that a pattern written in an ignoreRegExp directive hides its matches in the whole text, before and after the directive.
+    /// </summary>
+    [Fact]
+    public void TextChecker_Check_IgnoreRegExpDirective_HidesMatchesInTheWholeText()
+    {
+        // Arrange: a text with the invented word zorbxx before and zorbyy after a directive that hides such words
+        var text = $"{Unknown} zorbxx\n// cspell:ignoreRegExp /zorb\\w+/\n{OtherUnknown} zorbyy";
+
+        // Act: check it
+        var issues = Check(text);
+
+        // Assert: both invented words are hidden, wherever they are, and the other words are reported
+        Assert.Equal(["1:1 wrold", "3:1 speling"], Positions(issues));
+    }
+
+    /// <summary>
+    ///     Test that a directive pattern is read with the flags of the way it is written: literals use only their own flags
+    ///     and bare expressions are case-insensitive.
+    /// </summary>
+    [Fact]
+    public void TextChecker_Check_IgnoreRegExpDirectiveForms_UseTheFlagsAsWritten()
+    {
+        // Arrange: a case-sensitive literal, a literal with the case flag, a bare word, and the words they should hide
+        var text = string.Join(
+            '\n',
+            "// cspell:ignoreRegExp /zorbone\\w+/",
+            "// cspell:ignoreRegExp /zorbtwo\\w+/i",
+            "// cspell:ignoreRegExp zorbthree\\w+",
+            "zorbonexx ZORBONEXX zorbtwoxx ZORBTWOXX zorbthreexx ZORBTHREEXX");
+
+        // Act: check it
+        var issues = Check(text);
+
+        // Assert: only the capitals that the literal without the flag cannot match are reported
+        Assert.Equal(["4:11 ZORBONEXX"], Positions(issues));
+    }
+
+    /// <summary>
+    ///     Test that a directive can name a pattern of the settings or a predefined pattern, with the same names as the settings use.
+    /// </summary>
+    [Fact]
+    public void TextChecker_Check_IgnoreRegExpDirectiveNames_RefersToSettingsAndPredefinedPatterns()
+    {
+        // Arrange: a settings pattern and a predefined one, each named in a directive, in a different letter case
+        var settings = new TextLintSettings { Patterns = [new NamedPattern("ZorbNamed", "/zorbnamed\\w+/")] };
+        var text = string.Join(
+            '\n',
+            "// cspell:ignoreRegExp zorbnamed",
+            "// cspell:ignoreRegExp CStyleComment",
+            "zorbnamedxx " + Unknown + " // zorbcomment");
+
+        // Act: check it
+        var issues = Check(text, settings);
+
+        // Assert: the name of the settings pattern is the same word as the text only by letter case, so it is compared
+        // without regard to case and hides the word; the comment pattern hides the comment; the rest is reported
+        Assert.Equal(["3:13 wrold"], Positions(issues));
+    }
+
+    /// <summary>
+    ///     Test that a directive pattern that cannot be used is reported at its position and has no other effect.
+    /// </summary>
+    [Fact]
+    public void TextChecker_Check_IgnoreRegExpDirectiveInvalid_IsReportedAtItsPosition()
+    {
+        // Arrange: a directive with a pattern that .NET cannot read the JavaScript way, then a word it would have hidden
+        const string text = "// cspell:ignoreRegExp /(?i)zorbinline/\nzorbinline";
+
+        // Act: check it
+        var issues = Check(text, sourceName: "notes.txt");
+
+        // Assert: the pattern is reported where it is written, with the reason, and the word is still unknown
+        var invalid = issues[0];
+        Assert.Multiple(
+            () => Assert.Equal(["1:24 /(?i)zorbinline/", "2:1 zorbinline"], Positions(issues)),
+            () => Assert.Equal(SpellingIssueKind.InvalidDirective, invalid.Kind),
+            () => Assert.Equal("the group syntax '(?i)' is not supported.", invalid.Detail),
+            () => Assert.Equal(
+                "notes.txt(1,24): error: Cannot use the pattern '/(?i)zorbinline/' of the directive 'ignoreRegExp': " +
+                "the group syntax '(?i)' is not supported.",
+                invalid.ToString()),
+            () => Assert.Null(issues[1].Detail));
+    }
+
+    /// <summary>
+    ///     Test that a directive that names a pattern that nothing defines is reported, where cspell would read the name as text.
+    /// </summary>
+    [Fact]
+    public void TextChecker_Check_IgnoreRegExpDirectiveUnknownName_IsReportedAndHidesNothing()
+    {
+        // Arrange: a directive with a misspelled predefined name, and the word it spells
+        const string text = "// cspell:ignoreRegExp Urlz\nurlz";
+
+        // Act: check it
+        var issues = Check(text);
+
+        // Assert: the name is reported with the advice to use slashes, and the word is not hidden
+        Assert.Multiple(
+            () => Assert.Equal(["1:24 Urlz", "2:1 urlz"], Positions(issues)),
+            () => Assert.Contains("is not a defined or predefined pattern name", issues[0].Detail, StringComparison.Ordinal));
+    }
+
+    /// <summary>
+    ///     Test that a directive inside a disabled block still adds its pattern, and that an unusable one there is not reported.
+    /// </summary>
+    [Fact]
+    public void TextChecker_Check_IgnoreRegExpDirectiveInDisabledBlock_AppliesButIsNotReported()
+    {
+        // Arrange: a valid and an invalid directive inside a disabled block, and words after the block
+        var text = string.Join(
+            '\n',
+            "// cspell:disable",
+            "// cspell:ignoreRegExp /zorbinblock\\w+/",
+            "// cspell:ignoreRegExp /(?i)bad/",
+            "// cspell:enable",
+            "zorbinblockxx " + Unknown);
+
+        // Act: check it
+        var issues = Check(text);
+
+        // Assert: the pattern hides its word after the block, and nothing is reported for the invalid one
+        Assert.Equal(["5:15 wrold"], Positions(issues));
+    }
+
+    /// <summary>
+    ///     Test that the same unusable pattern written twice is reported at each place, in text order with the other findings.
+    /// </summary>
+    [Fact]
+    public void TextChecker_Check_IgnoreRegExpDirectiveRepeated_IsReportedAtEachPlaceInOrder()
+    {
+        // Arrange: an unusable pattern twice, with a misspelling between and after
+        var text = string.Join('\n', "// cspell:ignoreRegExp /(/", Unknown, "// cspell:ignoreRegExp /(/", OtherUnknown);
+
+        // Act: check it
+        var issues = Check(text);
+
+        // Assert: the four findings are in text order, whatever order they were found in
+        Assert.Equal(["1:24 /(/", "2:1 wrold", "3:24 /(/", "4:1 speling"], Positions(issues));
+    }
+
+    /// <summary>
+    ///     Test that a directive with no pattern on its line is reported as an unsupported directive.
+    /// </summary>
+    [Fact]
+    public void TextChecker_Check_IgnoreRegExpDirectiveWithoutPattern_IsReportedAsUnsupported()
+    {
+        // Arrange: a directive whose pattern is on the next line, which is not read
+        const string text = "// cspell:ignoreRegExp\n/hello/";
+
+        // Act: check it
+        var issues = Check(text);
+
+        // Assert: the directive name is reported
+        var issue = Assert.Single(issues);
+        Assert.Multiple(
+            () => Assert.Equal(SpellingIssueKind.UnsupportedDirective, issue.Kind),
+            () => Assert.Equal("ignoreRegExp", issue.Text));
+    }
+
+    /// <summary>
+    ///     Test that a text may use only a limited number of different directive patterns, and that repeats do not count.
+    /// </summary>
+    [Fact]
+    public void TextChecker_Check_IgnoreRegExpDirectivePatternLimit_RejectsTheExcessWithoutReadingIt()
+    {
+        // Arrange: one more different pattern than the limit, each repeated, and a word that the last pattern would hide;
+        // the words are made of letters only, because digits would end a word
+        var limit = TextChecker.MaxDirectivePatterns;
+        static string Word(int index) => $"zorb{(char)('a' + (index / 26))}{(char)('a' + (index % 26))}qq";
+        var lines = Enumerable.Range(0, limit + 1)
+            .SelectMany(index => new[] { $"// cspell:ignoreRegExp /{Word(index)}/", $"// cspell:ignoreRegExp /{Word(index)}/" })
+            .Append(Word(limit))
+            .ToArray();
+
+        // Act: check the text
+        var issues = Check(string.Join('\n', lines));
+
+        // Assert: the pattern over the limit is reported at both of its places, and the word it would have hidden is unknown
+        var reasons = issues.Where(issue => issue.Kind == SpellingIssueKind.InvalidDirective).ToArray();
+        Assert.Multiple(
+            () => Assert.Equal(2, reasons.Length),
+            () => Assert.All(reasons, issue => Assert.Contains($"at most {limit} different", issue.Detail, StringComparison.Ordinal)),
+            () => Assert.Equal(Word(limit), issues[^1].Text));
+    }
+
+    /// <summary>
+    ///     Test that a directive pattern that backtracks without end ends with a time-out error instead of hanging.
+    /// </summary>
+    [Fact]
+    public void TextChecker_Check_CatastrophicDirectivePattern_ThrowsRegexMatchTimeoutException()
+    {
+        // Arrange: a directive with a nested quantifier that backtracks exponentially, and a line that almost matches it;
+        // the checker has the internal short limit so that the test is fast
+        var checker = new TextChecker(new TextLintSettings(), TimeSpan.FromMilliseconds(100));
+        var text = "// cspell:ignoreRegExp ^(a|aa)+$\n" + new string('a', 60) + "b";
 
         // Act / Assert: the check gives up at the time limit with the documented exception
         Assert.Throws<RegexMatchTimeoutException>(() => checker.Check(text));

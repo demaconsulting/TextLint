@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-// cspell:ignore zorb quix flib urlz MIIBIjANBg predefined hexvalues thref azzbz zorbone
+// cspell:ignore zorb quix flib urlz MIIBIjANBg predefined hexvalues thref azzbz zorbone zorbdef
 
 using DemaConsulting.TextLint.TextScanning;
 
@@ -395,12 +395,12 @@ public class PatternCatalogTests
     {
         // Arrange: an invalid expression in the list, and one in a definition
         // Act: resolve them
-        var inList = Rejected(["/zorb/s"]);
+        var inList = Rejected(["/zorb/x"]);
         var inDefinition = Rejected([], new NamedPattern("Zorb", "/(/"));
 
         // Assert: each exception names its entry
         Assert.Multiple(
-            () => Assert.Equal("/zorb/s", inList.Pattern),
+            () => Assert.Equal("/zorb/x", inList.Pattern),
             () => Assert.Equal("/(/", inDefinition.Pattern));
     }
 
@@ -517,6 +517,98 @@ public class PatternCatalogTests
             () => Assert.Throws<ArgumentNullException>(() => PatternCatalog.FindExcludedRanges(null!, "text", ranges)),
             () => Assert.Throws<ArgumentNullException>(() => PatternCatalog.FindExcludedRanges(regexes, null!, ranges)),
             () => Assert.Throws<ArgumentNullException>(() => PatternCatalog.FindExcludedRanges(regexes, "text", null!)));
+    }
+
+    /// <summary>
+    ///     Test that an entry is resolved to a regular expression with the given limit, to nothing for a name that is always
+    ///     applied, and to a reason when it cannot be used.
+    /// </summary>
+    [Fact]
+    public void PatternCatalog_TryResolveEntry_Forms_AreResolvedOrExplained()
+    {
+        // Arrange: the parsed definitions of one named pattern, and a short limit
+        var defined = PatternCatalog.ParseDefinitions([new NamedPattern("ZorbDef", "/zorbdef/")], TimeSpan.FromSeconds(1));
+        var limit = TimeSpan.FromMilliseconds(250);
+
+        // Act: resolve an expression, a defined name in another letter case, an optional predefined name, a name that is always
+        // applied, an expression with an unsupported flag, and a name that nothing defines
+        var expression = PatternCatalog.TryResolveEntry("/zorb/i", defined, limit, out var expressionRegex, out var expressionProblem);
+        var user = PatternCatalog.TryResolveEntry("zorbdef", defined, limit, out var userRegex, out var userProblem);
+        var optional = PatternCatalog.TryResolveEntry("HEXVALUES", defined, limit, out var optionalRegex, out var optionalProblem);
+        var always = PatternCatalog.TryResolveEntry("Urls", defined, limit, out var alwaysRegex, out var alwaysProblem);
+        var flag = PatternCatalog.TryResolveEntry("/zorb/x", defined, limit, out var flagRegex, out var flagProblem);
+        var unknown = PatternCatalog.TryResolveEntry("Urlz", defined, limit, out var unknownRegex, out var unknownProblem);
+
+        // Assert: the expression has the limit; the names resolve to their patterns or to nothing; the failures give a reason
+        Assert.Multiple(
+            () => Assert.True(expression),
+            () => Assert.Equal(limit, expressionRegex!.MatchTimeout),
+            () => Assert.Null(expressionProblem),
+            () => Assert.True(user),
+            () => Assert.Same(defined["ZorbDef"], userRegex),
+            () => Assert.Null(userProblem),
+            () => Assert.True(optional),
+            () => Assert.NotNull(optionalRegex),
+            () => Assert.Null(optionalProblem),
+            () => Assert.True(always),
+            () => Assert.Null(alwaysRegex),
+            () => Assert.Null(alwaysProblem),
+            () => Assert.False(flag),
+            () => Assert.Null(flagRegex),
+            () => Assert.Contains("flag 'x'", flagProblem, StringComparison.Ordinal),
+            () => Assert.False(unknown),
+            () => Assert.Null(unknownRegex),
+            () => Assert.Contains("'Urlz' is not a defined or predefined pattern name", unknownProblem, StringComparison.Ordinal));
+    }
+
+    /// <summary>
+    ///     Test that the parsed definitions are by name without regard to letter case, reject a bad or repeated name, and
+    ///     carry the limit they were given.
+    /// </summary>
+    [Fact]
+    public void PatternCatalog_ParseDefinitions_Names_AreCaseInsensitiveAndChecked()
+    {
+        // Arrange: one definition, a repeat that differs by letter case, and a predefined name
+        var limit = TimeSpan.FromMilliseconds(300);
+
+        // Act: parse the good definition and the two bad lists
+        var parsed = PatternCatalog.ParseDefinitions([new NamedPattern("Zorb", "/zorb/")], limit);
+        var repeated = Assert.Throws<InvalidPatternException>(
+            () => PatternCatalog.ParseDefinitions([new NamedPattern("Zorb", "/a/"), new NamedPattern("ZORB", "/b/")], limit));
+        var predefined = Assert.Throws<InvalidPatternException>(
+            () => PatternCatalog.ParseDefinitions([new NamedPattern("Urls", "/a/")], limit));
+
+        // Assert: the name is found in any case with the limit, and the bad lists are rejected with the name
+        Assert.Multiple(
+            () => Assert.Equal(limit, parsed["zorb"].MatchTimeout),
+            () => Assert.Equal("ZORB", repeated.Pattern),
+            () => Assert.Equal("Urls", predefined.Pattern),
+            () => Assert.Throws<ArgumentNullException>(() => PatternCatalog.ParseDefinitions(null!, limit)));
+    }
+
+    /// <summary>
+    ///     Test that the entries of the list are resolved with parsed definitions, each name once, and with the given limit.
+    /// </summary>
+    [Fact]
+    public void PatternCatalog_ResolveEntries_Entries_AreResolvedOnceWithTheLimit()
+    {
+        // Arrange: parsed definitions, and a list that names one twice and has an expression and a name that is always applied
+        var limit = TimeSpan.FromMilliseconds(400);
+        var defined = PatternCatalog.ParseDefinitions([new NamedPattern("Zorb", "/zorb/")], limit);
+
+        // Act: resolve the list
+        var resolved = PatternCatalog.ResolveEntries(["zorb", "ZORB", "/quix/", "Urls"], defined, limit);
+
+        // Assert: the defined pattern once, then the expression; the name that is always applied adds nothing
+        Assert.Multiple(
+            () => Assert.Equal(2, resolved.Length),
+            () => Assert.Same(defined["Zorb"], resolved[0]),
+            () => Assert.Equal(limit, resolved[1].MatchTimeout),
+            () => Assert.Throws<InvalidPatternException>(() => PatternCatalog.ResolveEntries(["Urlz"], defined, limit)),
+            () => Assert.Throws<ArgumentNullException>(() => PatternCatalog.ResolveEntries(null!, defined, limit)),
+            () => Assert.Throws<ArgumentNullException>(() => PatternCatalog.ResolveEntries([], null!, limit)),
+            () => Assert.Throws<ArgumentNullException>(() => PatternCatalog.TryResolveEntry(null!, defined, limit, out _, out _)),
+            () => Assert.Throws<ArgumentNullException>(() => PatternCatalog.TryResolveEntry("/a/", null!, limit, out _, out _)));
     }
 
     /// <summary>

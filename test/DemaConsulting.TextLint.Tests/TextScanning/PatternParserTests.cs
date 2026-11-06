@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-// cspell:ignore zorb quix flib afoo FEFF baab ababab xyyx xyxy metacharacters
+// cspell:ignore zorb quix flib afoo FEFF baab ababab xyyx xyxy metacharacters gimsu
 
 using System.Text.RegularExpressions;
 using DemaConsulting.TextLint.TextScanning;
@@ -165,7 +165,8 @@ public class PatternParserTests
     [InlineData("/zorb/i")]
     [InlineData("/zorb/m")]
     [InlineData("/zorb/u")]
-    [InlineData("/zorb/gimu")]
+    [InlineData("/zorb/s")]
+    [InlineData("/zorb/gimsu")]
     [InlineData("/zorb/gg")]
     public void PatternParser_Parse_SupportedFlags_AreAccepted(string entry)
     {
@@ -184,7 +185,6 @@ public class PatternParserTests
     [Theory]
     [InlineData('x')]
     [InlineData('y')]
-    [InlineData('s')]
     [InlineData('d')]
     [InlineData('v')]
     public void PatternParser_Parse_UnsupportedFlag_ThrowsNamingTheFlag(char flag)
@@ -242,6 +242,18 @@ public class PatternParserTests
     [InlineData("/\\S/", "\u0085", "\u0085")]
     [InlineData("/[\\S]/", "\u0085 \uFEFF", "\u0085")]
     [InlineData("/a.b/", "a\nb a\rb a\u2028b a\u2029b a\u0085b axb", "a\u0085b\u0001axb")]
+    [InlineData("/a.b/s", "a\nb a\rb a\u2028b a\u2029b a\u0085b axb", "a\nb\u0001a\rb\u0001a\u2028b\u0001a\u2029b\u0001a\u0085b\u0001axb")]
+    [InlineData("/a.*b/s", "a\n\nb", "a\n\nb")]
+    [InlineData("/a.*b/", "a\n\nb", "")]
+    [InlineData("/a.*b/gs", "a\r\nb x\u2028b", "a\r\nb x\u2028b")]
+    [InlineData("/A.B/is", "a\nb", "a\nb")]
+    [InlineData("/^a.b$/ms", "x\na\nb\ny", "a\nb")]
+    [InlineData("/^a.b$/s", "a\nb", "a\nb")]
+    [InlineData("/^a.b$/", "a\nb", "")]
+    [InlineData("/a[^x]b/s", "a\nb", "a\nb")]
+    [InlineData("/a\\.b/s", "a\nb a.b", "a.b")]
+    [InlineData("/a(.)\\1b/s", "a\n\nb aa\n", "a\n\nb")]
+    [InlineData("/\\p{L}.\\p{L}/su", "a\nb", "a\nb")]
     [InlineData("/^a$/", "a\n", "")]
     [InlineData("/^a$/", "a", "a")]
     [InlineData("/^a$/m", "b\na\nc", "a")]
@@ -552,12 +564,30 @@ public class PatternParserTests
     public void PatternParser_Parse_CatastrophicPattern_TimesOutWhenMatching()
     {
         // Arrange: a nested quantifier that backtracks without end on a text that almost matches, with a short limit
-        // to keep the test fast: the limit is a property of the pattern, so a pattern is rebuilt with a shorter one
-        var regex = PatternParser.Parse("/^(a|aa)+$/");
-        var shortLimit = new Regex(regex.ToString(), regex.Options, TimeSpan.FromMilliseconds(50));
+        // that the internal overload allows, so that the test is fast and the limit is the one under test
+        var regex = PatternParser.Parse("/^(a|aa)+$/", TimeSpan.FromMilliseconds(50));
         var text = new string('a', 60) + "b";
 
         // Act / Assert: matching the text exceeds the limit and throws, instead of hanging
-        Assert.Throws<RegexMatchTimeoutException>(() => shortLimit.IsMatch(text));
+        Assert.Multiple(
+            () => Assert.Equal(TimeSpan.FromMilliseconds(50), regex.MatchTimeout),
+            () => Assert.Throws<RegexMatchTimeoutException>(() => regex.IsMatch(text)));
+    }
+
+    /// <summary>
+    ///     Test that the production limit is five seconds and that a limit that is not positive is rejected.
+    /// </summary>
+    [Fact]
+    public void PatternParser_Parse_MatchTimeout_DefaultsToFiveSecondsAndMustBePositive()
+    {
+        // Arrange / Act: parse with the default limit
+        var regex = PatternParser.Parse("/zorb/");
+
+        // Assert: the limit is five seconds, and zero, negative, and infinite limits are rejected
+        Assert.Multiple(
+            () => Assert.Equal(TimeSpan.FromSeconds(5), regex.MatchTimeout),
+            () => Assert.Throws<ArgumentOutOfRangeException>(() => PatternParser.Parse("/zorb/", TimeSpan.Zero)),
+            () => Assert.Throws<ArgumentOutOfRangeException>(() => PatternParser.Parse("/zorb/", TimeSpan.FromMilliseconds(-5))),
+            () => Assert.Throws<ArgumentOutOfRangeException>(() => PatternParser.Parse("/zorb/", Timeout.InfiniteTimeSpan)));
     }
 }

@@ -18,10 +18,11 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-// cspell:ignore wrold speling qwzx favourite cspe wrld llchecker xqzv Urlz SPELINGS qwzxabc
+// cspell:ignore wrold speling qwzx favourite cspe wrld llchecker xqzv Urlz SPELINGS qwzxabc xqzvw zorbbegin zorbend nxqzvw nzorbend
 
 using System.Text;
 using DemaConsulting.TextLint.Configuration;
+using DemaConsulting.TextLint.FileSelection;
 using DemaConsulting.TextLint.SpellChecking;
 using DemaConsulting.TextLint.Tests.TestSupport;
 using DemaConsulting.TextLint.TextScanning;
@@ -931,6 +932,62 @@ public class TextLintSpellCheckTests
     }
 
     /// <summary>
+    ///     Test that an ignoreRegExp directive in the text hides its matches in the whole text, as it does in cspell.
+    /// </summary>
+    [Fact]
+    public void TextLint_CheckText_IgnoreRegExpDirective_SkipsMatchesInTheWholeText()
+    {
+        // Arrange: a word before the directive that the pattern matches, the directive with the textlint prefix, and an
+        // unmatched word after it
+        const string text = "wrold12 speling\n// textlint:ignoreRegExp /wrold\\d+/\nxqzvw";
+
+        // Act: check the text
+        var issues = Check(text);
+
+        // Assert: the matched word is hidden although it comes before the directive, and the others are reported
+        Assert.Equal(["1:9 speling", "3:1 xqzvw"], Positions(issues));
+    }
+
+    /// <summary>
+    ///     Test that a pattern of an ignoreRegExp directive that cannot be used is reported with its position and the reason.
+    /// </summary>
+    [Fact]
+    public void TextLint_CheckText_IgnoreRegExpDirectiveInvalid_IsReportedAtItsPosition()
+    {
+        // Arrange: a directive that names a pattern that nothing defines
+        const string text = "// cspell:ignoreRegExp Urlz\nwrold";
+
+        // Act: check the text under a source name
+        var issues = new TextChecker(new TextLintSettings()).Check(text, "a.txt");
+
+        // Assert: the directive is reported as an error at its pattern, and the text is checked as usual
+        Assert.Multiple(
+            () => Assert.StartsWith("a.txt(1,24): error: Cannot use the pattern 'Urlz' of the directive 'ignoreRegExp': ", issues[0].ToString(), StringComparison.Ordinal),
+            () => Assert.Equal("2:1 wrold", $"{issues[1].Line}:{issues[1].Column} {issues[1].Text}"));
+    }
+
+    /// <summary>
+    ///     Test that the dot-all flag lets a pattern of the settings match across lines.
+    /// </summary>
+    [Fact]
+    public void TextLint_CheckText_DotAllFlag_MatchesAcrossLines()
+    {
+        // Arrange: a pattern that spans from a start marker to an end marker with the dot, with and without the flag
+        const string text = "wrold zorbbegin\nspeling\nzorbend xqzvw";
+        var withFlag = new TextLintSettings { IgnoreRegExpList = ["/zorbbegin.*zorbend/s"] };
+        var withoutFlag = new TextLintSettings { IgnoreRegExpList = ["/zorbbegin.*zorbend/"] };
+
+        // Act: check the text with each
+        var skipped = Check(text, withFlag);
+        var checkedAgain = Check(text, withoutFlag);
+
+        // Assert: with the flag the dot crosses the line breaks, so the whole span is skipped; without it, nothing is
+        Assert.Multiple(
+            () => Assert.Equal(["1:1 wrold", "3:9 xqzvw"], Positions(skipped)),
+            () => Assert.Contains("speling", checkedAgain.Select(issue => issue.Text)));
+    }
+
+    /// <summary>
     ///     Test that the predefined pattern names that cspell knows exclude their text when they are listed.
     /// </summary>
     [Fact]
@@ -981,13 +1038,13 @@ public class TextLintSpellCheckTests
         using var temp = new TempDirectory();
 
         // Act: load it
-        var result = await LoadAsync(temp, "ignoreRegExpList:\n  - \"/wrold/s\"\n");
+        var result = await LoadAsync(temp, "ignoreRegExpList:\n  - \"/wrold/x\"\n");
 
         // Assert: loading fails with an error at the entry that names the flag
         var diagnostic = Assert.Single(result.Diagnostics);
         Assert.Multiple(
             () => Assert.Null(result.Settings),
-            () => Assert.Contains("the flag 's' is not supported", diagnostic.Message),
+            () => Assert.Contains("the flag 'x' is not supported", diagnostic.Message),
             () => Assert.EndsWith(".textlint.yaml", diagnostic.FilePath),
             () => Assert.Equal(SecondLine, diagnostic.Line),
             () => Assert.Equal(ListItemColumn, diagnostic.Column));
@@ -1051,10 +1108,13 @@ public class TextLintSpellCheckTests
         temp.CreateFile("b.txt", $"{Unknown}\n");
         var settings = new TextLintSettings { Files = ["**/*.txt"], IgnoreRegExpList = ["/^(a|aa)+$/m"] };
 
-        // Act: check the files
-        var result = await SpellChecker.CheckAsync(settings, temp.FullPath, cancellationToken: TestContext.Current.CancellationToken);
-
-        // Assert: the first file is a timed-out error that does not stop the run, and the second file is checked
+        // Act: check the files through the internal seam that shortens the limit, so that the test is fast
+        var result = await SpellChecker.CheckWithSelectionAsync(
+            settings,
+            token => FileSelector.Select(temp.FullPath, settings.Files, settings.IgnorePaths, settings.EnableGlobDot, token),
+            null,
+            TestContext.Current.CancellationToken,
+            TimeSpan.FromMilliseconds(100));
         var diagnostic = Assert.Single(result.FileDiagnostics);
         Assert.Multiple(
             () => Assert.Equal("a.txt", diagnostic.FilePath),

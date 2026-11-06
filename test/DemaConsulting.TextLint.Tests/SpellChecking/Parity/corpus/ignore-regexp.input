@@ -1,0 +1,44 @@
+zorbbeforeone zorbbeforetwo
+// cspell:ignoreRegExp /zorbbefore\w*/
+zorbafter zorbbeforethree ZORBBEFOREFOUR
+// cspell:ignoreRegExp /zorbupper\w+/i   trailing zorbtrailing
+zorbupperxx ZORBUPPERXX
+// cspell:ignoreRegExp zorbbare\w+ rest zorbrest
+zorbbarexx ZORBBAREXX zorbbare
+// spell:ignoreRegExp /zorbspell\w+/
+// spell-checker:ignoreRegExp /zorbchecker\w+/
+// spellchecker:ignoreRegExp /zorbspellchecker\w+/
+zorbspellxx zorbcheckerxx zorbspellcheckerxx
+// cspell:disable
+// cspell:ignoreRegExp /zorbindisabled\w+/
+zorbindisabledone
+// cspell:enable
+zorbindisabledtwo zorbindisabledthree
+// cspell:ignoreRegExp ZorbNamed
+zorbnamedone zorbnamedtwo ZORBNAMEDTHREE
+// cspell:ignoreRegExp /zorbone\w+/ and /zorbtwo\w+/
+zorbonexx zorbtwoxx zorbonexx/ and /zorbtwoxx
+// cspell:ignoreRegExp /zorbflagxx\w+/x
+zorbflagxxyz
+// cspell:ignoreRegExp /zorbdotall.zorbend/s
+zorbdotallxzorbend
+// cspell:ignoreRegExp zorb/slashxx
+zorb/slashxx
+// cspell:ignoreRegExp   /zorbspaces\w+/i
+zorbspacesxx ZORBSPACESXX
+// cspell:ignoreRegExp /zorbcolon\w+/
+zorbcolonxx
+// cspell:ignoreRegExp HexValues
+zorbhexpad #zorbhex
+// cspell:ignoreRegExp CStyleComment
+code // zorbcommentxx words
+// cspell:ignoreRegExp /(?i)zorbinline/
+zorbinline
+// cspell:ignoreRegExp ZorbMissing
+zorbmissing
+// cspell:ignoreRegExp /zorbunterminated
+zorbunterminated
+// cspell:ignoreRegExp /zorbbad[/
+zorbbadx
+// cspell:ignoreRegExp
+zorbafternothing

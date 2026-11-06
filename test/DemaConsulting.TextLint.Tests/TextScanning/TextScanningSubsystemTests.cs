@@ -323,6 +323,27 @@ public class TextScanningSubsystemTests
     }
 
     /// <summary>
+    ///     Test that an ignoreRegExp directive adds its pattern to the scan, and is not reported as unsupported.
+    /// </summary>
+    [Fact]
+    public void TextScanningSubsystem_Scan_IgnoreRegExpDirective_AddsItsPattern()
+    {
+        // Arrange: a line with an ignoreRegExp directive after some text
+        const string text = "visible " + Cspell + "ignoreRegExp /zorb\\w+/i";
+
+        // Act: scan the directives
+        var scan = DocumentDirectives.Scan(text);
+
+        // Assert: the pattern is found as written, nothing is reported, and the text of the directive is not checked
+        var pattern = Assert.Single(scan.PatternDirectives);
+        Assert.Multiple(
+            () => Assert.Equal("/zorb\\w+/i", pattern.Text),
+            () => Assert.Equal(text.IndexOf("/zorb", StringComparison.Ordinal), pattern.Range.Start),
+            () => Assert.Empty(scan.UnsupportedDirectives),
+            () => Assert.DoesNotContain("zorb", CheckedWords(text)));
+    }
+
+    /// <summary>
     ///     Test that an unsupported directive is reported at its name and its text is still checked.
     /// </summary>
     [Fact]
@@ -421,14 +442,14 @@ public class TextScanningSubsystemTests
     {
         // Arrange: an expression with an unsupported flag, a name that nothing defines, and an invalid expression
         // Act: resolve each
-        var flag = Assert.Throws<InvalidPatternException>(() => PatternCatalog.Resolve(["/zorb/s"], []));
+        var flag = Assert.Throws<InvalidPatternException>(() => PatternCatalog.Resolve(["/zorb/x"], []));
         var name = Assert.Throws<InvalidPatternException>(() => PatternCatalog.Resolve(["Urlz"], []));
         var invalid = Assert.Throws<InvalidPatternException>(() => PatternCatalog.Resolve(["/(/"], []));
 
         // Assert: each names its entry and gives a reason
         Assert.Multiple(
-            () => Assert.Equal("/zorb/s", flag.Pattern),
-            () => Assert.Contains("flag 's'", flag.Reason, StringComparison.Ordinal),
+            () => Assert.Equal("/zorb/x", flag.Pattern),
+            () => Assert.Contains("flag 'x'", flag.Reason, StringComparison.Ordinal),
             () => Assert.Equal("Urlz", name.Pattern),
             () => Assert.Contains("pattern name", name.Reason, StringComparison.Ordinal),
             () => Assert.Equal("/(/", invalid.Pattern),

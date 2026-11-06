@@ -529,7 +529,7 @@ public class ConfigurationSubsystemTests
         // definition that reuses a predefined name, and a bad random length
         using var temp = new TempDirectory();
         const string yaml =
-            "ignoreRegExpList:\n  - \"/zorb/s\"\n  - Urlz\npatterns:\n  - name: Marker\n    pattern: \"/(/\"\n  - name: Urls\n" +
+            "ignoreRegExpList:\n  - \"/zorb/x\"\n  - Urlz\npatterns:\n  - name: Marker\n    pattern: \"/(/\"\n  - name: Urls\n" +
             "    pattern: \"/zorb/\"\nminRandomLength: 0\n";
 
         // Act: load it

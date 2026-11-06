@@ -131,6 +131,11 @@ public class CspellParityTests
     private const string ContractionsCorpus = "contractions";
 
     /// <summary>
+    ///     The corpus of the <c>ignoreRegExp</c> directive.
+    /// </summary>
+    private const string IgnoreRegExpCorpus = "ignore-regexp";
+
+    /// <summary>
     ///     The source name extension under which TextLint checks the Markdown corpus.
     /// </summary>
     private const string MarkdownExtension = ".md";
@@ -164,6 +169,11 @@ public class CspellParityTests
     ///     The suffix of a finding that is an unsupported directive.
     /// </summary>
     private const string DirectiveSuffix = " directive";
+
+    /// <summary>
+    ///     The suffix of a finding that is a directive whose pattern cannot be used.
+    /// </summary>
+    private const string InvalidDirectiveSuffix = " invalid";
 
     /// <summary>
     ///     Gets the folder that holds the copied corpus, recorded, and divergence files.
@@ -217,6 +227,7 @@ public class CspellParityTests
         {
             SpellingIssueKind.FlaggedWord => FlaggedSuffix,
             SpellingIssueKind.UnsupportedDirective => DirectiveSuffix,
+            SpellingIssueKind.InvalidDirective => InvalidDirectiveSuffix,
             _ => string.Empty,
         };
 
@@ -453,6 +464,23 @@ public class CspellParityTests
 
         // Assert: the findings equal cspell's, with no listed differences
         AssertMatchesRecorded(ContractionsCorpus, ours, ContractionsCorpus);
+    }
+
+    /// <summary>
+    ///     Test that the corpus of <c>ignoreRegExp</c> directives gives the same findings as cspell, with line feed and CRLF line endings.
+    /// </summary>
+    [Fact]
+    public async Task TextLint_CspellParity_IgnoreRegExpCorpus_MatchesRecordedCspellOutput()
+    {
+        // Arrange: directives that add patterns, written with every prefix, as literals with flags, as bare words, as names,
+        // inside a disabled block, and before the text they hide; cspell's output is recorded for both line endings
+        // Act: check the corpus with the settings stored beside it
+        var ours = await CheckCorpusAsync(IgnoreRegExpCorpus);
+        var crlf = await CheckCorpusAsync(IgnoreRegExpCorpus, useCrLf: true);
+
+        // Assert: the findings equal cspell's except for the listed differences, which are the patterns that cspell drops silently
+        AssertMatchesRecorded(IgnoreRegExpCorpus, ours, IgnoreRegExpCorpus);
+        AssertMatchesRecorded(IgnoreRegExpCorpus, crlf, IgnoreRegExpCorpus + CrLfRecordingSuffix);
     }
 
     /// <summary>

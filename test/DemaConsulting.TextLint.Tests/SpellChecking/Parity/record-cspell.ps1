@@ -16,7 +16,7 @@
 #   from a temporary configuration. The output is reduced to one "LINE:COLUMN WORD [flagged]" line per
 #   finding and written to expected/NAME.cspell under a header that records the cspell version. The corpora whose
 #   result depends on line endings (the directive corpora, and the corpora of patterns that use line anchors and
-#   the dot) are checked twice, once with the line endings they are stored with (line feed) and once with every line
+#   the dot, and the ignoreRegExp directive) are checked twice, once with the line endings they are stored with (line feed) and once with every line
 #   ending turned into a carriage return and a line feed; the second recording is written to expected/NAME.crlf.cspell.
 #   The corpus of Markdown patterns is checked with the language markdown forced, because its name has the neutral
 #   extension .input.
@@ -36,7 +36,7 @@ $lifted = 100000
 
 # The corpora that are also recorded with CRLF line endings: the ones whose result depends on lines (the directives,
 # and the patterns that use line anchors and the dot)
-$crlfCorpora = @('directives', 'unterminated', 'custom-patterns', 'markdown-links')
+$crlfCorpora = @('directives', 'unterminated', 'custom-patterns', 'markdown-links', 'ignore-regexp')
 
 # The corpora that cspell must read as a language, because their file name has the neutral extension .input. TextLint
 # reads the same corpus under a source name with the matching extension (see CspellParityTests).
