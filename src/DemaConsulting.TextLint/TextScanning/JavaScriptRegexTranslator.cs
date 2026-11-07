@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-// cspell:ignore Titlecase
+// cspell:ignore Titlecase dbff dfff
 
 using System.Collections.Concurrent;
 using System.Globalization;
@@ -95,6 +95,56 @@ internal static class JavaScriptRegexTranslator
     ///     The highest value of a UTF-16 code unit, which bounds every class of characters.
     /// </summary>
     private const int MaxCodeUnit = 0xFFFF;
+
+    /// <summary>
+    ///     The highest Unicode code point.
+    /// </summary>
+    private const int MaxCodePoint = 0x10FFFF;
+
+    /// <summary>
+    ///     The first code point outside the basic plane, which is the first one written as a surrogate pair.
+    /// </summary>
+    private const int SupplementaryBase = 0x10000;
+
+    /// <summary>
+    ///     The first high (lead) surrogate.
+    /// </summary>
+    private const int FirstSurrogate = 0xD800;
+
+    /// <summary>
+    ///     The last high (lead) surrogate.
+    /// </summary>
+    private const int LastHighSurrogate = 0xDBFF;
+
+    /// <summary>
+    ///     The first low (trail) surrogate.
+    /// </summary>
+    private const int FirstLowSurrogate = 0xDC00;
+
+    /// <summary>
+    ///     The last low (trail) surrogate, which is the last surrogate.
+    /// </summary>
+    private const int LastSurrogate = 0xDFFF;
+
+    /// <summary>
+    ///     The number of bits of a code point that the trail surrogate holds.
+    /// </summary>
+    private const int SurrogateShift = 10;
+
+    /// <summary>
+    ///     The mask of the bits of a code point that the trail surrogate holds.
+    /// </summary>
+    private const int TrailMask = 0x3FF;
+
+    /// <summary>
+    ///     The class of the high surrogates.
+    /// </summary>
+    private const string HighSurrogateClass = "[\\uD800-\\uDBFF]";
+
+    /// <summary>
+    ///     The class of the low surrogates.
+    /// </summary>
+    private const string LowSurrogateClass = "[\\uDC00-\\uDFFF]";
 
     /// <summary>
     ///     The code point of the backspace character, which is what <c>\b</c> means inside a class.
@@ -241,23 +291,43 @@ internal static class JavaScriptRegexTranslator
     private static readonly string NotSpaceBody = ClassBody(Complement(SpaceRanges));
 
     /// <summary>
-    ///     The closed sets of the Unicode properties, by category name and negation, computed on first use.
+    ///     The pattern text of what <c>.</c> matches with the Unicode flag: every character except the four line
+    ///     terminators, where a surrogate pair is one character and a lone surrogate is a character too.
     /// </summary>
-    /// <remarks>
-    ///     Writing a property out as a set needs one pass over all 65,536 code units and a closure under the
-    ///     letter case, so doing it for every escape of a pattern would make the cost of a pattern a multiple of
-    ///     its length. The size is fixed: the 37 category names, each with and without negation. Only the
-    ///     mode of the Unicode flag exists for a property.
-    /// </remarks>
-    private static readonly ConcurrentDictionary<(string Name, bool Negated), SetClass> PropertySets = new();
+    private static readonly string UnicodeDotClass =
+        CodePointSetText([(0, 9), (0xB, 0xC), (0xE, 0x2027), (0x202A, MaxCodePoint)]);
 
     /// <summary>
-    ///     The closed sets of the shorthand classes, by letter and mode, computed on first use.
+    ///     The pattern text of what <c>.</c> matches with the Unicode and dot-all flags: every character.
+    /// </summary>
+    private static readonly string UnicodeDotAllClass = CodePointSetText([(0, MaxCodePoint)]);
+
+    /// <summary>
+    ///     The sets of the Unicode properties, by category name, negation, and case flag, computed on first use.
     /// </summary>
     /// <remarks>
-    ///     The size is fixed: six shorthand letters in two modes.
+    ///     Writing a property out as a set needs one pass over all 1,114,112 code points and, with the case flag, a
+    ///     closure under the letter case, so doing it for every escape of a pattern would make the cost of a pattern
+    ///     a multiple of its length. The size is fixed: the 37 category names, each with and without negation and with
+    ///     and without the case flag. Only the mode of the Unicode flag exists for a property.
     /// </remarks>
-    private static readonly ConcurrentDictionary<(char Shorthand, bool Unicode), SetClass> ShorthandSets = new();
+    private static readonly ConcurrentDictionary<(string Name, bool Negated, bool IgnoreCase), SetClass> PropertySets = new();
+
+    /// <summary>
+    ///     The code points of each general category, by category name, computed on first use.
+    /// </summary>
+    /// <remarks>
+    ///     The size is fixed: the 37 category names.
+    /// </remarks>
+    private static readonly ConcurrentDictionary<string, List<(int Low, int High)>> CategoryRangeCache = new(StringComparer.Ordinal);
+
+    /// <summary>
+    ///     The sets of the shorthand classes, by letter, Unicode flag, and case flag, computed on first use.
+    /// </summary>
+    /// <remarks>
+    ///     The size is fixed: six shorthand letters in three modes.
+    /// </remarks>
+    private static readonly ConcurrentDictionary<(char Shorthand, bool Unicode, bool IgnoreCase), SetClass> ShorthandSets = new();
 
     /// <summary>
     ///     Translates the body of a JavaScript regular expression to a .NET pattern.
@@ -352,8 +422,9 @@ internal static class JavaScriptRegexTranslator
     ///     and thread-safe.
     /// </remarks>
     /// <param name="ranges">The inclusive ranges, in ascending order and not overlapping. Must not be null.</param>
-    /// <returns>The inclusive ranges between and around them, within the range of a UTF-16 code unit.</returns>
-    private static List<(int Low, int High)> Complement(IEnumerable<(int Low, int High)> ranges)
+    /// <param name="max">The highest value of the universe: 0xFFFF for code units, 0x10FFFF for code points.</param>
+    /// <returns>The inclusive ranges between and around them, within the universe.</returns>
+    private static List<(int Low, int High)> Complement(IEnumerable<(int Low, int High)> ranges, int max = MaxCodeUnit)
     {
         var result = new List<(int Low, int High)>();
         var next = 0;
@@ -367,9 +438,9 @@ internal static class JavaScriptRegexTranslator
             next = high + 1;
         }
 
-        if (next <= MaxCodeUnit)
+        if (next <= max)
         {
-            result.Add((next, MaxCodeUnit));
+            result.Add((next, max));
         }
 
         return result;
@@ -385,6 +456,189 @@ internal static class JavaScriptRegexTranslator
     /// <param name="codeUnit">The code unit, from 0 to 0xFFFF.</param>
     private static void AppendCodeUnit(StringBuilder builder, int codeUnit) =>
         builder.Append("\\u").Append(codeUnit.ToString("X4", CultureInfo.InvariantCulture));
+
+    /// <summary>
+    ///     Writes a set of characters as a pattern that reads one character the way JavaScript does with the Unicode
+    ///     flag: a surrogate pair is one character, and a surrogate that is not half of a pair is a character too.
+    /// </summary>
+    /// <remarks>
+    ///     .NET reads UTF-16 code units, so the set is split into four parts and joined by alternation: the code units
+    ///     outside the surrogate range as one class, the high surrogates that are not followed by a low one, the low
+    ///     surrogates that are not preceded by a high one (the look-around makes a half of a pair unable to match by
+    ///     itself, as in JavaScript, where a match never starts inside a pair), and the characters outside the basic
+    ///     plane as pairs. The pairs of a range are the rectangles of lead and trail surrogates that cover it, and the
+    ///     rectangles with the same trail class and adjacent leads are joined, so a large range is a few
+    ///     characters. When the set has only code units outside the surrogate range the result is a plain class, as
+    ///     without the flag. Anything else is wrapped in a group, so a quantifier covers the whole character. Stateless
+    ///     and thread-safe.
+    /// </remarks>
+    /// <param name="ranges">The inclusive ranges of code points, in ascending order and not overlapping. Must not be null.</param>
+    /// <returns>The pattern text, or a pattern that matches nothing when the set is empty.</returns>
+    private static string CodePointSetText(IReadOnlyCollection<(int Low, int High)> ranges)
+    {
+        var plain = new List<(int Low, int High)>();
+        var high = new List<(int Low, int High)>();
+        var low = new List<(int Low, int High)>();
+        var astral = new List<(int Low, int High)>();
+        foreach (var (first, last) in ranges)
+        {
+            AddClipped(plain, first, last, 0, FirstSurrogate - 1);
+            AddClipped(high, first, last, FirstSurrogate, LastHighSurrogate);
+            AddClipped(low, first, last, FirstLowSurrogate, LastSurrogate);
+            AddClipped(plain, first, last, LastSurrogate + 1, MaxCodeUnit);
+            AddClipped(astral, first, last, MaxCodeUnit + 1, MaxCodePoint);
+        }
+
+        var parts = new List<string>();
+        if (plain.Count > 0)
+        {
+            parts.Add("[" + ClassBody(JavaScriptCaseFolding.Merge(plain)) + "]");
+        }
+
+        if (high.Count > 0)
+        {
+            parts.Add("[" + ClassBody(high) + "](?!" + LowSurrogateClass + ")");
+        }
+
+        if (low.Count > 0)
+        {
+            parts.Add("(?<!" + HighSurrogateClass + ")[" + ClassBody(low) + "]");
+        }
+
+        parts.AddRange(PairAlternatives(astral));
+        return parts.Count switch
+        {
+            0 => "(?!)",
+            1 when plain.Count > 0 => parts[0],
+            _ => "(?:" + string.Join('|', parts) + ")",
+        };
+    }
+
+    /// <summary>
+    ///     Adds the part of a range that lies inside a window to a list.
+    /// </summary>
+    /// <remarks>
+    ///     Side effect: changes <paramref name="target"/>. Stateless.
+    /// </remarks>
+    /// <param name="target">The list to add to. Must not be null.</param>
+    /// <param name="first">The first value of the range.</param>
+    /// <param name="last">The last value of the range.</param>
+    /// <param name="windowFirst">The first value of the window.</param>
+    /// <param name="windowLast">The last value of the window.</param>
+    private static void AddClipped(List<(int Low, int High)> target, int first, int last, int windowFirst, int windowLast)
+    {
+        var from = Math.Max(first, windowFirst);
+        var to = Math.Min(last, windowLast);
+        if (from <= to)
+        {
+            target.Add((from, to));
+        }
+    }
+
+    /// <summary>
+    ///     Writes the characters outside the basic plane of a set as alternatives of a lead and a trail surrogate.
+    /// </summary>
+    /// <remarks>
+    ///     Stateless and thread-safe.
+    /// </remarks>
+    /// <param name="astral">The inclusive ranges of code points above 0xFFFF, in ascending order. Must not be null.</param>
+    /// <returns>The alternatives, empty when the set has no such character.</returns>
+    private static List<string> PairAlternatives(List<(int Low, int High)> astral)
+    {
+        // Cut every range into rectangles: the leads from a to b, each followed by a trail in one range
+        var trailsByLead = new SortedDictionary<int, List<(int Low, int High)>>();
+        foreach (var (first, last) in astral)
+        {
+            var firstLead = LeadSurrogate(first);
+            var lastLead = LeadSurrogate(last);
+            for (var lead = firstLead; lead <= lastLead; lead++)
+            {
+                var trailFrom = lead == firstLead ? TrailSurrogate(first) : FirstLowSurrogate;
+                var trailTo = lead == lastLead ? TrailSurrogate(last) : LastSurrogate;
+                if (!trailsByLead.TryGetValue(lead, out var trails))
+                {
+                    trails = [];
+                    trailsByLead[lead] = trails;
+                }
+
+                trails.Add((trailFrom, trailTo));
+            }
+        }
+
+        // Join adjacent leads that are followed by the same trails
+        var result = new List<string>();
+        var groupStart = -1;
+        var groupEnd = -1;
+        var groupTrails = string.Empty;
+        foreach (var (lead, trails) in trailsByLead)
+        {
+            var text = "[" + ClassBody(JavaScriptCaseFolding.Merge(trails)) + "]";
+            if (groupStart >= 0 && lead == groupEnd + 1 && text == groupTrails)
+            {
+                groupEnd = lead;
+                continue;
+            }
+
+            if (groupStart >= 0)
+            {
+                result.Add(PairText(groupStart, groupEnd, groupTrails));
+            }
+
+            groupStart = lead;
+            groupEnd = lead;
+            groupTrails = text;
+        }
+
+        if (groupStart >= 0)
+        {
+            result.Add(PairText(groupStart, groupEnd, groupTrails));
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    ///     Writes the pairs of a range of lead surrogates and a class of trail surrogates.
+    /// </summary>
+    /// <remarks>
+    ///     Stateless and thread-safe.
+    /// </remarks>
+    /// <param name="firstLead">The first lead surrogate.</param>
+    /// <param name="lastLead">The last lead surrogate.</param>
+    /// <param name="trailClass">The class of trail surrogates, with its brackets.</param>
+    /// <returns>The pattern text of the pairs.</returns>
+    private static string PairText(int firstLead, int lastLead, string trailClass)
+    {
+        var builder = new StringBuilder("[");
+        AppendCodeUnit(builder, firstLead);
+        if (lastLead != firstLead)
+        {
+            builder.Append('-');
+            AppendCodeUnit(builder, lastLead);
+        }
+
+        return builder.Append(']').Append(trailClass).ToString();
+    }
+
+    /// <summary>
+    ///     Gets the lead surrogate of a character outside the basic plane.
+    /// </summary>
+    /// <remarks>
+    ///     Stateless.
+    /// </remarks>
+    /// <param name="codePoint">A code point from 0x10000 to 0x10FFFF.</param>
+    /// <returns>The high surrogate of its pair.</returns>
+    private static int LeadSurrogate(int codePoint) => FirstSurrogate + ((codePoint - SupplementaryBase) >> SurrogateShift);
+
+    /// <summary>
+    ///     Gets the trail surrogate of a character outside the basic plane.
+    /// </summary>
+    /// <remarks>
+    ///     Stateless.
+    /// </remarks>
+    /// <param name="codePoint">A code point from 0x10000 to 0x10FFFF.</param>
+    /// <returns>The low surrogate of its pair.</returns>
+    private static int TrailSurrogate(int codePoint) => FirstLowSurrogate + ((codePoint - SupplementaryBase) & TrailMask);
 
     /// <summary>
     ///     A set of code units together with its pattern text, so that both are computed once.
@@ -432,12 +686,19 @@ internal static class JavaScriptRegexTranslator
         private readonly bool _ignoreCase;
 
         /// <summary>
-        ///     The ranges of the class being read, as sets of code units, when the case flag is set.
+        ///     Whether classes and shorthands are translated from sets of characters, which is when the case flag or the
+        ///     Unicode flag is set.
+        /// </summary>
+        private readonly bool _useSets;
+
+        /// <summary>
+        ///     The ranges of the class being read, as a set of code units, or of code points with the Unicode flag, when
+        ///     sets are used.
         /// </summary>
         private readonly List<(int Low, int High)> _classSet = [];
 
         /// <summary>
-        ///     The ranges of the set that the atom just read stands for, when the case flag is set; null for a single character.
+        ///     The ranges of the set that the atom just read stands for, when sets are used; null for a single character.
         /// </summary>
         /// <remarks>
         ///     May be a shared set, so it is only read.
@@ -502,6 +763,7 @@ internal static class JavaScriptRegexTranslator
             _unicode = unicode;
             _dotAll = dotAll;
             _ignoreCase = ignoreCase;
+            _useSets = ignoreCase || unicode;
         }
 
         /// <summary>
@@ -693,7 +955,7 @@ internal static class JavaScriptRegexTranslator
 
                 case '.':
                     _position++;
-                    _output.Append(_dotAll ? DotAllClass : DotClass);
+                    _output.Append(DotText());
                     break;
 
                 case '[':
@@ -1075,7 +1337,7 @@ internal static class JavaScriptRegexTranslator
 
                 case 'd' or 'D' or 'w' or 'W' or 's' or 'S':
                     _position++;
-                    if (_ignoreCase)
+                    if (_useSets)
                     {
                         _output.Append(ShorthandSet(character).Text);
                         return true;
@@ -1129,44 +1391,96 @@ internal static class JavaScriptRegexTranslator
         private static char AsciiLower(char letter) => char.IsAsciiLetterUpper(letter) ? (char)(letter + ('a' - 'A')) : letter;
 
         /// <summary>
-        ///     Gets the set of code units that a shorthand escape matches when the expression ignores case.
+        ///     Gets the set of characters that a shorthand escape matches when the expression has the Unicode flag or
+        ///     ignores case.
         /// </summary>
         /// <remarks>
-        ///     The set is closed under the letters that JavaScript treats as the same. For <c>\w</c> that adds the
-        ///     long s and the Kelvin sign with the Unicode flag. A negated shorthand is the complement of the
-        ///     closed positive set, as the specification defines it, so <c>\W</c> does not match <c>s</c> through
-        ///     the long s. The set is computed once per shorthand and mode, and shared. Thread-safe.
+        ///     With the case flag the set is closed under the letters that JavaScript treats as the same. For <c>\w</c>
+        ///     that adds the long s and the Kelvin sign with the Unicode flag. A negated shorthand is the complement of
+        ///     the closed positive set, as the specification defines it, so <c>\W</c> does not match <c>s</c> through
+        ///     the long s. With the Unicode flag the complement is taken over all code points, so <c>\W</c> matches a
+        ///     character outside the basic plane as one character. The set is computed once per shorthand and mode,
+        ///     and shared. Thread-safe.
         /// </remarks>
         /// <param name="shorthand">One of <c>d</c>, <c>D</c>, <c>w</c>, <c>W</c>, <c>s</c>, <c>S</c>.</param>
         /// <returns>The set, with its pattern text; its ranges are in ascending order and not overlapping.</returns>
         private SetClass ShorthandSet(char shorthand) => ShorthandSets.GetOrAdd(
-            (shorthand, _unicode),
+            (shorthand, _unicode, _ignoreCase),
             static key =>
             {
-                var positive = JavaScriptCaseFolding.Close(
+                var maximum = key.Unicode ? MaxCodePoint : MaxCodeUnit;
+                var positive = CloseSet(
                     AsciiLower(key.Shorthand) switch
                     {
                         'd' => DigitRanges,
                         'w' => WordRanges,
                         _ => SpaceRanges,
                     },
-                    key.Unicode);
+                    key.Unicode,
+                    key.IgnoreCase);
                 var ranges = char.IsAsciiLetterLower(key.Shorthand)
                     ? positive
-                    : JavaScriptCaseFolding.Close(Complement(positive), key.Unicode);
-                return new SetClass(ranges, SetText(ranges));
+                    : CloseSet(Complement(positive, maximum), key.Unicode, key.IgnoreCase);
+                return new SetClass(ranges, SetText(ranges, key.Unicode));
             });
 
         /// <summary>
-        ///     Writes a set of code units as a class, or as a pattern that matches nothing when the set is empty.
+        ///     Closes a set under letter case when the expression ignores case, and puts its ranges in order.
         /// </summary>
         /// <remarks>
         ///     Stateless and thread-safe.
         /// </remarks>
+        /// <param name="ranges">The inclusive ranges of the set. Must not be null.</param>
+        /// <param name="unicode"><see langword="true"/> when the set holds code points, with the Unicode flag.</param>
+        /// <param name="ignoreCase"><see langword="true"/> when the expression ignores case.</param>
+        /// <returns>The ranges in ascending order, not overlapping and not touching.</returns>
+        private static List<(int Low, int High)> CloseSet(IEnumerable<(int Low, int High)> ranges, bool unicode, bool ignoreCase)
+        {
+            if (!ignoreCase)
+            {
+                return JavaScriptCaseFolding.Merge([.. ranges]);
+            }
+
+            return unicode ? JavaScriptCaseFolding.CloseCodePoints(ranges) : JavaScriptCaseFolding.Close(ranges, unicode: false);
+        }
+
+        /// <summary>
+        ///     Writes a set as the pattern that matches one character of it.
+        /// </summary>
+        /// <remarks>
+        ///     Without the Unicode flag the set holds code units and is a class, or a pattern that matches nothing when
+        ///     the set is empty; with it the set holds code points and is read the way JavaScript reads characters, see
+        ///     <see cref="CodePointSetText"/>. Stateless and thread-safe.
+        /// </remarks>
         /// <param name="ranges">The ranges of the set, in ascending order and not overlapping. Must not be null.</param>
+        /// <param name="unicode"><see langword="true"/> when the set holds code points, with the Unicode flag.</param>
         /// <returns>The pattern text of the set.</returns>
-        private static string SetText(IReadOnlyCollection<(int Low, int High)> ranges) =>
-            ranges.Count == 0 ? "(?!)" : "[" + ClassBody(ranges) + "]";
+        private static string SetText(IReadOnlyCollection<(int Low, int High)> ranges, bool unicode)
+        {
+            if (unicode)
+            {
+                return CodePointSetText(ranges);
+            }
+
+            return ranges.Count == 0 ? "(?!)" : "[" + ClassBody(ranges) + "]";
+        }
+
+        /// <summary>
+        ///     Gets the pattern text of the dot, which depends on the Unicode and dot-all flags.
+        /// </summary>
+        /// <remarks>
+        ///     Stateless apart from the flags.
+        /// </remarks>
+        /// <returns>The pattern text of one character that the dot matches.</returns>
+        private string DotText()
+        {
+            if (_unicode)
+            {
+                return _dotAll ? UnicodeDotAllClass : UnicodeDotClass;
+            }
+
+            return _dotAll ? DotAllClass : DotClass;
+        }
 
         /// <summary>
         ///     Checks that the translation, and the set of the class being read, are within the allowed length.
@@ -1185,8 +1499,8 @@ internal static class JavaScriptRegexTranslator
 
             return Fail(
                 $"the translation of the pattern would be longer than {MaxTranslatedLength} characters; with the flag " +
-                "'i', every Unicode property, negated class, and shorthand is written out as the set of characters it " +
-                "matches, so use fewer of them or remove the flag.");
+                "'i' or 'u', every Unicode property, negated class, and shorthand is written out as the set of " +
+                "characters it matches, so use fewer of them or remove the flag.");
         }
 
         /// <summary>
@@ -1294,14 +1608,9 @@ internal static class JavaScriptRegexTranslator
                 return false;
             }
 
-            if (_ignoreCase)
-            {
-                // The class is written out, so that its letters follow the JavaScript rules for ignoring case
-                _output.Append(PropertySet(name, negated).Text);
-                return true;
-            }
-
-            _output.Append(negated ? "\\P{" : "\\p{").Append(name).Append('}');
+            // The property is written out as the set of characters it matches, so that it reads characters outside
+            // the basic plane as one character, and so that its letters follow the JavaScript rules for ignoring case
+            _output.Append(PropertySet(name, negated, _ignoreCase).Text);
             return true;
         }
 
@@ -1341,59 +1650,74 @@ internal static class JavaScriptRegexTranslator
         }
 
         /// <summary>
-        ///     Gets the set of code units that a property matches when the expression ignores case.
+        ///     Gets the set of characters that a property matches.
         /// </summary>
         /// <remarks>
-        ///     Computed once per category and negation, and shared; see <see cref="PropertySets"/>. Thread-safe.
+        ///     The set holds code points: the characters outside the basic plane are in it, the negated property is the
+        ///     complement over all code points (a lone surrogate is a character of the category <c>Cs</c>), and with the
+        ///     case flag the set is closed under letter case. Computed once per category, negation, and case flag, and
+        ///     shared; see <see cref="PropertySets"/>. Thread-safe.
         /// </remarks>
         /// <param name="name">The name of a general category, which must be one of the supported names.</param>
         /// <param name="negated">Whether the property is the negated form, <c>\P</c>.</param>
-        /// <returns>The closed set, with its pattern text.</returns>
-        private static SetClass PropertySet(string name, bool negated) => PropertySets.GetOrAdd(
-            (name, negated),
+        /// <param name="ignoreCase">Whether the expression ignores case.</param>
+        /// <returns>The set, with its pattern text.</returns>
+        private static SetClass PropertySet(string name, bool negated, bool ignoreCase) => PropertySets.GetOrAdd(
+            (name, negated, ignoreCase),
             static key =>
             {
-                var ranges = JavaScriptCaseFolding.Close(
-                    key.Negated ? Complement(CategoryRanges(key.Name)) : CategoryRanges(key.Name),
-                    unicode: true);
-                return new SetClass(ranges, SetText(ranges));
+                var category = CategoryRanges(key.Name);
+                var ranges = CloseSet(key.Negated ? Complement(category, MaxCodePoint) : category, unicode: true, key.IgnoreCase);
+                return new SetClass(ranges, SetText(ranges, unicode: true));
             });
 
         /// <summary>
-        ///     Gets the ranges of the code units that belong to a general category, or to a group of categories.
+        ///     Gets the ranges of the code points that belong to a general category, or to a group of categories.
         /// </summary>
         /// <remarks>
         ///     Taken from the character data of .NET, which is also what <c>\p{...}</c> means in .NET, so the set
-        ///     is the one the pattern would match without the case flag. Only the basic plane is covered, as in
-        ///     .NET, where a code unit of a surrogate pair is a character of the category <c>Cs</c>. Stateless.
+        ///     is the one the pattern would match without the case flag; the data is that of the .NET runtime, not of
+        ///     the JavaScript engine. All code points are covered, the surrogates being in the category <c>Cs</c>.
+        ///     Computed once per name. Thread-safe.
         /// </remarks>
         /// <param name="name">The name of the category, such as <c>L</c> or <c>Lu</c>.</param>
-        /// <returns>The ranges, in ascending order and not overlapping.</returns>
-        private static List<(int Low, int High)> CategoryRanges(string name)
+        /// <returns>The ranges, in ascending order and not overlapping. Must not be changed.</returns>
+        private static List<(int Low, int High)> CategoryRanges(string name) => CategoryRangeCache.GetOrAdd(
+            name,
+            static key =>
+            {
+                var ranges = new List<(int Low, int High)>();
+                var start = -1;
+                for (var codePoint = 0; codePoint <= MaxCodePoint + 1; codePoint++)
+                {
+                    var inside = codePoint <= MaxCodePoint && IsInCategory(CharUnicodeInfo.GetUnicodeCategory(codePoint), key);
+                    if (inside && start < 0)
+                    {
+                        start = codePoint;
+                    }
+                    else if (!inside && start >= 0)
+                    {
+                        ranges.Add((start, codePoint - 1));
+                        start = -1;
+                    }
+                }
+
+                return ranges;
+            });
+
+        /// <summary>
+        ///     Determines whether a category is the one a name stands for, or one of the group of categories it names.
+        /// </summary>
+        /// <remarks>
+        ///     Stateless and thread-safe.
+        /// </remarks>
+        /// <param name="category">The category of a character.</param>
+        /// <param name="name">A two-letter name such as <c>Lu</c>, or a one-letter name such as <c>L</c>.</param>
+        /// <returns><see langword="true"/> when the category is the named one or is in the named group.</returns>
+        private static bool IsInCategory(UnicodeCategory category, string name)
         {
-            var ranges = new List<(int Low, int High)>();
-            var start = -1;
-            for (var unit = 0; unit <= MaxCodeUnit; unit++)
-            {
-                var code = CategoryCode(char.GetUnicodeCategory((char)unit));
-                var inside = code == name || (name.Length == 1 && code[0] == name[0]);
-                if (inside && start < 0)
-                {
-                    start = unit;
-                }
-                else if (!inside && start >= 0)
-                {
-                    ranges.Add((start, unit - 1));
-                    start = -1;
-                }
-            }
-
-            if (start >= 0)
-            {
-                ranges.Add((start, MaxCodeUnit));
-            }
-
-            return ranges;
+            var code = CategoryCode(category);
+            return code == name || (name.Length == 1 && code[0] == name[0]);
         }
 
         /// <summary>
@@ -1490,20 +1814,9 @@ internal static class JavaScriptRegexTranslator
                     break;
 
                 case 'u':
-                    if (!ReadUnicodeEscape(out value, out var isAstral))
+                    if (!ReadUnicodeEscape(out value))
                     {
                         return false;
-                    }
-
-                    if (isAstral)
-                    {
-                        // A code point outside the basic plane is two code units, written as a group so a quantifier covers both
-                        if (inClass)
-                        {
-                            return Fail("a character outside the Basic Multilingual Plane is not supported inside [...].");
-                        }
-
-                        return true;
                     }
 
                     break;
@@ -1533,27 +1846,46 @@ internal static class JavaScriptRegexTranslator
 
             if (!inClass)
             {
-                AppendLiteral((char)value);
+                AppendCodePoint(value);
             }
 
             return true;
         }
 
         /// <summary>
+        ///     Writes one character that an escape stands for, which may be outside the basic plane.
+        /// </summary>
+        /// <remarks>
+        ///     A code point outside the basic plane is two code units, written as a group so a quantifier covers both.
+        ///     Side effect: appends to the output.
+        /// </remarks>
+        /// <param name="codePoint">The code point, from 0 to 0x10FFFF.</param>
+        private void AppendCodePoint(int codePoint)
+        {
+            if (codePoint > MaxCodeUnit)
+            {
+                AppendAstral(char.ConvertFromUtf32(codePoint), wrap: true);
+            }
+            else
+            {
+                AppendLiteral((char)codePoint);
+            }
+        }
+
+        /// <summary>
         ///     Reads a <c>\u</c> escape: four hexadecimal digits, or braces with the Unicode flag.
         /// </summary>
         /// <remarks>
-        ///     A braced code point outside the basic plane is written to the output as its two code units in a
-        ///     group, and reported through <paramref name="isAstral"/> so the caller does not write it again.
-        ///     Side effects: advances the position, and for an astral code point appends to the output.
+        ///     With the Unicode flag the braced form takes any number of digits up to the value 10FFFF, and a
+        ///     four-digit escape of a high surrogate that is directly followed by a four-digit escape of a low surrogate
+        ///     is one character outside the basic plane, as in JavaScript (the braced forms are never joined). Side
+        ///     effect: advances the position.
         /// </remarks>
-        /// <param name="value">Receives the code unit when the escape is one code unit.</param>
-        /// <param name="isAstral">Receives whether the escape was an astral code point, already written.</param>
+        /// <param name="value">Receives the code point; it is above 0xFFFF only with the Unicode flag.</param>
         /// <returns><see langword="true"/> when the escape was read.</returns>
-        private bool ReadUnicodeEscape(out int value, out bool isAstral)
+        private bool ReadUnicodeEscape(out int value)
         {
             value = 0;
-            isAstral = false;
 
             // The braced form is only an escape with the Unicode flag
             if (_unicode && _position + 1 < _source.Length && _source[_position + 1] == '{')
@@ -1562,20 +1894,13 @@ internal static class JavaScriptRegexTranslator
                 var digits = close < 0 ? string.Empty : _source[(_position + 2)..close];
                 if (digits.Length == 0 ||
                     !int.TryParse(digits, NumberStyles.AllowHexSpecifier, CultureInfo.InvariantCulture, out var codePoint) ||
-                    codePoint > 0x10FFFF)
+                    codePoint > MaxCodePoint)
                 {
                     return Fail("the escape '\\u{...}' must hold a code point from 0 to 10FFFF, in hexadecimal digits.");
                 }
 
                 _position = close + 1;
-                if (codePoint <= MaxCodeUnit)
-                {
-                    value = codePoint;
-                    return true;
-                }
-
-                isAstral = true;
-                AppendAstral(char.ConvertFromUtf32(codePoint), wrap: true);
+                value = codePoint;
                 return true;
             }
 
@@ -1585,6 +1910,35 @@ internal static class JavaScriptRegexTranslator
             }
 
             _position += 1 + UnicodeEscapeDigits;
+            if (_unicode && value is >= FirstSurrogate and <= LastHighSurrogate && TryReadTrailEscape(out var trail))
+            {
+                value = SupplementaryBase + ((value - FirstSurrogate) << SurrogateShift) + (trail - FirstLowSurrogate);
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        ///     Reads a four-digit <c>\u</c> escape of a low surrogate at the position, if there is one.
+        /// </summary>
+        /// <remarks>
+        ///     Side effect: advances the position past the escape when it returns true.
+        /// </remarks>
+        /// <param name="trail">Receives the low surrogate.</param>
+        /// <returns><see langword="true"/> when the escape was there and was read.</returns>
+        private bool TryReadTrailEscape(out int trail)
+        {
+            trail = 0;
+            if (_position + 2 + UnicodeEscapeDigits > _source.Length ||
+                _source[_position] != '\\' ||
+                _source[_position + 1] != 'u' ||
+                !ReadHexDigits(_position + 2, UnicodeEscapeDigits, out trail) ||
+                trail is < FirstLowSurrogate or > LastSurrogate)
+            {
+                return false;
+            }
+
+            _position += 2 + UnicodeEscapeDigits;
             return true;
         }
 
@@ -1653,12 +2007,15 @@ internal static class JavaScriptRegexTranslator
                 }
             }
 
-            // When the case flag is set the class is the set of characters that are the same letter as a member
-            if (_ignoreCase)
+            // When the set is used, the class is the set of characters that are members (or, with the case flag, the same
+            // letter as a member); with the Unicode flag it is read by characters, not by code units
+            if (_useSets)
             {
-                var closed = JavaScriptCaseFolding.Close(_classSet, _unicode);
+                var closed = CloseSet(_classSet, _unicode, _ignoreCase);
                 _classSet.Clear();
-                _output.Append(SetText(negated ? Complement(closed) : closed));
+                var maximum = _unicode ? MaxCodePoint : MaxCodeUnit;
+                var members = negated ? Complement(closed, maximum) : closed;
+                _output.Append(SetText(members, _unicode));
                 return true;
             }
 
@@ -1732,7 +2089,7 @@ internal static class JavaScriptRegexTranslator
             }
 
             body.Append(firstText).Append('-').Append(secondText);
-            if (_ignoreCase)
+            if (_useSets)
             {
                 _classSet.Add((first, second));
             }
@@ -1741,16 +2098,16 @@ internal static class JavaScriptRegexTranslator
         }
 
         /// <summary>
-        ///     Adds the members of a class atom to the set of the class, when the case flag is set.
+        ///     Adds the members of a class atom to the set of the class, when sets are used.
         /// </summary>
         /// <remarks>
         ///     Side effect: changes the set of the class.
         /// </remarks>
-        /// <param name="value">The code unit of a single character, or -1 for a set.</param>
+        /// <param name="value">The code point of a single character, or -1 for a set.</param>
         /// <param name="set">The ranges of the set when the atom is a set; otherwise null.</param>
         private void AddToClassSet(int value, IReadOnlyList<(int Low, int High)>? set)
         {
-            if (!_ignoreCase)
+            if (!_useSets)
             {
                 return;
             }
@@ -1784,10 +2141,13 @@ internal static class JavaScriptRegexTranslator
             var character = _source[_position];
             if (character != '\\')
             {
-                // A character outside the basic plane cannot be a member of a class
-                if (char.IsSurrogate(character))
+                // A character outside the basic plane is two code units, which are two members without the Unicode flag; with
+                // it a pair is one character, and a surrogate that is not half of a pair is a character too
+                if (_unicode && char.IsHighSurrogate(character) && _position + 1 < _source.Length && char.IsLowSurrogate(_source[_position + 1]))
                 {
-                    return Fail("a character outside the Basic Multilingual Plane is not supported inside [...].");
+                    value = char.ConvertToUtf32(character, _source[_position + 1]);
+                    _position += 2;
+                    return true;
                 }
 
                 _position++;
@@ -1822,7 +2182,7 @@ internal static class JavaScriptRegexTranslator
                         's' => SpaceBody,
                         _ => NotSpaceBody,
                     };
-                    _atomSet = _ignoreCase ? ShorthandSet(escaped).Ranges : null;
+                    _atomSet = _useSets ? ShorthandSet(escaped).Ranges : null;
                     return true;
 
                 case 'p' or 'P':
@@ -1844,13 +2204,13 @@ internal static class JavaScriptRegexTranslator
         }
 
         /// <summary>
-        ///     Reads a Unicode property escape inside a class and returns its text for the class body.
+        ///     Reads a Unicode property escape inside a class.
         /// </summary>
         /// <remarks>
-        ///     Without the case flag the text is the escape itself; with it the members are returned as the set of the
-        ///     atom, and the text is empty because the class body is not used.
+        ///     A property needs the Unicode flag, with which a class is built from sets, so the members are returned as
+        ///     the set of the atom, and the text of the class body is empty because the body is not used.
         /// </remarks>
-        /// <param name="text">Receives the escape text, for example <c>\p{L}</c>.</param>
+        /// <param name="text">Receives the text for the class body, which is empty.</param>
         /// <returns><see langword="true"/> when the property was read.</returns>
         private bool ReadClassProperty(out string text)
         {
@@ -1860,14 +2220,7 @@ internal static class JavaScriptRegexTranslator
                 return false;
             }
 
-            // With the case flag the members are taken from the set, and the text of the class body is not used
-            if (_ignoreCase)
-            {
-                _atomSet = PropertySet(name, negated).Ranges;
-                return true;
-            }
-
-            text = (negated ? "\\P{" : "\\p{") + name + "}";
+            _atomSet = PropertySet(name, negated, _ignoreCase).Ranges;
             return true;
         }
 
@@ -1956,6 +2309,18 @@ internal static class JavaScriptRegexTranslator
         /// <param name="character">The code unit to write.</param>
         private void AppendLiteral(char character)
         {
+            // With the Unicode flag a surrogate here is one that is not half of a pair, which is a character of its own
+            // that matches only where it is alone, and the group lets a quantifier cover the look-around
+            if (_unicode && char.IsSurrogate(character))
+            {
+                _output.Append("(?:");
+                _output.Append(char.IsHighSurrogate(character) ? string.Empty : "(?<!" + HighSurrogateClass + ")");
+                AppendCodeUnit(_output, character);
+                _output.Append(char.IsHighSurrogate(character) ? "(?!" + LowSurrogateClass + ")" : string.Empty);
+                _output.Append(')');
+                return;
+            }
+
             if (_ignoreCase)
             {
                 var forms = JavaScriptCaseFolding.Equivalents(character, _unicode);

@@ -157,6 +157,56 @@ internal static class JavaScriptCaseFolding
     }
 
     /// <summary>
+    ///     Adds to a set of code points every code point that JavaScript treats as the same letter as one in the set,
+    ///     in the mode of the <c>u</c> flag.
+    /// </summary>
+    /// <remarks>
+    ///     The characters of the basic plane are closed as by <see cref="Close"/>; the characters outside it are closed
+    ///     by the groups of the table (a group never mixes the two). The work is proportional to the number of ranges
+    ///     and of the letters that have a case. Stateless and thread-safe.
+    /// </remarks>
+    /// <param name="ranges">The inclusive ranges of code points, from 0 to 0x10FFFF. Must not be null.</param>
+    /// <returns>The inclusive ranges of the closed set, in ascending order and not overlapping or touching.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="ranges"/> is null.</exception>
+    internal static List<(int Low, int High)> CloseCodePoints(IEnumerable<(int Low, int High)> ranges)
+    {
+        ArgumentNullException.ThrowIfNull(ranges);
+
+        // Split the set at the end of the basic plane, close that part, and close the rest by the groups
+        var basic = new List<(int Low, int High)>();
+        var astral = new List<(int Low, int High)>();
+        foreach (var (low, high) in ranges)
+        {
+            if (low < CodeUnitCount)
+            {
+                basic.Add((low, Math.Min(high, CodeUnitCount - 1)));
+            }
+
+            if (high >= CodeUnitCount)
+            {
+                astral.Add((Math.Max(low, CodeUnitCount), high));
+            }
+        }
+
+        var result = Close(basic, unicode: true);
+        var members = Merge(astral);
+        var others = new List<(int Low, int High)>();
+        foreach (var (member, group) in UnicodeTables.Value.Astral)
+        {
+            if (!Contains(members, member))
+            {
+                continue;
+            }
+
+            others.AddRange(group.Where(other => !Contains(members, other)).Select(other => (other, other)));
+        }
+
+        result.AddRange(members);
+        result.AddRange(others);
+        return Merge(result);
+    }
+
+    /// <summary>
     ///     Sorts ranges and joins those that overlap or touch.
     /// </summary>
     /// <remarks>
@@ -164,7 +214,7 @@ internal static class JavaScriptCaseFolding
     /// </remarks>
     /// <param name="ranges">The inclusive ranges, in any order. Must not be null.</param>
     /// <returns>The ranges in ascending order, not overlapping and not touching.</returns>
-    private static List<(int Low, int High)> Merge(List<(int Low, int High)> ranges)
+    internal static List<(int Low, int High)> Merge(List<(int Low, int High)> ranges)
     {
         ranges.Sort(static (first, second) => first.Low.CompareTo(second.Low));
         var result = new List<(int Low, int High)>();
