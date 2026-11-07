@@ -32,7 +32,7 @@ and returns `context.ExitCode`; the handler is removed again in a `finally`. Cat
 `"Unexpected error: {message}"` to stderr and re-throws so the runtime can record it.
 
 **Run**: Runs the program logic without a way to cancel it; it is `RunCancelable` with a token that is never
-cancelled, and is the form used by self-validation.
+canceled, and is the form used by self-validation.
 
 - *Parameters*: `Context context` — the parsed context.
 - *Returns*: `void`.

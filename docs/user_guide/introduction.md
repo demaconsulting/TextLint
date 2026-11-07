@@ -811,7 +811,7 @@ Console.WriteLine($"{check.FilesChecked} checked, {check.FilesSkipped} skipped, 
 read throws `UnauthorizedAccessException` or `IOException` instead, so a permission problem is not mistaken for a
 missing directory),
 `InvalidGlobPatternException` for an invalid pattern, `ArgumentException` for settings it cannot use (built in code;
-a loaded file was validated already), and `OperationCanceledException` when the token is cancelled; nothing is
+a loaded file was validated already), and `OperationCanceledException` when the token is canceled; nothing is
 returned in that case. Everything about a single file is data in the result: `FileDiagnostic.Kind` is `Unreadable`,
 `Binary`, `TooLarge`, or `TimedOut`, and `IsError` is true for the first and the last, because those files were meant
 to be checked and were not. Base an exit code on `HasProblems`. Pass

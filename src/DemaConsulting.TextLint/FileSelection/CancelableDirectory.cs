@@ -23,7 +23,7 @@ using Microsoft.Extensions.FileSystemGlobbing.Abstractions;
 namespace DemaConsulting.TextLint.FileSelection;
 
 /// <summary>
-///     A directory view that stops the walk when a cancellation token is cancelled.
+///     A directory view that stops the walk when a cancellation token is canceled.
 /// </summary>
 /// <remarks>
 ///     The matcher walks the directory tree synchronously and has no cancellation support of its own, so
@@ -52,7 +52,7 @@ internal sealed class CancelableDirectory : DirectoryInfoBase
     ///     Side effects: none; nothing is read until the view is enumerated.
     /// </remarks>
     /// <param name="inner">The directory to wrap. Must not be null.</param>
-    /// <param name="cancellationToken">The token that stops the walk when it is cancelled.</param>
+    /// <param name="cancellationToken">The token that stops the walk when it is canceled.</param>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="inner"/> is null.</exception>
     internal CancelableDirectory(DirectoryInfoBase inner, CancellationToken cancellationToken)
     {
@@ -78,10 +78,10 @@ internal sealed class CancelableDirectory : DirectoryInfoBase
     ///     Checks the token, enumerates the wrapped directory, checks the token again before each entry is
     ///     returned, and wraps every subdirectory so the check continues beneath it.
     /// </remarks>
-    /// <exception cref="OperationCanceledException">Thrown when the token is cancelled before or during the listing.</exception>
+    /// <exception cref="OperationCanceledException">Thrown when the token is canceled before or during the listing.</exception>
     public override IEnumerable<FileSystemInfoBase> EnumerateFileSystemInfos()
     {
-        // Stop before reading a directory at all when the walk was cancelled
+        // Stop before reading a directory at all when the walk was canceled
         _cancellationToken.ThrowIfCancellationRequested();
         foreach (var entry in _inner.EnumerateFileSystemInfos())
         {

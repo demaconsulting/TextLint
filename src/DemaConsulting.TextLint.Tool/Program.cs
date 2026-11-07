@@ -121,7 +121,7 @@ internal static class Program
     /// </summary>
     /// <param name="context">The context containing command line arguments and program state.</param>
     /// <remarks>
-    ///     Equivalent to <see cref="RunCancelable"/> with a token that is never cancelled; it is the form
+    ///     Equivalent to <see cref="RunCancelable"/> with a token that is never canceled; it is the form
     ///     used by self-validation, which runs short fixed checks.
     /// </remarks>
     public static void Run(Context context)

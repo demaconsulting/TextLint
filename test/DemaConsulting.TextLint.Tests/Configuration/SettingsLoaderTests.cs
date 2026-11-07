@@ -154,12 +154,12 @@ public class SettingsLoaderTests
     }
 
     /// <summary>
-    ///     Test that an already cancelled token cancels the load.
+    ///     Test that an already canceled token cancels the load.
     /// </summary>
     [Fact]
-    public async Task SettingsLoader_LoadAsync_CancelledToken_ThrowsOperationCanceled()
+    public async Task SettingsLoader_LoadAsync_CanceledToken_ThrowsOperationCanceled()
     {
-        // Arrange: a valid file and a token that is already cancelled
+        // Arrange: a valid file and a token that is already canceled
         using var temp = new TempDirectory();
         var path = temp.CreateFile(".textlint.yaml", "version: 0.2\n");
         using var source = new CancellationTokenSource();

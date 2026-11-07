@@ -196,7 +196,7 @@ an error that names the pattern and exit code 1. This scenario is tested by
 
 Interruption by the user (Ctrl+C) cannot be delivered to a child process on every platform, so the cancellation
 that `TextLintTool-System-FailureReporting` also requires is verified in-process: see
-`Program_RunCancelable_CancelledToken_ReportsCancellationAndFails` in the _Program_ verification and the
+`Program_RunCancelable_CanceledToken_ReportsCancellationAndFails` in the _Program_ verification and the
 cancellation scenarios of the _Linting_ verification.
 
 **TextLintTool_Package_Packed_ContainsThirdPartyNotices**: FileAssert inspects the produced tool package and

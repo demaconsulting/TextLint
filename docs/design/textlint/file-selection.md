@@ -34,7 +34,7 @@ does not read settings files; that belongs to the `Configuration` subsystem.
   `DirectoryNotFoundException` when the root does not exist (an unreadable root throws its own
   `UnauthorizedAccessException` or `IOException`), and `InvalidGlobPatternException` when
   a pattern is unsupported or malformed. Throws `OperationCanceledException`, with no partial selection, when the
-  token is cancelled before the call or while the directory tree is read; the walk stops at the next directory or
+  token is canceled before the call or while the directory tree is read; the walk stops at the next directory or
   directory entry. Matching is case-sensitive on every platform. The pattern
   lists are only read during the call.
 

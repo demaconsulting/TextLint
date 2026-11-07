@@ -100,14 +100,14 @@ sections:
           - id: TextLint-FileSelection-Cancellation
             title: >-
               The FileSelection subsystem shall stop a selection and signal cancellation, without returning a
-              partial selection, when the caller's token is cancelled before or while the directory tree is read.
+              partial selection, when the caller's token is canceled before or while the directory tree is read.
             justification: |
               Walking a very large tree can take long, and a caller that abandons the work must not have to
               wait for the walk to end or receive a selection that looks complete.
             children:
               - TextLint-FileSelection-FileSelector-Cancellation
             tests:
-              - FileSelectionSubsystem_Select_CancelledDuringWalk_StopsAndThrows
+              - FileSelectionSubsystem_Select_CanceledDuringWalk_StopsAndThrows
 
           - id: TextLint-FileSelection-StableOrder
             title: >-

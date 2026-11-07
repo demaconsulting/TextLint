@@ -151,7 +151,7 @@ requires the DictionaryBuilder project, which the library project builds first; 
 - Files are read as UTF-8 or UTF-16 and report the same positions; binary and too-large files are skipped and
   reported; an unreadable file is an error that does not stop the run.
 - The results are identical and identically ordered at every degree of parallelism, an invalid degree is rejected,
-  and a cancelled run throws.
+  and a canceled run throws.
 - On every corpus the findings equal those that cspell recorded, except for exactly the documented differences,
   including the five of the ignoreRegExp directive corpus, which are checked for line feed and for carriage return and
   line feed endings.
@@ -651,9 +651,9 @@ by `TextLint_SpellCheck_DifferentConcurrency_ReturnsIdenticalOrderedResults`.
 **TextLint_SpellCheck_InvalidConcurrency_Throws**: A degree of parallelism of zero is rejected when the options are
 created. This scenario is tested by `TextLint_SpellCheck_InvalidConcurrency_Throws`.
 
-**TextLint_SpellCheck_CancelledToken_ThrowsOperationCanceled**: A run is started with a token that is already
-cancelled; it throws an operation-cancelled exception. This scenario is tested by
-`TextLint_SpellCheck_CancelledToken_ThrowsOperationCanceled`.
+**TextLint_SpellCheck_CanceledToken_ThrowsOperationCanceled**: A run is started with a token that is already
+canceled; it throws an operation-canceled exception. This scenario is tested by
+`TextLint_SpellCheck_CanceledToken_ThrowsOperationCanceled`.
 
 **TextLint_CspellParity_TokenizationCorpus_MatchesRecordedCspellOutput**: The corpus of word splitting, ignored text,
 escapes, scripts, and positions is checked with the settings stored beside it; the findings equal the output that

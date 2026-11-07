@@ -924,29 +924,29 @@ public class SpellCheckerTests
     }
 
     /// <summary>
-    ///     Test that a token that is already cancelled stops the run.
+    ///     Test that a token that is already canceled stops the run.
     /// </summary>
     [Fact]
-    public async Task SpellChecker_CheckAsync_CancelledToken_ThrowsOperationCanceledException()
+    public async Task SpellChecker_CheckAsync_CanceledToken_ThrowsOperationCanceledException()
     {
-        // Arrange: a directory with a file and a token that is already cancelled
+        // Arrange: a directory with a file and a token that is already canceled
         using var temp = new TempDirectory();
         temp.CreateFile("a.md", Unknown);
         using var source = new CancellationTokenSource();
         await source.CancelAsync();
 
-        // Act / Assert: the run is cancelled
+        // Act / Assert: the run is canceled
         await Assert.ThrowsAnyAsync<OperationCanceledException>(
             () => SpellChecker.CheckAsync(Select("**/*.md"), temp.FullPath, cancellationToken: source.Token));
     }
 
     /// <summary>
-    ///     Test that a token that is already cancelled stops the file checking before any file is checked.
+    ///     Test that a token that is already canceled stops the file checking before any file is checked.
     /// </summary>
     [Fact]
-    public async Task SpellChecker_CheckFilesAsync_CancelledToken_ChecksNoFile()
+    public async Task SpellChecker_CheckFilesAsync_CanceledToken_ChecksNoFile()
     {
-        // Arrange: files, a check that counts its calls, and a token that is already cancelled
+        // Arrange: files, a check that counts its calls, and a token that is already canceled
         using var temp = new TempDirectory();
         CreateManyFiles(temp);
         var calls = 0;
@@ -959,7 +959,7 @@ public class SpellCheckerTests
         using var source = new CancellationTokenSource();
         await source.CancelAsync();
 
-        // Act / Assert: the run is cancelled and no file was checked
+        // Act / Assert: the run is canceled and no file was checked
         await Assert.ThrowsAnyAsync<OperationCanceledException>(
             () => SpellChecker.CheckFilesAsync(SelectAll(temp), 0, Check, new SpellCheckOptions(), source.Token));
         Assert.Equal(0, calls);
@@ -969,7 +969,7 @@ public class SpellCheckerTests
     ///     Test that canceling during the run stops it with a cancellation and no partial result.
     /// </summary>
     [Fact]
-    public async Task SpellChecker_CheckFilesAsync_CancelledDuringRun_ThrowsOperationCanceledException()
+    public async Task SpellChecker_CheckFilesAsync_CanceledDuringRun_ThrowsOperationCanceledException()
     {
         // Arrange: many files and a check that cancels the run when it first runs
         using var temp = new TempDirectory();
@@ -1014,12 +1014,12 @@ public class SpellCheckerTests
     }
 
     /// <summary>
-    ///     Test that a selection that is cancelled while it runs stops the call with a cancellation and no result.
+    ///     Test that a selection that is canceled while it runs stops the call with a cancellation and no result.
     /// </summary>
     [Fact]
-    public async Task SpellChecker_CheckWithSelectionAsync_SelectionCancelled_ThrowsOperationCanceledException()
+    public async Task SpellChecker_CheckWithSelectionAsync_SelectionCanceled_ThrowsOperationCanceledException()
     {
-        // Arrange: a selection that cancels the token while it runs, as a cancelled directory walk does
+        // Arrange: a selection that cancels the token while it runs, as a canceled directory walk does
         using var source = new CancellationTokenSource();
         var checkedAfterSelection = false;
         IReadOnlyList<SelectedFile> SelectAndCancel(CancellationToken token)

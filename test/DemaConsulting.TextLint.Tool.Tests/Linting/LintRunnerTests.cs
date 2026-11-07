@@ -608,24 +608,24 @@ public class LintRunnerTests
     }
 
     /// <summary>
-    ///     Test that a cancelled token ends the run with a message and a failure instead of a result.
+    ///     Test that a canceled token ends the run with a message and a failure instead of a result.
     /// </summary>
     [Fact]
-    public async Task LintRunner_Run_CancelledToken_ReportsCancellationAndFails()
+    public async Task LintRunner_Run_CanceledToken_ReportsCancellationAndFails()
     {
-        // Arrange: a file to check and a token that is already cancelled
+        // Arrange: a file to check and a token that is already canceled
         using var temp = new TempDirectory();
         temp.CreateFile("a.md", "Hello wrold\n");
         using var source = new CancellationTokenSource();
         await source.CancelAsync();
 
-        // Act: run with the cancelled token
+        // Act: run with the canceled token
         var result = ContextRun.Execute(["--root", temp.FullPath, "a.md"], context => LintRunner.Run(context, source.Token));
 
-        // Assert: the run says it was cancelled, reports no result, and fails
+        // Assert: the run says it was canceled, reports no result, and fails
         Assert.Multiple(
             () => Assert.Equal(1, result.ExitCode),
-            () => Assert.Contains("The check was cancelled", result.Output),
+            () => Assert.Contains("The check was canceled", result.Output),
             () => Assert.DoesNotContain("Unknown word", result.Output),
             () => Assert.DoesNotContain("Checked", result.Output));
     }

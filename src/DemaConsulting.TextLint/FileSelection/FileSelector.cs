@@ -53,7 +53,7 @@ public static class FileSelector
     ///     any other failure to list a subdirectory propagates.
     ///     The pattern lists are only read during the call and must not be changed by another
     ///     thread while it runs. Cancellation is cooperative: the walk stops at the next directory or
-    ///     entry after the token is cancelled, so a very large single directory delays it by at most one entry.
+    ///     entry after the token is canceled, so a very large single directory delays it by at most one entry.
     /// </remarks>
     /// <param name="rootDirectory">The directory that patterns are relative to. Must name a readable directory.</param>
     /// <param name="includePatterns">The include glob patterns. Must not be null; an empty list selects nothing.</param>
@@ -81,7 +81,7 @@ public static class FileSelector
     /// </exception>
     /// <exception cref="InvalidGlobPatternException">Thrown when a pattern is unsupported or malformed.</exception>
     /// <exception cref="OperationCanceledException">
-    ///     Thrown when <paramref name="cancellationToken"/> is cancelled before or during the call; no partial
+    ///     Thrown when <paramref name="cancellationToken"/> is canceled before or during the call; no partial
     ///     result is returned.
     /// </exception>
     public static IReadOnlyList<SelectedFile> Select(
@@ -99,7 +99,7 @@ public static class FileSelector
         var includes = ExpandAll(includePatterns);
         var excludes = ExpandAll(ignorePatterns);
 
-        // Honor a token that is already cancelled before any directory is read
+        // Honor a token that is already canceled before any directory is read
         cancellationToken.ThrowIfCancellationRequested();
 
         // Only then probe the root directory. Asking whether it exists would report an unreadable
@@ -165,7 +165,7 @@ public static class FileSelector
     /// <returns>The selected files ordered by ordinal relative path, using forward slashes.</returns>
     /// <exception cref="ArgumentNullException">Thrown when an argument is null.</exception>
     /// <exception cref="InvalidGlobPatternException">Thrown when a pattern is unsupported or malformed.</exception>
-    /// <exception cref="OperationCanceledException">Thrown when <paramref name="cancellationToken"/> is cancelled.</exception>
+    /// <exception cref="OperationCanceledException">Thrown when <paramref name="cancellationToken"/> is canceled.</exception>
     internal static IReadOnlyList<SelectedFile> Select(
         DirectoryInfoBase root,
         IReadOnlyList<string> includePatterns,
@@ -207,7 +207,7 @@ public static class FileSelector
         }
 
         // Walk through a hidden-directory filter unless wildcards may match hidden names, and through a
-        // view that stops the walk on cancellation, because the matcher cannot be cancelled itself
+        // view that stops the walk on cancellation, because the matcher cannot be canceled itself
         var matcher = BuildMatcher(includes, excludes);
         DirectoryInfoBase filtered = enableGlobDot ? root : new HiddenFilteringDirectory(root, includes);
         var walked = new CancelableDirectory(filtered, cancellationToken);

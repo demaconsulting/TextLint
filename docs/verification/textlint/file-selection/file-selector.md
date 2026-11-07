@@ -31,8 +31,8 @@ uses its own uniquely named directory, so tests share no state and may run in pa
 - Excluded and unreachable hidden directories are never enumerated; literally named hidden directories are.
 - Results are in ordinal order with forward-slash paths and expose the full path.
 - Invalid patterns in either list are rejected naming the pattern.
-- A cancelled token stops the selection with a cancellation before the call and during the walk, with and without
-  hidden-name wildcards, and a token that is not cancelled does not change the selection.
+- A canceled token stops the selection with a cancellation before the call and during the walk, with and without
+  hidden-name wildcards, and a token that is not canceled does not change the selection.
 
 #### Test Scenarios
 
@@ -61,16 +61,16 @@ removes a nested `node_modules` subtree. This scenario is tested by
 **FileSelector_Select_RootDirectoryMissing_ThrowsDirectoryNotFound**: A root that does not exist throws. This
 scenario is tested by `FileSelector_Select_RootDirectoryMissing_ThrowsDirectoryNotFound`.
 
-**FileSelector_Select_TokenAlreadyCancelled_ThrowsOperationCanceled**: A token that is cancelled before the call
+**FileSelector_Select_TokenAlreadyCanceled_ThrowsOperationCanceled**: A token that is canceled before the call
 makes the call throw a cancellation. This scenario is tested by
-`FileSelector_Select_TokenAlreadyCancelled_ThrowsOperationCanceled`.
+`FileSelector_Select_TokenAlreadyCanceled_ThrowsOperationCanceled`.
 
-**FileSelector_Select_CancelledDuringWalk_StopsWalkAndThrows**: With and without hidden-name wildcards, a token
-cancelled as the first subdirectory starts to be read ends the call with a cancellation; only the root and that
-subdirectory were read. This scenario is tested by `FileSelector_Select_CancelledDuringWalk_StopsWalkAndThrows`.
+**FileSelector_Select_CanceledDuringWalk_StopsWalkAndThrows**: With and without hidden-name wildcards, a token
+canceled as the first subdirectory starts to be read ends the call with a cancellation; only the root and that
+subdirectory were read. This scenario is tested by `FileSelector_Select_CanceledDuringWalk_StopsWalkAndThrows`.
 
-**FileSelector_Select_TokenNotCancelled_ReturnsSelection**: A live token does not change the selection. This
-scenario is tested by `FileSelector_Select_TokenNotCancelled_ReturnsSelection`.
+**FileSelector_Select_TokenNotCanceled_ReturnsSelection**: A live token does not change the selection. This
+scenario is tested by `FileSelector_Select_TokenNotCanceled_ReturnsSelection`.
 
 **FileSelector_Select_RootDirectoryMissingNoIncludes_ThrowsDirectoryNotFound**: A missing root throws even when
 the include list is empty. This scenario is tested by

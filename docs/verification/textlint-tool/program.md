@@ -18,7 +18,7 @@ N/A - standard test environment.
 - Exit code 0 is returned for all valid flag combinations that request information or validation, and for a check
   that finds nothing.
 - Exit code 1 is returned when invalid arguments are supplied to `Program.Main`, and when a check has nothing to
-  check or is cancelled.
+  check or is canceled.
 - `Program.Version` returns a non-empty, non-null string.
 
 ### Test Scenarios
@@ -49,10 +49,10 @@ that has a misspelling; the first line is the banner, the finding follows in the
 contains the usage line with the pattern arguments, every option of the tool, and the exit codes. This scenario is
 tested by `Program_Run_HelpFlag_ListsAllOptionsAndExitCodes`.
 
-**Program_RunCancelable_CancelledToken_ReportsCancellationAndFails**: `Program.RunCancelable` is called with a
-token that is already cancelled and a file with a misspelling; the output says the check was cancelled, contains
+**Program_RunCancelable_CanceledToken_ReportsCancellationAndFails**: `Program.RunCancelable` is called with a
+token that is already canceled and a file with a misspelling; the output says the check was canceled, contains
 no finding, and exit code is 1. This scenario is tested by
-`Program_RunCancelable_CancelledToken_ReportsCancellationAndFails`.
+`Program_RunCancelable_CanceledToken_ReportsCancellationAndFails`.
 
 **Program_Main_DuplicateOption_ReturnsNonZeroExitCode**: `Program.Main` is invoked with `--root` twice; exit code
 is 1 and standard error names the repeated option. This scenario is tested by

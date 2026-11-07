@@ -128,9 +128,9 @@ by `LintRunner_Run_InvalidRootWithAbsolutePath_ReportsErrorAndFails`.
 gives a message and exit code 1 and does not throw. This scenario is tested by
 `LintRunner_Run_InvalidRootPath_ReportsErrorAndFails`.
 
-**LintRunner_Run_CancelledToken_ReportsCancellationAndFails**: A token that is already cancelled gives the
+**LintRunner_Run_CanceledToken_ReportsCancellationAndFails**: A token that is already canceled gives the
 cancellation message, no finding, no summary, and exit code 1. This scenario is tested by
-`LintRunner_Run_CancelledToken_ReportsCancellationAndFails`.
+`LintRunner_Run_CanceledToken_ReportsCancellationAndFails`.
 
 **LintRunner_Run_MaxParallelism_GivesSameResult**: Eight files are checked with one worker and with four; the
 output and the exit code are identical. This scenario is tested by `LintRunner_Run_MaxParallelism_GivesSameResult`.

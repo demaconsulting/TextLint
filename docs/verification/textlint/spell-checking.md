@@ -37,7 +37,7 @@ Windows, Linux, and macOS.
 - Binary files and files over the size limit are skipped and reported; an unreadable file is reported without
   stopping the run, and a missing root directory is an error.
 - Results are identical and in the same order for one worker and for many, also when runs overlap; an invalid degree
-  of parallelism is rejected; a cancelled run throws and returns nothing.
+  of parallelism is rejected; a canceled run throws and returns nothing.
 - Text that matches an expression or a named pattern of the settings, or the pattern of an ignoreRegExp directive of
   the text, is not checked; a pattern that cannot be used is rejected when the checker is created, and a directive
   pattern that cannot be used is reported at its position with the reason.
@@ -140,9 +140,9 @@ same tree return the same result. This scenario is tested by
 zero and a negative one are rejected when the options are created. This scenario is tested by
 `SpellCheckingSubsystem_Options_InvalidParallelism_ThrowsArgumentOutOfRangeException`.
 
-**SpellCheckingSubsystem_CheckAsync_CancelledToken_ThrowsOperationCanceledException**: A token that is already
-cancelled stops the run with a cancellation and no result. This scenario is tested by
-`SpellCheckingSubsystem_CheckAsync_CancelledToken_ThrowsOperationCanceledException`.
+**SpellCheckingSubsystem_CheckAsync_CanceledToken_ThrowsOperationCanceledException**: A token that is already
+canceled stops the run with a cancellation and no result. This scenario is tested by
+`SpellCheckingSubsystem_CheckAsync_CanceledToken_ThrowsOperationCanceledException`.
 
 **SpellCheckingSubsystem_CheckAsync_CallerFileNames_NameIssueAndDiagnostic**: A run over a text file with a
 misspelling and a binary file is formatted under absolute names chosen by the caller; the names replace the

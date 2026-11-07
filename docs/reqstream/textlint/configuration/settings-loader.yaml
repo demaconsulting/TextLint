@@ -23,7 +23,7 @@ sections:
                 tests:
                   - SettingsLoader_LoadAsync_ValidFile_ReturnsSettings
                   - SettingsLoader_LoadAsync_MissingFile_ReturnsErrorNamingFile
-                  - SettingsLoader_LoadAsync_CancelledToken_ThrowsOperationCanceled
+                  - SettingsLoader_LoadAsync_CanceledToken_ThrowsOperationCanceled
                   - SettingsLoader_LoadAsync_NullPath_ThrowsArgumentNullException
                   - SettingsLoader_LoadAsync_EmptyPath_ThrowsArgumentException
                   - SettingsLoader_LoadAsync_Utf8BomFile_ReturnsSettings

@@ -96,7 +96,7 @@ internal static class LintRunner
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             // The user asked to stop, so say so and fail rather than leave a half-written result
-            context.WriteError("The check was cancelled before it finished.");
+            context.WriteError("The check was canceled before it finished.");
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or NotSupportedException or ArgumentException)
         {
@@ -115,7 +115,7 @@ internal static class LintRunner
     /// </remarks>
     /// <param name="context">The parsed command line and the output channels. Must not be null.</param>
     /// <param name="cancellationToken">Token that cancels the run.</param>
-    /// <exception cref="OperationCanceledException">Thrown when the token is cancelled.</exception>
+    /// <exception cref="OperationCanceledException">Thrown when the token is canceled.</exception>
     /// <exception cref="ArgumentException">Thrown when a path, pattern, or language is invalid.</exception>
     /// <exception cref="IOException">Thrown when the root directory is missing or cannot be read.</exception>
     private static void RunCheck(Context context, CancellationToken cancellationToken)
@@ -244,7 +244,7 @@ internal static class LintRunner
     /// <param name="root">The absolute root directory. Must not be null.</param>
     /// <param name="cancellationToken">Token that cancels the read.</param>
     /// <returns>The settings, or <see langword="null"/> when a problem was reported and nothing is to be checked.</returns>
-    /// <exception cref="OperationCanceledException">Thrown when the token is cancelled.</exception>
+    /// <exception cref="OperationCanceledException">Thrown when the token is canceled.</exception>
     private static TextLintSettings? LoadSettings(Context context, string root, CancellationToken cancellationToken)
     {
         // An explicit settings file is used as typed; otherwise the default file in the root is looked for

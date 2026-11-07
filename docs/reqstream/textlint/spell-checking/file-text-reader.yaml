@@ -107,13 +107,13 @@ sections:
               - id: TextLint-SpellChecking-FileTextReader-Cancellation
                 title: >-
                   FileTextReader shall signal cancellation, and not report a file as unreadable, when the
-                  caller's token is cancelled, whatever the size of the file.
+                  caller's token is canceled, whatever the size of the file.
                 justification: |
                   Cancellation is the caller's decision, not a property of the file, so it must not be
                   confused with a read failure and must not depend on whether the file has any content.
                 tests:
-                  - FileTextReader_ReadAsync_CancelledToken_ThrowsOperationCanceledException
-                  - FileTextReader_ReadAsync_CancelledTokenWithEmptyFile_ThrowsOperationCanceledException
+                  - FileTextReader_ReadAsync_CanceledToken_ThrowsOperationCanceledException
+                  - FileTextReader_ReadAsync_CanceledTokenWithEmptyFile_ThrowsOperationCanceledException
 
               - id: TextLint-SpellChecking-FileTextReader-InvalidArguments
                 title: >-

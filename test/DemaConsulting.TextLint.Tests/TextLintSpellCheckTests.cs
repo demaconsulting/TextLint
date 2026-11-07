@@ -1181,18 +1181,18 @@ public class TextLintSpellCheckTests
     }
 
     /// <summary>
-    ///     Test that a cancelled token stops the run with an exception.
+    ///     Test that a canceled token stops the run with an exception.
     /// </summary>
     [Fact]
-    public async Task TextLint_SpellCheck_CancelledToken_ThrowsOperationCanceled()
+    public async Task TextLint_SpellCheck_CanceledToken_ThrowsOperationCanceled()
     {
-        // Arrange: a directory with a file, and a token that is already cancelled
+        // Arrange: a directory with a file, and a token that is already canceled
         using var temp = new TempDirectory();
         temp.CreateFile("a.txt", $"{Unknown}\n");
         using var source = new CancellationTokenSource();
         await source.CancelAsync();
 
-        // Act / Assert: the run is cancelled and throws
+        // Act / Assert: the run is canceled and throws
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => CheckFilesAsync(temp, cancellationToken: source.Token));
     }
 }

@@ -812,7 +812,7 @@ sections:
           - TextLint-SpellChecking-ParallelDeterminism
           - TextLint-FileSelection-Cancellation
         tests:
-          - TextLint_SpellCheck_CancelledToken_ThrowsOperationCanceled
+          - TextLint_SpellCheck_CanceledToken_ThrowsOperationCanceled
 
       - id: TextLint-System-CspellCompatibility
         title: >-

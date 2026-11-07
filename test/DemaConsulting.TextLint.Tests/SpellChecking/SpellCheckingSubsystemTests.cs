@@ -571,16 +571,16 @@ public class SpellCheckingSubsystemTests
     ///     Test that canceling stops the run with a cancellation and no result.
     /// </summary>
     [Fact]
-    public async Task SpellCheckingSubsystem_CheckAsync_CancelledToken_ThrowsOperationCanceledException()
+    public async Task SpellCheckingSubsystem_CheckAsync_CanceledToken_ThrowsOperationCanceledException()
     {
-        // Arrange: a directory with files and a token that is already cancelled
+        // Arrange: a directory with files and a token that is already canceled
         using var temp = new TempDirectory();
         CreateManyFiles(temp);
         var settings = new TextLintSettings { Files = ["**/*.md"] };
         using var source = new CancellationTokenSource();
         await source.CancelAsync();
 
-        // Act / Assert: the run is cancelled
+        // Act / Assert: the run is canceled
         await Assert.ThrowsAnyAsync<OperationCanceledException>(
             () => SpellChecker.CheckAsync(settings, temp.FullPath, cancellationToken: source.Token));
     }

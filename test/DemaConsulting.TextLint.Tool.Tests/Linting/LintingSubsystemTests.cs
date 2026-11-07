@@ -378,21 +378,21 @@ public class LintingSubsystemTests
     ///     Test that canceling stops the run with a message and no result.
     /// </summary>
     [Fact]
-    public async Task LintingSubsystem_Run_CancelledToken_ReportsCancellation()
+    public async Task LintingSubsystem_Run_CanceledToken_ReportsCancellation()
     {
-        // Arrange: a misspelled file and a token that is already cancelled
+        // Arrange: a misspelled file and a token that is already canceled
         using var temp = new TempDirectory();
         temp.CreateFile("a.md", "Hello wrold\n");
         using var source = new CancellationTokenSource();
         await source.CancelAsync();
 
-        // Act: run with the cancelled token
+        // Act: run with the canceled token
         var result = ContextRun.Execute(["--root", temp.FullPath, "a.md"], context => LintRunner.Run(context, source.Token));
 
         // Assert: the run fails with the cancellation message and reports no findings
         Assert.Multiple(
             () => Assert.Equal(1, result.ExitCode),
-            () => Assert.Contains("cancelled", result.Output),
+            () => Assert.Contains("canceled", result.Output),
             () => Assert.DoesNotContain("Unknown word", result.Output));
     }
 }

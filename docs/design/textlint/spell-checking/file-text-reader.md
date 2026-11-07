@@ -33,7 +33,7 @@ because they are expected on real repositories.
 - _Preconditions_: the path is not null or empty, the size limit is not negative.
 - _Postconditions_: the file has been read, not written; the file handle is closed.
 
-Steps: (1) validate the arguments and honor a token that is already cancelled, so the contract does not depend on
+Steps: (1) validate the arguments and honor a token that is already canceled, so the contract does not depend on
 whether the file has content; (2) open the file for reading while allowing other readers and writers and deletion, so
 that a log that another program has open for writing can still be read; (3) take the size from the open handle, so
 the size and the content agree; (4) when the size exceeds the smaller of the limit (if there is one) and the ceiling,

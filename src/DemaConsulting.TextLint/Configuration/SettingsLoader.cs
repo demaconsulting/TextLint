@@ -192,7 +192,7 @@ public static class SettingsLoader
     /// <returns>A result holding either the settings or the diagnostics; never null.</returns>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="path"/> is null.</exception>
     /// <exception cref="ArgumentException">Thrown when <paramref name="path"/> is empty.</exception>
-    /// <exception cref="OperationCanceledException">Thrown when <paramref name="cancellationToken"/> is cancelled.</exception>
+    /// <exception cref="OperationCanceledException">Thrown when <paramref name="cancellationToken"/> is canceled.</exception>
     public static async Task<SettingsLoadResult> LoadAsync(string path, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(path);

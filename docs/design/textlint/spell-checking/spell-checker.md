@@ -81,7 +81,7 @@ degree of parallelism and the token, each worker reading and checking its file a
 Because each slot belongs to one file and the selection is sorted by ordinal relative path, the result is ordered by
 path and then, as each file's findings are already in text order, by line and column. No lock is taken.
 `Parallel.ForEachAsync` was chosen over starting one task per file with a semaphore because it bounds the
-parallelism by construction, stops starting new work when the token is cancelled, and surfaces the first exception.
+parallelism by construction, stops starting new work when the token is canceled, and surfaces the first exception.
 
 **CheckFileAsync (private)**: Checks one file.
 
@@ -133,7 +133,7 @@ memory in use is the degree of parallelism times the size of the files being che
 maximum file size of the settings and by the 1 GiB ceiling of the reader), not the size of the repository.
 
 **Cancellation has no partial result.** A result assembled from the files that happened to finish would look like a
-complete answer for the whole selection, and a build that trusted it could pass with files unchecked, so a cancelled
+complete answer for the whole selection, and a build that trusted it could pass with files unchecked, so a canceled
 run throws instead. The token is passed to the selection, to the loop, and to every read.
 
 **Why per-file problems are data and defects are exceptions.** A run over a repository must survive the files it

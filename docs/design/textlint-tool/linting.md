@@ -66,6 +66,6 @@ self-validation. The runner works in this order:
    fail the run.
 
 Failures the user can cause (a missing or unreadable directory, an invalid path, an unsupported pattern or
-language) are caught, written as errors, and fail the run. A cancelled token ends the run with a message and a
+language) are caught, written as errors, and fail the run. A canceled token ends the run with a message and a
 failure instead of a partial result. Results are data about files and go to standard output so that
 `textlint > report.txt` captures them; failures of the tool itself go to standard error.
