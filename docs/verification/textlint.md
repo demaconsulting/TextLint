@@ -427,14 +427,16 @@ looked up as written, capitalized, and in upper case in the American, the Britis
 each is known in all of them. The list holds `oversized`, and no word of it is repeated in the generated American or
 British word lists. This scenario is tested by `TextLint_Dictionary_ReviewedCommonWords_AreKnownInEveryLanguage`.
 
-<!-- cspell:ignore metafile codestream hypernym hypernyms lemmatizer commitish dialogs -->
+<!-- cspell:ignore metafile codestream hypernym hypernyms lemmatizer commitish dialogs abaci viterbi -->
 
-**TextLint_Dictionary_ReviewedTechnicalVocabulary_IsKnownInEveryLanguage**: A sample of the reviewed general
-technical and scientific terms (for example `metafile`, `codestream`, `hypernyms`, `lemmatizer`, `commitish`,
-`dialog`, and `dialogs`) is looked up as written, in lower case, and in upper case in the American, the British, and
-the combined selection, and each is known in all of them. The British spellings `acknowledgement`, `cancellable`,
-`centre`, `labelled`, and `tyre` are known in the British selection and stay unknown in the American one. This
-scenario is tested by `TextLint_Dictionary_ReviewedTechnicalVocabulary_IsKnownInEveryLanguage`.
+**TextLint_Dictionary_ReviewedTechnicalVocabulary_IsKnownInEveryLanguage**: Every entry of the reviewed
+general technical and scientific vocabulary (`technical/general/additions.txt`) and of the reviewed common-word list
+(`en-common/additions.txt`) is read from the word-list folder, so no entry can be dropped unnoticed, and is looked up
+as written, capitalized, and in upper case in the American, the British, and the combined selection; each is known in
+all of them. The test also checks that the lists hold `dialogs`, `metafile`, `codestream`, `hypernyms`, `lemmatizer`,
+`commitish`, `abaci`, and `viterbi`, and looks up `dialog` as well. The British spellings `acknowledgement`,
+`cancellable`, `centre`, `labelled`, and `tyre` are known in the British selection and stay unknown in the American
+one. This scenario is tested by `TextLint_Dictionary_ReviewedTechnicalVocabulary_IsKnownInEveryLanguage`.
 
 **TextLint_Dictionary_DerivedFormsAndRegionalSpellings_FollowTheLanguageSelection**: Derived forms that a base word
 list lacks (`testability`, `reviewable`, `precomputed`, `unannotated`, `untestable`) are known in the American and

@@ -7,7 +7,8 @@
 The `Dictionaries` subsystem answers one question: is this word known? It holds the vocabulary the library
 checks text against, which is shipped inside the library assembly as four binary dictionaries: the English
 words that American and British English share, the American-only spellings, the British-only spellings,
-and the technical terms (programming languages, tools, companies, file types, licenses, and font names). A caller selects
+and the technical terms (programming languages, tools, companies, file types, licenses, font names, and the reviewed
+general technical and scientific vocabulary). A caller selects
 a language, one of `en`/`en-US` (American, the default), `en-GB` (British, with -ise spellings), or both, and
 asks about words. A selection always includes the common English words and the technical terms.
 
@@ -101,8 +102,8 @@ offset of a word in the word block; every read goes through a bounds-checked spa
 is capped at one cycle of the table, so a damaged file can only produce an exception at load and never an
 out-of-range read or an endless loop.
 
-<!-- cspell:ignore colourize licence practise unmaneuverable -->
-<!-- textlint:ignore glamourize -->
+<!-- cspell:ignore colourize licence practise unmaneuverable bigram hypernym lemmatizer commitish -->
+<!-- textlint:ignore glamourize centre labelled -->
 
 **Regional spellings and the part of speech.** The data decides which dictionary a spelling belongs to, and the
 lookup never looks at anything but the folded word, so four consequences follow and are deliberate. First, a
@@ -125,6 +126,35 @@ them, and its checks accept them as deliberate overrides rather than as leaks wh
 has an -ise counterpart. The dictionary builder needs no special rule, because it builds every list of the common
 folder into the common dictionary and a lookup combines that dictionary with the regional one; a word that is in both
 a common and a regional list is simply known in both, so the common list wins and the duplicate is harmless.
+
+**Reviewed technical vocabulary.** Real projects use general technical and scientific terms that no English list
+has (`metafile`, `codestream`, `bigram`, `hypernym`, `lemmatizer`, `commitish`, and the plural `dialogs`). The
+technical folder therefore holds a hand-written list, `technical/general/additions.txt`, which the generator
+never rewrites and which the technical dictionary reads with the imported general lists. It is known in every
+language selection, because these terms do not depend on the spelling dialect: the variant rule of the builder
+strips only a word that is in the American-only or the British-only list, and none of these words is.
+
+**Where a curated word belongs.** Four reviewed, project-owned files hold the words that the imported data gets
+wrong, and a word goes in exactly one place by what it is:
+
+- A general technical or scientific term, or an inflection that no list has (`dialogs`, the plural of the known
+  `dialog`): `technical/general/additions.txt`.
+- A programming term that is also an American-only or British-only spelling (`tokenizer`):
+  `technical/variant-keep.txt`. The builder fails the build for an entry that is not such a variant, which is why
+  `dialogs` is not there.
+- An ordinary English word that every dialect uses but that SCOWL lacks or gives to one dialect (`oversized`,
+  `abaci`): `en-common/additions.txt`.
+- A word that is a misspelling, a fragment, or a rare word that is almost always a typo: `exclusions.txt`, which
+  removes it from every dictionary.
+
+A British or American spelling of an ordinary word (`centre`, `labelled`) is in none of them: it stays a finding
+when the other dialect is selected. A product, a person, or an abbreviation of one project belongs to the `words`
+setting of that project, not to the shipped data.
+
+The four files are data written for this project, reviewed by hand against a public definition of each word, and
+never copied from a third-party list, so they carry no third-party notice. The header of each file states its review
+rule, the library tests look up every entry of the technical and the common additions in every language selection,
+and the dictionaries README guides the choice of file.
 
 **Why a precomputed binary format.** The vocabulary is about two hundred thousand words, and a spell checker
 looks up millions of words in a large repository. The alternatives were to load the words into a general-purpose set
