@@ -1,0 +1,9 @@
+---
+# cspell:disable
+# Settings of the random-strings-off parity corpus: random strings are not ignored, so every token is checked
+# as words (one flagged word, as in the random-strings corpus).
+version: "0.2"
+language: en
+ignoreRandomStrings: false
+flagWords:
+  - zorbflag

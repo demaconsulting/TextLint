@@ -275,3 +275,129 @@ sections:
                   message wording and position format in one place instead of copied into every consumer.
                 tests:
                   - TextChecker_Format_CallerFileName_ReplacesRecordedFileName
+
+              - id: TextLint-SpellChecking-TextChecker-CustomPatterns
+                title: >-
+                  TextChecker shall not check the text that matches the patterns of the ignoreRegExpList and
+                  patterns settings, in addition to the default ignore list, shall apply a pattern to the whole
+                  text so that it can span lines and cut a word in two, shall check the text around a match, and
+                  shall change nothing when a pattern matches nothing or only the empty string.
+                justification: |
+                  Projects hold text that is not prose and that the defaults do not recognize, such as encoded
+                  fixtures and identifiers of a naming scheme. cspell users exclude it with these patterns, and a
+                  migrated project must find it excluded here too, with the text around the match still checked.
+                tests:
+                  - TextChecker_Check_IgnoreRegExpListExpression_SkipsMatches
+                  - TextChecker_Check_IgnoreRegExpListNames_ApplyNamedAndPredefinedPatterns
+                  - TextChecker_Check_PatternSpanningLinesAndCuttingAWord_ExcludesOnlyTheMatch
+                  - TextChecker_Check_PatternMatchingEmptyText_ExcludesOnlyRealMatches
+                  - TextChecker_Check_CustomPatterns_AreAddedToTheDefaultPatterns
+                  - TextChecker_Check_PatternWithoutMatch_ChangesNothing
+
+              - id: TextLint-SpellChecking-TextChecker-InvalidPatterns
+                title: >-
+                  TextChecker shall reject settings with a pattern that cannot be used (an unsupported flag or
+                  construct, an invalid regular expression, an unknown, predefined, malformed, or repeated name),
+                  with an error that names the entry and the reason.
+                justification: |
+                  Settings built in code bypass the checks of the settings file loader, and a pattern that could
+                  never work would give a setting the user believes is in force no effect. Failing when the checker
+                  is created, with the entry named, is the only way the user can find the mistake.
+                tests:
+                  - TextChecker_Constructor_InvalidIgnoreRegExpListEntry_ThrowsInvalidPatternException
+                  - TextChecker_Constructor_InvalidNamedPatterns_ThrowInvalidPatternException
+
+              - id: TextLint-SpellChecking-TextChecker-PatternTimeout
+                title: >-
+                  TextChecker shall stop checking a text and throw the time-out exception of the regular
+                  expression engine when one of its patterns, from the settings or from a directive of the
+                  text, exceeds five seconds on the text (a shorter limit is available through an internal
+                  seam for tests), so that the caller can treat the text as not checked, and shall reject a
+                  limit that is not positive.
+                justification: |
+                  A pattern of the settings, or of a directive written by whoever wrote the text, can backtrack
+                  catastrophically on a file built to make it. A run that never finishes is worse than one that
+                  reports the file as not checked. The seam lets the tests prove it in milliseconds.
+                tests:
+                  - TextChecker_Check_CatastrophicCustomPattern_ThrowsRegexMatchTimeoutException
+                  - TextChecker_Check_CatastrophicDirectivePattern_ThrowsRegexMatchTimeoutException
+                  - TextChecker_New_MatchTimeout_IsFiveSecondsAndMustBePositive
+
+              - id: TextLint-SpellChecking-TextChecker-IgnoreRegExpDirective
+                title: >-
+                  TextChecker shall exclude from checking the text that matches the pattern of an ignoreRegExp
+                  directive, anywhere in the text it is written in, resolving the pattern like an
+                  ignoreRegExpList entry (a literal with the flags written, a bare expression, a pattern of the
+                  settings by name, or a predefined name), shall report a pattern that cannot be used as an
+                  invalid directive at the pattern, with the reason, unless checking is switched off there, shall
+                  report an ignoreRegExp directive with no pattern as an unsupported directive, shall put these
+                  reports in text order with the other findings, shall read each different pattern once however
+                  many directives repeat it (names that differ only in letter case are one pattern, as they are
+                  for the lookup of the name), and shall accept at most 32 different patterns in one text,
+                  reporting the excess without reading it.
+                justification: |
+                  A project migrated from cspell relies on the directive to hide text that is not prose. cspell
+                  silently drops a pattern it cannot use, so the author would believe it is in force, and the
+                  report tells them where it is not. The directives of a text are written by whoever wrote the
+                  text, so the work they cause is bounded by the number of patterns and the time limit of each.
+                tests:
+                  - TextChecker_Check_IgnoreRegExpDirective_HidesMatchesInTheWholeText
+                  - TextChecker_Check_IgnoreRegExpDirectiveForms_UseTheFlagsAsWritten
+                  - TextChecker_Check_IgnoreRegExpDirectiveNames_RefersToSettingsAndPredefinedPatterns
+                  - TextChecker_Check_IgnoreRegExpDirectiveInvalid_IsReportedAtItsPosition
+                  - TextChecker_Check_IgnoreRegExpDirectiveUnknownName_IsReportedAndHidesNothing
+                  - TextChecker_Check_IgnoreRegExpDirectiveInDisabledBlock_AppliesButIsNotReported
+                  - TextChecker_Check_IgnoreRegExpDirectiveRepeated_IsReportedAtEachPlaceInOrder
+                  - TextChecker_Check_IgnoreRegExpDirectiveWithoutPattern_IsReportedAsUnsupported
+                  - TextChecker_Check_IgnoreRegExpDirectivePatternLimit_RejectsTheExcessWithoutReadingIt
+                  - TextChecker_Check_IgnoreRegExpDirectiveNamesDifferingInCase_CountOnceTowardsTheLimit
+                  - TextChecker_Check_IgnoreRegExpDirectiveExpressionsDifferingInCase_CountSeparatelyTowardsTheLimit
+
+              - id: TextLint-SpellChecking-TextChecker-MarkdownFiles
+                title: >-
+                  TextChecker shall not check the targets of links, the labels of reference links, the definitions
+                  of references, the ids of anchors, and the HTML entities of a text whose source name has a
+                  Markdown extension, and shall check them in a text with another name or with no name.
+                justification: |
+                  Link targets and labels are names and addresses, and their fragments would be reported as unknown
+                  words in every document. cspell excludes them in Markdown files only, and the name of the source
+                  is what tells the checker which kind of file it has.
+                tests:
+                  - TextChecker_Check_MarkdownFile_SkipsLinkTargetsLabelsAnchorsAndEntities
+                  - TextChecker_Check_NoSourceName_DoesNotApplyMarkdownPatterns
+
+              - id: TextLint-SpellChecking-TextChecker-RandomStrings
+                title: >-
+                  TextChecker shall not check a token of at least minRandomLength characters that looks like
+                  random data, even when a flagged word is inside it, and shall not report the unknown words that
+                  lie inside a hexadecimal sequence of a token unless they are flagged, when ignoreRandomStrings is
+                  on, shall check them when it is off or the token is shorter than minRandomLength, and shall
+                  still check long identifiers made of words.
+                justification: |
+                  Keys, tokens, and partial UUIDs are made of fragments that no dictionary knows, and cspell skips
+                  them by default. The switch and the length let a project that wants every token checked have that,
+                  as they do in cspell.
+                tests:
+                  - TextChecker_Check_LongRandomLookingToken_IsSkipped
+                  - TextChecker_Check_RandomLookingTokenWhenNotSkipped_IsCheckedAsWords
+                  - TextChecker_Check_LongIdentifierOfWords_IsStillChecked
+                  - TextChecker_Check_FlaggedWordInsideRandomLookingToken_IsNotReported
+                  - TextChecker_Check_WordsInsideHexSequence_AreNotReported
+                  - TextChecker_Check_MixedCaseHexSequenceOrFlaggedWord_StaysReported
+
+              - id: TextLint-SpellChecking-TextChecker-Contractions
+                title: >-
+                  TextChecker shall accept a word with apostrophes when every part between the apostrophes is
+                  known, is a run of capitals with an ending whose capitals are known, or is shorter than the
+                  minimum word length, treating the first part as following a backslash when the word does, and
+                  shall report the whole word, with its apostrophes, when some part is unknown, flagged, or long
+                  enough to be checked.
+                justification: |
+                  Programmers write contractions such as exec'd, OR'd, and rock'n'roll, and cspell accepts them
+                  when their parts are acceptable. Without the rule every such word is a false finding, and with
+                  a rule that was too lenient a misspelled part would hide.
+                tests:
+                  - TextChecker_Check_ContractionOfAcceptableParts_IsAccepted
+                  - TextChecker_Check_ContractionWithUnknownPart_IsReportedWhole
+                  - TextChecker_Check_ContractionWithFlaggedOrCheckedPart_IsReported
+                  - TextChecker_Check_ContractionAfterBackslash_RetriesWithoutEscapeLetter

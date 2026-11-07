@@ -9,8 +9,19 @@ double and no mocking library. Words are chosen to be unambiguous: `wrold` and `
 dictionary holds, `xqzv` and `xqz` are non-words of four and three letters, and `hello` and `world` are ordinary
 words. Each rule is proved with a success case, an error case, and a boundary case, and the hostile inputs are a
 word of fifty thousand characters, a lone surrogate, a carriage return alone, a byte order mark character inside
-text, and several threads that use one checker at once. Directive texts use the `textlint` prefix, or assemble the
-`cspell` prefix from parts, so that the repository's own spell check does not read them as directives.
+text, and several threads that use one checker at once. The rules for patterns, Markdown files, random strings, and
+contractions use the real pattern catalog, parser, Markdown patterns, and random-string detector, whose own behavior is
+proved by their unit tests; here the tests prove how the checker combines them with the word rules. The unusable
+patterns are written in settings built in code, which bypass the checks of the settings file loader. The production
+time limit of five seconds cannot be waited for in a test, so the checker has an internal constructor that takes the
+limit, and the time-out is proved with a catastrophic pattern, from the settings and from a directive, that makes a limit
+of 100 milliseconds throw the time-out exception of the regular expression engine; one test checks that the public
+constructor gives the five seconds and that a limit that is not positive is rejected. The checker does not catch the
+exception, so that the caller can report the file as not checked. The patterns of ignoreRegExp directives are written in
+the text under test, and the unusable ones are reported as findings of their own kind with the reason.
+Directive texts of the other tests use the `textlint` prefix, or assemble the
+`cspell` prefix from parts, so that the repository's own spell check does not read them as directives; the
+ignoreRegExp tests write the `cspell` prefix in full in their texts.
 
 #### Test Environment
 
@@ -30,6 +41,25 @@ No setup beyond the standard test runner. The tests read no files and are indepe
 - Directives and ignored text are honored, and a null setting, an unsupported language, or an unusable entry is
   rejected naming the problem.
 - Concurrent use gives identical results; findings are immutable and format in the compiler style.
+- Text that matches an expression, a defined name, or a predefined name of the ignore list is not checked, whole
+  patterns are applied to the whole text, the text around a match is still checked, the default patterns still apply,
+  and a pattern with no match or only empty matches changes nothing.
+- A pattern that cannot be used is rejected when the checker is created, naming the entry, and a pattern, from the
+  settings or from a directive, that exceeds its time limit makes the check throw the time-out exception; the public
+  constructor gives the limit of five seconds and a limit that is not positive is rejected.
+- The pattern of an ignoreRegExp directive hides its matches in the whole text, before and after the directive, with
+  the flags as written (a literal only its own flags, a bare expression ignoring letter case), and may name a pattern
+  of the settings, without regard to letter case, or a predefined pattern.
+- An unusable directive pattern, and a name that nothing defines, is reported as an invalid directive at the pattern,
+  with the reason, hides nothing, and is reported at each place it is written, in text order with the other findings;
+  one inside a disabled block still applies and is not reported; a directive with no pattern is reported as
+  unsupported; at most 32 different patterns are accepted in one text and the excess is reported without being read.
+- The Markdown patterns apply to a source name with a Markdown extension and not to another name or none.
+- A long token that looks like random data, and the unknown words inside a hexadecimal sequence, are not reported
+  by default, are reported when the setting is off or the token is below the minimum length, a flagged word is not
+  hidden inside a hexadecimal sequence, and a long identifier of words is still checked.
+- A contraction is accepted when every part is known, a run of capitals with an ending, or too short, and is reported
+  whole when a part is unknown, flagged, or long enough to be checked.
 
 #### Test Scenarios
 
@@ -350,5 +380,157 @@ to a mutable interface. This scenario is tested by `TextChecker_Check_IssueSugge
 **TextChecker_Format_CallerFileName_ReplacesRecordedFileName**: A finding recorded under a relative name is formatted
 under an absolute name chosen by the caller, and with no name at all; only the file name changes. This scenario is
 tested by `TextChecker_Format_CallerFileName_ReplacesRecordedFileName`.
+
+**TextChecker_Check_IgnoreRegExpListExpression_SkipsMatches**: An expression of the ignore list skips the text it
+matches, and a near miss next to it is reported at its position. This scenario is tested by
+`TextChecker_Check_IgnoreRegExpListExpression_SkipsMatches`.
+
+**TextChecker_Check_IgnoreRegExpListNames_ApplyNamedAndPredefinedPatterns**: A defined name and the predefined `string`
+name each skip their matches, and the one word that neither matches is reported. This scenario is tested by
+`TextChecker_Check_IgnoreRegExpListNames_ApplyNamedAndPredefinedPatterns`.
+
+**TextChecker_Check_PatternSpanningLinesAndCuttingAWord_ExcludesOnlyTheMatch**: A pattern that runs from one marker to
+another across lines skips the whole block, and a pattern that cuts a word in two leaves the rest of the word to be
+checked as its own word, at its own column. This scenario is tested by
+`TextChecker_Check_PatternSpanningLinesAndCuttingAWord_ExcludesOnlyTheMatch`.
+
+**TextChecker_Check_PatternMatchingEmptyText_ExcludesOnlyRealMatches**: A pattern that can match the empty string skips
+only its runs of characters, and the words around them are still reported. This scenario is tested by
+`TextChecker_Check_PatternMatchingEmptyText_ExcludesOnlyRealMatches`.
+
+**TextChecker_Check_CustomPatterns_AreAddedToTheDefaultPatterns**: With a custom pattern set, a URL is still skipped, as
+is the custom match, and the unknown word is reported. This scenario is tested by
+`TextChecker_Check_CustomPatterns_AreAddedToTheDefaultPatterns`.
+
+**TextChecker_Check_PatternWithoutMatch_ChangesNothing**: A pattern that matches nothing in the text gives the same
+findings as no pattern. This scenario is tested by `TextChecker_Check_PatternWithoutMatch_ChangesNothing`.
+
+**TextChecker_Constructor_InvalidIgnoreRegExpListEntry_ThrowsInvalidPatternException**: An invalid expression, an
+unsupported flag, an unsupported escape, an unknown name, and an empty entry, in settings built in code, are each
+rejected when the checker is created, with an exception that names the entry and is an argument exception. This
+scenario is tested by `TextChecker_Constructor_InvalidIgnoreRegExpListEntry_ThrowsInvalidPatternException`.
+
+**TextChecker_Constructor_InvalidNamedPatterns_ThrowInvalidPatternException**: A definition that reuses a predefined
+name, two definitions whose names differ only in letter case, and a definition with an invalid expression are each
+rejected. This scenario is tested by `TextChecker_Constructor_InvalidNamedPatterns_ThrowInvalidPatternException`.
+
+**TextChecker_Check_CatastrophicCustomPattern_ThrowsRegexMatchTimeoutException**: A nested quantifier that backtracks
+without end, on a text that almost matches it, makes the check throw the time-out exception of the regular expression
+engine at the limit instead of hanging. The checker is made with the internal limit of 100 milliseconds, which a
+catastrophic pattern reaches on a text of sixty-one characters, and the exception is the evidence that the limit is
+applied. This scenario is tested by `TextChecker_Check_CatastrophicCustomPattern_ThrowsRegexMatchTimeoutException`.
+
+**TextChecker_Check_CatastrophicDirectivePattern_ThrowsRegexMatchTimeoutException**: A directive in the text writes a
+nested quantifier that backtracks without end, and a line that almost matches it follows; a checker with the internal
+limit of 100 milliseconds throws the time-out exception instead of hanging. This scenario is tested by
+`TextChecker_Check_CatastrophicDirectivePattern_ThrowsRegexMatchTimeoutException`.
+
+**TextChecker_New_MatchTimeout_IsFiveSecondsAndMustBePositive**: A checker made with the public constructor has the
+production limit of five seconds, the constructor with a limit rejects a limit of zero with an out-of-range error, and
+a null setting throws a null-argument error. This scenario is tested by
+`TextChecker_New_MatchTimeout_IsFiveSecondsAndMustBePositive`.
+
+**TextChecker_Check_IgnoreRegExpDirective_HidesMatchesInTheWholeText**: A directive with a pattern between a
+misspelling and a second one hides the invented word before it and the one after it, and the two misspellings are
+reported. This scenario is tested by `TextChecker_Check_IgnoreRegExpDirective_HidesMatchesInTheWholeText`.
+
+**TextChecker_Check_IgnoreRegExpDirectiveForms_UseTheFlagsAsWritten**: A literal without flags, a literal with the case
+flag, and a bare word are each written in a directive; the words in both letter cases are hidden except the capitals
+that the literal without the flag cannot match, which is the only finding. This scenario is tested by
+`TextChecker_Check_IgnoreRegExpDirectiveForms_UseTheFlagsAsWritten`.
+
+**TextChecker_Check_IgnoreRegExpDirectiveNames_RefersToSettingsAndPredefinedPatterns**: A directive that names a pattern
+of the settings in another letter case and one that names a predefined pattern each hide their matches, and the
+unknown word beside them is the only finding. This scenario is tested by
+`TextChecker_Check_IgnoreRegExpDirectiveNames_RefersToSettingsAndPredefinedPatterns`.
+
+**TextChecker_Check_IgnoreRegExpDirectiveInvalid_IsReportedAtItsPosition**: A directive with an inline option, which
+cannot be used, is reported as an invalid directive at the position of its pattern, with the reason as its detail and a
+message in the compiler style that names the pattern and the directive; the word the pattern would have hidden is still
+reported, and an ordinary finding has no detail. This scenario is tested by
+`TextChecker_Check_IgnoreRegExpDirectiveInvalid_IsReportedAtItsPosition`.
+
+**TextChecker_Check_IgnoreRegExpDirectiveUnknownName_IsReportedAndHidesNothing**: A directive with a misspelled
+predefined name is reported at the name, with a reason that says it is not a defined or predefined pattern name, and
+the word it spells is still reported. This scenario is tested by
+`TextChecker_Check_IgnoreRegExpDirectiveUnknownName_IsReportedAndHidesNothing`.
+
+**TextChecker_Check_IgnoreRegExpDirectiveInDisabledBlock_AppliesButIsNotReported**: A valid directive and an invalid one
+inside a disabled block; after the block the valid pattern hides its word, nothing is reported for the invalid one, and
+the unknown word is the only finding. This scenario is tested by
+`TextChecker_Check_IgnoreRegExpDirectiveInDisabledBlock_AppliesButIsNotReported`.
+
+**TextChecker_Check_IgnoreRegExpDirectiveRepeated_IsReportedAtEachPlaceInOrder**: An unusable pattern written twice,
+with a misspelling after each, gives four findings in text order, the pattern at each of its places. This scenario is
+tested by `TextChecker_Check_IgnoreRegExpDirectiveRepeated_IsReportedAtEachPlaceInOrder`.
+
+**TextChecker_Check_IgnoreRegExpDirectiveWithoutPattern_IsReportedAsUnsupported**: A directive whose pattern is on the
+next line has no pattern, and the one finding is an unsupported directive named ignoreRegExp. This scenario is tested by
+`TextChecker_Check_IgnoreRegExpDirectiveWithoutPattern_IsReportedAsUnsupported`.
+
+**TextChecker_Check_IgnoreRegExpDirectivePatternLimit_RejectsTheExcessWithoutReadingIt**: A text with one more different
+pattern than the limit of 32, each written twice, and a word that the last pattern would hide, reports the last
+pattern at both of its places with a reason that names the limit, and the word it would have hidden is reported, so the
+excess was not read. This scenario is tested by
+`TextChecker_Check_IgnoreRegExpDirectivePatternLimit_RejectsTheExcessWithoutReadingIt`.
+
+**TextChecker_Check_IgnoreRegExpDirectiveNamesDifferingInCase_CountOnceTowardsTheLimit**: A text that names 31 patterns
+of the settings in three letter cases each, and a predefined name in two, is within the limit of 32 because names that
+differ only in case are one pattern; no directive is rejected and only the misspelling is reported. This scenario is
+tested by `TextChecker_Check_IgnoreRegExpDirectiveNamesDifferingInCase_CountOnceTowardsTheLimit`.
+
+**TextChecker_Check_IgnoreRegExpDirectiveExpressionsDifferingInCase_CountSeparatelyTowardsTheLimit**: A text with 31
+different literal expressions and then one expression in two letter cases has 33 different patterns, because an
+expression is case-significant; the second letter case is the one reported over the limit. This scenario is tested by
+`TextChecker_Check_IgnoreRegExpDirectiveExpressionsDifferingInCase_CountSeparatelyTowardsTheLimit`.
+
+**TextChecker_Check_MarkdownFile_SkipsLinkTargetsLabelsAnchorsAndEntities**: A line with a link, a reference, an anchor,
+and an entity checked under a Markdown name, in upper case, reports only the word outside them; under a text name the
+same line reports more. This scenario is tested by
+`TextChecker_Check_MarkdownFile_SkipsLinkTargetsLabelsAnchorsAndEntities`.
+
+**TextChecker_Check_NoSourceName_DoesNotApplyMarkdownPatterns**: A link target is reported when the text has no source
+name. This scenario is tested by `TextChecker_Check_NoSourceName_DoesNotApplyMarkdownPatterns`.
+
+**TextChecker_Check_LongRandomLookingToken_IsSkipped**: A token of forty-six characters made of invented words, digits,
+and hyphens, with the default settings, yields no finding. This scenario is tested by
+`TextChecker_Check_LongRandomLookingToken_IsSkipped`.
+
+**TextChecker_Check_RandomLookingTokenWhenNotSkipped_IsCheckedAsWords**: The same token is checked word by word when
+the random-string setting is off or the minimum random length is one above its length, and is skipped when the minimum
+equals its length. This scenario is tested by `TextChecker_Check_RandomLookingTokenWhenNotSkipped_IsCheckedAsWords`.
+
+**TextChecker_Check_LongIdentifierOfWords_IsStillChecked**: A long identifier made of three invented words repeated
+does not look random, so each of its twelve pieces is reported. This scenario is tested by
+`TextChecker_Check_LongIdentifierOfWords_IsStillChecked`.
+
+**TextChecker_Check_FlaggedWordInsideRandomLookingToken_IsNotReported**: A flagged word inside a random-looking token is
+not reported, and the same word alone is. This scenario is tested by
+`TextChecker_Check_FlaggedWordInsideRandomLookingToken_IsNotReported`.
+
+**TextChecker_Check_WordsInsideHexSequence_AreNotReported**: In a token whose tail is a hexadecimal sequence of two
+unknown words and a number, only the word before the sequence is reported by default, and all three are reported when
+random strings are not ignored. This scenario is tested by `TextChecker_Check_WordsInsideHexSequence_AreNotReported`.
+
+**TextChecker_Check_MixedCaseHexSequenceOrFlaggedWord_StaysReported**: A hexadecimal sequence in mixed letter case hides
+no word, and a flagged word inside a sequence is still reported as flagged. This scenario is tested by
+`TextChecker_Check_MixedCaseHexSequenceOrFlaggedWord_StaysReported`.
+
+**TextChecker_Check_ContractionOfAcceptableParts_IsAccepted**: Contractions whose parts are known, too short, accepted
+by the words setting, or a run of capitals with an ending are accepted, whether the apostrophe is straight, curly, or
+escaped, and whether the word is in camel case. This scenario is tested by
+`TextChecker_Check_ContractionOfAcceptableParts_IsAccepted`.
+
+**TextChecker_Check_ContractionWithUnknownPart_IsReportedWhole**: Contractions that have an unknown part of the minimum
+length or more, in any position, are reported as one word with their apostrophes. This scenario is tested by
+`TextChecker_Check_ContractionWithUnknownPart_IsReportedWhole`.
+
+**TextChecker_Check_ContractionWithFlaggedOrCheckedPart_IsReported**: A contraction with a flagged part, and one whose
+short part is long enough to be checked once the minimum word length is lowered, are reported whole. This scenario is
+tested by `TextChecker_Check_ContractionWithFlaggedOrCheckedPart_IsReported`.
+
+**TextChecker_Check_ContractionAfterBackslash_RetriesWithoutEscapeLetter**: A contraction that follows a backslash and
+whose first part is a known word behind an escape letter is accepted, so nothing is reported. This scenario is tested
+by `TextChecker_Check_ContractionAfterBackslash_RetriesWithoutEscapeLetter`.
 
 <!-- cspell:ignore wrold speling xqzv xqz -->

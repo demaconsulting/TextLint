@@ -18,6 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+// cspell:ignore feff feffaaaaaaaaaaaaaaaaaaaaaaaaaaaaa feffcertificate feffend feffmiib miib
+
 using System.Text.RegularExpressions;
 using DemaConsulting.TextLint.TextScanning;
 
@@ -1074,6 +1076,72 @@ public class DefaultPatternsTests
 
         // Assert: there are none
         Assert.Empty(ranges);
+    }
+
+    /// <summary>
+    ///     Test that the patterns end and join at the characters that JavaScript counts as white space, which are not the ones
+    ///     .NET counts: U+0085 is not white space and U+FEFF is, as recorded from the JavaScript engine with cspell's definitions.
+    /// </summary>
+    /// <param name="index">The index of the pattern in the order cspell lists them.</param>
+    /// <param name="input">The text to search.</param>
+    /// <param name="expected">The matches the JavaScript engine finds, separated by U+0001.</param>
+    [Theory]
+    [InlineData(0, "https://example.com\u0085zorb", "https://example.com\u0085zorb")]
+    [InlineData(0, "https://example.com\uFEFFzorb", "https://example.com")]
+    [InlineData(0, "https://example.com\u00A0zorb", "https://example.com")]
+    [InlineData(0, "https://example.com\u2028zorb", "https://example.com")]
+    [InlineData(3, "ssh-rsa\u0085AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAxx end", "")]
+    [InlineData(3, "ssh-rsa\uFEFFAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAxx end", "ssh-rsa\uFEFFAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAxx")]
+    [InlineData(3, "ssh-rsa\u00A0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAxx end", "ssh-rsa\u00A0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAxx")]
+    [InlineData(3, "ssh-rsa\u2028AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAxx end", "ssh-rsa\u2028AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAxx")]
+    [InlineData(2, "-----BEGIN\u0085CERTIFICATE-----\u0085MIIB\u0085END\u0085CERTIFICATE-----", "")]
+    [InlineData(2, "-----BEGIN\uFEFFCERTIFICATE-----\uFEFFMIIB\uFEFFEND\uFEFFCERTIFICATE-----", "-----BEGIN\uFEFFCERTIFICATE-----\uFEFFMIIB\uFEFFEND\uFEFFCERTIFICATE-----")]
+    [InlineData(2, "-----BEGIN\u00A0CERTIFICATE-----\u00A0MIIB\u00A0END\u00A0CERTIFICATE-----", "-----BEGIN\u00A0CERTIFICATE-----\u00A0MIIB\u00A0END\u00A0CERTIFICATE-----")]
+    [InlineData(2, "-----BEGIN\u2028CERTIFICATE-----\u2028MIIB\u2028END\u2028CERTIFICATE-----", "-----BEGIN\u2028CERTIFICATE-----\u2028MIIB\u2028END\u2028CERTIFICATE-----")]
+    [InlineData(4, "aB3aB3aB3aB3aB3aB3aB3aB3aB3aB3aB3aB3aB3aB3\u000A\u0085aB3aB3aB3aB3aB3aB3aB3aB3aB3aB3aB3aB3aB3aB3\u000AaB3aB3aB3aB3aB3aB3aB3aB3aB3aB3aB3aB3aB3aB3", "aB3aB3aB3aB3aB3aB3aB3aB3aB3aB3aB3aB3aB3aB3\u000AaB3aB3aB3aB3aB3aB3aB3aB3aB3aB3aB3aB3aB3aB3")]
+    [InlineData(4, "aB3aB3aB3aB3aB3aB3aB3aB3aB3aB3aB3aB3aB3aB3\u000A\uFEFFaB3aB3aB3aB3aB3aB3aB3aB3aB3aB3aB3aB3aB3aB3\u000AaB3aB3aB3aB3aB3aB3aB3aB3aB3aB3aB3aB3aB3aB3", "aB3aB3aB3aB3aB3aB3aB3aB3aB3aB3aB3aB3aB3aB3\u000A\uFEFFaB3aB3aB3aB3aB3aB3aB3aB3aB3aB3aB3aB3aB3aB3\u000AaB3aB3aB3aB3aB3aB3aB3aB3aB3aB3aB3aB3aB3aB3")]
+    [InlineData(11, "sha256:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\"\u0085+\u0085\"zz", "sha256:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")]
+    [InlineData(11, "sha256:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\"\uFEFF+\uFEFF\"zz", "sha256:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\"\uFEFF+\uFEFF\"zz")]
+    public void DefaultPatterns_All_JavaScriptWhiteSpace_EndsAndJoinsLikeJavaScript(int index, string input, string expected)
+    {
+        // Arrange: the pattern, the text, and the matches recorded from the JavaScript engine are passed in by the theory data
+        // Act: find the non-empty matches of the pattern
+        var found = new List<string>();
+        foreach (var match in DefaultPatterns.All[index].EnumerateMatches(input))
+        {
+            if (match.Length > 0)
+            {
+                found.Add(input.Substring(match.Index, match.Length));
+            }
+        }
+
+        // Assert: the matches are the ones JavaScript finds
+        Assert.Equal(expected, string.Join('\u0001', found));
+    }
+
+    /// <summary>
+    ///     Test that no default pattern uses the .NET case-insensitive option, which would also match the Kelvin sign for the
+    ///     letter k, and that the patterns still ignore case where cspell's do.
+    /// </summary>
+    [Fact]
+    public void DefaultPatterns_All_CaseHandling_IsExplicitAndFollowsJavaScript()
+    {
+        // Arrange: text in capitals for four patterns that are case-insensitive in cspell, and the Kelvin sign inside a key line
+        const string text = "HTTPS://EXAMPLE.COM 0XDEADBEEFN U+1F600 SSH-RSA AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
+        var kelvin = "SHA256-" + new string('\u212A', 30);
+
+        // Act: find the ranges in each
+        var matches = Ranges(text).Select(range => text.Substring(range.Start, range.Length)).ToArray();
+        var kelvinRanges = Ranges(kelvin);
+
+        // Assert: the capitals are matched, every option is without the case flag, and the Kelvin sign is not a letter
+        Assert.Multiple(
+            () => Assert.Contains("HTTPS://EXAMPLE.COM", matches),
+            () => Assert.Contains("0XDEADBEEFN", matches),
+            () => Assert.Contains("U+1F600", matches),
+            () => Assert.Contains(matches, match => match.StartsWith("SSH-RSA ", StringComparison.Ordinal)),
+            () => Assert.All(DefaultPatterns.All, regex => Assert.Equal(RegexOptions.CultureInvariant, regex.Options)),
+            () => Assert.Empty(kelvinRanges));
     }
 
     /// <summary>

@@ -1,0 +1,21 @@
+# Recorded with cspell 10.1.1 by record-cspell.ps1 from corpus/predefined-patterns.input (line feed line endings) and corpus/predefined-patterns.settings.yaml. # One finding per line: LINE:COLUMN WORD [flagged]. Do not edit by hand; run the script again.
+1:1 zorbhexone
+1:20 zorbhextwo
+1:37 zorbhexthree
+1:56 zorbhexfour
+1:76 zorbhexfive
+2:3 zorbescone
+2:16 zorbesctwo
+2:31 zorbescthree
+2:50 zorbescfour
+2:63 qzorbescfive
+5:35 zorbhreftext
+5:89 zorbhreffour
+7:69 zorbstringafter
+10:29 zorbcommentafter
+11:1 zorbscheme
+11:14 zorbnotcomment
+14:6 zorbheredocafter
+23:30 zorbkeyafter
+27:34 zorburlafter
+28:1 zorbplain

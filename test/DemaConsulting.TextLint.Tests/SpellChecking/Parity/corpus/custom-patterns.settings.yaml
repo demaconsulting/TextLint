@@ -1,0 +1,50 @@
+---
+# cspell:disable
+# Settings of the custom-patterns parity corpus: ignoreRegExpList entries written out in the slash and bare forms,
+# and named patterns that ignoreRegExpList refers to, with the flags and constructs that must keep their
+# JavaScript meaning.
+version: "0.2"
+language: en
+patterns:
+  - name: ZorbTag
+    pattern: "/zorbtag\\w+/"
+  - name: LineMark
+    pattern: "^zorbmark.*$"
+  - name: Quoted
+    pattern: '/"[^"]*"/'
+  - name: Nested
+    pattern: "/zorbnest(?:flib|quix)+/"
+  - name: Span
+    pattern: "/zorbspan[\\s\\S]*?zorbspanend/"
+ignoreRegExpList:
+  - "/^zorbstart\\w+/"
+  - "/zorbcase\\d+/"
+  - "/ZORBUP/i"
+  - "zorbbare\\w*"
+  - ZorbTag
+  - linemark
+  - Quoted
+  - Nested
+  - Span
+  - HexValues
+  - Urls
+  - "/(zorbgrp)\\1/"
+  - "/zorbdot.quixdot/"
+  - "/zorb(?<n>flibn)\\k<n>/"
+  - "/(?<=zorbbehind)quixbehind/"
+  - "/zorbalt(?:xone|xtwo)/"
+  - "/zorbcls[a-c]+/"
+  - "/zorbneg[^a-c ]+/"
+  - "/zorbuni\\p{L}+/u"
+  - "/zorbascii\\w+/"
+  - "/\\bzorbbound\\b/"
+  - "/zorblook(?=quixlook)/"
+  - "/zorbesc\\.zorbslash\\//"
+  - "/[\\d\\s]+zorbclass/"
+  - "/zorbq{2,3}x/"
+  - "/zorblazy.*?end/"
+  - "/zorbend$/"
+  - "/^zorbmulti.*$/m"
+  - "/zorbnotword\\B/"
+  - "/zorb\\u0041hex/"
+  - "/zorbspace\\szorbafter/"

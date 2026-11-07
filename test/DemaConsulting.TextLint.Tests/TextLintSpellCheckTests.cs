@@ -18,12 +18,14 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-// cspell:ignore wrold speling qwzx favourite cspe wrld llchecker
+// cspell:ignore wrold speling qwzx favourite cspe wrld llchecker xqzv Urlz SPELINGS qwzxabc xqzvw zorbbegin zorbend nxqzvw nzorbend
 
 using System.Text;
 using DemaConsulting.TextLint.Configuration;
+using DemaConsulting.TextLint.FileSelection;
 using DemaConsulting.TextLint.SpellChecking;
 using DemaConsulting.TextLint.Tests.TestSupport;
+using DemaConsulting.TextLint.TextScanning;
 
 namespace DemaConsulting.TextLint.Tests;
 
@@ -135,6 +137,16 @@ public class TextLintSpellCheckTests
     ///     in the settings file tests.
     /// </summary>
     private const int FifthColumn = 5;
+
+    /// <summary>
+    ///     The minimum random length that the settings file test configures.
+    /// </summary>
+    private const int RandomLengthConfigured = 25;
+
+    /// <summary>
+    ///     The number of letters in the text that a catastrophic pattern backtracks over.
+    /// </summary>
+    private const int CatastrophicLength = 60;
 
     /// <summary>
     ///     Checks a text with the given settings and returns the findings.
@@ -897,6 +909,275 @@ public class TextLintSpellCheckTests
 
         // Act / Assert: a degree of parallelism of zero is not accepted
         Assert.Throws<ArgumentOutOfRangeException>(() => new SpellCheckOptions { MaxDegreeOfParallelism = 0 });
+    }
+
+    /// <summary>
+    ///     Test that text matched by the <c>ignoreRegExpList</c> setting is not checked.
+    /// </summary>
+    [Fact]
+    public void TextLint_CheckText_IgnoreRegExpList_SkipsMatches()
+    {
+        // Arrange: settings with an expression written between slashes, a bare expression, and a named pattern
+        var settings = new TextLintSettings
+        {
+            IgnoreRegExpList = ["/wrold\\d+/", "speling\\w*", "ThirdWord"],
+            Patterns = [new NamedPattern("ThirdWord", "/qwzx[a-z]+/")],
+        };
+
+        // Act: check a text with a match of each pattern and an unmatched word
+        var issues = Check("wrold12 SPELINGS qwzxabc wrold", settings);
+
+        // Assert: only the word that no pattern matches is reported
+        Assert.Equal(["1:26 wrold"], Positions(issues));
+    }
+
+    /// <summary>
+    ///     Test that an ignoreRegExp directive in the text hides its matches in the whole text, as it does in cspell.
+    /// </summary>
+    [Fact]
+    public void TextLint_CheckText_IgnoreRegExpDirective_SkipsMatchesInTheWholeText()
+    {
+        // Arrange: a word before the directive that the pattern matches, the directive with the textlint prefix, and an
+        // unmatched word after it
+        const string text = "wrold12 speling\n// textlint:ignoreRegExp /wrold\\d+/\nxqzvw";
+
+        // Act: check the text
+        var issues = Check(text);
+
+        // Assert: the matched word is hidden although it comes before the directive, and the others are reported
+        Assert.Equal(["1:9 speling", "3:1 xqzvw"], Positions(issues));
+    }
+
+    /// <summary>
+    ///     Test that a pattern of an ignoreRegExp directive that cannot be used is reported with its position and the reason.
+    /// </summary>
+    [Fact]
+    public void TextLint_CheckText_IgnoreRegExpDirectiveInvalid_IsReportedAtItsPosition()
+    {
+        // Arrange: a directive that names a pattern that nothing defines
+        const string text = "// cspell:ignoreRegExp Urlz\nwrold";
+
+        // Act: check the text under a source name
+        var issues = new TextChecker(new TextLintSettings()).Check(text, "a.txt");
+
+        // Assert: the directive is reported as an error at its pattern, and the text is checked as usual
+        Assert.Multiple(
+            () => Assert.StartsWith("a.txt(1,24): error: Cannot use the pattern 'Urlz' of the directive 'ignoreRegExp': ", issues[0].ToString(), StringComparison.Ordinal),
+            () => Assert.Equal("2:1 wrold", $"{issues[1].Line}:{issues[1].Column} {issues[1].Text}"));
+    }
+
+    /// <summary>
+    ///     Test that the dot-all flag lets a pattern of the settings match across lines.
+    /// </summary>
+    [Fact]
+    public void TextLint_CheckText_DotAllFlag_MatchesAcrossLines()
+    {
+        // Arrange: a pattern that spans from a start marker to an end marker with the dot, with and without the flag
+        const string text = "wrold zorbbegin\nspeling\nzorbend xqzvw";
+        var withFlag = new TextLintSettings { IgnoreRegExpList = ["/zorbbegin.*zorbend/s"] };
+        var withoutFlag = new TextLintSettings { IgnoreRegExpList = ["/zorbbegin.*zorbend/"] };
+
+        // Act: check the text with each
+        var skipped = Check(text, withFlag);
+        var checkedAgain = Check(text, withoutFlag);
+
+        // Assert: with the flag the dot crosses the line breaks, so the whole span is skipped; without it, nothing is
+        Assert.Multiple(
+            () => Assert.Equal(["1:1 wrold", "3:9 xqzvw"], Positions(skipped)),
+            () => Assert.Contains("speling", checkedAgain.Select(issue => issue.Text)));
+    }
+
+    /// <summary>
+    ///     Test that the predefined pattern names that cspell knows exclude their text when they are listed.
+    /// </summary>
+    [Fact]
+    public void TextLint_CheckText_PredefinedPatternNames_ExcludeTheirText()
+    {
+        // Arrange: settings that list three predefined names that the default patterns do not apply, and one that they do
+        var settings = new TextLintSettings { IgnoreRegExpList = ["string", "CStyleComment", "href", "Urls"] };
+
+        // Act: check a text with a string, a comment, an attribute, and an unmatched word
+        var issues = Check("\"wrold\" // speling\n<a href=\"qwzx\">x</a> xqzv", settings);
+
+        // Assert: only the unmatched word is reported
+        Assert.Equal(["2:22 xqzv"], Positions(issues));
+    }
+
+    /// <summary>
+    ///     Test that a settings file with the pattern and random-string keys loads their values.
+    /// </summary>
+    [Fact]
+    public async Task TextLint_Settings_PatternKeysConfigFile_LoadsConfiguredValues()
+    {
+        // Arrange: a settings file that uses every key of this feature
+        using var temp = new TempDirectory();
+        const string yaml =
+            "ignoreRegExpList:\n  - \"/wrold\\\\d+/\"\n  - Marker\n  - Urls\npatterns:\n  - name: Marker\n    pattern: \"^speling.*$\"\n" +
+            "ignoreRandomStrings: false\nminRandomLength: 25\n";
+
+        // Act: load it
+        var result = await LoadAsync(temp, yaml);
+
+        // Assert: every key is mapped
+        var settings = result.Settings!;
+        Assert.Multiple(
+            () => Assert.True(result.Succeeded),
+            () => Assert.Equal(["/wrold\\d+/", "Marker", "Urls"], settings.IgnoreRegExpList),
+            () => Assert.Equal("Marker", Assert.Single(settings.Patterns).Name),
+            () => Assert.False(settings.IgnoreRandomStrings),
+            () => Assert.Equal(RandomLengthConfigured, settings.MinRandomLength));
+    }
+
+    /// <summary>
+    ///     Test that an invalid regular expression is reported with the file, line, and column of its entry.
+    /// </summary>
+    [Fact]
+    public async Task TextLint_Settings_InvalidRegularExpression_ReportsFileLineAndColumn()
+    {
+        // Arrange: a settings file with an expression that has an unsupported flag
+        using var temp = new TempDirectory();
+
+        // Act: load it
+        var result = await LoadAsync(temp, "ignoreRegExpList:\n  - \"/wrold/x\"\n");
+
+        // Assert: loading fails with an error at the entry that names the flag
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Multiple(
+            () => Assert.Null(result.Settings),
+            () => Assert.Contains("the flag 'x' is not supported", diagnostic.Message),
+            () => Assert.EndsWith(".textlint.yaml", diagnostic.FilePath),
+            () => Assert.Equal(SecondLine, diagnostic.Line),
+            () => Assert.Equal(ListItemColumn, diagnostic.Column));
+    }
+
+    /// <summary>
+    ///     Test that a pattern name that nothing defines is reported with the file, line, and column of its entry.
+    /// </summary>
+    [Fact]
+    public async Task TextLint_Settings_UnknownPatternName_ReportsFileLineAndColumn()
+    {
+        // Arrange: a settings file with a misspelled predefined name
+        using var temp = new TempDirectory();
+
+        // Act: load it
+        var result = await LoadAsync(temp, "ignoreRegExpList:\n  - Urlz\n");
+
+        // Assert: loading fails with an error at the entry that says the name is not defined
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Multiple(
+            () => Assert.Null(result.Settings),
+            () => Assert.Contains("not a defined or predefined pattern name", diagnostic.Message),
+            () => Assert.Equal(SecondLine, diagnostic.Line),
+            () => Assert.Equal(ListItemColumn, diagnostic.Column));
+    }
+
+    /// <summary>
+    ///     Test that patterns from a settings file exclude text in the files of a run, and that a Markdown file also
+    ///     skips its link targets.
+    /// </summary>
+    [Fact]
+    public async Task TextLint_SpellCheck_PatternsFromConfigFile_SkipMatchesInFiles()
+    {
+        // Arrange: a settings file with a pattern, and a text file and a Markdown file with the same matched text
+        using var temp = new TempDirectory();
+        var loaded = await LoadAsync(temp, "files: ['**/*.txt', '**/*.md']\nignoreRegExpList:\n  - \"/wrold\\\\d+/\"\n");
+        temp.CreateFile("a.txt", $"wrold1 [x]({OtherUnknown}) {ThirdUnknown}\n");
+        temp.CreateFile("b.md", $"wrold1 [x]({OtherUnknown}) {ThirdUnknown}\n");
+
+        // Act: check the files with the loaded settings
+        var result = await SpellChecker.CheckAsync(
+            loaded.Settings!,
+            temp.FullPath,
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        // Assert: the pattern hides its match in both files, and only the Markdown file also hides the link target
+        Assert.Equal(
+            [$"a.txt:{OtherUnknown}", $"a.txt:{ThirdUnknown}", $"b.md:{ThirdUnknown}"],
+            result.Issues.Select(issue => $"{issue.FilePath}:{issue.Text}"));
+    }
+
+    /// <summary>
+    ///     Test that a pattern that backtracks without end makes the file a timed-out error instead of hanging the run.
+    /// </summary>
+    [Fact]
+    public async Task TextLint_SpellCheck_CatastrophicPattern_ReportsTimedOutDiagnostic()
+    {
+        // Arrange: a pattern that backtracks exponentially, a file that almost matches it, and a file that does not start to match
+        using var temp = new TempDirectory();
+        temp.CreateFile("a.txt", new string('a', CatastrophicLength) + "b\n");
+        temp.CreateFile("b.txt", $"{Unknown}\n");
+        var settings = new TextLintSettings { Files = ["**/*.txt"], IgnoreRegExpList = ["/^(a|aa)+$/m"] };
+
+        // Act: check the files through the internal seam that shortens the limit, so that the test is fast
+        var result = await SpellChecker.CheckWithSelectionAsync(
+            settings,
+            token => FileSelector.Select(temp.FullPath, settings.Files, settings.IgnorePaths, settings.EnableGlobDot, token),
+            null,
+            TestContext.Current.CancellationToken,
+            TimeSpan.FromMilliseconds(100));
+        var diagnostic = Assert.Single(result.FileDiagnostics);
+        Assert.Multiple(
+            () => Assert.Equal("a.txt", diagnostic.FilePath),
+            () => Assert.Equal(FileDiagnosticKind.TimedOut, diagnostic.Kind),
+            () => Assert.Equal(["b.txt"], result.Issues.Select(issue => issue.FilePath)),
+            () => Assert.True(result.HasProblems));
+    }
+
+    /// <summary>
+    ///     Test that the link targets, reference labels, anchors, and entities of a Markdown file are not checked.
+    /// </summary>
+    [Fact]
+    public void TextLint_CheckText_MarkdownLinkTargets_AreNotChecked()
+    {
+        // Arrange: a line of Markdown with a link target, a reference label, an anchor id, and an entity
+        const string markdown = "[text](wrold) [text][speling] <a id=\"qwzx\"></a> &wrold; hello";
+
+        // Act: check it as a Markdown file and as a text file
+        var checker = new TextChecker(new TextLintSettings());
+        var asMarkdown = checker.Check(markdown, "docs/guide.md");
+        var asText = checker.Check(markdown, "docs/guide.txt");
+
+        // Assert: nothing is reported in the Markdown file, and the words are reported in the text file
+        Assert.Multiple(
+            () => Assert.Empty(asMarkdown),
+            () => Assert.NotEmpty(asText));
+    }
+
+    /// <summary>
+    ///     Test that a long token that looks like random data is not checked, and is checked when the setting is off.
+    /// </summary>
+    [Fact]
+    public void TextLint_CheckText_RandomLookingToken_IsNotChecked()
+    {
+        // Arrange: a 46-character token of non-words, digits, and hyphens that looks like random data
+        const string token = "qwzx-1-xqzv-2-qwzx-3-xqzv-4-qwzx-5-xqzv-6-qwzx";
+
+        // Act: check it with the defaults, with the skipping off, and with a minimum length above its length
+        var skipped = Check(token);
+        var checkedWhenOff = Check(token, new TextLintSettings { IgnoreRandomStrings = false });
+        var checkedWhenShort = Check(token, new TextLintSettings { MinRandomLength = token.Length + 1 });
+
+        // Assert: it is skipped by default and checked in the other two cases
+        Assert.Multiple(
+            () => Assert.Empty(skipped),
+            () => Assert.NotEmpty(checkedWhenOff),
+            () => Assert.Equal(Positions(checkedWhenOff), Positions(checkedWhenShort)));
+    }
+
+    /// <summary>
+    ///     Test that a contraction whose parts are known or too short to check is accepted, and one with an unknown part is not.
+    /// </summary>
+    [Fact]
+    public void TextLint_CheckText_ContractionOfKnownWords_IsAccepted()
+    {
+        // Arrange: contractions of known words, and one with an unknown part
+        const string text = "exec'd OR'd rock'n'roll she'd've wrold'd";
+
+        // Act: check the text
+        var issues = Check(text);
+
+        // Assert: only the contraction with an unknown part is reported, whole
+        Assert.Equal(["1:34 wrold'd"], Positions(issues));
     }
 
     /// <summary>

@@ -14,10 +14,12 @@
 #   corpus with identical settings. cspell stops reporting a word after 5 repeats and a file after 100
 #   problems by default; TextLint has neither cap, so the script lifts both by importing the settings file
 #   from a temporary configuration. The output is reduced to one "LINE:COLUMN WORD [flagged]" line per
-#   finding and written to expected/NAME.cspell under a header that records the cspell version. The directive
-#   corpora are checked twice, once with the line endings they are stored with (line feed) and once with every line
-#   ending turned into a carriage return and a line feed, because the two give different results for a few
-#   directives; the second recording is written to expected/NAME.crlf.cspell.
+#   finding and written to expected/NAME.cspell under a header that records the cspell version. The corpora whose
+#   result depends on line endings (the directive corpora, and the corpora of patterns that use line anchors and
+#   the dot, and the ignoreRegExp directive) are checked twice, once with the line endings they are stored with (line feed) and once with every line
+#   ending turned into a carriage return and a line feed; the second recording is written to expected/NAME.crlf.cspell.
+#   The corpus of Markdown patterns is checked with the language markdown forced, because its name has the neutral
+#   extension .input.
 #
 # The corpora use only invented words (zorb, quix, flib, ...), so the recorded output does not depend on the
 # dictionaries of either tool, except for the deliberate differences listed in known-divergences.txt.
@@ -32,8 +34,13 @@ $repositoryRoot = (Resolve-Path (Join-Path $parityDirectory '../../../..')).Path
 # The caps that cspell applies by default and TextLint does not have
 $lifted = 100000
 
-# The corpora that are also recorded with CRLF line endings: the ones about directives, whose scope depends on lines
-$crlfCorpora = @('directives', 'unterminated')
+# The corpora that are also recorded with CRLF line endings: the ones whose result depends on lines (the directives,
+# and the patterns that use line anchors and the dot)
+$crlfCorpora = @('directives', 'unterminated', 'custom-patterns', 'markdown-links', 'ignore-regexp', 'directive-lookalikes')
+
+# The corpora that cspell must read as a language, because their file name has the neutral extension .input. TextLint
+# reads the same corpus under a source name with the matching extension (see CspellParityTests).
+$languageIds = @{ 'markdown-links' = 'markdown' }
 
 # Runs cspell over one file and returns its findings as "LINE:COLUMN WORD [flagged]" lines
 function Get-CspellFindings([string] $file, [string] $name, [string] $settings) {
@@ -42,9 +49,15 @@ function Get-CspellFindings([string] $file, [string] $name, [string] $settings) 
     @{ import = @($settings); maxDuplicateProblems = $lifted; maxNumberOfProblems = $lifted } |
         ConvertTo-Json | Set-Content -Path $temp -Encoding utf8
 
+    # A corpus that needs a language is checked with that language forced
+    $languageArguments = @()
+    if ($languageIds.ContainsKey($name)) {
+        $languageArguments = @('--language-id', $languageIds[$name])
+    }
+
     try {
         # cspell exits with 1 when it finds problems, which is expected here
-        $output = npx cspell lint --no-progress --no-color --no-summary --no-config-search `
+        $output = npx cspell lint --no-progress --no-color --no-summary --no-config-search @languageArguments `
             --config $temp --root $corpusDirectory $file 2>&1
     }
     finally {

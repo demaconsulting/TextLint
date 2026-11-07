@@ -1,7 +1,9 @@
 ---
 # cspell:disable
-# Settings of the deliberate-divergences parity corpus: the cspell defaults and one word with punctuation.
+# Settings of the deliberate-divergences parity corpus: the cspell defaults, one word with punctuation, and one
+# accepted word that a backslash escape can precede.
 version: "0.2"
 language: en
 words:
   - zorv1.2
+  - zorbq

@@ -21,6 +21,7 @@
 using System.Buffers;
 using System.Collections.Immutable;
 using System.Text.RegularExpressions;
+using static DemaConsulting.TextLint.TextScanning.JavaScriptSyntax;
 
 namespace DemaConsulting.TextLint.TextScanning;
 
@@ -51,6 +52,12 @@ namespace DemaConsulting.TextLint.TextScanning;
 ///             separated by commas, semicolons, or white space, for the whole document; the text of the
 ///             directive itself is not checked.
 ///         </item>
+///         <item>
+///             <c>ignoreRegExp</c> adds one pattern, written like an <c>ignoreRegExpList</c> entry, for the
+///             whole document, wherever the directive is, as in cspell. This class only finds the pattern, the
+///             way cspell reads it from the line (see <c>FindPattern</c>); the checker turns it into a regular
+///             expression and reports a pattern that cannot be used. The text of the directive is not checked.
+///         </item>
 ///     </list>
 ///     Every occurrence of a prefix is classified exactly once, by one pattern, and both what the occurrence
 ///     hides and whether it is reported are derived from that classification, so the two can never disagree.
@@ -64,7 +71,7 @@ namespace DemaConsulting.TextLint.TextScanning;
 ///     directive that is not in force; cspell hides the rest of the line for the <c>ignore</c> and
 ///     <c>word</c> forms, which this engine deliberately does not. Directives that cspell supports and this
 ///     engine does not (<c>flag</c> and <c>forbid</c>, <c>locale</c> (and its alias <c>local</c>) and
-///     <c>language</c>, <c>dictionary</c>, <c>ignoreRegExp</c>, <c>includeRegExp</c>, and the compound-word and
+///     <c>language</c>, <c>dictionary</c>, <c>includeRegExp</c>, and the compound-word and
 ///     case-sensitivity switches) are reported so a user does not believe they are in force. Names that
 ///     do not begin with a directive keyword (<c>mystery</c>), a prefix that follows a letter
 ///     (<c>xcspell:disable</c>), and a prefix without a name are ignored. A directive inside a region where
@@ -78,6 +85,39 @@ internal static partial class DocumentDirectives
     ///     The longest time, in milliseconds, that one pattern may spend on one text; see <see cref="DefaultPatterns"/>.
     /// </summary>
     private const int MatchTimeoutMilliseconds = DefaultPatterns.MatchTimeoutMilliseconds;
+
+    /// <summary>
+    ///     The flag letters that cspell reads after the closing slash of a pattern written in a directive.
+    /// </summary>
+    private const string CspellPatternFlags = "gimuy";
+
+    // The keywords of the directive patterns, with both cases of every letter spelled out. cspell reads them with the
+    // JavaScript i flag, which without the u flag lets an ASCII letter match only itself and its other case; the .NET
+    // case-insensitive option also lets the long s (U+017F), the Kelvin sign (U+212A), and others match, so no pattern
+    // of this class uses it, and the keywords are classes instead. The plain spelling is in the remarks of each pattern.
+    private const string SpellKeyword = "[Ss][Pp][Ee][Ll][Ll]";
+    private const string CheckerKeyword = "[Cc][Hh][Ee][Cc][Kk][Ee][Rr]";
+    private const string TextLintKeyword = "[Tt][Ee][Xx][Tt][Ll][Ii][Nn][Tt]";
+    private const string DisableKeyword = "[Dd][Ii][Ss][Aa][Bb][Ll][Ee]";
+    private const string EnableKeyword = "[Ee][Nn][Aa][Bb][Ll][Ee]";
+    private const string IgnoreKeyword = "[Ii][Gg][Nn][Oo][Rr][Ee]";
+    private const string WordKeyword = "[Ww][Oo][Rr][Dd]";
+    private const string RegKeyword = "[Rr][Ee][Gg]";
+    private const string ExpKeyword = "[Ee][Xx][Pp]";
+    private const string IncludeKeyword = "[Ii][Nn][Cc][Ll][Uu][Dd][Ee]";
+    private const string AllowKeyword = "[Aa][Ll][Ll][Oo][Ww]";
+    private const string CompoundWordsKeyword = "[Cc][Oo][Mm][Pp][Oo][Uu][Nn][Dd][Ww][Oo][Rr][Dd][Ss]";
+    private const string CaseSensitiveKeyword = "[Cc][Aa][Ss][Ee][Ss][Ee][Nn][Ss][Ii][Tt][Ii][Vv][Ee]";
+    private const string FlagKeyword = "[Ff][Ll][Aa][Gg]";
+    private const string ForbidKeyword = "[Ff][Oo][Rr][Bb][Ii][Dd]";
+    private const string LocalKeyword = "[Ll][Oo][Cc][Aa][Ll]";
+    private const string LocaleKeyword = "[Ll][Oo][Cc][Aa][Ll][Ee]";
+    private const string LanguageKeyword = "[Ll][Aa][Nn][Gg][Uu][Aa][Gg][Ee]";
+    private const string DictionarKeyword = "[Dd][Ii][Cc][Tt][Ii][Oo][Nn][Aa][Rr]";
+    private const string NextKeyword = "[Nn][Ee][Xx][Tt]";
+    private const string LineKeyword = "[Ll][Ii][Nn][Ee]";
+    private const string IesKeyword = "[Ii][Ee][Ss]";
+    private const string OptionalS = "[Ss]?";
 
     /// <summary>
     ///     The words whose presence in a text means the text might contain a directive prefix.
@@ -147,18 +187,19 @@ internal static partial class DocumentDirectives
             excluded.Add(new TextRange(directive.PrefixStart, LineEnd(text, directive.NameEnd) - directive.PrefixStart));
         }
 
-        // Read the directive lines for the words they add and the unsupported directives they name
+        // Read the directive lines for the words they add, the patterns they add, and the unsupported directives they name
         var ignoredWords = new List<string>();
         var words = new List<string>();
         var unsupported = new List<TextRange>();
-        ReadDirectiveLines(text, directives, disabled, ignoredWords, words, unsupported);
+        var patterns = new List<DirectiveScan.PatternDirective>();
+        ReadDirectiveLines(text, directives, disabled, ignoredWords, words, unsupported, patterns);
 
-        if (excluded.Count == 0 && ignoredWords.Count == 0 && words.Count == 0 && unsupported.Count == 0)
+        if (excluded.Count == 0 && ignoredWords.Count == 0 && words.Count == 0 && unsupported.Count == 0 && patterns.Count == 0)
         {
             return DirectiveScan.Empty;
         }
 
-        return new DirectiveScan([.. excluded], [.. ignoredWords], [.. words], [.. unsupported]);
+        return new DirectiveScan([.. excluded], [.. ignoredWords], [.. words], [.. unsupported], [.. patterns]);
     }
 
     /// <summary>
@@ -330,13 +371,15 @@ internal static partial class DocumentDirectives
     /// <param name="ignoredWords">The list that receives words from <c>ignore</c> directives. Must not be null.</param>
     /// <param name="words">The list that receives words from <c>words</c> directives. Must not be null.</param>
     /// <param name="unsupported">The list that receives the names of unsupported directives. Must not be null.</param>
+    /// <param name="patterns">The list that receives the patterns of <c>ignoreRegExp</c> directives. Must not be null.</param>
     private static void ReadDirectiveLines(
         string text,
         List<Directive> directives,
         List<TextRange> disabled,
         List<string> ignoredWords,
         List<string> words,
-        List<TextRange> unsupported)
+        List<TextRange> unsupported,
+        List<DirectiveScan.PatternDirective> patterns)
     {
         var readEnd = 0;
         foreach (var directive in directives)
@@ -364,7 +407,23 @@ internal static partial class DocumentDirectives
                     SplitWords(text[directive.NameStart..lineEnd], ignoredWords);
                     break;
 
-                case DirectiveKind.IgnoreRegExp or DirectiveKind.Unsupported or DirectiveKind.NearMiss:
+                case DirectiveKind.IgnoreRegExp:
+                    // The pattern is the rest of the line, as cspell reads it; a directive with nothing after
+                    // its name on the line has no pattern, which is reported like an unsupported directive
+                    var pattern = FindPattern(text, directive.NameEnd, lineEnd);
+                    var reportable = !IsInside(disabled, directive.NameStart);
+                    if (pattern.Length > 0)
+                    {
+                        patterns.Add(new DirectiveScan.PatternDirective(pattern, text.Substring(pattern.Start, pattern.Length), reportable));
+                    }
+                    else if (reportable)
+                    {
+                        unsupported.Add(new TextRange(directive.NameStart, NameLength(text, directive.NameStart, lineEnd)));
+                    }
+
+                    break;
+
+                case DirectiveKind.Unsupported or DirectiveKind.NearMiss:
                     // Reported at its name, unless checking is switched off there
                     if (!IsInside(disabled, directive.NameStart))
                     {
@@ -378,6 +437,67 @@ internal static partial class DocumentDirectives
                     break;
             }
         }
+    }
+
+    /// <summary>
+    ///     Finds the pattern that an <c>ignoreRegExp</c> directive names, the way cspell reads the rest of the line.
+    /// </summary>
+    /// <remarks>
+    ///     After the directive name and its white space, cspell takes the longest stretch that starts at the
+    ///     first slash that has another slash after it and ends at the last slash, together with any of the
+    ///     flag letters <c>g</c>, <c>i</c>, <c>m</c>, <c>u</c>, and <c>y</c> that follow it, wherever it is on the line
+    ///     (so two literals on one line are read as one, which is cspell's behavior). When the line has no such
+    ///     stretch, the pattern is its first word. Anything after the pattern is ignored. The flag letters
+    ///     are cspell's, so a <c>/x/s</c> written in a directive is read as <c>/x/</c>; the other flags are
+    ///     available in the settings. Stateless and thread-safe.
+    /// </remarks>
+    /// <param name="text">The text. Must not be null.</param>
+    /// <param name="nameEnd">The offset just past the directive name.</param>
+    /// <param name="lineEnd">The offset of the end of the line that holds the directive.</param>
+    /// <returns>The range of the pattern; an empty range when the line has nothing after the name.</returns>
+    private static TextRange FindPattern(string text, int nameEnd, int lineEnd)
+    {
+        // Trim white space around the rest of the line, as cspell trims the directive text
+        var start = nameEnd;
+        while (start < lineEnd && JavaScriptSyntax.IsSpace(text[start]))
+        {
+            start++;
+        }
+
+        var end = lineEnd;
+        while (end > start && JavaScriptSyntax.IsSpace(text[end - 1]))
+        {
+            end--;
+        }
+
+        if (start >= end)
+        {
+            return new TextRange(start, 0);
+        }
+
+        // A stretch between a slash and a later slash, with the flags that follow it, is the pattern
+        var rest = text.AsSpan(start, end - start);
+        var first = rest.IndexOf('/');
+        var last = rest.LastIndexOf('/');
+        if (first >= 0 && last > first)
+        {
+            var patternEnd = last + 1;
+            while (patternEnd < rest.Length && CspellPatternFlags.Contains(rest[patternEnd]))
+            {
+                patternEnd++;
+            }
+
+            return new TextRange(start + first, patternEnd - first);
+        }
+
+        // Otherwise the pattern is the first word
+        var length = 0;
+        while (length < rest.Length && !JavaScriptSyntax.IsSpace(rest[length]))
+        {
+            length++;
+        }
+
+        return new TextRange(start, length);
     }
 
     /// <summary>
@@ -466,7 +586,7 @@ internal static partial class DocumentDirectives
     /// </remarks>
     /// <param name="character">The character to test.</param>
     /// <returns><see langword="true"/> for a comma, a semicolon, or white space.</returns>
-    private static bool IsWordSeparator(char character) => character is ',' or ';' || char.IsWhiteSpace(character);
+    private static bool IsWordSeparator(char character) => character is ',' or ';' || JavaScriptSyntax.IsSpace(character);
 
     /// <summary>
     ///     Determines whether an offset lies inside any of a list of ranges.
@@ -500,8 +620,9 @@ internal static partial class DocumentDirectives
     /// </remarks>
     /// <returns>The generated regular expression.</returns>
     [GeneratedRegex(
-        "(?<![A-Za-z0-9_])(?<prefix>(?:c?spell(?:-?checker)?|textlint)::?)\\s*",
-        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, MatchTimeoutMilliseconds)]
+        "(?<![A-Za-z0-9_])(?<prefix>(?:[Cc]?" + SpellKeyword + "(?:-?" + CheckerKeyword + ")?|" + TextLintKeyword +
+        ")::?)" + Space + "*",
+        RegexOptions.CultureInvariant, MatchTimeoutMilliseconds)]
     private static partial Regex DirectivePrefix();
 
     /// <summary>
@@ -510,8 +631,8 @@ internal static partial class DocumentDirectives
     /// </summary>
     /// <returns>The generated regular expression.</returns>
     [GeneratedRegex(
-        "^(?:spell-?checker|c?spell|textlint)::?$",
-        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, MatchTimeoutMilliseconds)]
+        "^(?:" + SpellKeyword + "-?" + CheckerKeyword + "|[Cc]?" + SpellKeyword + "|" + TextLintKeyword + ")::?$",
+        RegexOptions.CultureInvariant, MatchTimeoutMilliseconds)]
     private static partial Regex ReadablePrefix();
 
     /// <summary>
@@ -523,7 +644,7 @@ internal static partial class DocumentDirectives
     /// </remarks>
     /// <returns>The generated regular expression.</returns>
     [GeneratedRegex(
-        "\\G[^\\r\\n\\u2028\\u2029]*\\s\\s?[^\\r\\n\\u2028\\u2029]*",
+        "\\G" + NotLineTerminator + "*" + Space + Space + "?" + NotLineTerminator + "*",
         RegexOptions.CultureInvariant, MatchTimeoutMilliseconds)]
     private static partial Regex NextLineTail();
 
@@ -545,22 +666,25 @@ internal static partial class DocumentDirectives
     /// </remarks>
     /// <returns>The generated regular expression.</returns>
     [GeneratedRegex(
-        "\\G(?:(?<next>disable-next(?![A-Za-z0-9_]))" +
-        "|(?<line>disable-line(?![A-Za-z0-9_]))" +
-        "|(?<disable>disable(?![A-Za-z0-9_-]))" +
-        "|(?<enable>enable(?![A-Za-z0-9_]))" +
-        "|(?<ignore>ignore(?:-?words?)?(?![A-Za-z0-9_-]))" +
-        "|(?<words>words?(?![A-Za-z0-9_-]))" +
-        "|(?<regexp>ignore_?Reg_?Exp(?=\\s+\\S))" +
-        "|(?<unsupported>(?:enable|disable)(?:allow)?CompoundWords(?![A-Za-z0-9_-])" +
-        "|(?:enable|disable)CaseSensitive(?![A-Za-z0-9_-])" +
-        "|(?:flag|forbid)(?:-?words?)?(?![A-Za-z0-9_-])" +
-        "|include_?Reg_?Exp(?=\\s+\\S)" +
-        "|(?:locale|local)(?![A-Za-z0-9_-])" +
-        "|language(?=\\s[A-Za-z0-9_])" +
-        "|dictionar(?:y|ies)(?![A-Za-z0-9_-]))" +
-        "|(?<nearMiss>(?:disable|enable|ignore|word|flag|forbid|local|language|dictionar|include)))",
-        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, MatchTimeoutMilliseconds)]
+        "\\G(?:(?<next>" + DisableKeyword + "-" + NextKeyword + "(?![A-Za-z0-9_]))" +
+        "|(?<line>" + DisableKeyword + "-" + LineKeyword + "(?![A-Za-z0-9_]))" +
+        "|(?<disable>" + DisableKeyword + "(?![A-Za-z0-9_-]))" +
+        "|(?<enable>" + EnableKeyword + "(?![A-Za-z0-9_]))" +
+        "|(?<ignore>" + IgnoreKeyword + "(?:-?" + WordKeyword + OptionalS + ")?(?![A-Za-z0-9_-]))" +
+        "|(?<words>" + WordKeyword + OptionalS + "(?![A-Za-z0-9_-]))" +
+        "|(?<regexp>" + IgnoreKeyword + "_?" + RegKeyword + "_?" + ExpKeyword + "(?=" + Space + "+" + NotSpace + "))" +
+        "|(?<unsupported>(?:" + EnableKeyword + "|" + DisableKeyword + ")(?:" + AllowKeyword + ")?" +
+        CompoundWordsKeyword + "(?![A-Za-z0-9_-])" +
+        "|(?:" + EnableKeyword + "|" + DisableKeyword + ")" + CaseSensitiveKeyword + "(?![A-Za-z0-9_-])" +
+        "|(?:" + FlagKeyword + "|" + ForbidKeyword + ")(?:-?" + WordKeyword + OptionalS + ")?(?![A-Za-z0-9_-])" +
+        "|" + IncludeKeyword + "_?" + RegKeyword + "_?" + ExpKeyword + "(?=" + Space + "+" + NotSpace + ")" +
+        "|(?:" + LocaleKeyword + "|" + LocalKeyword + ")(?![A-Za-z0-9_-])" +
+        "|" + LanguageKeyword + "(?=" + Space + "[A-Za-z0-9_])" +
+        "|" + DictionarKeyword + "(?:[Yy]|" + IesKeyword + ")(?![A-Za-z0-9_-]))" +
+        "|(?<nearMiss>(?:" + DisableKeyword + "|" + EnableKeyword + "|" + IgnoreKeyword + "|" + WordKeyword + "|" +
+        FlagKeyword + "|" + ForbidKeyword + "|" + LocalKeyword + "|" + LanguageKeyword + "|" + DictionarKeyword + "|" +
+        IncludeKeyword + ")))",
+        RegexOptions.CultureInvariant, MatchTimeoutMilliseconds)]
     private static partial Regex DirectiveName();
 
     /// <summary>
@@ -589,7 +713,7 @@ internal static partial class DocumentDirectives
         /// <summary>Adds words to the document.</summary>
         Words,
 
-        /// <summary>Adds an ignore expression, which is not supported but whose text is not prose.</summary>
+        /// <summary>Adds a pattern whose matches are not checked, for the whole document.</summary>
         IgnoreRegExp,
 
         /// <summary>A directive that cspell has and this engine does not.</summary>

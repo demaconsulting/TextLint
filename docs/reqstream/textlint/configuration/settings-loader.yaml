@@ -31,8 +31,9 @@ sections:
               - id: TextLint-Configuration-SettingsLoader-MapKeys
                 title: >-
                   SettingsLoader shall map version, files, ignorePaths, enableGlobDot, language,
-                  words, ignoreWords, flagWords, minWordLength, and maxFileSize to settings,
-                  treating an empty document or a null value as absent.
+                  words, ignoreWords, flagWords, minWordLength, maxFileSize, ignoreRegExpList,
+                  patterns, ignoreRandomStrings, and minRandomLength to settings, treating an
+                  empty document or a null value as absent.
                 justification: |
                   These are the supported cspell-named keys. Configurations written by hand are
                   often empty or have commented-out lists, and neither may be an error.
@@ -166,6 +167,50 @@ sections:
                   - SettingsLoader_Parse_SeveralUnsupportedKeys_ReportsEach
                   - SettingsLoader_Parse_UnsupportedKeyWithNestedValue_ReportsSingleError
                   - SettingsLoader_Parse_KeyDifferentCase_TreatedAsUnsupported
+                  - SettingsLoader_Parse_IncludeRegExpList_RemainsUnsupported
+
+              - id: TextLint-Configuration-SettingsLoader-MapPatternKeys
+                title: >-
+                  SettingsLoader shall map the ignoreRegExpList, patterns, ignoreRandomStrings, and
+                  minRandomLength keys to settings as cspell reads them, keeping the entries of the
+                  list and the names and expressions of the patterns in the order written,
+                  accepting a pattern name in the list before or after the pattern that defines it,
+                  and shall leave the cspell defaults in force for absent or null values.
+                justification: |
+                  A project migrated from cspell brings these keys unchanged, and a name written
+                  above its definition is valid in cspell. The order of the entries is the order
+                  in which a person reads them.
+                tests:
+                  - SettingsLoader_Parse_IgnoreRegExpList_MapsEntriesInOrder
+                  - SettingsLoader_Parse_Patterns_MapsNamesAndExpressions
+                  - SettingsLoader_Parse_RandomStringKeys_AreMapped
+                  - SettingsLoader_Parse_NullPatternValues_LeaveDefaults
+
+              - id: TextLint-Configuration-SettingsLoader-InvalidRegularExpressions
+                title: >-
+                  SettingsLoader shall report each ignoreRegExpList entry and each pattern
+                  definition that cannot be used, because its expression is invalid or unsupported,
+                  its flags are unsupported, its name is unknown, repeated, or reserved, or its
+                  shape is wrong, as an error at the offending node naming the entry and the
+                  reason, collecting every such error in the order of the file, and shall report an
+                  ignoreRandomStrings that is not a boolean and a minRandomLength that is not a whole
+                  number of at least 1 as an error at the value.
+                justification: |
+                  A pattern that cannot work would silently exclude nothing, or would fail in the
+                  middle of a run. Reporting it while the file is loaded keeps its line and
+                  column, and judging it by the rules of the spell check ensures a pattern
+                  accepted at load is never rejected later. A definition that fails still defines
+                  its name, so one mistake does not bring a second error for every use.
+                tests:
+                  - SettingsLoader_Parse_IgnoreRegExpListUnsupportedFlag_ReportsErrorAtItem
+                  - SettingsLoader_Parse_IgnoreRegExpListInvalidExpression_ReportsEveryBadItem
+                  - SettingsLoader_Parse_IgnoreRegExpListUnknownName_ReportsErrorAtItem
+                  - SettingsLoader_Parse_IgnoreRegExpListBlankEntry_ReportsError
+                  - SettingsLoader_Parse_IgnoreRegExpListNotAListOfText_ReportsErrors
+                  - SettingsLoader_Parse_InvalidPatternDefinition_ReportsErrorAtTheProblem
+                  - SettingsLoader_Parse_DefinitionWithBadPattern_StillDefinesItsName
+                  - SettingsLoader_Parse_PatternErrorsAmongOtherKeys_AreReportedInSourceOrder
+                  - SettingsLoader_Parse_InvalidRandomStringValue_ReportsErrorAtValue
 
               - id: TextLint-Configuration-SettingsLoader-InvalidPatterns
                 title: >-

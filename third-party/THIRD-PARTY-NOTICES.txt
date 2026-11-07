@@ -5,7 +5,8 @@ TextLint's own source code is distributed under the MIT license (see the LICENSE
 
 The English and technical word lists that TextLint is built from contain data from the third-party sources
 listed below, and the spell-checking rules of TextLint include regular expressions and behavior taken from the
-cspell project. The notices are reproduced here because the licenses require them to accompany the data and the
+cspell project. The table of JavaScript letter-case equivalences contains data derived from the Unicode Character
+Database. The notices are reproduced here because the licenses require them to accompany the data and the
 code derived from them.
 
 
@@ -430,11 +431,17 @@ THE SOFTWARE.
 -----------------------------------
 
 The default list of text that is never spell-checked (URLs, email addresses, hexadecimal values, UUIDs, hashes,
-and encoded data), the patterns that recognize the in-document directives, and the word-splitting rules of the
+and encoded data), the other predefined patterns that a configuration can list (hexadecimal values and escapes,
+public keys, quoted strings, comments, here-documents, and so on), the patterns that recognize the in-document
+directives, the rule that skips strings that look like random data, and the word-splitting rules of the
 spell checker are ported from cspell-lib, a package of the cspell project,
 https://github.com/streetsidesoftware/cspell (cspell-lib 10.1.1, packages/cspell-lib). The regular expressions
 were rewritten for the .NET regular-expression engine, and the rules are implemented in new code. The copyright
 notice of cspell-lib and its MIT license follow verbatim.
+
+The patterns that exclude link targets, link reference labels, and anchors in Markdown files are ported from
+@cspell/dict-markdown 2.0.18, Copyright (c) 2017-2022 Street Side Software <support@streetsidesoftware.nl>,
+which is licensed under the MIT license that follows the list of packages in section 4.
 
 MIT License
 
@@ -457,3 +464,53 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+
+6. LETTER-CASE EQUIVALENCES: UNICODE CHARACTER DATABASE
+-------------------------------------------------------
+
+The table of letters that a JavaScript regular expression treats as the same when it ignores case
+(src/DemaConsulting.TextLint/TextScanning/JavaScriptCaseData.cs) was recorded from the JavaScript engine of
+Node.js, whose case mappings come from the Unicode Character Database through ICU. The table contains data
+derived from the Unicode Character Database (the simple case mappings and case foldings of the Unicode version that
+the file header names). The notice of Unicode, Inc. follows verbatim.
+
+UNICODE LICENSE V3
+
+COPYRIGHT AND PERMISSION NOTICE
+
+Copyright © 1991-2026 Unicode, Inc.
+
+NOTICE TO USER: Carefully read the following legal agreement. BY
+DOWNLOADING, INSTALLING, COPYING OR OTHERWISE USING DATA FILES, AND/OR
+SOFTWARE, YOU UNEQUIVOCALLY ACCEPT, AND AGREE TO BE BOUND BY, ALL OF THE
+TERMS AND CONDITIONS OF THIS AGREEMENT. IF YOU DO NOT AGREE, DO NOT
+DOWNLOAD, INSTALL, COPY, DISTRIBUTE OR USE THE DATA FILES OR SOFTWARE.
+
+Permission is hereby granted, free of charge, to any person obtaining a
+copy of data files and any associated documentation (the "Data Files") or
+software and any associated documentation (the "Software") to deal in the
+Data Files or Software without restriction, including without limitation
+the rights to use, copy, modify, merge, publish, distribute, and/or sell
+copies of the Data Files or Software, and to permit persons to whom the
+Data Files or Software are furnished to do so, provided that either (a)
+this copyright and permission notice appear with all copies of the Data
+Files or Software, or (b) this copyright and permission notice appear in
+associated Documentation.
+
+THE DATA FILES AND SOFTWARE ARE PROVIDED "AS IS", WITHOUT WARRANTY OF ANY
+KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF
+THIRD PARTY RIGHTS.
+
+IN NO EVENT SHALL THE COPYRIGHT HOLDER OR HOLDERS INCLUDED IN THIS NOTICE
+BE LIABLE FOR ANY CLAIM, OR ANY SPECIAL INDIRECT OR CONSEQUENTIAL DAMAGES,
+OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS,
+WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION,
+ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THE DATA
+FILES OR SOFTWARE.
+
+Except as contained in this notice, the name of a copyright holder shall
+not be used in advertising or otherwise to promote the sale, use or other
+dealings in these Data Files or Software without prior written
+authorization of the copyright holder.

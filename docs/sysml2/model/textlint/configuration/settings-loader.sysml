@@ -1,6 +1,6 @@
 package TextLint {
     part def SettingsLoader {
-        doc /* Reads a .textlint.yaml file into settings, or into positioned errors, validating glob patterns, languages, word-list entries, and numbers while loading. */
+        doc /* Reads a .textlint.yaml file into settings, or into positioned errors, validating glob patterns, languages, word-list entries, regular-expression patterns, and numbers while loading. */
 
         comment sourceRef /* Source: src/DemaConsulting.TextLint/Configuration/SettingsLoader.cs (supporting types: SettingsLoadResult.cs, SettingsDiagnostic.cs) */
         comment testRef /* Test: test/DemaConsulting.TextLint.Tests/Configuration/SettingsLoaderTests.cs */
@@ -18,4 +18,6 @@ package TextLint {
     dependency SettingsLoaderUsesGlobPatternExpander from SettingsLoader to GlobPatternExpander;
     dependency SettingsLoaderUsesSpellingDictionary from SettingsLoader to SpellingDictionary;
     dependency SettingsLoaderUsesWordTokenizer from SettingsLoader to WordTokenizer;
+    dependency SettingsLoaderUsesPatternCatalog from SettingsLoader to PatternCatalog;
+    dependency SettingsLoaderUsesPatternParser from SettingsLoader to PatternParser;
 }

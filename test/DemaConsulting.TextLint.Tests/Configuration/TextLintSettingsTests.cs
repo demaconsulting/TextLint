@@ -18,7 +18,10 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+// cspell:ignore zorb quix
+
 using DemaConsulting.TextLint.Configuration;
+using DemaConsulting.TextLint.TextScanning;
 
 namespace DemaConsulting.TextLint.Tests.Configuration;
 
@@ -27,6 +30,11 @@ namespace DemaConsulting.TextLint.Tests.Configuration;
 /// </summary>
 public class TextLintSettingsTests
 {
+    /// <summary>
+    ///     The documented default length from which a token is judged to be random.
+    /// </summary>
+    private const int DefaultMinRandomLength = 40;
+
     /// <summary>
     ///     The minimum word length of the original settings in the copy test.
     /// </summary>
@@ -447,5 +455,109 @@ public class TextLintSettingsTests
         Assert.Multiple(
             () => Assert.Equal(0L, unlimited.MaxFileSize),
             () => Assert.Equal(long.MaxValue, largest.MaxFileSize));
+    }
+
+    /// <summary>
+    ///     Test that the pattern and random-string settings have the documented defaults.
+    /// </summary>
+    [Fact]
+    public void TextLintSettings_New_NoValues_HasDocumentedPatternDefaults()
+    {
+        // Arrange: no setup required
+
+        // Act: create settings without assigning anything
+        var settings = new TextLintSettings();
+
+        // Assert: empty pattern lists (never null), random strings ignored, and cspell's minimum length of 40
+        Assert.Multiple(
+            () => Assert.Empty(settings.IgnoreRegExpList),
+            () => Assert.Empty(settings.Patterns),
+            () => Assert.True(settings.IgnoreRandomStrings),
+            () => Assert.Equal(DefaultMinRandomLength, settings.MinRandomLength));
+    }
+
+    /// <summary>
+    ///     Test that the pattern lists are copied, so later changes to the caller's lists have no effect.
+    /// </summary>
+    [Fact]
+    public void TextLintSettings_Init_PatternLists_AreCopied()
+    {
+        // Arrange: lists that the caller keeps and changes after assigning them
+        var entries = new List<string> { "/zorb/" };
+        var definitions = new List<NamedPattern> { new("Zorb", "/zorb/") };
+        var settings = new TextLintSettings { IgnoreRegExpList = entries, Patterns = definitions };
+
+        // Act: change the caller's lists
+        entries.Add("/quix/");
+        definitions.Clear();
+
+        // Assert: the settings still hold the original items, and the exposed lists cannot be changed
+        Assert.Multiple(
+            () => Assert.Equal(["/zorb/"], settings.IgnoreRegExpList),
+            () => Assert.Single(settings.Patterns),
+            () => Assert.Throws<NotSupportedException>(() => ((IList<string>)settings.IgnoreRegExpList).Add("x")),
+            () => Assert.Throws<NotSupportedException>(() => ((IList<NamedPattern>)settings.Patterns).Add(new NamedPattern("A", "b"))));
+    }
+
+    /// <summary>
+    ///     Test that a null pattern list, or a list with a null entry, is rejected.
+    /// </summary>
+    [Fact]
+    public void TextLintSettings_Init_NullPatternListOrEntry_ThrowsArgumentNullException()
+    {
+        // Arrange: no setup required
+
+        // Act / Assert: null lists and null entries are rejected
+        Assert.Multiple(
+            () => Assert.Throws<ArgumentNullException>(() => new TextLintSettings { IgnoreRegExpList = null! }),
+            () => Assert.Throws<ArgumentNullException>(() => new TextLintSettings { Patterns = null! }),
+            () => Assert.Throws<ArgumentNullException>(() => new TextLintSettings { IgnoreRegExpList = [null!] }),
+            () => Assert.Throws<ArgumentNullException>(() => new TextLintSettings { Patterns = [null!] }));
+    }
+
+    /// <summary>
+    ///     Test that a minimum random length below one is rejected and the boundary values are accepted.
+    /// </summary>
+    [Fact]
+    public void TextLintSettings_Init_MinRandomLength_IsValidatedAtOne()
+    {
+        // Arrange: no setup required
+
+        // Act: assign the lowest valid value
+        var lowest = new TextLintSettings { MinRandomLength = 1 };
+
+        // Assert: one is stored, and zero and negative values are rejected
+        Assert.Multiple(
+            () => Assert.Equal(1, lowest.MinRandomLength),
+            () => Assert.Throws<ArgumentOutOfRangeException>(() => new TextLintSettings { MinRandomLength = 0 }),
+            () => Assert.Throws<ArgumentOutOfRangeException>(() => new TextLintSettings { MinRandomLength = -1 }));
+    }
+
+    /// <summary>
+    ///     Test that a derived copy keeps the pattern settings and can change them without affecting the original.
+    /// </summary>
+    [Fact]
+    public void TextLintSettings_With_PatternSettings_AreCopiedAndIndependent()
+    {
+        // Arrange: settings with patterns and a switched-off random-string setting
+        var original = new TextLintSettings
+        {
+            IgnoreRegExpList = ["/zorb/"],
+            Patterns = [new NamedPattern("Zorb", "/zorb/")],
+            IgnoreRandomStrings = false,
+            MinRandomLength = 12,
+        };
+
+        // Act: derive a copy that changes one list and one value
+        var copy = original with { IgnoreRegExpList = ["/quix/"], MinRandomLength = 20 };
+
+        // Assert: the copy has the changes and keeps the rest, and the original is unchanged
+        Assert.Multiple(
+            () => Assert.Equal(["/quix/"], copy.IgnoreRegExpList),
+            () => Assert.Equal(20, copy.MinRandomLength),
+            () => Assert.False(copy.IgnoreRandomStrings),
+            () => Assert.Single(copy.Patterns),
+            () => Assert.Equal(["/zorb/"], original.IgnoreRegExpList),
+            () => Assert.Equal(12, original.MinRandomLength));
     }
 }

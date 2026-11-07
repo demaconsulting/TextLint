@@ -64,7 +64,10 @@ file size of the settings, the checker's method, and the options.
 **CheckWithSelectionAsync (internal)**: Selects the files with a given function and checks them.
 
 It is a test seam: the selection is a parameter, so tests can prove that the caller's token reaches the file selection,
-which a real directory tree cannot show deterministically. The public method passes the file selector.
+which a real directory tree cannot show deterministically. The public method passes the file selector. A further
+optional parameter, `TimeSpan? matchTimeout`, is a second seam: null (the public method's value) makes the checker with
+the production limit of 5 seconds, and a value makes it with that limit, so that a test can prove the time-out
+diagnostic for a catastrophic pattern of the settings or of a directive in milliseconds.
 
 **CheckFilesAsync (internal)**: Checks the given files and assembles the result.
 

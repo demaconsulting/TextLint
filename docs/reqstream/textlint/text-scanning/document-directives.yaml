@@ -5,6 +5,8 @@
 # the disable and enable block, the disable-line and disable-next-line directives, the ignore and words
 # directives, and the directives that cspell supports and this library does not. The DirectiveScan value it
 # produces is part of the unit.
+#
+# cspell:ignore dotless
 
 sections:
   - title: TextLint Requirements
@@ -193,18 +195,42 @@ sections:
                 title: >-
                   DocumentDirectives shall report, at the range of its name, each directive that cspell
                   supports and this library does not (flag and forbid, locale and language, dictionary,
-                  ignoreRegExp, includeRegExp, and the compound-word and case-sensitivity switches), in the
-                  order written, without otherwise adding words, and shall exclude the text of an ignoreRegExp
-                  directive, which is an expression and not prose.
+                  includeRegExp, and the compound-word and case-sensitivity switches), in the order written,
+                  without otherwise adding words.
                 justification: |
                   An author who writes a directive believes it is in force. A directive that silently does
                   nothing would hide a difference from cspell, so it is reported where it is written.
                 tests:
                   - DocumentDirectives_Scan_UnsupportedDirective_IsReportedAtItsName
                   - DocumentDirectives_Scan_UnsupportedDirective_HasNoOtherEffect
-                  - DocumentDirectives_Scan_IgnoreRegExpWithArgument_HidesItsLineAndIsReported
                   - DocumentDirectives_Scan_UnsupportedDirectiveAfterSurrogatePair_PositionCountsUtf16Units
                   - DocumentDirectives_Scan_SeveralUnsupportedDirectives_AreReportedInTextOrder
+
+              - id: TextLint-TextScanning-DocumentDirectives-IgnoreRegExp
+                title: >-
+                  DocumentDirectives shall find the pattern that each ignoreRegExp directive writes, with the
+                  range where it is written and whether an unusable pattern there is to be reported, in the
+                  order written, reading the pattern from the rest of the line the way cspell reads it (the
+                  longest stretch from the first slash that has another slash after it to the last slash, with
+                  the flag letters g, i, m, u, and y that follow, otherwise the first word), for every directive
+                  prefix and spelling of the name, wherever the directive is and also inside a region where
+                  checking is switched off, and shall exclude the text of the directive, which is a pattern and
+                  not prose. A directive with nothing after its name on its line shall be reported like an
+                  unsupported directive.
+                justification: |
+                  A project migrated from cspell relies on the directive to hide text that is not prose, and it
+                  must find the same text hidden. cspell applies the pattern to the whole document, so the
+                  directive is found wherever it is; the range lets the caller report an unusable pattern where
+                  it is written, which cspell does not do, and a directive in a disabled region is not reported.
+                tests:
+                  - DocumentDirectives_Scan_IgnoreRegExpWithArgument_HidesItsLineAndAddsItsPattern
+                  - DocumentDirectives_Scan_IgnoreRegExpArgument_IsReadLikeCspell
+                  - DocumentDirectives_Scan_IgnoreRegExpPrefixesAndSpellings_AllAddThePattern
+                  - DocumentDirectives_Scan_IgnoreRegExpInsideDisabledBlock_AddsPatternButIsNotReportable
+                  - DocumentDirectives_Scan_IgnoreRegExpWithoutPattern_IsReportedAtItsName
+                  - DocumentDirectives_Scan_IgnoreRegExpLineTerminators_EndThePattern
+                  - DocumentDirectives_Scan_IgnoreRegExpAfterAnotherPrefixOnTheLine_IsNotRead
+                  - DocumentDirectives_Scan_IgnoreRegExpInLargeText_IsFound
 
               - id: TextLint-TextScanning-DocumentDirectives-HiddenUnsupportedDirectives
                 title: >-
@@ -282,3 +308,22 @@ sections:
                   failure deep inside a scan.
                 tests:
                   - DocumentDirectives_Scan_NullText_ThrowsArgumentNullException
+
+              - id: TextLint-TextScanning-DocumentDirectives-JavaScriptSemantics
+                title: >-
+                  DocumentDirectives shall read white space in directives as the JavaScript white space set, so that
+                  prefixes, words, and patterns are separated at the same characters as in cspell, and shall
+                  read the letters of a prefix and of a directive name as the ASCII letters in either case and no
+                  other character (the long s, the dotless i, the dotted capital I, and the Kelvin sign are not
+                  letters of a prefix or a name), without using the case option of the regular expression engine.
+                justification: |
+                  The .NET white space and case rules differ from those of the JavaScript engine that cspell runs
+                  its reader in, and a directive that is read differently would hide or add different text. An
+                  ASCII letter matches only itself and its other case there, so a look-alike letter must not
+                  start a disable block.
+                tests:
+                  - DocumentDirectives_Scan_JavaScriptWhiteSpace_SeparatesLikeCspell
+                  - DocumentDirectives_Scan_KelvinSignInPrefix_IsNotReadAsLetterK
+                  - DocumentDirectives_Scan_LookalikeLetters_AreNotLettersOfADirective
+                  - DocumentDirectives_Scan_LongSAfterWordKeyword_IsNotTheLetterS
+                  - DocumentDirectives_Scan_DotlessIInIgnoreRegExp_IsNotThatDirective

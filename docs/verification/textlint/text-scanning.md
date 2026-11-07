@@ -3,13 +3,16 @@
 ### Verification Approach
 
 The `TextScanning` subsystem is verified by integration tests in `TextScanningSubsystemTests.cs`. They drive
-`WordTokenizer`, `DefaultPatterns`, and `DocumentDirectives` together through the subsystem boundary the way a spell
-checker does: the excluded ranges of the patterns and of the directives are combined, and the words, tokens, and list
-entries of the tokenizer are then filtered and compared with them. All three units are real; the subsystem has no
-dependencies on other subsystems and no external service, so there is nothing to replace with a double. The tests
-use text written in the test, so they need no files. The exhaustive behavior of each unit is verified by the unit tests
-of that unit; the subsystem tests prove that the units compose, for example that the words inside a URL, a disabled
-block, or an ignore directive are not left among the words to check.
+`WordTokenizer`, `DefaultPatterns`, `DocumentDirectives`, `PatternCatalog` (with `PatternParser` and `NamedPattern`),
+`MarkdownPatterns`, and `RandomStringDetector` together through the subsystem boundary the way a spell checker does:
+the excluded ranges of the patterns and of the directives are combined, and the words, tokens, and list entries of the
+tokenizer are then filtered and compared with them. All units are real; the subsystem has no dependencies on other
+subsystems and no external service, so there is nothing to replace with a double. The tests use text written in the
+test, so they need no files. The exhaustive behavior of each unit is verified by the unit tests of that unit; the
+subsystem tests prove that the units compose, for example that the words inside a URL, a disabled block, or an ignore
+directive are not left among the words to check, that the patterns of the settings and the names they use find their
+ranges, that an unusable pattern is rejected with its entry and reason, that the Markdown patterns apply to a Markdown
+name only, and that a random-looking token and the hexadecimal sequence of a token are recognized.
 
 ### Test Environment
 
@@ -27,7 +30,14 @@ the test project supports.
 - URLs, email addresses, hexadecimal values, UUIDs, and encoded data are excluded from the words to check, and ordinary
   prose is not.
 - A disabled block, an ignore directive, and every directive prefix switch checking off as documented, an ignore
-  directive adds its words, and an unsupported directive is reported at its name.
+  directive adds its words, an ignoreRegExp directive adds its pattern as written and is not reported as unsupported,
+  and an unsupported directive is reported at its name.
+- Patterns written as expressions between slashes, as bare expressions, and as defined and predefined names find the
+  ranges they match with the case rules of their form, and a pattern that cannot be used is rejected with the entry
+  and the reason.
+- The Markdown patterns apply to a Markdown source name and not to another, and find link targets and entities.
+- A token that looks like random data is recognized and an identifier made of words is not, and the hexadecimal
+  sequence inside a token is found.
 
 ### Test Scenarios
 
@@ -67,6 +77,10 @@ are not checked, and the words around the block are.
 **TextScanningSubsystem_Scan_IgnoreDirective_AddsWordsAndExcludesDirectiveText**: An ignore directive adds its words as
 ignored words, and the words of the directive are not among the words to check.
 
+**TextScanningSubsystem_Scan_IgnoreRegExpDirective_AddsItsPattern**: An ignoreRegExp directive after some text adds its
+pattern as written (a slash pattern with the i flag) at its position, nothing is reported as unsupported, and the words
+of the directive are not among the words to check.
+
 **TextScanningSubsystem_Scan_UnsupportedDirective_IsReportedAtItsName**: An unsupported directive is reported at the
 range of its name, and the text before it is still checked.
 
@@ -76,3 +90,19 @@ accepted prefixes hides the words of its line.
 **TextScanningSubsystem_ScanDocument_DisabledBlockUrlAndIgnoreDirective_LeavesOnlyCheckedWords**: A document with a
 disabled block that holds a URL, a visible URL and email address, and an ignore directive reports the ignored word and
 leaves only the visible prose to check.
+
+**TextScanningSubsystem_ResolvePatterns_ExpressionsAndNames_FindMatchedRanges**: A case-sensitive expression between
+slashes, a bare expression, a defined name, and the predefined `string` name are resolved together and find their
+matches in a text; the bare expression and the defined pattern ignore letter case, the case-sensitive one does not,
+and text that none of them matches is left alone.
+
+**TextScanningSubsystem_ResolvePatterns_UnusableEntry_ThrowsWithEntryAndReason**: An expression with an unsupported
+flag (the x flag), a name that nothing defines, and an invalid expression are each rejected with an exception that
+holds the entry
+and a reason about the flag, the pattern name, or the unclosed group.
+
+**TextScanningSubsystem_MarkdownPatterns_LinkTarget_IsExcludedOnlyForMarkdownNames**: The patterns apply to a `.md`
+name and not to a `.txt` name, and on a line with a link and an entity they find the link target and the entity.
+
+**TextScanningSubsystem_RandomStrings_TokenAndHexSequence_AreRecognized**: A token of digits, words, and hyphens looks
+random, a long camel-case identifier does not, and the hexadecimal part of a token that starts with a word is found.

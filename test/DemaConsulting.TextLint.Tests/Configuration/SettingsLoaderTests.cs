@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-// cspell:ignore colour kubectl nuget
+// cspell:ignore colour kubectl nuget Urlz zorb quix
 
 using System.Text;
 using DemaConsulting.TextLint.Configuration;
@@ -1744,5 +1744,292 @@ public class SettingsLoaderTests
         Assert.Multiple(
             () => Assert.Equal([1, 3, 4, 5], result.Diagnostics.Select(diagnostic => diagnostic.Line)),
             () => Assert.Null(result.Settings));
+    }
+
+    /// <summary>
+    ///     Test that the entries of <c>ignoreRegExpList</c> are mapped in order, whatever their form.
+    /// </summary>
+    [Fact]
+    public void SettingsLoader_Parse_IgnoreRegExpList_MapsEntriesInOrder()
+    {
+        // Arrange: a slash expression, a bare expression, a predefined name, and a name defined below
+        const string yaml =
+            "ignoreRegExpList:\n  - \"/zorb\\\\d+/i\"\n  - \"zorb\\\\w*\"\n  - Urls\n  - ZorbName\n" +
+            "patterns:\n  - name: ZorbName\n    pattern: \"/quix/\"\n";
+
+        // Act: parse the text
+        var result = SettingsLoader.Parse(yaml, Source);
+
+        // Assert: the entries are kept as written, in order
+        Assert.Multiple(
+            () => Assert.True(result.Succeeded),
+            () => Assert.Equal(["/zorb\\d+/i", "zorb\\w*", "Urls", "ZorbName"], result.Settings!.IgnoreRegExpList));
+    }
+
+    /// <summary>
+    ///     Test that the named patterns are mapped with their names and expressions, and that a description is accepted.
+    /// </summary>
+    [Fact]
+    public void SettingsLoader_Parse_Patterns_MapsNamesAndExpressions()
+    {
+        // Arrange: two named patterns, one with a description
+        const string yaml =
+            "patterns:\n  - name: First\n    pattern: \"/zorb/\"\n  - pattern: \"quix\"\n    name: Second\n    description: Documentation only\n";
+
+        // Act: parse the text
+        var result = SettingsLoader.Parse(yaml, Source);
+
+        // Assert: both definitions are kept in order, whatever the order of their keys
+        Assert.Multiple(
+            () => Assert.True(result.Succeeded),
+            () => Assert.Equal(["First", "Second"], result.Settings!.Patterns.Select(pattern => pattern.Name)),
+            () => Assert.Equal(["/zorb/", "quix"], result.Settings!.Patterns.Select(pattern => pattern.Pattern)));
+    }
+
+    /// <summary>
+    ///     Test that an <c>ignoreRegExpList</c> entry with an unsupported flag is reported at its list item.
+    /// </summary>
+    [Fact]
+    public void SettingsLoader_Parse_IgnoreRegExpListUnsupportedFlag_ReportsErrorAtItem()
+    {
+        // Arrange: an expression with the extended flag, which has no safe equivalent and which cspell silently drops
+        const string yaml = "ignoreRegExpList:\n  - \"/zorb/x\"\n";
+
+        // Act: parse the text
+        var diagnostic = ParseSingleError(yaml);
+
+        // Assert: the message names the setting, the entry, and the flag, at the item
+        Assert.Multiple(
+            () => Assert.Contains("Cannot use the 'ignoreRegExpList' entry '/zorb/x'", diagnostic.Message, StringComparison.Ordinal),
+            () => Assert.Contains("the flag 'x' is not supported", diagnostic.Message, StringComparison.Ordinal),
+            () => Assert.Equal(2, diagnostic.Line),
+            () => Assert.Equal(ListItemColumn, diagnostic.Column));
+    }
+
+    /// <summary>
+    ///     Test that an invalid regular expression in <c>ignoreRegExpList</c> is reported at its list item, and the rest is kept.
+    /// </summary>
+    [Fact]
+    public void SettingsLoader_Parse_IgnoreRegExpListInvalidExpression_ReportsEveryBadItem()
+    {
+        // Arrange: a good entry between two bad ones
+        const string yaml = "ignoreRegExpList:\n  - \"/(/\"\n  - \"/zorb/\"\n  - \"/\\\\z/\"\n";
+
+        // Act: parse the text
+        var result = SettingsLoader.Parse(yaml, Source);
+
+        // Assert: the two bad items are reported at their own lines, and there are no settings
+        Assert.Multiple(
+            () => Assert.Equal([2, 4], result.Diagnostics.Select(diagnostic => diagnostic.Line)),
+            () => Assert.Contains("a '(' is not closed", result.Diagnostics[0].Message, StringComparison.Ordinal),
+            () => Assert.Contains("the escape '\\z' is not supported", result.Diagnostics[1].Message, StringComparison.Ordinal),
+            () => Assert.Null(result.Settings));
+    }
+
+    /// <summary>
+    ///     Test that a name that nothing defines is reported at its list item.
+    /// </summary>
+    [Fact]
+    public void SettingsLoader_Parse_IgnoreRegExpListUnknownName_ReportsErrorAtItem()
+    {
+        // Arrange: a misspelled predefined name
+        const string yaml = "ignoreRegExpList:\n  - Urlz\n";
+
+        // Act: parse the text
+        var diagnostic = ParseSingleError(yaml);
+
+        // Assert: the message says the name is not defined and how to write literal text, at the item
+        Assert.Multiple(
+            () => Assert.Contains("Cannot use the 'ignoreRegExpList' entry 'Urlz'", diagnostic.Message, StringComparison.Ordinal),
+            () => Assert.Contains("not a defined or predefined pattern name", diagnostic.Message, StringComparison.Ordinal),
+            () => Assert.Equal(2, diagnostic.Line),
+            () => Assert.Equal(ListItemColumn, diagnostic.Column));
+    }
+
+    /// <summary>
+    ///     Test that a blank entry of <c>ignoreRegExpList</c> is reported.
+    /// </summary>
+    [Fact]
+    public void SettingsLoader_Parse_IgnoreRegExpListBlankEntry_ReportsError()
+    {
+        // Arrange: an entry of two quoted spaces
+        const string yaml = "ignoreRegExpList:\n  - \"  \"\n";
+
+        // Act: parse the text
+        var diagnostic = ParseSingleError(yaml);
+
+        // Assert: the entry is reported as blank
+        Assert.Contains("the pattern is blank", diagnostic.Message, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    ///     Test that a value of <c>ignoreRegExpList</c> that is not a list of text is reported.
+    /// </summary>
+    [Fact]
+    public void SettingsLoader_Parse_IgnoreRegExpListNotAListOfText_ReportsErrors()
+    {
+        // Arrange: a text instead of a list, and a list with a mapping in it
+        const string scalarYaml = "ignoreRegExpList: Urls\n";
+        const string mappingYaml = "ignoreRegExpList:\n  - a: b\n";
+
+        // Act: parse both
+        var scalar = ParseSingleError(scalarYaml);
+        var mapping = ParseSingleError(mappingYaml);
+
+        // Assert: each is reported by the shared list rules
+        Assert.Multiple(
+            () => Assert.Equal("Expected a list of text values.", scalar.Message),
+            () => Assert.Equal("Expected a text value in the list.", mapping.Message));
+    }
+
+    /// <summary>
+    ///     Test that an invalid definition of <c>patterns</c> is reported at the node that holds the problem.
+    /// </summary>
+    /// <param name="yaml">A settings text with one invalid definition.</param>
+    /// <param name="line">The line of the expected diagnostic.</param>
+    /// <param name="column">The column of the expected diagnostic.</param>
+    /// <param name="message">Text that the message must contain.</param>
+    [Theory]
+    [InlineData("patterns:\n  - name: Urls\n    pattern: \"/zorb/\"\n", 2, 11, "predefined")]
+    [InlineData("patterns:\n  - name: 1zorb\n    pattern: \"/zorb/\"\n", 2, 11, "must start with a letter")]
+    [InlineData("patterns:\n  - name: \"two words\"\n    pattern: \"/zorb/\"\n", 2, 11, "must start with a letter")]
+    [InlineData("patterns:\n  - name: Zorb\n    pattern: \"/zorb/\"\n  - name: ZORB\n    pattern: \"/quix/\"\n", 4, 11, "already defined")]
+    [InlineData("patterns:\n  - pattern: \"/zorb/\"\n", 2, 5, "A pattern needs a 'name'")]
+    [InlineData("patterns:\n  - name: Zorb\n", 2, 5, "A pattern needs a 'pattern'")]
+    [InlineData("patterns:\n  - name: Zorb\n    pattern: \"/(/\"\n", 3, 14, "Cannot use the pattern 'Zorb' ('/(/')")]
+    [InlineData("patterns:\n  - name: Zorb\n    pattern: \"/zorb/x\"\n", 3, 14, "the flag 'x' is not supported")]
+    [InlineData("patterns:\n  - name: Zorb\n    pattern:\n      - Urls\n      - Email\n", 4, 7, "A list of patterns is not supported")]
+    [InlineData("patterns:\n  - name: Zorb\n    pattern: [a, b]\n", 3, 14, "A list of patterns is not supported")]
+    [InlineData("patterns:\n  - name: Zorb\n    pattern: {a: b}\n", 3, 14, "Expected a text value for 'pattern'")]
+    [InlineData("patterns:\n  - name: [a]\n    pattern: \"/zorb/\"\n", 2, 11, "Expected a text value for 'name'")]
+    [InlineData("patterns:\n  - name: Zorb\n    pattern: \"/zorb/\"\n    flags: i\n", 4, 5, "'flags' is not a supported key of a pattern")]
+    [InlineData("patterns:\n  - Zorb\n", 2, 5, "Expected a pattern with a 'name' and a 'pattern'")]
+    [InlineData("patterns: Zorb\n", 1, 11, "Expected a list of patterns")]
+    [InlineData("patterns:\n  - name:\n    pattern: \"/zorb/\"\n", 2, 10, "Expected a text value for 'name'")]
+    public void SettingsLoader_Parse_InvalidPatternDefinition_ReportsErrorAtTheProblem(string yaml, int line, int column, string message)
+    {
+        // Arrange: the settings text and the expected position and wording are passed in by the theory data
+        // Act: parse the text
+        var diagnostic = ParseSingleError(yaml);
+
+        // Assert: the problem is reported at its node, with the expected wording
+        Assert.Multiple(
+            () => Assert.Contains(message, diagnostic.Message, StringComparison.Ordinal),
+            () => Assert.Equal(line, diagnostic.Line),
+            () => Assert.Equal(column, diagnostic.Column));
+    }
+
+    /// <summary>
+    ///     Test that a definition with a problem still defines its name, so a reference to it is not reported again.
+    /// </summary>
+    [Fact]
+    public void SettingsLoader_Parse_DefinitionWithBadPattern_StillDefinesItsName()
+    {
+        // Arrange: a definition whose pattern is invalid, and a list that refers to it
+        const string yaml = "ignoreRegExpList:\n  - Zorb\npatterns:\n  - name: Zorb\n    pattern: \"/(/\"\n";
+
+        // Act: parse the text
+        var diagnostic = ParseSingleError(yaml);
+
+        // Assert: only the pattern is reported, not the reference to the name
+        Assert.Contains("Cannot use the pattern 'Zorb'", diagnostic.Message, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    ///     Test that errors in several settings are reported in source order.
+    /// </summary>
+    [Fact]
+    public void SettingsLoader_Parse_PatternErrorsAmongOtherKeys_AreReportedInSourceOrder()
+    {
+        // Arrange: a bad list entry, a bad definition, and a bad length, in that order
+        const string yaml =
+            "ignoreRegExpList:\n  - Urlz\npatterns:\n  - name: Zorb\n    pattern: \"/(/\"\nminRandomLength: 0\n";
+
+        // Act: parse the text
+        var result = SettingsLoader.Parse(yaml, Source);
+
+        // Assert: three errors, in source order
+        Assert.Equal([2, 5, 6], result.Diagnostics.Select(diagnostic => diagnostic.Line));
+    }
+
+    /// <summary>
+    ///     Test that null values of the new keys leave the defaults, like the other keys.
+    /// </summary>
+    [Fact]
+    public void SettingsLoader_Parse_NullPatternValues_LeaveDefaults()
+    {
+        // Arrange: every new key written with no value
+        const string yaml = "ignoreRegExpList:\npatterns: ~\nignoreRandomStrings:\nminRandomLength: null\n";
+
+        // Act: parse the text
+        var result = SettingsLoader.Parse(yaml, Source);
+
+        // Assert: the defaults are kept
+        Assert.Multiple(
+            () => Assert.True(result.Succeeded),
+            () => Assert.Empty(result.Settings!.IgnoreRegExpList),
+            () => Assert.Empty(result.Settings!.Patterns),
+            () => Assert.True(result.Settings!.IgnoreRandomStrings),
+            () => Assert.Equal(40, result.Settings!.MinRandomLength));
+    }
+
+    /// <summary>
+    ///     Test that the random-string keys are mapped.
+    /// </summary>
+    [Fact]
+    public void SettingsLoader_Parse_RandomStringKeys_AreMapped()
+    {
+        // Arrange: the switch turned off and a length
+        const string yaml = "ignoreRandomStrings: false\nminRandomLength: 25\n";
+
+        // Act: parse the text
+        var result = SettingsLoader.Parse(yaml, Source);
+
+        // Assert: both values are mapped
+        Assert.Multiple(
+            () => Assert.False(result.Settings!.IgnoreRandomStrings),
+            () => Assert.Equal(25, result.Settings!.MinRandomLength));
+    }
+
+    /// <summary>
+    ///     Test that invalid values of the random-string keys are reported at their value.
+    /// </summary>
+    /// <param name="yaml">A settings text with one invalid value.</param>
+    /// <param name="message">The expected message.</param>
+    [Theory]
+    [InlineData("ignoreRandomStrings: yes\n", "Expected true or false for 'ignoreRandomStrings'.")]
+    [InlineData("ignoreRandomStrings: \"true\"\n", "Expected true or false for 'ignoreRandomStrings'.")]
+    [InlineData("ignoreRandomStrings: 1\n", "Expected true or false for 'ignoreRandomStrings'.")]
+    [InlineData("minRandomLength: 0\n", "Expected a whole number of at least 1 for 'minRandomLength'.")]
+    [InlineData("minRandomLength: -3\n", "Expected a whole number of at least 1 for 'minRandomLength'.")]
+    [InlineData("minRandomLength: 4.5\n", "Expected a whole number of at least 1 for 'minRandomLength'.")]
+    [InlineData("minRandomLength: \"40\"\n", "Expected a whole number of at least 1 for 'minRandomLength'.")]
+    [InlineData("minRandomLength: 99999999999\n", "Expected a whole number of at least 1 for 'minRandomLength'.")]
+    public void SettingsLoader_Parse_InvalidRandomStringValue_ReportsErrorAtValue(string yaml, string message)
+    {
+        // Arrange: the settings text and the expected message are passed in by the theory data
+        // Act: parse the text
+        var diagnostic = ParseSingleError(yaml);
+
+        // Assert: the message is reported at the value, which follows the key and a space
+        Assert.Multiple(
+            () => Assert.Equal(message, diagnostic.Message),
+            () => Assert.Equal(1, diagnostic.Line));
+    }
+
+    /// <summary>
+    ///     Test that a keyword of cspell that is still unsupported stays an error.
+    /// </summary>
+    [Fact]
+    public void SettingsLoader_Parse_IncludeRegExpList_RemainsUnsupported()
+    {
+        // Arrange: the include counterpart of the supported key
+        const string yaml = "includeRegExpList:\n  - Urls\n";
+
+        // Act: parse the text
+        var diagnostic = ParseSingleError(yaml);
+
+        // Assert: the key is reported as unsupported
+        Assert.Equal("'includeRegExpList' is not a supported setting.", diagnostic.Message);
     }
 }

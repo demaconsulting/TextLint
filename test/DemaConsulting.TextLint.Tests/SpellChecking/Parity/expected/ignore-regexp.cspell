@@ -1,0 +1,13 @@
+# Recorded with cspell 10.1.1 by record-cspell.ps1 from corpus/ignore-regexp.input (line feed line endings) and corpus/ignore-regexp.settings.yaml. # One finding per line: LINE:COLUMN WORD [flagged]. Do not edit by hand; run the script again.
+3:1 zorbafter
+3:27 ZORBBEFOREFOUR
+7:23 zorbbare
+18:27 ZORBNAMEDTHREE
+20:1 zorbonexx
+20:11 zorbtwoxx
+32:1 zorbhexpad
+32:13 zorbhex
+36:1 zorbinline
+40:1 zorbunterminated
+42:1 zorbbadx
+44:1 zorbafternothing

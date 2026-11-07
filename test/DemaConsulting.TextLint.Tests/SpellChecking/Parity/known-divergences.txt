@@ -9,7 +9,8 @@
 # One line per finding: CORPUS | SIDE | LINE:COLUMN WORD [kind] | REASON
 #   SIDE "+" : TextLint reports the finding and cspell does not.
 #   SIDE "-" : cspell reports the finding and TextLint does not.
-#   kind    : "flagged" for a flagged word, "directive" for an unsupported directive; omitted for an unknown word.
+#   kind    : "flagged" for a flagged word, "directive" for an unsupported directive, "invalid" for an ignoreRegExp directive
+#             whose pattern cannot be used; omitted for an unknown word.
 # Blank lines and lines that start with "#" are ignored.
 
 # --- cspell's heuristic splitter: after the case split, cspell re-splits an unknown word with a dictionary-driven search
@@ -24,16 +25,23 @@ divergences | + | 3:1 quix | TextLint never treats Han characters as part of a w
 divergences | + | 3:7 zorb | The second Latin word of the same run
 divergences | + | 5:9 zorv | A listed word with punctuation followed by more punctuated text: cspell's search finds the listed prefix
 divergences | + | 5:19 zorv | The same with letters after the listed word; TextLint matches a list entry only against a whole token
+divergences | + | 6:9 nzorbq | cspell remembers that nzorbq was accepted through the escape rule (\nzorbq) and accepts it later in the same file; TextLint accepts it only directly after a backslash
 
 # --- Dictionaries differ: TextLint embeds its own word lists, cspell its own.
 divergences | - | 4:2 nbsp | The word nbsp is in TextLint's HTML word list and not in cspell's dictionaries
 
 # --- Directives that cspell supports and TextLint reports instead of applying.
 unsupported-directives | + | 1:11 locale directive | The locale directive is reported, not applied
-unsupported-directives | + | 2:11 ignoreRegExp directive | The ignoreRegExp directive is reported, not applied
-unsupported-directives | + | 3:1 zorbre | cspell ignores the text the expression matches; TextLint reports the word
-unsupported-directives | + | 3:11 zorbre | The same for the second word
-unsupported-directives | + | 4:11 dictionary directive | The dictionary directive is reported, not applied
+unsupported-directives | + | 2:11 dictionary directive | The dictionary directive is reported, not applied
+
+# --- The ignoreRegExp directive is applied like cspell applies it. cspell silently drops a pattern it cannot use, so a
+# --- hidden word that depends on it is shown in both; TextLint also reports the directive, and reads a name that nothing
+# --- defines as an error instead of a literal expression.
+ignore-regexp | + | 35:24 /(?i)zorbinline/ invalid | TextLint reports a pattern with an inline option, which it cannot translate; cspell drops it silently
+ignore-regexp | + | 37:24 ZorbMissing invalid | TextLint reports a name that nothing defines; cspell reads it as the literal expression
+ignore-regexp | + | 38:1 zorbmissing | cspell hides the word with the literal expression; TextLint reports it, because the name is not a pattern
+ignore-regexp | + | 41:24 /zorbbad[/ invalid | TextLint reports a pattern that is not a valid expression; cspell drops it silently
+ignore-regexp | + | 43:11 ignoreRegExp directive | A directive with no pattern is reported; cspell ignores it
 
 # --- Names that begin like a directive but are not one. cspell does nothing for the disable forms and hides the rest of
 # --- the line for the ignore, word, and ignoreRegExp forms; TextLint hides nothing for any of them and reports the name.

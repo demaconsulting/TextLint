@@ -1,0 +1,6 @@
+---
+# cspell:disable
+# Settings of the markdown-links parity corpus: the cspell defaults, which add the Markdown patterns for
+# Markdown files.
+version: "0.2"
+language: en

@@ -31,7 +31,8 @@ sections:
             title: >-
               The Configuration subsystem shall map the supported cspell-named keys (version,
               files, ignorePaths, enableGlobDot, language, words, ignoreWords, flagWords,
-              minWordLength, and maxFileSize) onto settings, using defaults for absent keys.
+              minWordLength, maxFileSize, ignoreRegExpList, patterns, ignoreRandomStrings, and
+              minRandomLength) onto settings, using defaults for absent keys.
             justification: |
               These keys are the cspell keys needed to select files and to tune the spell check,
               and a user migrating from cspell expects them to keep their meaning. An empty file
@@ -44,6 +45,39 @@ sections:
             tests:
               - ConfigurationSubsystem_LoadAsync_AllSupportedKeys_PopulatesSettings
               - ConfigurationSubsystem_LoadAsync_EmptyFile_ReturnsDefaults
+
+          - id: TextLint-Configuration-PatternSettings
+            title: >-
+              The Configuration subsystem shall map the ignoreRegExpList, patterns,
+              ignoreRandomStrings, and minRandomLength keys onto settings, using the cspell defaults
+              for absent keys (no patterns, random strings ignored, and a minimum random length of
+              40), and shall keep the pattern lists unchangeable once settings are created.
+            justification: |
+              Projects exclude text that is not prose with these settings, so they must reach the
+              spell check with the meaning they have in cspell, and a project that sets none of
+              them must get cspell's behavior.
+            children:
+              - TextLint-Configuration-SettingsLoader-MapPatternKeys
+              - TextLint-Configuration-TextLintSettings-PatternDefaults
+              - TextLint-Configuration-TextLintSettings-ListsImmutable
+            tests:
+              - ConfigurationSubsystem_LoadAsync_PatternKeys_PopulatesSettings
+              - ConfigurationSubsystem_LoadAsync_NoPatternKeys_UsesCspellDefaults
+
+          - id: TextLint-Configuration-InvalidRegularExpressions
+            title: >-
+              The Configuration subsystem shall report an ignoreRegExpList entry or pattern
+              definition that cannot be used, and an invalid ignoreRandomStrings or minRandomLength,
+              as an error at the position of the problem, naming it and the reason, and shall not
+              return settings.
+            justification: |
+              A pattern that cannot work would exclude nothing or fail in the middle of a run.
+              Reporting it when the file is loaded, at its line and column, lets the user fix it
+              at once.
+            children:
+              - TextLint-Configuration-SettingsLoader-InvalidRegularExpressions
+            tests:
+              - ConfigurationSubsystem_LoadAsync_InvalidPatterns_ReportsEachWithPosition
 
           - id: TextLint-Configuration-SpellingSettings
             title: >-

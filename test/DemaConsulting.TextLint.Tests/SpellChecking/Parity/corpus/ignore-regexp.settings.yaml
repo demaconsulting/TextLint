@@ -1,0 +1,8 @@
+---
+# cspell:disable
+# Settings of the ignore-regexp parity corpus: a named pattern that an ignoreRegExp directive refers to.
+version: "0.2"
+language: en
+patterns:
+  - name: ZorbNamed
+    pattern: "/zorbnamed\\w+/"

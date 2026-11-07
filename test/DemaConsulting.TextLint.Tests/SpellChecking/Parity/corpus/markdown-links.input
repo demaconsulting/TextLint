@@ -1,0 +1,11 @@
+See [the zorbtext](zorblink-target) and [again][zorbref] and [collapsed][] zorbafter.
+A reference definition follows, then an anchor and an entity.
+
+[zorbref]: https://zorbfooturl.example/zorbpath zorbtitle
+[zorbdef2]: zorbdest zorbtail
+<a id="zorbanchor"></a> and <a  id="zorbanchor2">x</a> and <A ID="zorbanchor3">x</A>
+Entities: &zorbent; &Zorbent; &zorbent zorbplain;
+Nested [zorb [inner](zorbinner) text](zorbouter) end.
+An image ![zorbalt](zorbimage.png "zorbimgtitle") and a bare (zorbparen) and [zorbbracket] alone.
+Labels with punctuation: [x][zorb-ref.one_two] [x][zorb ref spaced] [x][zorb/slash].
+Link with title [text](zorbtarget "zorbtitletext") and angle [t](<zorbangle>).

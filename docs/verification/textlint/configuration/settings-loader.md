@@ -6,7 +6,8 @@
 files into a per-test temporary directory; tests of mapping and errors call the internal `Parse` method with
 YAML text so no file is needed. YamlDotNet is a real dependency (an OTS item with its own requirements, not a
 test double), and the unit's documented dependencies are real: `TextLintSettings`, `GlobPatternExpander`,
-`SpellingDictionary`, and `WordTokenizer`.
+`SpellingDictionary`, `WordTokenizer`, and `PatternCatalog` (with `PatternParser`), which judges every pattern entry
+and definition by the rules of the spell check so that a pattern accepted at load is never rejected later.
 Nothing is mocked: the loader's behavior is defined by how it maps real YAML, so a double would prove nothing.
 Positions asserted in the tests are 1-based lines and columns. Messages of the spelling errors are asserted
 exactly, because they are the user's only explanation of what to fix.
@@ -38,6 +39,15 @@ test environment.
   `maxFileSize` are reported at their value with the exact message, and several of them are all reported.
 - Diagnostics carry the source, line, and column, format as `file(line,column): error: message`, and cannot be
   changed by the caller once returned.
+- The ignoreRegExpList entries map in order and a name may come before its definition; the patterns key maps names
+  and expressions in order, whatever the order of the keys of a definition and with a description allowed; the
+  random-string keys map; null values leave the defaults.
+- Every ignoreRegExpList entry or definition that cannot be used (unsupported flag or construct, invalid expression,
+  unknown, repeated, predefined, or malformed name, wrong shape or type, blank) is reported at the offending node with
+  the entry and the reason, all of them in source order among the other errors, and a definition with a problem still
+  defines its name.
+- An ignoreRandomStrings that is not a boolean and a minRandomLength that is not a whole number of at least 1 are
+  reported at the value with the exact message, and `includeRegExpList` remains an unsupported key.
 
 #### Test Scenarios
 
@@ -361,3 +371,61 @@ line 2 column 3. This scenario is tested by `SettingsLoader_Parse_MaxFileSizeNot
 **SettingsLoader_Parse_MultipleSpellingErrors_ReportsEveryError**: An unsupported language, an unusable word, a
 zero length, and a negative size give four errors on lines 1, 3, 4, and 5, and no settings. This scenario is
 tested by `SettingsLoader_Parse_MultipleSpellingErrors_ReportsEveryError`.
+
+**SettingsLoader_Parse_IgnoreRegExpList_MapsEntriesInOrder**: A slash expression with a flag, a bare expression, a
+predefined name, and a name defined below the list are mapped as written, in order, and the load succeeds. This
+scenario is tested by `SettingsLoader_Parse_IgnoreRegExpList_MapsEntriesInOrder`.
+
+**SettingsLoader_Parse_Patterns_MapsNamesAndExpressions**: Two definitions, one with its keys in the other order and a
+description, are mapped in order with their names and expressions. This scenario is tested by
+`SettingsLoader_Parse_Patterns_MapsNamesAndExpressions`.
+
+**SettingsLoader_Parse_IgnoreRegExpListUnsupportedFlag_ReportsErrorAtItem**: An expression with the `x` flag is the
+single error, which names the setting, the entry, and the flag, at line 2 and the column of the list item. This
+scenario is tested by `SettingsLoader_Parse_IgnoreRegExpListUnsupportedFlag_ReportsErrorAtItem`.
+
+**SettingsLoader_Parse_IgnoreRegExpListInvalidExpression_ReportsEveryBadItem**: A good entry between an unclosed group
+and an unsupported escape gives two errors, on lines 2 and 4, with the reasons, and no settings. This scenario is
+tested by `SettingsLoader_Parse_IgnoreRegExpListInvalidExpression_ReportsEveryBadItem`.
+
+**SettingsLoader_Parse_IgnoreRegExpListUnknownName_ReportsErrorAtItem**: A misspelled predefined name is the single
+error, which says the name is not defined and how to write literal text, at the list item. This scenario is tested by
+`SettingsLoader_Parse_IgnoreRegExpListUnknownName_ReportsErrorAtItem`.
+
+**SettingsLoader_Parse_IgnoreRegExpListBlankEntry_ReportsError**: An entry of two spaces is reported as a blank
+pattern. This scenario is tested by `SettingsLoader_Parse_IgnoreRegExpListBlankEntry_ReportsError`.
+
+**SettingsLoader_Parse_IgnoreRegExpListNotAListOfText_ReportsErrors**: A text instead of a list, and a list that holds
+a mapping, are reported with the messages of the shared list rules. This scenario is tested by
+`SettingsLoader_Parse_IgnoreRegExpListNotAListOfText_ReportsErrors`.
+
+**SettingsLoader_Parse_InvalidPatternDefinition_ReportsErrorAtTheProblem**: Each row, a settings text with one invalid
+definition, gives the line, the column, and the wording of the one error. The rows cover a name that is predefined,
+starts with a digit, holds a space, or repeats another in other letter case; a missing name or pattern; an invalid
+expression and an unsupported flag, naming the definition; a list of patterns, written in block or flow form; a
+mapping or list where text is expected; an unsupported key of a definition; a definition that is not a mapping; a
+`patterns` value that is not a list; and a name with no value. This scenario is tested by
+`SettingsLoader_Parse_InvalidPatternDefinition_ReportsErrorAtTheProblem`.
+
+**SettingsLoader_Parse_DefinitionWithBadPattern_StillDefinesItsName**: A list that refers to a name whose definition has
+an invalid expression gives the one error for the expression and none for the reference. This scenario is tested by
+`SettingsLoader_Parse_DefinitionWithBadPattern_StillDefinesItsName`.
+
+**SettingsLoader_Parse_PatternErrorsAmongOtherKeys_AreReportedInSourceOrder**: A bad list entry, a bad definition, and
+a bad minimum random length give three errors on lines 2, 5, and 6. This scenario is tested by
+`SettingsLoader_Parse_PatternErrorsAmongOtherKeys_AreReportedInSourceOrder`.
+
+**SettingsLoader_Parse_NullPatternValues_LeaveDefaults**: The four new keys, written with no value, with `~`, and with
+`null`, leave no patterns, random strings ignored, and a minimum random length of 40. This scenario is tested by
+`SettingsLoader_Parse_NullPatternValues_LeaveDefaults`.
+
+**SettingsLoader_Parse_RandomStringKeys_AreMapped**: `ignoreRandomStrings: false` and `minRandomLength: 25` are mapped.
+This scenario is tested by `SettingsLoader_Parse_RandomStringKeys_AreMapped`.
+
+**SettingsLoader_Parse_InvalidRandomStringValue_ReportsErrorAtValue**: A switch written as `yes`, as quoted text, or as
+a number, and a length that is zero, negative, fractional, quoted, or too large, are each the single error with the
+exact message, on line 1. This scenario is tested by `SettingsLoader_Parse_InvalidRandomStringValue_ReportsErrorAtValue`.
+
+**SettingsLoader_Parse_IncludeRegExpList_RemainsUnsupported**: The key `includeRegExpList`, which cspell supports and
+the loader does not, is reported as an unsupported setting. This scenario is tested by
+`SettingsLoader_Parse_IncludeRegExpList_RemainsUnsupported`.

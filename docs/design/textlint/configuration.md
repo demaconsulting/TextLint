@@ -7,7 +7,8 @@
 The `Configuration` subsystem turns a `.textlint.yaml` file, or values an application builds in
 code, into one immutable settings value, and reports every configuration problem as data. It owns
 the settings schema: the supported keys are `version`, `files`, `ignorePaths`, `enableGlobDot`,
-`language`, `words`, `ignoreWords`, `flagWords`, `minWordLength`, and `maxFileSize`, named as cspell
+`language`, `words`, `ignoreWords`, `flagWords`, `minWordLength`, `maxFileSize`, `ignoreRegExpList`, `patterns`,
+`ignoreRandomStrings`, and `minRandomLength`, named as cspell
 names them so that configurations migrate with little change. The subsystem
 contains two units: `TextLintSettings`, the immutable settings value, and `SettingsLoader`, which
 reads a file into settings. The result and diagnostic types that `SettingsLoader` returns are
@@ -15,7 +16,7 @@ documented with that unit.
 
 The subsystem does no glob matching, no spell checking, and no console output. It never searches for
 a settings file; the caller supplies the path. Choosing which files to check from the settings belongs
-to the `FileSelection` subsystem, and checking text against the language, word lists, and limits
+to the `FileSelection` subsystem, and checking text against the language, word lists, patterns, and limits
 belongs to the `SpellChecking` subsystem.
 
 ### Interfaces
@@ -30,7 +31,8 @@ belongs to the `SpellChecking` subsystem.
   path, and the 1-based line and column when the problem has a position.
 - _Constraints_: Content problems (an unreadable file, malformed YAML, a value of the wrong type,
   an unsupported key, an invalid glob pattern, an unsupported language, an unusable word-list entry,
-  an invalid minimum word length or file size) are returned as errors, not thrown. A null or empty
+  an invalid minimum word length or file size, an `ignoreRegExpList` entry or `patterns` definition that cannot be
+  used, and an invalid `ignoreRandomStrings` or `minRandomLength`) are returned as errors, not thrown. A null or empty
   path throws, and a cancelled token cancels the load.
 
 **TextLintSettings**: The immutable settings value.
@@ -39,26 +41,31 @@ belongs to the `SpellChecking` subsystem.
 - _Role_: Provider: applications read it, and may construct it directly. The `FileSelection`
   subsystem does not consume it; an application passes the `Files`, `IgnorePaths`, and
   `EnableGlobDot` values to `FileSelector`, and the `SpellChecking` subsystem reads the spelling
-  settings (`Language`, `Words`, `IgnoreWords`, `FlagWords`, `MinWordLength`, and `MaxFileSize`)
-  from it.
+  settings (`Language`, `Words`, `IgnoreWords`, `FlagWords`, `MinWordLength`, `MaxFileSize`, `IgnoreRegExpList`,
+  `Patterns`, `IgnoreRandomStrings`, and `MinRandomLength`) from it.
 - _Contract_: Exposes `Version`, `Files`, `IgnorePaths`, `EnableGlobDot`, `Language`, `Words`,
-  `IgnoreWords`, `FlagWords`, `MinWordLength`, and `MaxFileSize` with documented defaults, and
-  supports `with` expressions for deriving modified copies.
-- _Constraints_: Immutable; list properties are copied on assignment; a null list or language, a
-  minimum word length below 1, and a negative maximum file size are rejected on assignment.
+  `IgnoreWords`, `FlagWords`, `MinWordLength`, `MaxFileSize`, `IgnoreRegExpList`, `Patterns` (a list of `NamedPattern`
+  values), `IgnoreRandomStrings`, and `MinRandomLength` with documented defaults (no patterns, random strings ignored,
+  and a minimum random length of 40, as in cspell), and supports `with` expressions for deriving modified copies.
+- _Constraints_: Immutable; list properties are copied on assignment; a null list, a list with a null entry, a null
+  language, a minimum word length or minimum random length below 1, and a negative maximum file size are rejected on
+  assignment.
 
 ### Design
 
-`TextLintSettings` has no dependencies. `SettingsLoader` depends on `TextLintSettings` to build its
-result, on YamlDotNet to parse the file (see _YamlDotNet Integration Design_), and on three units of
+`SettingsLoader` depends on `TextLintSettings` to build its
+result, on YamlDotNet to parse the file (see _YamlDotNet Integration Design_), and on four units of
 other subsystems to validate values: the `GlobPatternExpander` unit of the `FileSelection`
 subsystem validates glob patterns, the `SpellingDictionary` unit of the `Dictionaries` subsystem
-validates the language, and the `WordTokenizer` unit of the `TextScanning` subsystem validates
-word-list entries. These dependencies are deliberate and documented here because they cross subsystem
+validates the language, the `WordTokenizer` unit of the `TextScanning` subsystem validates
+word-list entries, and the `PatternParser` and `PatternCatalog` units of the same subsystem validate the entries of
+`ignoreRegExpList` and the definitions of `patterns`. `TextLintSettings` itself depends only on the `NamedPattern` type
+of `TextScanning`, which carries a name and a pattern in its `Patterns` property, and does no validation with it. These
+dependencies are deliberate and documented here because they cross subsystem
 boundaries: validating values while the file is loaded lets the error carry the line and column of the
 offending node, and using the very units that file selection and spell checking use guarantees that a
 value accepted at load time is never rejected later. They run one way: none of those subsystems
-depends on anything in this subsystem, so there is no cycle. The subsystem's tests use all three
+depends on anything in this subsystem, so there is no cycle. The subsystem's tests use all of these
 units for real.
 
 Problems are returned as diagnostics rather than thrown for two reasons. First, a user fixing a
@@ -69,16 +76,18 @@ the invariant that settings are present exactly when there are no errors cannot 
 caller. A single settings value serves both the file route and the code route.
 
 The supported key set is deliberately limited to the keys whose behavior exists: the keys that
-file selection consumes, the six spelling keys that the spell checker consumes, plus `version`,
+file selection consumes, the ten spelling keys that the spell checker consumes (the six for language, word lists, and
+limits, and `ignoreRegExpList`, `patterns`, `ignoreRandomStrings`, and `minRandomLength` for the text that is not
+checked), plus `version`,
 which is carried but not validated so that migrated cspell configurations, which almost always
-declare it, load without complaint. A key outside the set (for example `caseSensitive` or
-`overrides`) is an error that names it, because silently ignoring a setting the user believes is in
+declare it, load without complaint. A key outside the set (for example `caseSensitive`, `overrides`, or
+`includeRegExpList`) is an error that names it, because silently ignoring a setting the user believes is in
 force is a worse failure than refusing to load; keys are added to the set only in the change that
 implements their behavior.
 
 Values that the loader has validated can also be built in code, and the loader's checks are not
-repeated by `TextLintSettings`, which stays free of dependencies: the setters reject only values that
-are never meaningful (a null, a length below 1, a negative size). Settings built in code that carry an
-unsupported language or an unusable word-list entry are rejected later, when the `SpellChecking`
-subsystem creates a checker from them, using the same rules, so no route lets such a value take effect
+repeated by `TextLintSettings`, which does no validation that needs another subsystem: the setters reject only values
+that are never meaningful (a null, a null list entry, a length below 1, a negative size). Settings built in code that
+carry an unsupported language, an unusable word-list entry, or an unusable pattern are rejected later, when the
+`SpellChecking` subsystem creates a checker from them, using the same rules, so no route lets such a value take effect
 silently.

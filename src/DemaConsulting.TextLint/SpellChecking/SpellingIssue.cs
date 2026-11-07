@@ -23,8 +23,8 @@ using System.Collections.Immutable;
 namespace DemaConsulting.TextLint.SpellChecking;
 
 /// <summary>
-///     One finding of the spell checker: an unknown word, a flagged word, or an unsupported directive,
-///     with its position.
+///     One finding of the spell checker: an unknown word, a flagged word, an unsupported directive, or an
+///     invalid directive, with its position.
 /// </summary>
 /// <remarks>
 ///     Findings are returned as data rather than thrown so that a caller can print or process every
@@ -46,13 +46,15 @@ public sealed class SpellingIssue
     /// <param name="text">The text of the finding. Must not be null.</param>
     /// <param name="kind">The kind of finding.</param>
     /// <param name="suggestions">The suggested replacements. Must not be the uninitialized default array.</param>
+    /// <param name="detail">The reason an invalid directive cannot be used; null for other kinds.</param>
     internal SpellingIssue(
         string? filePath,
         int line,
         int column,
         string text,
         SpellingIssueKind kind,
-        ImmutableArray<string> suggestions)
+        ImmutableArray<string> suggestions,
+        string? detail = null)
     {
         FilePath = filePath;
         Line = line;
@@ -60,6 +62,7 @@ public sealed class SpellingIssue
         Text = text;
         Kind = kind;
         Suggestions = suggestions;
+        Detail = detail;
     }
 
     /// <summary>
@@ -95,8 +98,9 @@ public sealed class SpellingIssue
     ///     Gets the text of the finding.
     /// </summary>
     /// <value>
-    ///     The unknown or flagged word exactly as written in the text (the whole token for a flagged list entry
-    ///     that contains digits or punctuation), or the name of the unsupported directive.
+    ///     The text of the finding. For an unknown or flagged word, the word exactly as written in the text
+    ///     (the whole token for a flagged list entry that contains digits or punctuation); for an unsupported
+    ///     directive, its name; for an invalid directive, the pattern as written.
     /// </value>
     public string Text { get; }
 
@@ -114,6 +118,16 @@ public sealed class SpellingIssue
     /// </remarks>
     /// <value>An immutable list; empty when there are no suggestions.</value>
     public IReadOnlyList<string> Suggestions { get; }
+
+    /// <summary>
+    ///     Gets the reason that an invalid directive cannot be used.
+    /// </summary>
+    /// <remarks>
+    ///     Only <see cref="SpellingIssueKind.InvalidDirective"/> findings carry a reason, which is the sentence
+    ///     that says what is wrong with the pattern.
+    /// </remarks>
+    /// <value>The reason, or <see langword="null"/> for the other kinds of finding.</value>
+    public string? Detail { get; }
 
     /// <summary>
     ///     Formats the finding in the compiler style <c>file(line,column): error: message</c>.
@@ -144,6 +158,7 @@ public sealed class SpellingIssue
         {
             SpellingIssueKind.UnknownWord => $"Unknown word '{Text}'",
             SpellingIssueKind.FlaggedWord => $"Flagged word '{Text}'",
+            SpellingIssueKind.InvalidDirective => $"Cannot use the pattern '{Text}' of the directive 'ignoreRegExp': {Detail}",
             _ => $"The directive '{Text}' is not supported",
         };
 

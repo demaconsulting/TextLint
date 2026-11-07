@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-// cspell:ignore colour kubectl nuget
+// cspell:ignore colour kubectl nuget zorb Urlz
 
 using DemaConsulting.TextLint.Configuration;
 using DemaConsulting.TextLint.Tests.TestSupport;
@@ -468,6 +468,77 @@ public class ConfigurationSubsystemTests
         // Assert: every error is reported at its own line and no settings are returned
         Assert.Multiple(
             () => Assert.Equal([1, 3, 4, 5], result.Diagnostics.Select(diagnostic => diagnostic.Line)),
+            () => Assert.Null(result.Settings));
+    }
+
+    /// <summary>
+    ///     Test that a file with the pattern and random-string keys populates the settings.
+    /// </summary>
+    [Fact]
+    public async Task ConfigurationSubsystem_LoadAsync_PatternKeys_PopulatesSettings()
+    {
+        // Arrange: a file with an expression, a predefined name, a defined name written before its definition, a
+        // definition with a description, and the random-string keys
+        using var temp = new TempDirectory();
+        const string yaml =
+            "ignoreRegExpList:\n  - \"/zorb\\\\d+/i\"\n  - HexValues\n  - Marker\npatterns:\n  - name: Marker\n    description: Lines of markers\n" +
+            "    pattern: \"^zorb.*$\"\nignoreRandomStrings: false\nminRandomLength: 25\n";
+
+        // Act: load it
+        var result = await LoadAsync(temp, yaml);
+
+        // Assert: every value is mapped
+        var settings = result.Settings!;
+        Assert.Multiple(
+            () => Assert.True(result.Succeeded),
+            () => Assert.Equal(["/zorb\\d+/i", "HexValues", "Marker"], settings.IgnoreRegExpList),
+            () => Assert.Equal(["Marker"], settings.Patterns.Select(pattern => pattern.Name)),
+            () => Assert.Equal(["^zorb.*$"], settings.Patterns.Select(pattern => pattern.Pattern)),
+            () => Assert.False(settings.IgnoreRandomStrings),
+            () => Assert.Equal(25, settings.MinRandomLength));
+    }
+
+    /// <summary>
+    ///     Test that a file without the new keys has cspell's defaults for them.
+    /// </summary>
+    [Fact]
+    public async Task ConfigurationSubsystem_LoadAsync_NoPatternKeys_UsesCspellDefaults()
+    {
+        // Arrange: a file with none of the new keys
+        using var temp = new TempDirectory();
+
+        // Act: load it
+        var result = await LoadAsync(temp, "language: en\n");
+
+        // Assert: no patterns, random strings ignored, and a minimum random length of 40
+        var settings = result.Settings!;
+        Assert.Multiple(
+            () => Assert.Empty(settings.IgnoreRegExpList),
+            () => Assert.Empty(settings.Patterns),
+            () => Assert.True(settings.IgnoreRandomStrings),
+            () => Assert.Equal(40, settings.MinRandomLength));
+    }
+
+    /// <summary>
+    ///     Test that every unusable pattern in one file is reported at its own position.
+    /// </summary>
+    [Fact]
+    public async Task ConfigurationSubsystem_LoadAsync_InvalidPatterns_ReportsEachWithPosition()
+    {
+        // Arrange: a file with an unsupported flag, an unknown name, a definition with an invalid expression, a
+        // definition that reuses a predefined name, and a bad random length
+        using var temp = new TempDirectory();
+        const string yaml =
+            "ignoreRegExpList:\n  - \"/zorb/x\"\n  - Urlz\npatterns:\n  - name: Marker\n    pattern: \"/(/\"\n  - name: Urls\n" +
+            "    pattern: \"/zorb/\"\nminRandomLength: 0\n";
+
+        // Act: load it
+        var result = await LoadAsync(temp, yaml);
+
+        // Assert: five errors at the lines of the nodes that hold them, and no settings
+        Assert.Multiple(
+            () => Assert.Equal([2, 3, 6, 7, 9], result.Diagnostics.Select(diagnostic => diagnostic.Line)),
+            () => Assert.All(result.Diagnostics, diagnostic => Assert.EndsWith(".textlint.yaml", diagnostic.FilePath)),
             () => Assert.Null(result.Settings));
     }
 }

@@ -9,7 +9,9 @@ then assert on the resulting `TextLintSettings` or diagnostics, so `SettingsLoad
 YamlDotNet (an OTS item) parses the file, and the units the loader uses to validate values are real:
 `GlobPatternExpander` from the `FileSelection` subsystem validates patterns, `SpellingDictionary` from the
 `Dictionaries` subsystem validates the language, and `WordTokenizer` from the `TextScanning` subsystem
-validates word-list entries. Nothing is mocked.
+validates word-list entries. `PatternCatalog` and `PatternParser`, also from the `TextScanning` subsystem, judge
+the entries of `ignoreRegExpList` and the pattern definitions by the same rules the spell check applies. Nothing is
+mocked.
 
 ### Test Environment
 
@@ -31,6 +33,11 @@ test uses its own uniquely named directory, so tests share no state and may run 
 - An invalid glob pattern fails the load with an error at the pattern.
 - An unsupported language, an unusable word-list entry, an invalid minimum word length, and an invalid
   maximum file size each fail the load with an error at the value, and several of them are all reported.
+- The ignoreRegExpList, patterns, ignoreRandomStrings, and minRandomLength keys populate their settings, with the
+  entries in the order written, a name accepted before its definition, and a description of a definition allowed.
+- Absent pattern keys leave no patterns, random strings ignored, and a minimum random length of 40.
+- Every unusable pattern entry, definition, and random-string value in one file is reported at its own position, in
+  the order of the file, and no settings are returned.
 
 ### Test Scenarios
 
@@ -119,3 +126,18 @@ scenario is tested by `ConfigurationSubsystem_LoadAsync_InvalidMaxFileSize_Repor
 an unusable flagged word, a zero minimum word length, and a negative size is loaded; all four errors are
 reported, on lines 1, 3, 4, and 5, and no settings are returned. This scenario is tested by
 `ConfigurationSubsystem_LoadAsync_MultipleSpellingErrors_ReportsAll`.
+
+**ConfigurationSubsystem_LoadAsync_PatternKeys_PopulatesSettings**: A file with an expression with flags, a predefined
+name, a defined name written before its definition, a definition with a description, `ignoreRandomStrings: false`,
+and `minRandomLength: 25` is loaded; the list keeps its order, the definition keeps its name and pattern, and the two
+random-string values are present. This scenario is tested by
+`ConfigurationSubsystem_LoadAsync_PatternKeys_PopulatesSettings`.
+
+**ConfigurationSubsystem_LoadAsync_NoPatternKeys_UsesCspellDefaults**: A file without the pattern keys is loaded; the
+lists are empty, random strings are ignored, and the minimum random length is 40. This scenario is tested by
+`ConfigurationSubsystem_LoadAsync_NoPatternKeys_UsesCspellDefaults`.
+
+**ConfigurationSubsystem_LoadAsync_InvalidPatterns_ReportsEachWithPosition**: A file with an unsupported flag, an
+unknown name, a definition with an invalid expression, a definition that reuses a predefined name, and a minimum random
+length of zero is loaded; five errors are reported, on lines 2, 3, 6, 7, and 9, each naming the file, and no settings
+are returned. This scenario is tested by `ConfigurationSubsystem_LoadAsync_InvalidPatterns_ReportsEachWithPosition`.

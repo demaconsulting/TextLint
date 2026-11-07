@@ -1,6 +1,6 @@
 package TextLint {
     part def DocumentDirectives {
-        doc /* Interprets the directives that comments in a text use to control spell checking: disable and enable blocks, disable-line and disable-next-line, ignore and words, and the cspell directives that are recognized but not supported. */
+        doc /* Interprets the directives that comments in a text use to control spell checking: disable and enable blocks, disable-line and disable-next-line, ignore and words, the patterns of ignoreRegExp, and the cspell directives that are recognized but not supported. */
 
         comment sourceRef /* Source: src/DemaConsulting.TextLint/TextScanning/DocumentDirectives.cs (supporting type: DirectiveScan.cs) */
         comment testRef /* Test: test/DemaConsulting.TextLint.Tests/TextScanning/DocumentDirectivesTests.cs */

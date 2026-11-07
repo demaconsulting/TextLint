@@ -1,0 +1,129 @@
+---
+# Software Unit Requirements for the PatternCatalog Class
+#
+# The PatternCatalog class knows the pattern names that cspell defines in advance and turns the ignoreRegExpList and
+# patterns settings into the regular expressions that exclude text from checking. The NamedPattern type that carries a
+# named pattern belongs to this unit.
+
+sections:
+  - title: TextLint Requirements
+    sections:
+      - title: TextScanning Requirements
+        sections:
+          - title: PatternCatalog Requirements
+            requirements:
+              - id: TextLint-TextScanning-PatternCatalog-PredefinedNames
+                title: >-
+                  PatternCatalog shall know the twenty-eight pattern names that cspell defines in advance, shall
+                  compare names ignoring letter case, and shall accept the nineteen names of patterns that are
+                  applied to every text anyway (the default ignore list and the directives) without adding any
+                  pattern.
+                justification: |
+                  A configuration migrated from cspell may list these names. Accepting them keeps it loadable
+                  and keeps its meaning, because those patterns are in force whether or not they are listed.
+                tests:
+                  - PatternCatalog_PredefinedNames_AreTheTwentyEightNamesOfCspell
+                  - PatternCatalog_PredefinedNames_AlwaysAppliedNames_AreNineteen
+                  - PatternCatalog_Resolve_AlwaysAppliedName_IsAcceptedAndAddsNothing
+                  - PatternCatalog_Resolve_PredefinedNameInOtherCase_IsFound
+
+              - id: TextLint-TextScanning-PatternCatalog-OptionalPatterns
+                title: >-
+                  PatternCatalog shall exclude, when its name is listed, the text that cspell's predefined patterns
+                  HexValues, PublicKey, EscapeCharacters, Base64, href, string, CStyleComment, PhpHereDoc, and
+                  Everything exclude, and shall limit the time every one of them may spend on a text to five seconds.
+                justification: |
+                  These patterns are not applied unless listed. They are the ones that cspell users list to ignore
+                  comments, strings, attributes, and escapes, and they must exclude the same text. A time limit
+                  keeps hostile input from hanging a run.
+                tests:
+                  - PatternCatalog_Resolve_OptionalPredefinedName_FindsWhatCspellFinds
+                  - PatternCatalog_OptionalRegexes_EveryPattern_HasDocumentedMatchTimeout
+
+              - id: TextLint-TextScanning-PatternCatalog-NamedPatterns
+                title: >-
+                  PatternCatalog shall apply a pattern that the patterns setting defines only when the
+                  ignoreRegExpList names it, under any letter case, shall apply expressions and names in the order
+                  of the list, shall apply a name that is listed twice once, and shall read a word between slashes as
+                  an expression.
+                justification: |
+                  Named patterns exist so that a pattern can be written once and used by name, as in cspell. A
+                  pattern that is defined but not listed must not be applied, and a literal word must remain
+                  possible to write.
+                tests:
+                  - PatternCatalog_Resolve_NamedPattern_IsAppliedOnlyWhenListed
+                  - PatternCatalog_Resolve_ExpressionsAndNames_AreAppliedInListOrder
+                  - PatternCatalog_Resolve_NameListedTwice_IsAppliedOnce
+                  - PatternCatalog_Resolve_LiteralWordBetweenSlashes_IsAnExpression
+
+              - id: TextLint-TextScanning-PatternCatalog-InvalidNames
+                title: >-
+                  PatternCatalog shall reject, with an exception that names the entry and the reason, an entry
+                  that has the shape of a name but is not a defined or predefined name, a definition whose name is
+                  malformed, predefined, or already defined, and a definition whose pattern cannot be used, whether
+                  or not the list uses it.
+                justification: |
+                  cspell reads an unknown name as a literal expression, so a misspelled name silently matches
+                  nothing. A definition that reuses a predefined name would give one name two meanings. Mistakes
+                  must surface where they are made.
+                tests:
+                  - PatternCatalog_Resolve_UnknownName_ThrowsAndAdvisesSlashes
+                  - PatternCatalog_Resolve_InvalidDefinitionName_ThrowsWithReason
+                  - PatternCatalog_Resolve_DuplicateDefinitionName_Throws
+                  - PatternCatalog_Resolve_UnusedInvalidDefinition_Throws
+                  - PatternCatalog_Resolve_InvalidExpressions_ThrowForListAndDefinitions
+                  - PatternCatalog_IsNameShaped_Entries_AreClassified
+                  - PatternCatalog_CheckDefinitionNameAndReference_GiveReasonOrNull
+
+              - id: TextLint-TextScanning-PatternCatalog-ExcludedRanges
+                title: >-
+                  PatternCatalog shall add the ranges of a text that the resolved patterns match to the list it is
+                  given, without removing the items the list already holds, shall skip a match with no characters,
+                  and shall search a text of one megabyte completely.
+                justification: |
+                  The caller combines the ranges of several sources in one list. A pattern that can match the empty
+                  string, such as one that ends in a star, excludes nothing by doing so.
+                tests:
+                  - PatternCatalog_FindExcludedRanges_ExistingListAndEmptyMatches_AreKeptAndSkipped
+                  - PatternCatalog_FindExcludedRanges_OneMegabyteOfText_IsSearchedCompletely
+
+              - id: TextLint-TextScanning-PatternCatalog-EntryResolution
+                title: >-
+                  PatternCatalog shall resolve a single entry, such as one written in an in-document directive, to
+                  a regular expression with the match time limit it is given, to nothing for a name that is always
+                  applied, or to the reason it cannot be used, without throwing, looking a name up among the
+                  parsed definitions of the settings (compared without regard to letter case) before the
+                  predefined names, and shall parse the definitions of the settings with the limit it is given.
+                justification: |
+                  The settings and the directives of a text write patterns in the same forms, so one resolution
+                  gives both the same meaning. A caller that reads a directive must report an unusable pattern where
+                  it is written, so failure is returned as data, and the limit lets tests prove the time-out in
+                  milliseconds.
+                tests:
+                  - PatternCatalog_TryResolveEntry_Forms_AreResolvedOrExplained
+                  - PatternCatalog_ParseDefinitions_Names_AreCaseInsensitiveAndChecked
+                  - PatternCatalog_ResolveEntries_Entries_AreResolvedOnceWithTheLimit
+
+              - id: TextLint-TextScanning-PatternCatalog-ArgumentValidation
+                title: >-
+                  PatternCatalog shall resolve empty lists to no patterns, shall reject a missing argument with a
+                  null-argument error, and shall keep the name and the pattern of a named pattern and reject a
+                  missing one.
+                justification: |
+                  A caller that passes nothing has a defect, and it is better found at once than as a failure deep
+                  inside a search.
+                tests:
+                  - PatternCatalog_Resolve_EmptyListsAndNulls_AreHandled
+                  - PatternCatalog_FindExcludedRanges_NullArguments_ThrowArgumentNullException
+                  - NamedPattern_Constructor_KeepsValuesAndRejectsNull
+
+              - id: TextLint-TextScanning-PatternCatalog-JavaScriptSemantics
+                title: >-
+                  PatternCatalog shall read white space in its optional patterns as the JavaScript white space set,
+                  decide their letter case without the culture tables of .NET, and trim entries and names of that
+                  set only.
+                justification: |
+                  The .NET white space and case rules differ from those of the JavaScript engine that cspell runs
+                  its patterns in, and a pattern or a name that is read differently would exclude different text.
+                tests:
+                  - PatternCatalog_Resolve_JavaScriptWhiteSpace_EndsAndJoinsLikeJavaScript

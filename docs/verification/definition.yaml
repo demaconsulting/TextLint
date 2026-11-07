@@ -34,6 +34,10 @@ input-files:
   - docs/verification/textlint/text-scanning.md
   - docs/verification/textlint/text-scanning/word-tokenizer.md
   - docs/verification/textlint/text-scanning/default-patterns.md
+  - docs/verification/textlint/text-scanning/pattern-parser.md
+  - docs/verification/textlint/text-scanning/pattern-catalog.md
+  - docs/verification/textlint/text-scanning/markdown-patterns.md
+  - docs/verification/textlint/text-scanning/random-string-detector.md
   - docs/verification/textlint/text-scanning/document-directives.md
   - docs/verification/textlint/spell-checking.md
   - docs/verification/textlint/spell-checking/text-checker.md

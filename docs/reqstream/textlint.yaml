@@ -62,10 +62,12 @@ sections:
         children:
           - TextLint-Configuration-FileLoading
           - TextLint-Configuration-KeyMapping
+          - TextLint-Configuration-PatternSettings
           - TextLint-OTS-YamlDotNet-ParseYaml
         tests:
           - TextLint_Settings_CspellStyleConfigFile_LoadsConfiguredValues
           - TextLint_Settings_SpellingKeysConfigFile_LoadsConfiguredValues
+          - TextLint_Settings_PatternKeysConfigFile_LoadsConfiguredValues
           - TextLint_Settings_EmptyConfigFile_LoadsDefaultSettings
 
       - id: TextLint-System-ProgrammaticSettings
@@ -542,6 +544,124 @@ sections:
         tests:
           - TextLint_CheckText_UnsupportedDirective_ReportsPosition
 
+      - id: TextLint-System-IgnoreRegExpList
+        title: >-
+          The library shall not check the text that matches a pattern of the ignoreRegExpList setting,
+          written between slashes with the flags g, i, m, s, and u, as a bare expression, or as the name
+          of a defined or predefined pattern, and shall report a pattern that cannot be used in a settings
+          file as an error at its position.
+        tags: [system]
+        justification: |
+          Projects hold text that is not prose and that the default ignore list does not recognize, such
+          as identifiers, tokens, and markup. cspell lets a project exclude it with patterns, and a
+          project migrated from cspell brings its patterns unchanged. A pattern that cannot work must be
+          reported when the settings are loaded, because it would otherwise exclude nothing.
+        children:
+          - TextLint-TextScanning-CustomPatterns
+          - TextLint-SpellChecking-ExcludedTextAndForms
+          - TextLint-Configuration-PatternSettings
+          - TextLint-Configuration-InvalidRegularExpressions
+        tests:
+          - TextLint_CheckText_IgnoreRegExpList_SkipsMatches
+          - TextLint_CheckText_DotAllFlag_MatchesAcrossLines
+          - TextLint_Settings_InvalidRegularExpression_ReportsFileLineAndColumn
+          - TextLint_Settings_UnknownPatternName_ReportsFileLineAndColumn
+          - TextLint_SpellCheck_PatternsFromConfigFile_SkipMatchesInFiles
+
+      - id: TextLint-System-IgnoreRegExpDirective
+        title: >-
+          The library shall not check the text that matches the pattern of an ignoreRegExp directive
+          in a comment, with any directive prefix, in the whole text the directive is written in, and shall
+          report a pattern of a directive that cannot be used, at its position and with the reason.
+        tags: [system]
+        justification: |
+          Authors of a document hide text that is not prose next to the text itself, as they do with cspell.
+          cspell applies the pattern to the whole document and drops a pattern it cannot use without a word,
+          which leaves the author believing it is in force, so the library reports it where it is written.
+        children:
+          - TextLint-TextScanning-Directives
+          - TextLint-SpellChecking-ExcludedTextAndForms
+        tests:
+          - TextLint_CheckText_IgnoreRegExpDirective_SkipsMatchesInTheWholeText
+          - TextLint_CheckText_IgnoreRegExpDirectiveInvalid_IsReportedAtItsPosition
+
+      - id: TextLint-System-PredefinedPatterns
+        title: >-
+          The library shall accept the names of the predefined cspell patterns that it supports in the
+          ignoreRegExpList setting, and shall report any other name that is not defined in the settings
+          as an error.
+        tags: [system]
+        justification: |
+          Configurations written for cspell refer to its predefined patterns by name. A name that is
+          silently read as something else would let a pattern the user believes is in force exclude
+          nothing, so each supported name keeps its meaning and an unknown name is named as an error.
+        children:
+          - TextLint-TextScanning-CustomPatterns
+          - TextLint-SpellChecking-ExcludedTextAndForms
+        tests:
+          - TextLint_CheckText_PredefinedPatternNames_ExcludeTheirText
+          - TextLint_Settings_UnknownPatternName_ReportsFileLineAndColumn
+
+      - id: TextLint-System-PatternTimeout
+        title: >-
+          The library shall stop checking a file on which a pattern exceeds its time limit, report the
+          file as one that took too long, and continue with the other files.
+        tags: [system]
+        justification: |
+          Patterns come from a file that anyone who can change the repository may write, and a pattern
+          can backtrack catastrophically on a file built to make it. A time limit keeps a run from
+          hanging, and the report keeps the file from being mistaken for a clean one.
+        children:
+          - TextLint-SpellChecking-PatternTimeout
+          - TextLint-TextScanning-CustomPatterns
+        tests:
+          - TextLint_SpellCheck_CatastrophicPattern_ReportsTimedOutDiagnostic
+
+      - id: TextLint-System-MarkdownLinks
+        title: >-
+          The library shall not check the link targets, link reference labels, reference definitions,
+          anchors, and HTML entities of a Markdown file, and shall check them in any other file.
+        tags: [system]
+        justification: |
+          Link targets and labels are names and addresses whose fragments would bury real findings in
+          every document. cspell excludes them in Markdown files only, so a migrated project must find
+          the same text excluded there and checked elsewhere.
+        children:
+          - TextLint-TextScanning-MarkdownLinks
+          - TextLint-SpellChecking-ExcludedTextAndForms
+        tests:
+          - TextLint_CheckText_MarkdownLinkTargets_AreNotChecked
+
+      - id: TextLint-System-RandomStrings
+        title: >-
+          The library shall not check a long token that looks like random data, such as a key or a token,
+          unless the ignoreRandomStrings setting is switched off, and shall use the minRandomLength
+          setting as the length from which a token is judged.
+        tags: [system]
+        justification: |
+          Random data is made of fragments that no dictionary knows. cspell skips it by default, so a
+          migrated project must find the same tokens skipped, while long identifiers made of words stay
+          checked. The two settings are read and used, so none of this behavior is hidden.
+        children:
+          - TextLint-TextScanning-RandomStrings
+          - TextLint-SpellChecking-ExcludedTextAndForms
+          - TextLint-Configuration-PatternSettings
+        tests:
+          - TextLint_CheckText_RandomLookingToken_IsNotChecked
+
+      - id: TextLint-System-Contractions
+        title: >-
+          The library shall accept a word with apostrophes when each of its parts is a known word or too
+          short to check, and shall report the whole word otherwise.
+        tags: [system]
+        justification: |
+          English writes contractions such as can't and rock'n'roll and forms such as exec'd. cspell
+          accepts them when their parts are acceptable, so a migrated project must not see them reported.
+        children:
+          - TextLint-SpellChecking-ExcludedTextAndForms
+        tests:
+          - TextLint_CheckText_ContractionOfKnownWords_IsAccepted
+
       - id: TextLint-System-LanguageSetting
         title: >-
           The library shall use the language setting to choose the dictionary, and shall report
@@ -679,7 +799,8 @@ sections:
       - id: TextLint-System-CspellCompatibility
         title: >-
           The library shall report the same unknown words, at the same positions, as cspell for
-          the documented word-splitting, ignore, directive, and word-list rules.
+          the documented word-splitting, ignore, directive, word-list, pattern, Markdown, random-string,
+          and contraction rules.
         tags: [system]
         justification: |
           The stated goal is to replace cspell in existing repositories without surprises. The
@@ -695,3 +816,11 @@ sections:
           - TextLint_CspellParity_MinimumLengthCorpora_MatchRecordedCspellOutput
           - TextLint_CspellParity_PossessiveCorpus_MatchesRecordedCspellOutput
           - TextLint_CspellParity_KnownDivergences_AreExactlyTheDocumentedOnes
+          - TextLint_CspellParity_CustomPatternCorpus_MatchesRecordedCspellOutput
+          - TextLint_CspellParity_CrlfPatternCorpora_MatchRecordedCspellOutput
+          - TextLint_CspellParity_PredefinedPatternCorpora_MatchRecordedCspellOutput
+          - TextLint_CspellParity_MarkdownLinkCorpus_MatchesRecordedCspellOutput
+          - TextLint_CspellParity_RandomStringCorpora_MatchRecordedCspellOutput
+          - TextLint_CspellParity_ContractionCorpus_MatchesRecordedCspellOutput
+          - TextLint_CspellParity_IgnoreRegExpCorpus_MatchesRecordedCspellOutput
+          - TextLint_CspellParity_DirectiveLookalikesCorpus_MatchesRecordedCspellOutput

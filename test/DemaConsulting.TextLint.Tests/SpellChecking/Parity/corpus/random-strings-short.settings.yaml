@@ -1,0 +1,9 @@
+---
+# cspell:disable
+# Settings of the random-strings-short parity corpus: a minimum random length of 20, so shorter tokens than
+# in the random-strings corpus are judged to be random (one flagged word, as in the random-strings corpus).
+version: "0.2"
+language: en
+minRandomLength: 20
+flagWords:
+  - zorbflag

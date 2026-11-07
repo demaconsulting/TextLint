@@ -1,0 +1,201 @@
+---
+# Software Unit Requirements for the PatternParser Class
+#
+# The PatternParser class turns a pattern written the way cspell writes it, between slashes with flags or as a bare
+# expression, into a .NET regular expression that has the meaning the pattern has in JavaScript and that is safe to run
+# on any text. The translation of the JavaScript syntax is part of this unit.
+
+sections:
+  - title: TextLint Requirements
+    sections:
+      - title: TextScanning Requirements
+        sections:
+          - title: PatternParser Requirements
+            requirements:
+              - id: TextLint-TextScanning-PatternParser-Forms
+                title: >-
+                  PatternParser shall read a pattern written between slashes, with the flags that follow the
+                  last slash, using only the flags that are written, shall read any other text as a
+                  case-insensitive expression in which the line anchors match at every line, shall ignore white
+                  space around an entry, shall allow slashes inside the body, and shall read an entry that starts
+                  with a slash but does not end in flags as a bare expression.
+                justification: |
+                  Entries migrated from cspell are written in these two forms with these meanings, so a pattern
+                  that has the meaning its author gave it must keep it. A path-like entry that starts with a slash
+                  must not be mistaken for a literal.
+                tests:
+                  - PatternParser_Parse_SlashForm_UsesOnlyTheWrittenFlags
+                  - PatternParser_Parse_BareForm_IsCaseInsensitiveAndMultiline
+                  - PatternParser_Parse_WhiteSpaceAndSlashesInBody_AreHandled
+                  - PatternParser_Parse_LeadingSlashWithoutFlagsEnding_IsBareExpression
+                  - PatternParser_Parse_EntryEdges_TrimsOnlyJavaScriptWhiteSpace
+
+              - id: TextLint-TextScanning-PatternParser-Flags
+                title: >-
+                  PatternParser shall accept the flags g, i, m, s, and u, in any combination, and shall reject any
+                  other flag, naming it.
+                justification: |
+                  The flags x, y, d, and v have no safe equivalent: cspell drops some of them without a word, so
+                  a pattern that depends on one would not mean what its author wrote. Rejecting the flag by name
+                  lets the author fix the pattern instead of wondering why it does not work. The s flag, which
+                  lets the dot match line terminators, has an exact equivalent and is accepted.
+                tests:
+                  - PatternParser_Parse_SupportedFlags_AreAccepted
+                  - PatternParser_Parse_UnsupportedFlag_ThrowsNamingTheFlag
+
+              - id: TextLint-TextScanning-PatternParser-JavaScriptMeaning
+                title: >-
+                  PatternParser shall give the constructs of a pattern their JavaScript meaning: word characters,
+                  digits, and word boundaries are ASCII only; white space is the JavaScript set; the dot and the
+                  line anchors recognize the four JavaScript line terminators, and the dot also matches them with
+                  the s flag; classes, ranges, groups, named
+                  groups, back-references, look-ahead, look-behind, quantifiers, escapes, and Unicode general
+                  categories behave as in JavaScript; groups are numbered in order of their opening parenthesis;
+                  and, with the u flag, a character outside the basic plane is one character: the dot, a negated
+                  class, the negated shorthands, and the Unicode properties match it whole, a class may hold it, a
+                  quantifier covers all of it, a surrogate that is not half of a pair is a character that matches
+                  only where it is alone, and no match starts inside a pair. A back-reference to a
+                  group that did not take part in the match does not match.
+                justification: |
+                  The same pattern must exclude the same text as in cspell, so a project migrated from cspell stays
+                  quiet where it was quiet. The two engines give several constructs different meanings, and a
+                  pattern passed through unchanged would silently mean something else; with the u flag .NET reads
+                  UTF-16 code units where JavaScript reads characters, so an emoji would be two characters to the
+                  dot. The back-reference of an
+                  unmatched group is the one construct whose meaning cannot be kept, and the difference is stated.
+                tests:
+                  - PatternParser_Parse_Construct_KeepsItsJavaScriptMeaning
+                  - PatternParser_Parse_NamedAndPlainGroups_AreNumberedInOrder
+                  - PatternParser_Parse_AstralLiteralWithQuantifier_FollowsTheUnicodeFlag
+                  - PatternParser_Parse_BackReferenceToUnmatchedGroup_DoesNotMatch
+                  - PatternParser_Parse_BracedCodePointWithLeadingZeros_IsAccepted
+                  - JavaScriptUnicodeMode_Translation_EveryRecordedCase_FindsWhatJavaScriptFinds
+                  - JavaScriptUnicodeMode_RecordedCases_CoverEveryConstructOfTheMode
+                  - JavaScriptUnicodeMode_Dot_OnlyTheUnicodeFlagReadsAPairAsOneCharacter
+                  - JavaScriptUnicodeMode_Sets_OrdinaryUseIsWithinTheTranslationLimitAndManyAreRefused
+
+              - id: TextLint-TextScanning-PatternParser-JavaScriptCase
+                title: >-
+                  PatternParser shall, for a pattern with the i flag, treat as the same letter the characters that
+                  JavaScript treats as the same letter, and no others: without the u flag by the simple upper-case
+                  form (the micro sign, the Greek mu, and the sigma forms are one letter; the Kelvin sign and the
+                  long s are not the letters k and s), and with the u flag by simple case folding (the Kelvin
+                  sign and the long s are the letters k and s); the rule shall apply to literals, classes and their
+                  negations, word shorthands, Unicode properties, and word boundaries, shall come from a table of the
+                  groups recorded from a pinned JavaScript engine and not from the casing functions or the case
+                  option of .NET, so that it is the same on every platform, culture, and .NET version, and shall
+                  reject a back-reference when the flag is set.
+                justification: |
+                  The case rules of the .NET engine differ from those of the JavaScript engine on about eighty
+                  pairs of characters, in both directions, so a pattern that ignores case would exclude different
+                  text than in cspell. The casing data of .NET also differs between runtime versions and
+                  platforms (a continuous-integration run on Linux and macOS found pairs that another runtime did
+                  not have), so a rule derived from it would make the same pattern exclude different text on
+                  different computers. A back-reference could only be compared with the rules of .NET, so it is
+                  refused with a reason instead of being given a meaning that varies.
+                tests:
+                  - PatternParser_Parse_CaseFlag_KeepsTheJavaScriptLetterEquivalence
+                  - PatternParser_Parse_BareExpression_UsesTheJavaScriptCaseRules
+                  - JavaScriptCaseFolding_Equivalents_EveryCodeUnit_ReproducesTheRecordedGroupsExactly
+                  - JavaScriptCaseFolding_AstralForms_EveryCodePoint_ReproducesTheRecordedGroupsExactly
+                  - JavaScriptCaseData_Groups_TableText_IsTheRecordedFileLineForLine
+                  - JavaScriptCaseData_Versions_AreStated
+                  - JavaScriptCaseFolding_Equivalents_KnownDivergentLetters_FollowJavaScript
+                  - JavaScriptCaseFolding_Equivalents_CharacterWithoutCase_ReturnsOnlyItself
+                  - JavaScriptCaseFolding_Close_LowerCaseLetter_AddsTheJavaScriptForms
+                  - JavaScriptCaseFolding_Close_ContiguousRange_ReturnsAscendingNonOverlappingRanges
+                  - JavaScriptCaseFolding_Close_AnySet_EqualsTheCodeUnitByCodeUnitDefinition
+                  - JavaScriptCaseFolding_CloseCodePoints_BasicAndAstralMembers_AddsTheOtherCaseOfEach
+                  - JavaScriptCaseFolding_CloseCodePoints_EveryAstralLetter_EqualsItsGroup
+                  - JavaScriptCaseFolding_CloseCodePoints_NullSet_ThrowsArgumentNullException
+                  - JavaScriptCaseFolding_Close_EmptySet_ReturnsEmpty
+                  - JavaScriptCaseFolding_AstralForms_LetterOutsideBasicPlane_ListsTheOtherCase
+                  - JavaScriptCaseFolding_AstralForms_CharacterWithoutCase_ListsOnlyItself
+                  - JavaScriptCaseFolding_EntryPoints_NullArgument_ThrowArgumentNullException
+                  - JavaScriptCaseFolding_Parse_AnyLineEnding_GivesTheSameTables
+                  - JavaScriptCaseFolding_Parse_DamagedGroup_ThrowsInvalidDataException
+                  - JavaScriptCaseFolding_Parse_MemberNotHexadecimal_ThrowsFormatException
+                  - JavaScriptCaseFolding_PatternSources_DoNotUseTheCasingOfTheRuntime
+                  - JavaScriptCaseFolding_Library_NoRegularExpressionUsesTheCaseOption
+
+              - id: TextLint-TextScanning-PatternParser-JavaScriptWhiteSpace
+                title: >-
+                  PatternParser shall define the JavaScript white space set once, as the characters U+0009 to
+                  U+000D, U+0020, U+00A0, U+1680, U+2000 to U+200A, U+2028, U+2029, U+202F, U+205F, U+3000, and
+                  U+FEFF, shall use it for the shorthand \s and for trimming, and shall make it available to the
+                  other patterns of the subsystem, together with the JavaScript line start and line terminators.
+                justification: |
+                  The .NET white space set differs from the JavaScript one (the byte order mark and the next-line
+                  character), and the patterns of the subsystem are ports of cspell patterns that run in
+                  JavaScript. One definition keeps every unit consistent.
+                tests:
+                  - JavaScriptSyntax_IsSpace_EveryCodeUnit_AgreesWithJavaScript
+                  - JavaScriptSyntax_SpaceAndNotSpace_EveryCodeUnit_ArePartitionedLikeIsSpace
+                  - JavaScriptSyntax_Space_TranslatedShorthand_MatchesTheSameCodeUnits
+                  - JavaScriptSyntax_IsSpace_DivergentCharacters_FollowJavaScript
+                  - JavaScriptSyntax_Trim_Text_RemovesOnlyJavaScriptWhiteSpace
+                  - JavaScriptSyntax_Trim_NullText_ThrowsArgumentNullException
+                  - JavaScriptSyntax_LineConstants_LineTerminators_FollowJavaScript
+
+              - id: TextLint-TextScanning-PatternParser-UnsupportedConstructs
+                title: >-
+                  PatternParser shall reject a construct that has no safe equivalent, or that means something else
+                  in .NET (inline group options, atomic groups, conditionals, octal escapes, escapes that are plain
+                  letters in JavaScript, forward references, a Unicode property that is not a general category,
+                  an assertion that is repeated, and malformed groups, classes, quantifiers, and escapes), with an
+                  exception that names the entry and gives the reason.
+                justification: |
+                  A construct that is read differently by the two engines would exclude different text without any
+                  sign. Rejecting it when the pattern is read, with a reason, lets the author rewrite the pattern.
+                tests:
+                  - PatternParser_Parse_UnsupportedConstruct_ThrowsWithReason
+                  - PatternParser_Parse_BracedCodePointOutOfRange_IsRejected
+
+              - id: TextLint-TextScanning-PatternParser-InvalidEntries
+                title: >-
+                  PatternParser shall reject a blank entry and an empty body with an exception that names the
+                  entry, and shall reject a missing entry with a null-argument error.
+                justification: |
+                  An entry with no pattern could never match, so it would silently have no effect, and a missing
+                  entry is a defect of the caller that is better found at once.
+                tests:
+                  - PatternParser_Parse_BlankOrEmptyBody_Throws
+                  - PatternParser_Parse_NullEntry_ThrowsArgumentNullException
+
+              - id: TextLint-TextScanning-PatternParser-BoundedInput
+                title: >-
+                  PatternParser shall reject a pattern longer than 4096 characters, a pattern with groups nested
+                  more than 100 levels deep, and a pattern whose translation would be longer than 262,144 characters
+                  (which only the expansion of case-insensitive Unicode properties and classes can reach), with a
+                  reason that names the limit, before the translation is built, and shall return from every
+                  pattern, however hostile, either a regular expression or the documented exception.
+                justification: |
+                  Settings files can be written by anyone who can change a repository. Reading a pattern must take
+                  a bounded amount of work, memory, and stack, and must never end the process with an unexpected
+                  error. The length of the source alone does not bound the translation, because a case-insensitive
+                  property is written out as thousands of characters, so the length of the translation is
+                  limited too, and the limit is applied while the pattern is read, so the cost stops with it.
+                tests:
+                  - PatternParser_Parse_LengthLimit_IsEnforced
+                  - PatternParser_Parse_NestingLimit_IsEnforced
+                  - PatternParser_Parse_CaseInsensitiveExpansionOverTheLimit_IsRejectedQuicklyWithReason
+                  - PatternParser_Parse_TranslationWithinTheLimit_IsAccepted
+                  - PatternParser_Parse_ConcurrentTranslations_GiveTheSameResult
+                  - PatternParser_Parse_HostilePatterns_AreHandledWithoutErrorOtherThanInvalidPattern
+
+              - id: TextLint-TextScanning-PatternParser-BoundedMatching
+                title: >-
+                  PatternParser shall build every regular expression with a match time limit of five seconds,
+                  unless a shorter limit is requested through the internal seam that tests use, so
+                  that a pattern that backtracks without end on some text ends with a time-out error instead of
+                  hanging, shall reject a limit that is not positive, and shall build with the invariant culture
+                  so that matching does not depend on the machine.
+                justification: |
+                  A pattern that works on every file of a project can still backtrack catastrophically on a file
+                  built to make it. A run that never finishes is worse than one that reports the file as not
+                  checked, and cspell, which has no limit, would hang. The production limit is fixed; the seam
+                  lets the tests prove the time-out in milliseconds, without waiting for the real limit.
+                tests:
+                  - PatternParser_Parse_Result_HasInvariantCultureCaseOptionAndTimeLimit
+                  - PatternParser_Parse_CatastrophicPattern_TimesOutWhenMatching
+                  - PatternParser_Parse_MatchTimeout_DefaultsToFiveSecondsAndMustBePositive

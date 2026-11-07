@@ -307,6 +307,56 @@ internal sealed class WordRules
     }
 
     /// <summary>
+    ///     Determines whether a word with apostrophes is a contraction whose parts are all acceptable.
+    /// </summary>
+    /// <remarks>
+    ///     Contractions such as <c>exec'd</c>, <c>OR'd</c>, and <c>rock'n'roll</c> are written with an
+    ///     apostrophe that joins ordinary words to a letter or two. cspell accepts such a word when every
+    ///     part between the apostrophes is acceptable on its own, and a part is acceptable when it is known,
+    ///     is a run of capitals with an ending whose capitals are acceptable, or is too short to be checked
+    ///     (the <c>d</c> of <c>exec'd</c>); a part that is flagged never is. When some part is not acceptable
+    ///     the word stays unknown and is reported whole, as before. A backslash that escapes an apostrophe
+    ///     is not part of the part before it, and only the first part can follow the backslash that precedes
+    ///     the word. Does not allocate. Thread-safe.
+    /// </remarks>
+    /// <param name="word">The word to test, which may contain apostrophes (straight or typographic).</param>
+    /// <param name="followsBackslash"><see langword="true"/> when the character before the word is a backslash.</param>
+    /// <returns><see langword="true"/> when the word has at least one apostrophe and every part is acceptable.</returns>
+    internal bool IsContractionAccepted(ReadOnlySpan<char> word, bool followsBackslash)
+    {
+        // A word without an apostrophe is not a contraction
+        if (word.IndexOfAny(ApostropheCharacters) < 0)
+        {
+            return false;
+        }
+
+        // Test each part between apostrophes; one unacceptable part leaves the word unknown
+        var isFirst = true;
+        var remaining = word;
+        while (!remaining.IsEmpty)
+        {
+            var apostrophe = remaining.IndexOfAny(ApostropheCharacters);
+            var part = apostrophe < 0 ? remaining : remaining[..apostrophe];
+            remaining = apostrophe < 0 ? default : remaining[(apostrophe + 1)..];
+
+            // The backslash that escapes the apostrophe belongs to the escape, not to the part before it
+            if (!part.IsEmpty && part[^1] == '\\')
+            {
+                part = part[..^1];
+            }
+
+            if (!part.IsEmpty && !IsAcceptablePart(part, isFirst && followsBackslash))
+            {
+                return false;
+            }
+
+            isFirst = false;
+        }
+
+        return true;
+    }
+
+    /// <summary>
     ///     Determines whether a piece of a word is one letter repeated four or more times.
     /// </summary>
     /// <remarks>
@@ -334,6 +384,19 @@ internal sealed class WordRules
 
         return true;
     }
+
+    /// <summary>
+    ///     Determines whether one part of a contraction is acceptable on its own.
+    /// </summary>
+    /// <remarks>
+    ///     Does not allocate unless the part contains a backslash. Thread-safe.
+    /// </remarks>
+    /// <param name="part">The part between apostrophes. Must not be empty.</param>
+    /// <param name="followsBackslash"><see langword="true"/> when a backslash directly precedes the part.</param>
+    /// <returns><see langword="true"/> when the part is not flagged and is known, or too short to check.</returns>
+    private bool IsAcceptablePart(ReadOnlySpan<char> part, bool followsBackslash) =>
+        !IsFlagged(part, out _) &&
+        (IsTooShort(part) || IsAccepted(part, followsBackslash) || IsCapitalRunWithAcceptedEnding(part, followsBackslash));
 
     /// <summary>
     ///     Interprets the entries of a document directive, skipping those that cannot match anything.

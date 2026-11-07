@@ -12,7 +12,10 @@ many checks overlap. These prove the handling of a time-out, a defect, a cancell
 without hostile input and without a timing assumption: the overlap test asserts only an upper bound, which holds
 however the threads are scheduled. The selection that the seam receives is made by the real file selector, and a
 selected file is deleted afterwards to prove the unreadable outcome of a vanished file. The locked-file scenario holds
-a file open with an exclusive share mode. Result types are created directly through their internal constructors to
+a file open with an exclusive share mode. The internal `CheckWithSelectionAsync` method also takes an optional match time
+limit that it hands to the text checker, so that a test can prove the time-out of a real pattern in milliseconds; only
+the system test of a catastrophic pattern uses it, and these unit tests leave it at the production limit of five
+seconds. Result types are created directly through their internal constructors to
 prove that they copy their inputs.
 
 #### Test Environment
