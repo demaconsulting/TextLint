@@ -63,6 +63,7 @@ sections:
                   - PatternParser_Parse_NamedAndPlainGroups_AreNumberedInOrder
                   - PatternParser_Parse_AstralLiteralWithQuantifier_FollowsTheUnicodeFlag
                   - PatternParser_Parse_BackReferenceToUnmatchedGroup_DoesNotMatch
+                  - PatternParser_Parse_BracedCodePointWithLeadingZeros_IsAccepted
 
               - id: TextLint-TextScanning-PatternParser-JavaScriptCase
                 title: >-
@@ -94,6 +95,7 @@ sections:
                   - JavaScriptCaseFolding_Equivalents_CharacterWithoutCase_ReturnsOnlyItself
                   - JavaScriptCaseFolding_Close_LowerCaseLetter_AddsTheJavaScriptForms
                   - JavaScriptCaseFolding_Close_ContiguousRange_ReturnsAscendingNonOverlappingRanges
+                  - JavaScriptCaseFolding_Close_AnySet_EqualsTheCodeUnitByCodeUnitDefinition
                   - JavaScriptCaseFolding_Close_EmptySet_ReturnsEmpty
                   - JavaScriptCaseFolding_AstralForms_LetterOutsideBasicPlane_ListsTheOtherCase
                   - JavaScriptCaseFolding_AstralForms_CharacterWithoutCase_ListsOnlyItself
@@ -135,6 +137,7 @@ sections:
                   sign. Rejecting it when the pattern is read, with a reason, lets the author rewrite the pattern.
                 tests:
                   - PatternParser_Parse_UnsupportedConstruct_ThrowsWithReason
+                  - PatternParser_Parse_BracedCodePointOutOfRange_IsRejected
 
               - id: TextLint-TextScanning-PatternParser-InvalidEntries
                 title: >-
@@ -149,15 +152,23 @@ sections:
 
               - id: TextLint-TextScanning-PatternParser-BoundedInput
                 title: >-
-                  PatternParser shall reject a pattern longer than 4096 characters or with groups nested more than
-                  100 levels deep, and shall return from every pattern, however hostile, either a regular
-                  expression or the documented exception.
+                  PatternParser shall reject a pattern longer than 4096 characters, a pattern with groups nested
+                  more than 100 levels deep, and a pattern whose translation would be longer than 262,144 characters
+                  (which only the expansion of case-insensitive Unicode properties and classes can reach), with a
+                  reason that names the limit, before the translation is built, and shall return from every
+                  pattern, however hostile, either a regular expression or the documented exception.
                 justification: |
                   Settings files can be written by anyone who can change a repository. Reading a pattern must take
-                  a bounded amount of work and stack, and must never end the process with an unexpected error.
+                  a bounded amount of work, memory, and stack, and must never end the process with an unexpected
+                  error. The length of the source alone does not bound the translation, because a case-insensitive
+                  property is written out as thousands of characters, so the length of the translation is
+                  limited too, and the limit is applied while the pattern is read, so the cost stops with it.
                 tests:
                   - PatternParser_Parse_LengthLimit_IsEnforced
                   - PatternParser_Parse_NestingLimit_IsEnforced
+                  - PatternParser_Parse_CaseInsensitiveExpansionOverTheLimit_IsRejectedQuicklyWithReason
+                  - PatternParser_Parse_TranslationWithinTheLimit_IsAccepted
+                  - PatternParser_Parse_ConcurrentTranslations_GiveTheSameResult
                   - PatternParser_Parse_HostilePatterns_AreHandledWithoutErrorOtherThanInvalidPattern
 
               - id: TextLint-TextScanning-PatternParser-BoundedMatching

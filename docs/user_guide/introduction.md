@@ -593,7 +593,10 @@ wrote:
   escapes `\A`, `\z`, `\Z`, `\G`, `\e`, `\a`, and `\h`; a back-reference to a group that is not complete, or any
   back-reference when the `i` flag is set (which includes every bare expression, because it is read with `i`);
   properties other than the general categories; a quantifier with nothing to repeat; a pattern longer than 4,096
-  characters or nested deeper than 100 groups; and an empty expression.
+  characters, nested deeper than 100 groups, or whose translation would be longer than 262,144 characters (a
+  case-insensitive `\p{...}`, negated class, or shorthand is written out as the set of characters it stands for, so
+  with the `i` flag about sixty properties are the most one pattern can hold; the message names the limit); and an
+  empty expression.
 - A back-reference to a group that did not take part in a match matches the empty text in JavaScript and fails in
   .NET; `.` matches one UTF-16 code unit, so with the `u` flag it matches half of a character outside the basic plane;
   `\p{...}` follows the Unicode categories of the .NET runtime, which can differ from those of Node.js for characters

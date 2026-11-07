@@ -37,8 +37,12 @@ N/A - standard test environment.
 - A back-reference to a group that did not take part in the match does not match.
 - Every construct without a safe equivalent is rejected with an exception that names the entry and gives a reason.
 - A blank entry and an empty body are rejected, and a missing entry throws a null-argument error.
-- A pattern of 4096 characters and groups nested 100 levels deep are accepted, one more of either is rejected, and
+- A pattern of 4096 characters and groups nested 100 levels deep are accepted, one more of either is rejected, a pattern
+  whose translation would be longer than 262,144 characters is rejected in milliseconds with the limit named while
+  ordinary patterns (including long ones) are accepted, the shared caches give the same result on many threads, and
   hostile patterns end with a regular expression or the documented exception.
+- A braced code point accepts any number of leading zeros and is rejected only above 10FFFF, when empty, or when it holds
+  anything but hexadecimal digits, as in Node.js.
 - The regular expression has the invariant culture, no .NET case option (the case behavior of the i flag is in the
   translation and follows JavaScript), and a match limit of five seconds by default, and a limit that is not positive
   is rejected.
@@ -137,6 +141,29 @@ rejected with the limit named in the reason, and the published limit constant is
 **PatternParser_Parse_NestingLimit_IsEnforced**: Groups nested 100 levels deep are accepted, and one level more is
 rejected with a reason that mentions nesting.
 
+**PatternParser_Parse_CaseInsensitiveExpansionOverTheLimit_IsRejectedQuicklyWithReason**: A pattern of the longest
+allowed length that is made of one piece, repeated, with the `i` and `u` flags is refused, in under two seconds (it
+takes milliseconds), with the limit of 262,144 characters named in the reason. The pieces are `\p{L}`, `\P{L}`,
+`\p{Lo}`, a class of one property, and a negated class of one property; each would build a translation of several
+megabytes, and the published limit constant is 262,144.
+
+**PatternParser_Parse_TranslationWithinTheLimit_IsAccepted**: The longest ordinary pattern (4,096 letters with the `i`
+flag), fifty case-insensitive properties, as many properties as fit in the source without the `i` flag, 2,048
+case-insensitive shorthands, and fifty classes that collect properties whose union is nearly every character, are all
+accepted, so ordinary patterns are not affected by the limit.
+
+**PatternParser_Parse_ConcurrentTranslations_GiveTheSameResult**: Two patterns that use the cached sets of a property, a
+negated property, and shorthands, in both modes, are translated by two hundred parallel calls, and every result equals
+the sequential one, so the shared caches do not change a result.
+
+**PatternParser_Parse_BracedCodePointWithLeadingZeros_IsAccepted**: Each row, recorded from Node.js v22.18.0, gives a
+braced code point written with and without leading zeros (up to twenty digits), and with the largest value, 10FFFF; it
+matches the character it names and translates to the same pattern as the form without the zeros.
+
+**PatternParser_Parse_BracedCodePointOutOfRange_IsRejected**: A braced value above 10FFFF (with and without leading
+zeros, and one too large for an integer), an empty one, and ones with a space or a sign are rejected, with a reason
+that names the range of a code point, as Node.js does.
+
 **PatternParser_Parse_HostilePatterns_AreHandledWithoutErrorOtherThanInvalidPattern**: Bodies of 4096 repeated
 characters of parentheses, closing parentheses, brackets, backslashes, stars, and braces, and of repeated named-group
 openings, are parsed or rejected with the documented exception, and nothing else escapes.
@@ -181,6 +208,10 @@ sign only in the u mode.
 
 **JavaScriptCaseFolding_Close_ContiguousRange_ReturnsAscendingNonOverlappingRanges**: Closing `a` to `z` gives `A` to
 `Z` too, in ascending ranges that do not touch.
+
+**JavaScriptCaseFolding_Close_AnySet_EqualsTheCodeUnitByCodeUnitDefinition**: For sets that are unsorted, overlapping,
+touching, the whole range, and scattered, in each mode, a code unit is in the closed set exactly when it or a letter
+equal to it is a member, tested for all 65,536 code units, and the ranges neither overlap nor touch.
 
 **JavaScriptCaseFolding_Close_EmptySet_ReturnsEmpty**: An empty set stays empty.
 

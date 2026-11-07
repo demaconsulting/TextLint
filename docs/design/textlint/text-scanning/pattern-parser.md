@@ -33,6 +33,7 @@ used only together.
 the text of the fixed translations, and the tables of character ranges.
 
 - `MaxPatternLength` (4096): the longest pattern body, in UTF-16 code units, that is accepted.
+- `MaxTranslatedLength` (262144): the longest translation, in characters, that is accepted (see _Limits_).
 - A private nesting limit of 100: the deepest nesting of groups that is accepted.
 - The translation of the line terminators, `.`, `^`, `$`, `\b`, and `\B` (see the rules below), written once as
   constants.
@@ -142,7 +143,10 @@ that .NET might read differently. Each rule is covered by a unit test.
   their meaning, and only for the general categories. Scripts and binary properties have no .NET equivalent and are
   rejected, as is the bare `\p` of a pattern without the flag, which JavaScript would read as the letter `p`.
 - _Character escapes._ `\t`, `\n`, `\r`, `\f`, `\v`, `\0` (not followed by a digit), `\cX`, `\xHH`, `\uHHHH`, and, with
-  the `u` flag, `\u{H..}` are translated. An escaped punctuation character stands for itself. An escaped letter or digit
+  the `u` flag, `\u{H..}` are translated. The braced form takes any number of hexadecimal digits, leading zeros
+  included (`\u{00000041}` is `A`, as in Node.js v22.18.0), and is rejected only when the value is above 10FFFF, when it
+  is empty, or when it holds anything but hexadecimal digits (no sign, no space). An escaped punctuation character
+  stands for itself. An escaped letter or digit
   that is not one of the escapes above is rejected, because JavaScript reads it as the plain letter but .NET gives many
   of them a meaning, such as `\z`, `\A`, and `\e`. Octal escapes are rejected.
 - _Literal characters._ ASCII letters, digits, and a short list of harmless punctuation are written as they are. Every
@@ -162,11 +166,31 @@ unclosed group or class, a closing parenthesis
 with no opening one, and a malformed group name, `\c`, `\x`, `\u`, `\k`, or `\p`. The reason is always one sentence
 naming the construct.
 
-**Limits.** A pattern body is rejected when it is empty or longer than 4096 characters, or when its groups are nested
-more than 100 levels deep. The length limit bounds the work of reading a pattern and the size of the regular expression
-built from it. The nesting limit exists because the reader recurses once per level, so a hostile pattern cannot exhaust
-the stack. Repetition counts that fit a 32-bit integer are accepted, so the time limit, not the count, bounds the work
-of matching.
+**Limits.** A pattern body is rejected when it is empty or longer than 4096 characters, when its groups are nested
+more than 100 levels deep, or when its translation would be longer than 262,144 characters. The length limit bounds the
+work of reading a pattern, but it does not bound the size of the translation: with the `i` flag a Unicode property, a
+negated class, or a shorthand is written out as the explicit set of characters it matches, about 4,400 characters for
+one `\p{L}`, so 800 of them would give a pattern of 3.5 million characters, and the work to build it, before any match
+could be tried (and before the match time limit applies). The translation limit stops that: it is more than four
+times the longest translation of an ordinary pattern of the maximum length (4,096 letters with the `i` flag give 57,344
+characters), allows about sixty case-insensitive properties, and is checked after every term and after every member of
+a class (a class counts the ranges it has collected, as the text it will become), so a hostile pattern is refused after
+the first few expansions, in milliseconds, with a reason that names the limit and the flag. Without the `i` flag a
+property stays `\p{L}` and a class its members, so the limit is never reached by a pattern within the length limit.
+The nesting limit exists because the reader recurses once per level, so a hostile pattern cannot exhaust
+the stack. Repetition counts that fit a 32-bit integer are accepted, because .NET does not unroll them and the
+translation does not grow with them, so the time limit, not the count, bounds the work of matching.
+
+**The cost of every construct** was checked against the source length. Literals, groups, quantifiers, anchors,
+escapes, and look-around assertions give a constant amount of output per source character (at most 29 characters for
+a letter outside the basic plane with the `i` and `u` flags). The constructs that expand with the `i` flag (a property,
+a shorthand, a negated class, a class that collects sets) are the ones that the translation limit bounds, and their work
+is bounded too: the set of a category (a pass over 65,536 code units) and the closed set of a shorthand are computed
+once per process and kept in two caches of fixed size (37 names with and without negation, and six shorthands in two
+modes), and the closure of a set under letter case (`Close`) works on the ranges and on the few thousand letters that
+have a case, not on the 65,536 code units, so 1,300 classes of three characters cost milliseconds. The caches hold
+immutable values and are filled with a thread-safe dictionary; two threads that fill an entry at once compute the same
+value.
 
 **Known differences from JavaScript** that the translation cannot remove, and that are stated rather than hidden:
 
@@ -219,7 +243,8 @@ their own fixed limit of 5 seconds; the seam reaches only the expressions that `
 - _Algorithm_: (1) reject an empty body and one longer than the limit before reading any of it; (2) create a reader;
   (3) count the capturing groups of the whole pattern, because the meaning of a decimal escape depends on how many
   exist; (4) read alternatives separated by `|`, each a sequence of terms, each term an assertion or an atom with its
-  quantifier, writing the .NET form as it goes; (5) require that nothing is left over. Every method of the reader returns
+  quantifier, writing the .NET form as it goes and checking after every term, and after every member of a class, that
+  the translation is within its limit; (5) require that nothing is left over. Every method of the reader returns
   whether it succeeded, the first failure records its reason, and every caller stops, so the reason is always the first
   problem in the pattern.
 
