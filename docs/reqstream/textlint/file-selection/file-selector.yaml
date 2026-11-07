@@ -88,17 +88,17 @@ sections:
               - id: TextLint-FileSelection-FileSelector-Cancellation
                 title: >-
                   FileSelector shall stop and signal cancellation, without returning a partial selection,
-                  when the caller's token is cancelled before the call or while the directory tree is read,
-                  and shall not list further directories once it is cancelled.
+                  when the caller's token is canceled before the call or while the directory tree is read,
+                  and shall not list further directories once it is canceled.
                 justification: |
                   The directory walk is the long part of a selection on a large tree. A token that is only
-                  honored once the walk has ended would make cancelling useless exactly when it matters. The
+                  honored once the walk has ended would make canceling useless exactly when it matters. The
                   test double cancels the token at a chosen point of the walk, so the property is proven
                   without timing.
                 tests:
-                  - FileSelector_Select_TokenAlreadyCancelled_ThrowsOperationCanceled
-                  - FileSelector_Select_CancelledDuringWalk_StopsWalkAndThrows
-                  - FileSelector_Select_TokenNotCancelled_ReturnsSelection
+                  - FileSelector_Select_TokenAlreadyCanceled_ThrowsOperationCanceled
+                  - FileSelector_Select_CanceledDuringWalk_StopsWalkAndThrows
+                  - FileSelector_Select_TokenNotCanceled_ReturnsSelection
 
               - id: TextLint-FileSelection-FileSelector-StableOrder
                 title: >-

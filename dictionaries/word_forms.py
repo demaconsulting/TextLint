@@ -569,6 +569,7 @@ class RegionClassifier:
         british: Iterable[str],
         pairs: Iterable[Tuple[str, str]] = CURATED_SPELLING_PAIRS,
         shared: Iterable[str] = VALID_IN_BOTH_DIALECTS,
+        overrides: Iterable[str] = (),
     ) -> List[str]:
         """Checks finished region lists and returns a description of every violation (empty when sound).
 
@@ -578,25 +579,38 @@ class RegionClassifier:
         but is in the other region's dictionary; an -ize form in the British dictionary whose -ise counterpart is
         a known British word; or
         a curated spelling pair that is not American-only (American spelling) and British-only (British spelling).
+
+        ``overrides`` are the words of the reviewed common-word list (``en-common/additions.txt``): deliberate owner
+        decisions that a word is standard in every English variant although SCOWL classifies it as regional. An
+        override is exempt from the regional leak tests above, but it is still a violation when it is an -ize form
+        with a known -ise counterpart (it is in the common list, so the -ize test covers it), when it is in the
+        American or the British list as well (the override must be the only place that classifies it), or when it
+        is not in the common list.
         """
         common_keys = {word.lower() for word in common}
         american_keys = {word.lower() for word in american}
         british_keys = {word.lower() for word in british}
+        override_keys = {word.lower() for word in overrides}
         american_dictionary = common_keys | american_keys
         british_dictionary = common_keys | british_keys
         problems: List[str] = []
-        for key in sorted(american_dictionary & self.gb_exclusive):
+        for key in sorted((american_dictionary & self.gb_exclusive) - override_keys):
             problems.append(f"'{key}' is a British-only spelling but is in the common or American list")
-        for key in sorted(british_dictionary & self.us_exclusive):
+        for key in sorted((british_dictionary & self.us_exclusive) - override_keys):
             problems.append(f"'{key}' is an American-only spelling but is in the common or British list")
-        for key in sorted(american_dictionary):
+        for key in sorted(american_dictionary - override_keys):
             contained = self.contained_region(key)
             if contained is not None and contained[0] == REGION_GB:
                 problems.append(f"'{key}' contains the British-only word '{contained[1]}' but is in the common or American list")
-        for key in sorted(british_dictionary):
+        for key in sorted(british_dictionary - override_keys):
             contained = self.contained_region(key)
             if contained is not None and contained[0] == REGION_US:
                 problems.append(f"'{key}' contains the American-only word '{contained[1]}' but is in the common or British list")
+        for key in sorted(override_keys):
+            if key not in common_keys:
+                problems.append(f"'{key}' is a reviewed common word but is not in the common list")
+            if key in american_keys or key in british_keys:
+                problems.append(f"'{key}' is a reviewed common word but is also in the American or British list")
         british_known = self._british_known | british_dictionary
         for key in sorted(british_dictionary):
             counterpart = known_ise_counterpart(key, british_known)
@@ -724,6 +738,23 @@ class _SelfTests(unittest.TestCase):
         self.assertEqual([], classifier.check_regions(["program"], [], [], (), ("program",)))
         problems = classifier.check_regions([], ["program"], ["programme"], (), ("program",))
         self.assertEqual(["'program' is valid in both American and British English but is missing from one"], problems)
+
+    def test_check_regions_exempts_reviewed_common_words_but_not_their_mistakes(self) -> None:
+        # SCOWL lists "oversized" for British English only, and "colourize" has the British -ise counterpart "colourise"
+        american = ["oversize", "organize", "size"]
+        british = ["oversized", "organise", "colourise", "size"]
+        classifier = RegionClassifier(american, british, american, british)
+        self.assertEqual(
+            ["'oversized' is a British-only spelling but is in the common or American list"],
+            classifier.check_regions(["oversized"], [], [], (), ()),
+        )
+        self.assertEqual([], classifier.check_regions(["oversized", "oversize"], [], [], (), (), ["oversized", "Oversize"]))
+        in_a_region = classifier.check_regions(["oversized"], [], ["oversized"], (), (), ["oversized"])
+        self.assertEqual(["'oversized' is a reviewed common word but is also in the American or British list"], in_a_region)
+        missing = classifier.check_regions([], [], [], (), (), ["oversized"])
+        self.assertEqual(["'oversized' is a reviewed common word but is not in the common list"], missing)
+        british_ize = classifier.check_regions(["colourize"], [], [], (), (), ["colourize"])
+        self.assertTrue(any("-ize form" in problem for problem in british_ize))
 
     def test_affix_strings_collects_what_the_prefix_and_suffix_rules_add(self) -> None:
         prefixes, suffixes = affix_strings(parse_affix_file(_SAMPLE_AFFIX))

@@ -240,10 +240,10 @@ public class FileSelectionSubsystemTests
     }
 
     /// <summary>
-    ///     Test that cancelling while the directory tree is read stops the selection and returns no selection.
+    ///     Test that canceling while the directory tree is read stops the selection and returns no selection.
     /// </summary>
     [Fact]
-    public void FileSelectionSubsystem_Select_CancelledDuringWalk_StopsAndThrows()
+    public void FileSelectionSubsystem_Select_CanceledDuringWalk_StopsAndThrows()
     {
         // Arrange: several directories, and a recording directory that cancels the token when the first
         // subdirectory starts to be read

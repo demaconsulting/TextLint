@@ -58,9 +58,9 @@ file's include pattern. This scenario is tested by `SettingsLoader_LoadAsync_Val
 returned and one error names the file. This scenario is tested by
 `SettingsLoader_LoadAsync_MissingFile_ReturnsErrorNamingFile`.
 
-**SettingsLoader_LoadAsync_CancelledToken_ThrowsOperationCanceled**: A file is loaded with an already cancelled
-token; the load is cancelled. This scenario is tested by
-`SettingsLoader_LoadAsync_CancelledToken_ThrowsOperationCanceled`.
+**SettingsLoader_LoadAsync_CanceledToken_ThrowsOperationCanceled**: A file is loaded with an already canceled
+token; the load is canceled. This scenario is tested by
+`SettingsLoader_LoadAsync_CanceledToken_ThrowsOperationCanceled`.
 
 **SettingsLoader_LoadAsync_NullPath_ThrowsArgumentNullException**: A null path throws. This scenario is tested
 by `SettingsLoader_LoadAsync_NullPath_ThrowsArgumentNullException`.

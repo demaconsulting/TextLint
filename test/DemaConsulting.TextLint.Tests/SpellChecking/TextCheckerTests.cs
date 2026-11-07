@@ -495,13 +495,13 @@ public class TextCheckerTests
     public void TextChecker_Check_LetterPrefixWithoutBackslash_IsReported()
     {
         // Arrange: a known word with an extra first letter and no backslash before it
-        const string text = "nworld";
+        const string text = "nworld"; // textlint:disable-line
 
         // Act: check the text
         var issues = Check(text);
 
         // Assert: the word is reported
-        Assert.Equal(["1:1 nworld"], Positions(issues));
+        Assert.Equal(["1:1 nworld"], Positions(issues)); // textlint:disable-line
     }
 
     /// <summary>
@@ -1157,7 +1157,7 @@ public class TextCheckerTests
     public void TextChecker_Check_UnsupportedDirectiveBetweenWords_IsInTextOrder()
     {
         // Arrange: a misspelling, an unsupported directive, and another misspelling
-        const string text = "wrold\n// textlint:locale en-GB\nspeling";
+        const string text = "wrold\n// textlint:locale en-GB\nspeling"; // textlint:disable-line
 
         // Act: check the text
         var issues = Check(text);
@@ -1175,7 +1175,7 @@ public class TextCheckerTests
     public void TextChecker_Check_UnsupportedDirectiveBeforeWords_IsReportedFirst()
     {
         // Arrange: an unsupported directive on the first line and a misspelling after it
-        const string text = "// textlint:locale en-GB\nwrold";
+        const string text = "// textlint:locale en-GB\nwrold"; // textlint:disable-line
 
         // Act: check the text
         var issues = Check(text);
@@ -1725,7 +1725,7 @@ public class TextCheckerTests
     public void TextChecker_Check_UnsupportedDirectiveIssue_FormatsDirectiveMessage()
     {
         // Arrange: an unsupported directive
-        var issue = Assert.Single(Check("textlint:locale en-GB", sourceName: "a.md"));
+        var issue = Assert.Single(Check("textlint:locale en-GB", sourceName: "a.md")); // textlint:disable-line
 
         // Act: format the finding
         var formatted = issue.ToString();
@@ -1994,7 +1994,7 @@ public class TextCheckerTests
     public void TextChecker_Check_IgnoreRegExpDirectiveInvalid_IsReportedAtItsPosition()
     {
         // Arrange: a directive with a pattern that .NET cannot read the JavaScript way, then a word it would have hidden
-        const string text = "// cspell:ignoreRegExp /(?i)zorbinline/\nzorbinline";
+        const string text = "// cspell:ignoreRegExp /(?i)zorbinline/\nzorbinline"; // textlint:disable-line
 
         // Act: check it
         var issues = Check(text, sourceName: "notes.txt");
@@ -2059,7 +2059,7 @@ public class TextCheckerTests
     public void TextChecker_Check_IgnoreRegExpDirectiveRepeated_IsReportedAtEachPlaceInOrder()
     {
         // Arrange: an unusable pattern twice, with a misspelling between and after
-        var text = string.Join('\n', "// cspell:ignoreRegExp /(/", Unknown, "// cspell:ignoreRegExp /(/", OtherUnknown);
+        var text = string.Join('\n', "// cspell:ignoreRegExp /(/", Unknown, "// cspell:ignoreRegExp /(/", OtherUnknown); // textlint:disable-line
 
         // Act: check it
         var issues = Check(text);
@@ -2075,7 +2075,7 @@ public class TextCheckerTests
     public void TextChecker_Check_IgnoreRegExpDirectiveWithoutPattern_IsReportedAsUnsupported()
     {
         // Arrange: a directive whose pattern is on the next line, which is not read
-        const string text = "// cspell:ignoreRegExp\n/hello/";
+        const string text = "// cspell:ignoreRegExp\n/hello/"; // textlint:disable-line
 
         // Act: check it
         var issues = Check(text);
@@ -2131,7 +2131,7 @@ public class TextCheckerTests
         var lines = names
             .SelectMany(name => new[] { name, name.ToLowerInvariant(), name.ToUpperInvariant() })
             .Concat(["Urls", "URLS"])
-            .Select(name => $"// cspell:ignoreRegExp {name}")
+            .Select(name => $"// cspell:ignoreRegExp {name}") // textlint:disable-line
             .Append("wrold")
             .ToArray();
 

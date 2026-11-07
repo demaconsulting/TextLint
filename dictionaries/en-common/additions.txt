@@ -1,0 +1,33 @@
+# Reviewed common words: words that are standard in every English variant (known in en-US, en-GB, and both).
+# This file is owned by the project and is NEVER overwritten by dictionaries/refresh.py.
+#
+# PURPOSE
+#   The SCOWL word lists classify a word as American-only or British-only, or lack it, and that decides
+#   which language selection knows it. For a few words that classification is a data error: the word is
+#   ordinary in both dialects. A word listed here is known in every English selection, whatever SCOWL says.
+#   The dictionary builder reads every .txt file of the en-common folder, so no further wiring is needed.
+#
+# HOW IT IS USED
+#   refresh.py reads this file and leaves its words out of every generated list, so a word is classified
+#   in this one place only. Its self-checks treat an entry as a deliberate override, not as a leak, but they
+#   fail the refresh for an entry that is invalid, is on a cspell-dicts exclude list, is an -ize form with a
+#   known -ise counterpart, or is still in the American or British list. If a word is in both a common and
+#   a regional list anyway, the common list wins: lookups combine the lists, so the word is known in every
+#   selection and the duplicate in the regional list is harmless.
+#
+# REVIEW RULE
+#   Add a word only after a reviewer has confirmed from evidence that (1) it is standard in both American
+#   and British usage (a dictionary of each dialect, or the SCOWL data itself, lists it for both), and
+#   (2) SCOWL classifies it as regional or does not list it. Never add a genuine spelling variant
+#   (color/colour), a spelling that exists only in one dialect, or a word merely to silence a spelling
+#   error. One word per line, in lower case, sorted. Entries are written like every other word list entry.
+#
+# EVIDENCE
+#   oversize, oversized, oversizes: SCOWL (rel-2026.02.25) lists "oversize" and "oversizes" for American
+#   English at variant level 0 and for British English only at level 4, and "oversized" for British English at
+#   level 0 and for American English only at level 4. The three forms are one lemma that both dialects
+#   use, so the size 70 base lists, which keep variant level 1 and below, split it by accident.
+
+oversize
+oversized
+oversizes

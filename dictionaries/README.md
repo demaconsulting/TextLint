@@ -13,16 +13,18 @@ dictionary name that the build passes to the builder.
 
 | Folder | Content |
 | ------ | ------- |
-| `en-common/` | English words spelled the same in American and British (-ise) English |
+| `en-common/` | English words spelled the same in American and British (-ise) English, plus `additions.txt` |
 | `en-US/` | American-only spellings |
 | `en-GB/` | British (-ise)-only spellings |
-| `technical/language/` | Programming-language keyword and API lists (7 files) |
+| `technical/language/` | Programming-language keyword and API lists, and the font names list (8 files) |
 | `technical/general/` | General technical lists and the project-owned additions (8 files) |
 | `technical/variant-keep.txt` | Reviewed spelling variants that are genuine programming terms |
 | `exclusions.txt` | Reviewed words that must never be known in any dictionary (a file, not a dictionary) |
 
 Each English folder holds one file per source, so that a reviewer can see where every word comes from (see
-_English Sources_ below). The language lists are csharp, dotnet, typescript, node, html, css, and powershell. The
+_English Sources_ below). The language lists are csharp, dotnet, typescript, node, html, css, powershell, and fonts
+(the names of font families such as `Segoe`, `Consolas`, and `Roboto`, which appear in documentation, style sheets,
+and project files in every language). The
 general lists are software-terms, companies, filetypes, public-licenses, fullstack, npm, k8s, and additions.
 
 An ordinary dictionary reads every `.txt` file beneath its folder. The technical dictionary reads only the three
@@ -94,7 +96,7 @@ Three further rules keep the split sound:
 - **British English is -ise only.** An -ize form that has a known British -ise counterpart (`organize` for
   `organise`, and `glamourize` for `glamorise`) is never written to `en-GB`; a Hunspell stem that is such a form is
   skipped with all its generated forms (`colourize`, `colourized`), and a common -ize word with such a counterpart is
-  written to `en-US`. Words such as `size`, `capsized`, and `oversized` have no counterpart and are unaffected.
+  written to `en-US`. Words such as `size`, `capsized`, and `resized` have no counterpart and are unaffected.
 - **A spell check does not know the part of speech.** Words whose British form differs only by part of speech
   (`license` and `licence`, `practice` and `practise`) are accepted in both forms by `en-GB`, because one form is
   common to both dialects. This is inherent and is not a leak.
@@ -109,6 +111,24 @@ wrong region, or when a word that is valid in both dialects (`program`, `license
 English keeps `program` for computing and accepts the verb `license`) is missing from either. Patterns were not added
 for `-ce`/`-se` (`license`/`licence`) and `-m`/`-mme` (`program`/`programme`) for that reason. The library test suite
 repeats the pair check over the committed lists and through the public lookup.
+
+## Reviewed Common Words
+
+`en-common/additions.txt` is the hand-written list of words that are standard in every English variant although
+the SCOWL lists classify them as regional (or lack them): the owner's override of the classification rule above.
+Its first words are `oversize`, `oversized`, and `oversizes`; SCOWL lists `oversized` for British English at variant
+level 0 and for American English only at level 4, and the reverse for `oversize`, so the size 70 base lists give each
+form to one dialect by accident, and every American project that writes "oversized" would see a false finding. The
+file's header states the review rule and the evidence: add a word only when both dialects use it, never a genuine
+spelling variant, and never merely to silence an error.
+
+The refresh script reads the file but never writes it. It leaves the words out of every generated list, so the file
+is the only place that classifies them; its self-checks treat them as deliberate overrides instead of leaks, but
+still fail for an invalid entry, an entry that is on a cspell-dicts exclude list, an -ize form that has a known -ise
+counterpart, or an entry that is still in an American or British list. The dictionary builder needs no special rule:
+it builds every list of the common folder into the common dictionary, and a lookup combines it with the regional one.
+If a word is in both a common and a regional list anyway, the common list wins, because the word is known in every
+selection and the duplicate is harmless; the builder never reports it.
 
 ## Exclusions
 
@@ -157,8 +177,9 @@ The format is enforced by the builder, which reports every violation with its fi
 Add genuine project-specific technical terms to `technical/general/additions.txt`, one per line. That file is
 owned by the project and is never overwritten by the refresh script; a spelling variant added there is removed
 by the rule above, so a genuine programming term in a variant spelling belongs in `technical/variant-keep.txt`
-instead. Do not edit the imported files by hand, because the next refresh replaces them, and never add a
-misspelling to hide a spelling error.
+instead. An ordinary English word that every dialect uses but that SCOWL classifies wrongly belongs in
+`en-common/additions.txt` (see _Reviewed Common Words_). Do not edit the imported files by hand, because the next
+refresh replaces them, and never add a misspelling to hide a spelling error.
 
 ## Provenance and Licenses
 
@@ -182,6 +203,7 @@ after the table):
 | `technical/language/html.txt` | `@cspell/dict-html` | 4.0.16 | MIT |
 | `technical/language/css.txt` | `@cspell/dict-css` | 4.1.2 | MIT |
 | `technical/language/powershell.txt` | `@cspell/dict-powershell` | 5.0.17 | MIT |
+| `technical/language/fonts.txt` | `@cspell/dict-fonts` | 4.0.6 | MIT |
 
 The English lists (the files named under _English Sources_ above) come from:
 
@@ -220,7 +242,9 @@ Prerequisites:
 
 <!-- cspell:ignore PYTHONUTF ogue Kuenning Moby wordlist -->
 <!-- cspell:ignore organise glamorise colourize colourized licence practise colour analyse ered manoeuvre -->
-<!-- cspell:ignore Bourges Deventer unmaneuverable maneuverable -->
+<!-- textlint:ignore catalogue labelled honoured modelling honour centre judgement programme -->
+<!-- textlint:ignore curser operants glamourize -->
+<!-- cspell:ignore Bourges Deventer unmaneuverable maneuverable Segoe Consolas -->
 
 - Python 3.7 or later with SQLite 3.33.0 or later, git, and npm on the path. The scripts use nothing newer than
   Python 3.7 (checked with the `vermin` tool).

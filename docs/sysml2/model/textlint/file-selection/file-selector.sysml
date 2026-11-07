@@ -2,7 +2,7 @@ package TextLint {
     part def FileSelector {
         doc /* Applies include and ignore glob patterns to a root directory and returns the ordered, case-sensitively matched files, skipping excluded and hidden directories without reading them. */
 
-        comment sourceRef /* Source: src/DemaConsulting.TextLint/FileSelection/FileSelector.cs (supporting types: SelectedFile.cs, HiddenFilteringDirectory.cs, CancellableDirectory.cs) */
+        comment sourceRef /* Source: src/DemaConsulting.TextLint/FileSelection/FileSelector.cs (supporting types: SelectedFile.cs, HiddenFilteringDirectory.cs, CancelableDirectory.cs) */
         comment testRef /* Test: test/DemaConsulting.TextLint.Tests/FileSelection/FileSelectorTests.cs */
         comment designRef /* Design: docs/design/textlint/file-selection/file-selector.md */
         comment verificationRef /* Verification: docs/verification/textlint/file-selection/file-selector.md */

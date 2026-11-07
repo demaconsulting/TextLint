@@ -171,24 +171,24 @@ This scenario is tested by `SpellChecker_FileDiagnostic_SkipToString_UsesInfoSev
 formatted under an absolute name chosen by the caller, keeping their severities, and a null name throws. This
 scenario is tested by `SpellChecker_FileDiagnostic_FormatCallerFileName_ReplacesRecordedFileName`.
 
-**SpellChecker_CheckAsync_CancelledToken_ThrowsOperationCanceledException**: A token that is already cancelled stops
-the run. This scenario is tested by `SpellChecker_CheckAsync_CancelledToken_ThrowsOperationCanceledException`.
+**SpellChecker_CheckAsync_CanceledToken_ThrowsOperationCanceledException**: A token that is already canceled stops
+the run. This scenario is tested by `SpellChecker_CheckAsync_CanceledToken_ThrowsOperationCanceledException`.
 
-**SpellChecker_CheckFilesAsync_CancelledToken_ChecksNoFile**: With a token that is already cancelled the run throws
+**SpellChecker_CheckFilesAsync_CanceledToken_ChecksNoFile**: With a token that is already canceled the run throws
 and the check function is never called. This scenario is tested by
-`SpellChecker_CheckFilesAsync_CancelledToken_ChecksNoFile`.
+`SpellChecker_CheckFilesAsync_CanceledToken_ChecksNoFile`.
 
-**SpellChecker_CheckFilesAsync_CancelledDuringRun_ThrowsOperationCanceledException**: A check that cancels the run
+**SpellChecker_CheckFilesAsync_CanceledDuringRun_ThrowsOperationCanceledException**: A check that cancels the run
 makes it throw before every file was checked, and no result is returned. This scenario is tested by
-`SpellChecker_CheckFilesAsync_CancelledDuringRun_ThrowsOperationCanceledException`.
+`SpellChecker_CheckFilesAsync_CanceledDuringRun_ThrowsOperationCanceledException`.
 
 **SpellChecker_CheckWithSelectionAsync_Selection_ReceivesCallersToken**: The selection function is given the caller's
 own token, so a cancellation reaches the directory walk. This scenario is tested by
 `SpellChecker_CheckWithSelectionAsync_Selection_ReceivesCallersToken`.
 
-**SpellChecker_CheckWithSelectionAsync_SelectionCancelled_ThrowsOperationCanceledException**: A selection that is
-cancelled while it runs ends the call with a cancellation, and nothing is checked afterwards. This scenario is tested
-by `SpellChecker_CheckWithSelectionAsync_SelectionCancelled_ThrowsOperationCanceledException`.
+**SpellChecker_CheckWithSelectionAsync_SelectionCanceled_ThrowsOperationCanceledException**: A selection that is
+canceled while it runs ends the call with a cancellation, and nothing is checked afterwards. This scenario is tested
+by `SpellChecker_CheckWithSelectionAsync_SelectionCanceled_ThrowsOperationCanceledException`.
 
 **SpellChecker_CheckWithSelectionAsync_NullSelection_ThrowsArgumentNullException**: A null selection function throws and
 the exception names the parameter. This scenario is tested by

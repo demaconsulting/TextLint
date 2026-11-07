@@ -161,7 +161,7 @@ sections:
 
           - id: TextLintTool-Linting-Cancellation
             title: >-
-              The Linting subsystem shall stop a check when it is cancelled, say that it was cancelled, report no
+              The Linting subsystem shall stop a check when it is canceled, say that it was canceled, report no
               partial result, and fail.
             justification: |
               A user who interrupts a long check must get control back promptly, and a partial result must
@@ -169,4 +169,4 @@ sections:
             children:
               - TextLintTool-Linting-LintRunner-Cancellation
             tests:
-              - LintingSubsystem_Run_CancelledToken_ReportsCancellation
+              - LintingSubsystem_Run_CanceledToken_ReportsCancellation

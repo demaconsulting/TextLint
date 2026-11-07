@@ -73,7 +73,7 @@ internal static class LintRunner
     /// <remarks>
     ///     The library is asynchronous but the program entry point is synchronous, so the call is waited for
     ///     once, here, at the boundary of a console program that has no synchronization context to deadlock
-    ///     on. Cancellation is honored throughout: cancelling the token stops the settings read, the directory
+    ///     on. Cancellation is honored throughout: canceling the token stops the settings read, the directory
     ///     walk, and the file checks, and the run ends with a message and a failure exit code instead of a
     ///     partial result. Side effects: writes to <paramref name="context"/> and reads the settings file,
     ///     directories, and files.
@@ -96,7 +96,7 @@ internal static class LintRunner
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             // The user asked to stop, so say so and fail rather than leave a half-written result
-            context.WriteError("The check was cancelled before it finished.");
+            context.WriteError("The check was canceled before it finished.");
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or NotSupportedException or ArgumentException)
         {
@@ -115,7 +115,7 @@ internal static class LintRunner
     /// </remarks>
     /// <param name="context">The parsed command line and the output channels. Must not be null.</param>
     /// <param name="cancellationToken">Token that cancels the run.</param>
-    /// <exception cref="OperationCanceledException">Thrown when the token is cancelled.</exception>
+    /// <exception cref="OperationCanceledException">Thrown when the token is canceled.</exception>
     /// <exception cref="ArgumentException">Thrown when a path, pattern, or language is invalid.</exception>
     /// <exception cref="IOException">Thrown when the root directory is missing or cannot be read.</exception>
     private static void RunCheck(Context context, CancellationToken cancellationToken)
@@ -244,7 +244,7 @@ internal static class LintRunner
     /// <param name="root">The absolute root directory. Must not be null.</param>
     /// <param name="cancellationToken">Token that cancels the read.</param>
     /// <returns>The settings, or <see langword="null"/> when a problem was reported and nothing is to be checked.</returns>
-    /// <exception cref="OperationCanceledException">Thrown when the token is cancelled.</exception>
+    /// <exception cref="OperationCanceledException">Thrown when the token is canceled.</exception>
     private static TextLintSettings? LoadSettings(Context context, string root, CancellationToken cancellationToken)
     {
         // An explicit settings file is used as typed; otherwise the default file in the root is looked for

@@ -777,34 +777,34 @@ public class FileTextReaderTests
     }
 
     /// <summary>
-    ///     Test that a token that is already cancelled stops the read of a file that has content.
+    ///     Test that a token that is already canceled stops the read of a file that has content.
     /// </summary>
     [Fact]
-    public async Task FileTextReader_ReadAsync_CancelledToken_ThrowsOperationCanceledException()
+    public async Task FileTextReader_ReadAsync_CanceledToken_ThrowsOperationCanceledException()
     {
-        // Arrange: a file with content and a token that is already cancelled
+        // Arrange: a file with content and a token that is already canceled
         using var temp = new TempDirectory();
         var path = WriteFile(temp, "a.txt", Encoding.UTF8.GetBytes(Sample));
         using var source = new CancellationTokenSource();
         await source.CancelAsync();
 
-        // Act / Assert: the read is cancelled
+        // Act / Assert: the read is canceled
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => FileTextReader.ReadAsync(path, 0, source.Token));
     }
 
     /// <summary>
-    ///     Test that a token that is already cancelled stops the read of an empty file too.
+    ///     Test that a token that is already canceled stops the read of an empty file too.
     /// </summary>
     [Fact]
-    public async Task FileTextReader_ReadAsync_CancelledTokenWithEmptyFile_ThrowsOperationCanceledException()
+    public async Task FileTextReader_ReadAsync_CanceledTokenWithEmptyFile_ThrowsOperationCanceledException()
     {
-        // Arrange: an empty file and a token that is already cancelled
+        // Arrange: an empty file and a token that is already canceled
         using var temp = new TempDirectory();
         var path = WriteFile(temp, "empty.txt", []);
         using var source = new CancellationTokenSource();
         await source.CancelAsync();
 
-        // Act / Assert: the read is cancelled although there is nothing to read
+        // Act / Assert: the read is canceled although there is nothing to read
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => FileTextReader.ReadAsync(path, 0, source.Token));
     }
 

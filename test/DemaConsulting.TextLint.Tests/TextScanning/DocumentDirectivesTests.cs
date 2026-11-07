@@ -834,6 +834,7 @@ public class DocumentDirectivesTests
     /// </summary>
     /// <param name="directive">The directive as written, up to the pattern.</param>
     [Theory]
+    // textlint:disable
     [InlineData("cspell:ignoreRegExp")]
     [InlineData("cspell::ignoreRegExp")]
     [InlineData("CSPELL:IGNOREREGEXP")]
@@ -843,6 +844,7 @@ public class DocumentDirectivesTests
     [InlineData("textlint:ignoreRegExp")]
     [InlineData("cspell:ignore_Reg_Exp")]
     [InlineData("cspell: ignoreRegExp")]
+    // textlint:enable
     public void DocumentDirectives_Scan_IgnoreRegExpPrefixesAndSpellings_AllAddThePattern(string directive)
     {
         // Arrange: a directive written with the prefix and spelling under test

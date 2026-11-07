@@ -190,12 +190,12 @@ public class FileSelectorTests
     }
 
     /// <summary>
-    ///     Test that a token that is already cancelled is honored before any directory is read.
+    ///     Test that a token that is already canceled is honored before any directory is read.
     /// </summary>
     [Fact]
-    public void FileSelector_Select_TokenAlreadyCancelled_ThrowsOperationCanceled()
+    public void FileSelector_Select_TokenAlreadyCanceled_ThrowsOperationCanceled()
     {
-        // Arrange: a valid tree and a token that is cancelled before the call
+        // Arrange: a valid tree and a token that is canceled before the call
         using var temp = new TempDirectory();
         temp.CreateFile("README.md");
         using var cancellation = new CancellationTokenSource();
@@ -207,13 +207,13 @@ public class FileSelectorTests
     }
 
     /// <summary>
-    ///     Test that cancelling while the walk is running stops it at the next entry, whether or not wildcards may match hidden names.
+    ///     Test that canceling while the walk is running stops it at the next entry, whether or not wildcards may match hidden names.
     /// </summary>
     /// <param name="enableGlobDot">Whether wildcards may match hidden names.</param>
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public void FileSelector_Select_CancelledDuringWalk_StopsWalkAndThrows(bool enableGlobDot)
+    public void FileSelector_Select_CanceledDuringWalk_StopsWalkAndThrows(bool enableGlobDot)
     {
         // Arrange: three directories with a file each, and a recording directory that cancels the token as soon as
         // the walk starts to read the first subdirectory
@@ -230,17 +230,17 @@ public class FileSelectorTests
         var exception = Record.Exception(
             () => FileSelector.Select(recording, ["**/*.md"], [], enableGlobDot, cancellation.Token));
 
-        // Assert: the walk was cancelled, and it read only the root and the first subdirectory, not the other two
+        // Assert: the walk was canceled, and it read only the root and the first subdirectory, not the other two
         Assert.IsType<OperationCanceledException>(exception);
         Assert.Equal(2, recording.EnumeratedDirectories.Count);
         Assert.Equal(string.Empty, recording.EnumeratedDirectories[0]);
     }
 
     /// <summary>
-    ///     Test that a token that is never cancelled does not change the selection.
+    ///     Test that a token that is never canceled does not change the selection.
     /// </summary>
     [Fact]
-    public void FileSelector_Select_TokenNotCancelled_ReturnsSelection()
+    public void FileSelector_Select_TokenNotCanceled_ReturnsSelection()
     {
         // Arrange: a tree and a live token
         using var temp = new TempDirectory();

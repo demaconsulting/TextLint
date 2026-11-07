@@ -706,6 +706,7 @@ use `textlint`.
 ## Differences from cspell
 
 <!-- cspell:ignore quixs xcspell Expx -->
+<!-- textlint:ignore nfoo -->
 
 TextLint follows cspell's documented rules, and the test suite compares it with the real cspell on a set of
 corpora (see the verification of TextLint). These differences are deliberate:
@@ -810,7 +811,7 @@ Console.WriteLine($"{check.FilesChecked} checked, {check.FilesSkipped} skipped, 
 read throws `UnauthorizedAccessException` or `IOException` instead, so a permission problem is not mistaken for a
 missing directory),
 `InvalidGlobPatternException` for an invalid pattern, `ArgumentException` for settings it cannot use (built in code;
-a loaded file was validated already), and `OperationCanceledException` when the token is cancelled; nothing is
+a loaded file was validated already), and `OperationCanceledException` when the token is canceled; nothing is
 returned in that case. Everything about a single file is data in the result: `FileDiagnostic.Kind` is `Unreadable`,
 `Binary`, `TooLarge`, or `TimedOut`, and `IsError` is true for the first and the last, because those files were meant
 to be checked and were not. Base an exit code on `HasProblems`. Pass
@@ -928,7 +929,7 @@ foreach (var issue in check.Issues)
 
 The library also answers whether a word is known, using dictionaries embedded in the assembly: the English words
 that American and British English share, the American-only and the British-only spellings, and a dictionary of
-technical terms (programming languages, tools, companies, file types, and licenses). A selection always includes
+technical terms (programming languages, tools, companies, file types, licenses, and font names). A selection always includes
 the common words and the technical terms, and adds the spellings of the languages you choose.
 
 ```csharp
@@ -984,11 +985,13 @@ The dictionaries are generated from these sources, with their versions and licen
   word lists and Hunspell-expanded word forms of the cspell dictionaries, and a hand-added list of developer terms.
   Each word is routed to the common, the American, or the British list by one documented rule, so a spelling that
   belongs to one dialect never lands in the common list.
-- **Technical terms**: the cspell dictionaries for software terms, companies, file types, licenses, and the
+- **Technical terms**: the cspell dictionaries for software terms, companies, file types, licenses, font names, and the
   programming languages and tools in common use.
 - **Exclusions**: a reviewed list of words that imported lists contain but that are almost always a mistyped
   common word. An excluded word is unknown in every language, in every letter case, whichever list it came from.
   The build fails when an exclusion is not a word of any list, so a stale entry is noticed.
+- **Reviewed common words**: a short reviewed list of words that both dialects use but that the base lists give to one
+  of them by a data error, such as `oversized`. They are known in every language selection.
 
 Two rules of the English data are worth knowing:
 

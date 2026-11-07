@@ -72,4 +72,4 @@ sections:
         justification: |
           A user who presses Ctrl+C expects a prompt, clean stop and not a half-written result or a stack trace.
         tests:
-          - Program_RunCancellable_CancelledToken_ReportsCancellationAndFails
+          - Program_RunCancelable_CanceledToken_ReportsCancellationAndFails

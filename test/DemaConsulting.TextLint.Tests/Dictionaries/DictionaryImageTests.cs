@@ -91,7 +91,7 @@ public class DictionaryImageTests
     /// <summary>
     ///     A blob length beyond what the format allows.
     /// </summary>
-    private const uint OversizedBlobLength = 0x10000000;
+    private const uint ExcessiveBlobLength = 0x10000000;
 
     /// <summary>
     ///     Looks a word up in an image the way the spelling dictionary does: fold, hash, then probe.
@@ -515,9 +515,9 @@ public class DictionaryImageTests
     [Fact]
     public void DictionaryImage_New_BlobTooLarge_ThrowsInvalidData()
     {
-        // Arrange: a valid image that claims an oversized word block
+        // Arrange: a valid image that claims an excessive word block
         var data = TldImageBuilder.Build(["alpha"]);
-        BinaryPrimitives.WriteUInt32LittleEndian(data.AsSpan(TldImageBuilder.BlobLengthOffset), OversizedBlobLength);
+        BinaryPrimitives.WriteUInt32LittleEndian(data.AsSpan(TldImageBuilder.BlobLengthOffset), ExcessiveBlobLength);
 
         // Act / Assert: the image is rejected
         AssertRejected(data, "larger than the format allows");

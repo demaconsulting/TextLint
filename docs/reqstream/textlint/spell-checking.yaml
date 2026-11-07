@@ -161,4 +161,4 @@ sections:
               - SpellCheckingSubsystem_CheckAsync_DifferentParallelism_ReturnsIdenticalOrderedResults
               - SpellCheckingSubsystem_CheckAsync_ConcurrentRuns_ReturnIdenticalResults
               - SpellCheckingSubsystem_Options_InvalidParallelism_ThrowsArgumentOutOfRangeException
-              - SpellCheckingSubsystem_CheckAsync_CancelledToken_ThrowsOperationCanceledException
+              - SpellCheckingSubsystem_CheckAsync_CanceledToken_ThrowsOperationCanceledException

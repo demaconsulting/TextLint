@@ -73,9 +73,9 @@ selects the file beneath it and not a file in another hidden directory. This sce
 directory, and a visible directory, only the root and the visible directory are enumerated. This scenario is
 tested by `FileSelectionSubsystem_Select_IgnoredDirectory_IsNotEnumerated`.
 
-**FileSelectionSubsystem_Select_CancelledDuringWalk_StopsAndThrows**: A recording directory cancels the token when the
+**FileSelectionSubsystem_Select_CanceledDuringWalk_StopsAndThrows**: A recording directory cancels the token when the
 first subdirectory starts to be read; the selection ends with a cancellation having read only the root and that
-subdirectory. This scenario is tested by `FileSelectionSubsystem_Select_CancelledDuringWalk_StopsAndThrows`.
+subdirectory. This scenario is tested by `FileSelectionSubsystem_Select_CanceledDuringWalk_StopsAndThrows`.
 
 **FileSelectionSubsystem_Select_UnorderedTree_ReturnsOrdinalOrder**: Files created out of order across
 directories are returned in ordinal order. This scenario is tested by

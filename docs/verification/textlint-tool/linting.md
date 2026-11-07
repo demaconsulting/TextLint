@@ -26,7 +26,7 @@ its own uniquely named directory, so tests share no state. They run on Windows, 
 - A run with nothing to check, and one whose selection matches nothing, fail unless the empty selection is allowed.
 - The language option beats the settings, and the parallelism limit does not change the output.
 - Findings, skipped files, and the summary are all written, in that order.
-- Only a clean run succeeds; failures a user can cause are reported and do not escape as exceptions; a cancelled
+- Only a clean run succeeds; failures a user can cause are reported and do not escape as exceptions; a canceled
   run reports the cancellation and no result.
 
 ### Test Scenarios
@@ -92,8 +92,8 @@ This scenario is tested by `LintingSubsystem_Run_CleanAndDirty_SetExitCode`.
 and an unsupported language each give exit code 1 and a message that names the cause, without an exception. This
 scenario is tested by `LintingSubsystem_Run_ExpectedFailures_AreReportedNotThrown`.
 
-**LintingSubsystem_Run_CancelledToken_ReportsCancellation**: A token that is already cancelled gives exit code 1,
-a message that says the check was cancelled, and no finding. This scenario is tested by
-`LintingSubsystem_Run_CancelledToken_ReportsCancellation`.
+**LintingSubsystem_Run_CanceledToken_ReportsCancellation**: A token that is already canceled gives exit code 1,
+a message that says the check was canceled, and no finding. This scenario is tested by
+`LintingSubsystem_Run_CanceledToken_ReportsCancellation`.
 
 <!-- cspell:ignore wrold xyzzyq favourite -->

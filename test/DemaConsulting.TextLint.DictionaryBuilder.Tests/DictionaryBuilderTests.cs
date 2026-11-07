@@ -181,6 +181,33 @@ public class DictionaryBuilderTests
     }
 
     /// <summary>
+    ///     Test that a word listed for two dictionaries is built into both and does not fail the build.
+    /// </summary>
+    /// <remarks>
+    ///     This is the rule for a reviewed common word that SCOWL also lists as regional: the lookups combine the
+    ///     common dictionary with a regional one, so the word is known in every selection and the duplicate is harmless.
+    /// </remarks>
+    [Fact]
+    public void DictionaryBuilder_Build_WordInCommonAndRegionalFolders_IsInBothDictionaries()
+    {
+        // Arrange: oversized is in a reviewed common list and also in the British list, which no dictionary rule forbids
+        using var temp = new TempDirectory();
+        temp.CreateFile("input/en-common/common.txt", "table\n");
+        temp.CreateFile("input/en-common/additions.txt", "# reviewed\noversized\n");
+        temp.CreateFile("input/en-GB/gb.txt", "oversized\ncolour\n");
+
+        // Act: build the common and the British dictionaries
+        var result = Build(temp, "en-common", "en-GB");
+
+        // Assert: success with no error, and both dictionaries have the word
+        Assert.Equal(0, result.ExitCode);
+        Assert.Equal(string.Empty, result.Error);
+        Assert.True(ReadOutput(temp, "en-common").TryFind("oversized", out _));
+        Assert.True(ReadOutput(temp, "en-GB").TryFind("oversized", out _));
+        Assert.True(ReadOutput(temp, "en-GB").TryFind("colour", out _));
+    }
+
+    /// <summary>
     ///     Test that an excluded word is removed from every dictionary the builder produces, whatever list it came from.
     /// </summary>
     [Fact]

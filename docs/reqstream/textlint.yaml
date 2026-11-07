@@ -2,6 +2,7 @@
 # TextLint System-Level Requirements
 #
 # cspell:ignore favourite licence
+# textlint:ignore catalogue
 #
 # PURPOSE:
 # - Define system-level requirements describing what consumers of the DemaConsulting.TextLint
@@ -293,7 +294,7 @@ sections:
       - id: TextLint-System-TechnicalTerms
         title: >-
           The library shall treat common software terms (programming languages, tools, companies,
-          file types, and licenses) as known words in every language selection.
+          file types, licenses, and font names) as known words in every language selection.
         tags: [system]
         justification: |
           Source code and documentation are full of terms that no general English word list
@@ -392,6 +393,23 @@ sections:
           - TextLint-Dictionaries-ExcludedWords
         tests:
           - TextLint_Dictionary_EveryExcludedWord_IsUnknown
+
+      - id: TextLint-System-ReviewedCommonWords
+        title: >-
+          The library shall know every word of the reviewed common-word list in every language
+          selection, even when the base English word lists classify the word as American-only or
+          British-only.
+        tags: [system]
+        justification: |
+          The base word lists split words by dialect, and for a few words that split is a data error:
+          "oversized" is ordinary in American and British English, yet the lists give it to British
+          English only, so every American project would see it reported as a mistake. A short reviewed
+          list of such words overrides the classification. The behavior is observed through the
+          public lookup, in every language selection and capitalization.
+        children:
+          - TextLint-Dictionaries-ReviewedCommonWords
+        tests:
+          - TextLint_Dictionary_ReviewedCommonWords_AreKnownInEveryLanguage
 
       - id: TextLint-System-ConcurrentLookup
         title: The library shall allow word lookups from many threads at the same time.
@@ -794,7 +812,7 @@ sections:
           - TextLint-SpellChecking-ParallelDeterminism
           - TextLint-FileSelection-Cancellation
         tests:
-          - TextLint_SpellCheck_CancelledToken_ThrowsOperationCanceled
+          - TextLint_SpellCheck_CanceledToken_ThrowsOperationCanceled
 
       - id: TextLint-System-CspellCompatibility
         title: >-

@@ -189,24 +189,24 @@ public class ProgramTests
     }
 
     /// <summary>
-    ///     Test that RunCancellable with a cancelled token reports the cancellation and fails.
+    ///     Test that RunCancelable with a canceled token reports the cancellation and fails.
     /// </summary>
     [Fact]
-    public async Task Program_RunCancellable_CancelledToken_ReportsCancellationAndFails()
+    public async Task Program_RunCancelable_CanceledToken_ReportsCancellationAndFails()
     {
-        // Arrange: a misspelled file and a token that is already cancelled
+        // Arrange: a misspelled file and a token that is already canceled
         using var temp = new TempDirectory();
         temp.CreateFile("a.md", "Hello wrold\n");
         using var source = new CancellationTokenSource();
         await source.CancelAsync();
 
-        // Act: run the program logic with the cancelled token
-        var result = ContextRun.Execute(["--root", temp.FullPath, "a.md"], context => Program.RunCancellable(context, source.Token));
+        // Act: run the program logic with the canceled token
+        var result = ContextRun.Execute(["--root", temp.FullPath, "a.md"], context => Program.RunCancelable(context, source.Token));
 
         // Assert: the run fails with the cancellation message and reports no finding
         Assert.Multiple(
             () => Assert.Equal(1, result.ExitCode),
-            () => Assert.Contains("cancelled", result.Output),
+            () => Assert.Contains("canceled", result.Output),
             () => Assert.DoesNotContain("Unknown word", result.Output));
     }
 

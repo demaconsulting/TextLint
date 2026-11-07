@@ -181,6 +181,11 @@ names `tokenizer` and `Grey` in other letter cases; the run succeeds, neither wo
 words remain, and the summary lines state the number of excluded words. This scenario is tested by
 `BuilderProgram_Run_ExclusionsList_RemovesWordsFromEveryDictionary`.
 
+**BuilderProgram_Run_WordInTwoDictionaries_WritesItToEach**: a word that is in two lists of the common folder (in
+different letter cases) and in the British folder is built successfully with no error; the common dictionary holds
+it once, with the other word, and the British dictionary holds it. This scenario is tested by
+`BuilderProgram_Run_WordInTwoDictionaries_WritesItToEach`.
+
 **BuilderProgram_Run_ExclusionInNoDictionary_ReturnsOneNamingWord**: an exclusions list with one real and one
 unknown word returns exit code 1, names the exclusions file and the unknown word only, and creates no output. This
 scenario is tested by `BuilderProgram_Run_ExclusionInNoDictionary_ReturnsOneNamingWord`.

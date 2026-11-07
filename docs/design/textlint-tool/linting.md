@@ -62,10 +62,10 @@ self-validation. The runner works in this order:
 6. A result in which no file was checked and none was skipped or failed means the selection matched nothing,
    which is an error unless `--allow-empty` was given.
 7. `LintReporter` writes the result, and the runner marks the context failed when the result has problems: a
-   finding, or a file that was meant to be checked and could not be. A skipped binary or oversized file does not
+   finding, or a file that was meant to be checked and could not be. A skipped binary or too large file does not
    fail the run.
 
 Failures the user can cause (a missing or unreadable directory, an invalid path, an unsupported pattern or
-language) are caught, written as errors, and fail the run. A cancelled token ends the run with a message and a
+language) are caught, written as errors, and fail the run. A canceled token ends the run with a message and a
 failure instead of a partial result. Results are data about files and go to standard output so that
 `textlint > report.txt` captures them; failures of the tool itself go to standard error.

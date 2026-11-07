@@ -136,19 +136,19 @@ sections:
               - id: TextLint-SpellChecking-SpellChecker-Cancellation
                 title: >-
                   SpellChecker shall stop checking and signal cancellation, without returning a result,
-                  when the caller's token is cancelled before or during the run, including while the
+                  when the caller's token is canceled before or during the run, including while the
                   files to check are still being selected.
                 justification: |
                   A run over a large repository can take long enough that a user or a host needs to abandon
                   it, and abandoning it must not leave work running or return a partial result that looks
-                  complete. Selecting the files in a large tree is a long part of the run, so cancelling
+                  complete. Selecting the files in a large tree is a long part of the run, so canceling
                   must not wait for it to end.
                 tests:
-                  - SpellChecker_CheckAsync_CancelledToken_ThrowsOperationCanceledException
-                  - SpellChecker_CheckFilesAsync_CancelledToken_ChecksNoFile
-                  - SpellChecker_CheckFilesAsync_CancelledDuringRun_ThrowsOperationCanceledException
+                  - SpellChecker_CheckAsync_CanceledToken_ThrowsOperationCanceledException
+                  - SpellChecker_CheckFilesAsync_CanceledToken_ChecksNoFile
+                  - SpellChecker_CheckFilesAsync_CanceledDuringRun_ThrowsOperationCanceledException
                   - SpellChecker_CheckWithSelectionAsync_Selection_ReceivesCallersToken
-                  - SpellChecker_CheckWithSelectionAsync_SelectionCancelled_ThrowsOperationCanceledException
+                  - SpellChecker_CheckWithSelectionAsync_SelectionCanceled_ThrowsOperationCanceledException
 
               - id: TextLint-SpellChecking-SpellChecker-InvalidArguments
                 title: >-

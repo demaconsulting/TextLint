@@ -113,13 +113,13 @@ internal static class FileTextReader
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="fullPath"/> is null.</exception>
     /// <exception cref="ArgumentException">Thrown when <paramref name="fullPath"/> is empty.</exception>
     /// <exception cref="ArgumentOutOfRangeException">Thrown when <paramref name="maxFileSize"/> is negative.</exception>
-    /// <exception cref="OperationCanceledException">Thrown when <paramref name="cancellationToken"/> is cancelled.</exception>
+    /// <exception cref="OperationCanceledException">Thrown when <paramref name="cancellationToken"/> is canceled.</exception>
     internal static async Task<FileTextContent> ReadAsync(string fullPath, long maxFileSize, CancellationToken cancellationToken)
     {
         ArgumentException.ThrowIfNullOrEmpty(fullPath);
         ArgumentOutOfRangeException.ThrowIfNegative(maxFileSize);
 
-        // Honor a token that is already cancelled even when there is nothing to read, so the contract does not depend on file size
+        // Honor a token that is already canceled even when there is nothing to read, so the contract does not depend on file size
         cancellationToken.ThrowIfCancellationRequested();
         try
         {

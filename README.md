@@ -36,9 +36,9 @@ The project currently provides:
   returns deterministic findings with file, line, column, and word. It splits camelCase and snake_case
   identifiers, ignores URLs, email addresses, hashes, and encoded data, skips text that matches the
   `ignoreRegExpList` patterns of the settings (JavaScript regular expressions, translated and validated when the
-  settings are loaded) and of `cspell:ignoreRegExp` comments, Markdown link targets, and random-looking tokens, honors
-  `cspell:disable`-style comments
-  (also with the prefix `textlint:`), and reads UTF-8 and UTF-16 files. A parity test compares it with the real
+  settings are loaded) and of `ignoreRegExp` comments, Markdown link targets, and random-looking tokens, honors
+  the `disable`-style comments (with the prefixes `cspell:` and `textlint:`), and reads UTF-8 and UTF-16 files. A
+  parity test compares it with the real
   cspell, and the differences are documented
 - **Word Lookup**: The library reports whether a word is known to American English (the default), British
   English, or both (including derived forms such as `testability`, with the regional spellings kept apart),
@@ -402,7 +402,8 @@ Generated documentation includes:
 ## Contributing
 
 See [CONTRIBUTING.md](https://github.com/demaconsulting/TextLint/blob/main/CONTRIBUTING.md) for
-guidelines on reporting bugs, suggesting features, and submitting pull requests.
+guidelines on reporting bugs, suggesting features, and submitting pull requests, and for how to run TextLint on this
+repository from source.
 
 ## Third-Party Data
 

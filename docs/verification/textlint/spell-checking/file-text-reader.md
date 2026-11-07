@@ -31,7 +31,7 @@ would need the space of the file temporarily.
 - A file at the limit is read, one byte over is too large, zero means no limit, and no file above 1 GiB is read.
 - A missing file, a directory, and an exclusively locked file are unreadable outcomes and not exceptions; a file open
   for writing with sharing is read.
-- A cancelled token throws, whether or not the file has content; bad arguments throw the documented exceptions.
+- A canceled token throws, whether or not the file has content; bad arguments throw the documented exceptions.
 
 #### Test Scenarios
 
@@ -156,13 +156,13 @@ sharing is read, with the text written so far. This scenario is tested by
 **FileTextReader_ReadAsync_ParallelReads_ReturnEachFilesOwnText**: Sixteen files read at the same time each return
 their own text. This scenario is tested by `FileTextReader_ReadAsync_ParallelReads_ReturnEachFilesOwnText`.
 
-**FileTextReader_ReadAsync_CancelledToken_ThrowsOperationCanceledException**: A token that is already cancelled stops
+**FileTextReader_ReadAsync_CanceledToken_ThrowsOperationCanceledException**: A token that is already canceled stops
 the read of a file that has content. This scenario is tested by
-`FileTextReader_ReadAsync_CancelledToken_ThrowsOperationCanceledException`.
+`FileTextReader_ReadAsync_CanceledToken_ThrowsOperationCanceledException`.
 
-**FileTextReader_ReadAsync_CancelledTokenWithEmptyFile_ThrowsOperationCanceledException**: A cancelled token stops the
+**FileTextReader_ReadAsync_CanceledTokenWithEmptyFile_ThrowsOperationCanceledException**: A canceled token stops the
 read of an empty file too, so the contract does not depend on the size. This scenario is tested by
-`FileTextReader_ReadAsync_CancelledTokenWithEmptyFile_ThrowsOperationCanceledException`.
+`FileTextReader_ReadAsync_CanceledTokenWithEmptyFile_ThrowsOperationCanceledException`.
 
 **FileTextReader_ReadAsync_NullPath_ThrowsArgumentNullException**: A null path throws. This scenario is tested by
 `FileTextReader_ReadAsync_NullPath_ThrowsArgumentNullException`.

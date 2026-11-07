@@ -137,7 +137,7 @@ public class JavaScriptSyntaxTests
     /// <param name="expected">The expected result.</param>
     [Theory]
     [InlineData("  abc \t", "abc")]
-    [InlineData("\uFEFFabc\uFEFF", "abc")]
+    [InlineData("\uFEFFabc\uFEFF", "abc")] // textlint:disable-line
     [InlineData("\u0085abc\u0085", "\u0085abc\u0085")]
     [InlineData("\u00A0\u2028abc\u3000", "abc")]
     [InlineData("a b", "a b")]

@@ -171,10 +171,10 @@ sections:
 
               - id: TextLintTool-Linting-LintRunner-Cancellation
                 title: >-
-                  LintRunner shall stop a check when its cancellation token is cancelled, report that it was
-                  cancelled, report no partial result, and fail the run.
+                  LintRunner shall stop a check when its cancellation token is canceled, report that it was
+                  canceled, report no partial result, and fail the run.
                 justification: |
                   A user who interrupts a long check must get control back promptly, and a partial result must
                   never be mistaken for a complete one.
                 tests:
-                  - LintRunner_Run_CancelledToken_ReportsCancellationAndFails
+                  - LintRunner_Run_CanceledToken_ReportsCancellationAndFails

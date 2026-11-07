@@ -27,7 +27,7 @@ which say what a look for the default settings file found.
   the check found anything to act on or could not be completed.
 
 It calls `RunCheck` inside a handler. A cancellation that was requested through the token is written as
-`The check was cancelled before it finished.` and fails the run. An `IOException`,
+`The check was canceled before it finished.` and fails the run. An `IOException`,
 `UnauthorizedAccessException`, `NotSupportedException`, or `ArgumentException` is written as an error with its own
 message: these are the ways a user's input can be wrong or the file system can refuse, and each message names the
 cause. Nothing else is caught.

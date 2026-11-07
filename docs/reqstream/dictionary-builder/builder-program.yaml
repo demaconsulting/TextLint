@@ -133,6 +133,18 @@ sections:
               - BuilderProgram_Run_ExclusionsListWithoutWords_BuildsEverything
               - BuilderProgram_Run_ExclusionsWithMissingDictionary_ReportsOnlyTheMissingDictionary
 
+          - id: DictionaryBuilder-BuilderProgram-SharedWords
+            title: >-
+              BuilderProgram shall write a word that the lists of two dictionaries both contain to each of
+              those dictionaries, without reporting a problem.
+            justification: |
+              A reviewed common word may also still be listed as regional by an imported list. The
+              combination of dictionaries at look-up time knows the word in every selection that includes
+              either dictionary, so the duplicate is harmless; failing the build on it would force
+              hand-editing of generated lists for no benefit.
+            tests:
+              - BuilderProgram_Run_WordInTwoDictionaries_WritesItToEach
+
           - id: DictionaryBuilder-BuilderProgram-Misconfiguration
             title: >-
               BuilderProgram shall return the failure exit code, naming the dictionary or folder at

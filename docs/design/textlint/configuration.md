@@ -33,7 +33,7 @@ belongs to the `SpellChecking` subsystem.
   an unsupported key, an invalid glob pattern, an unsupported language, an unusable word-list entry,
   an invalid minimum word length or file size, an `ignoreRegExpList` entry or `patterns` definition that cannot be
   used, and an invalid `ignoreRandomStrings` or `minRandomLength`) are returned as errors, not thrown. A null or empty
-  path throws, and a cancelled token cancels the load.
+  path throws, and a canceled token cancels the load.
 
 **TextLintSettings**: The immutable settings value.
 

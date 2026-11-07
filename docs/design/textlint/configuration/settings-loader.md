@@ -172,7 +172,7 @@ because it is the dictionary's way of describing a bad value, not a programming 
 `Reason`, so the diagnostic can name the setting and the position instead of repeating the entry in the exception
 message.
 Only programming errors propagate: a null path throws `ArgumentNullException`, an empty path throws
-`ArgumentException`, and a cancelled token throws `OperationCanceledException`. No logging is
+`ArgumentException`, and a canceled token throws `OperationCanceledException`. No logging is
 performed; the caller decides how to present diagnostics. The loader is stateless and thread-safe.
 
 #### Dependencies

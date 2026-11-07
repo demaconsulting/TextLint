@@ -7,7 +7,7 @@
 The `Dictionaries` subsystem answers one question: is this word known? It holds the vocabulary the library
 checks text against, which is shipped inside the library assembly as four binary dictionaries: the English
 words that American and British English share, the American-only spellings, the British-only spellings,
-and the technical terms (programming languages, tools, companies, file types, and licenses). A caller selects
+and the technical terms (programming languages, tools, companies, file types, licenses, and font names). A caller selects
 a language, one of `en`/`en-US` (American, the default), `en-GB` (British, with -ise spellings), or both, and
 asks about words. A selection always includes the common English words and the technical terms.
 
@@ -102,6 +102,7 @@ is capped at one cycle of the table, so a damaged file can only produce an excep
 out-of-range read or an endless loop.
 
 <!-- cspell:ignore colourize licence practise unmaneuverable -->
+<!-- textlint:ignore glamourize -->
 
 **Regional spellings and the part of speech.** The data decides which dictionary a spelling belongs to, and the
 lookup never looks at anything but the folded word, so four consequences follow and are deliberate. First, a
@@ -115,6 +116,15 @@ in no British list, and a common -ize word that has such a counterpart is Americ
 blind to the part of speech, so a word whose British form differs only by part of speech (the verb `license` and the
 noun `licence`, `practice` and `practise`) is accepted in both forms by British English, because one of the two forms
 is common to both dialects; that is inherent in a spelling check and is not a leak.
+
+**Reviewed common words.** The base word lists sometimes classify a word as regional by a data error (SCOWL lists
+`oversized` for British English only, although both dialects use it). The common folder therefore also holds a
+hand-written list of reviewed common words, `en-common/additions.txt`, which the generator never rewrites. The
+generator reads it: the words are left out of every generated list, so the list is the only place that classifies
+them, and its checks accept them as deliberate overrides rather than as leaks while still refusing an -ize form that
+has an -ise counterpart. The dictionary builder needs no special rule, because it builds every list of the common
+folder into the common dictionary and a lookup combines that dictionary with the regional one; a word that is in both
+a common and a regional list is simply known in both, so the common list wins and the duplicate is harmless.
 
 **Why a precomputed binary format.** The vocabulary is about two hundred thousand words, and a spell checker
 looks up millions of words in a large repository. The alternatives were to load the words into a general-purpose set

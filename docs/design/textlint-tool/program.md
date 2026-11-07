@@ -25,21 +25,21 @@ locally.
 - *Postconditions*: Exit code reflects whether any errors were reported during execution.
 
 Registers a handler for Ctrl+C that cancels a token (and cancels the console's default termination, so the check
-can stop cleanly), creates a `Context` using `Context.Create(args)`, calls `RunCancellable(context, token)`,
+can stop cleanly), creates a `Context` using `Context.Create(args)`, calls `RunCancelable(context, token)`,
 and returns `context.ExitCode`; the handler is removed again in a `finally`. Catches `ArgumentException` and
 `InvalidOperationException` — writes
 `"Error: {message}"` to stderr and returns 1. Catches any other `Exception` — writes
 `"Unexpected error: {message}"` to stderr and re-throws so the runtime can record it.
 
-**Run**: Runs the program logic without a way to cancel it; it is `RunCancellable` with a token that is never
-cancelled, and is the form used by self-validation.
+**Run**: Runs the program logic without a way to cancel it; it is `RunCancelable` with a token that is never
+canceled, and is the form used by self-validation.
 
 - *Parameters*: `Context context` — the parsed context.
 - *Returns*: `void`.
 - *Preconditions*: `context` is not null.
 - *Postconditions*: Exactly one handler has been called.
 
-**RunCancellable**: Dispatches execution based on parsed flags.
+**RunCancelable**: Dispatches execution based on parsed flags.
 
 - *Parameters*: `Context context` — the parsed context; `CancellationToken cancellationToken` — stops a running
   check.
@@ -77,7 +77,7 @@ code 1 without a stack trace. These two are written to stderr even when `--silen
 command line could not be understood and no `Context` exists to honor the option; this is also what the
 other tools of the family do. Unexpected errors (`Exception`) are written to stderr as
 `"Unexpected error: {message}"` and re-thrown so the runtime can record them in event logs.
-`Run`, `RunCancellable`, `PrintBanner`, `PrintHelp`, and `RunToolLogic` do not catch exceptions; all errors
+`Run`, `RunCancelable`, `PrintBanner`, `PrintHelp`, and `RunToolLogic` do not catch exceptions; all errors
 propagate to `Main`. Failures a user can cause during a check are handled inside `LintRunner`, which reports
 them as errors; cancellation is reported there too.
 
@@ -85,9 +85,9 @@ them as errors; cancellation is reported there too.
 
 - **Context** — `Program` reads parsed flags from `Context` and calls `Context.WriteLine` and
   `Context.WriteError` for all output.
-- **Validation** — `Program.RunCancellable` calls `Validation.Run(context)` when the `--validate` flag is
+- **Validation** — `Program.RunCancelable` calls `Validation.Run(context)` when the `--validate` flag is
   set.
-- **LintRunner** — `Program.RunCancellable` calls `LintRunner.Run` for everything that is not version, help, or
+- **LintRunner** — `Program.RunCancelable` calls `LintRunner.Run` for everything that is not version, help, or
   validation.
 
 ### Callers

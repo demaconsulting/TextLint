@@ -151,7 +151,7 @@ requires the DictionaryBuilder project, which the library project builds first; 
 - Files are read as UTF-8 or UTF-16 and report the same positions; binary and too-large files are skipped and
   reported; an unreadable file is an error that does not stop the run.
 - The results are identical and identically ordered at every degree of parallelism, an invalid degree is rejected,
-  and a cancelled run throws.
+  and a canceled run throws.
 - On every corpus the findings equal those that cspell recorded, except for exactly the documented differences,
   including the five of the ignoreRegExp directive corpus, which are checked for line feed and for carriage return and
   line feed endings.
@@ -394,8 +394,8 @@ knows both spellings. This scenario is tested by `TextLint_Dictionary_BothLangua
 `en-AU` and lists the supported languages. This scenario is tested by
 `TextLint_Dictionary_UnsupportedLanguage_ThrowsNamingLanguage`.
 
-**TextLint_Dictionary_TechnicalTerm_IsKnownInEveryLanguage**: Technical terms of several kinds, including a
-programming term in an American spelling that the word lists keep for every language, are known in the American,
+**TextLint_Dictionary_TechnicalTerm_IsKnownInEveryLanguage**: Technical terms of several kinds, including font names
+and a programming term in an American spelling that the word lists keep for every language, are known in the American,
 British, and combined selections. This scenario is tested by
 `TextLint_Dictionary_TechnicalTerm_IsKnownInEveryLanguage`.
 
@@ -422,6 +422,11 @@ up. This scenario is tested by `TextLint_Dictionary_EveryListedWord_IsKnown`.
 written, capitalized, and in upper case in the American, the British, and the combined selection; none is known,
 and the list is not empty. This scenario is tested by `TextLint_Dictionary_EveryExcludedWord_IsUnknown`.
 
+**TextLint_Dictionary_ReviewedCommonWords_AreKnownInEveryLanguage**: Every word of the reviewed common-word list is
+looked up as written, capitalized, and in upper case in the American, the British, and the combined selection, and
+each is known in all of them. The list holds `oversized`, and no word of it is repeated in the generated American or
+British word lists. This scenario is tested by `TextLint_Dictionary_ReviewedCommonWords_AreKnownInEveryLanguage`.
+
 **TextLint_Dictionary_DerivedFormsAndRegionalSpellings_FollowTheLanguageSelection**: Derived forms that a base word
 list lacks (`testability`, `reviewable`, `precomputed`, `unannotated`, `untestable`) are known in the American and
 the British selection; British-only spellings (`catalogue`, `labelled`, `honoured`, `modelling`) are known only in
@@ -429,6 +434,7 @@ the British selection, and `favorite` only in the American one. This scenario is
 `TextLint_Dictionary_DerivedFormsAndRegionalSpellings_FollowTheLanguageSelection`.
 
 <!-- cspell:ignore colourize glamourize colour organise analyse decolourize unmanoeuvrable manoeuvre -->
+<!-- textlint:ignore catalogue labelled honoured modelling honour centre judgement -->
 
 **TextLint_Dictionary_CuratedSpellingPairs_StayInTheirOwnRegion**: The British spellings of nine curated pairs
 (`honour`, `colour`, `centre`, `catalogue`, `labelled`, `organise`, `analyse`, `modelling`, `judgement`) are looked up
@@ -645,9 +651,9 @@ by `TextLint_SpellCheck_DifferentConcurrency_ReturnsIdenticalOrderedResults`.
 **TextLint_SpellCheck_InvalidConcurrency_Throws**: A degree of parallelism of zero is rejected when the options are
 created. This scenario is tested by `TextLint_SpellCheck_InvalidConcurrency_Throws`.
 
-**TextLint_SpellCheck_CancelledToken_ThrowsOperationCanceled**: A run is started with a token that is already
-cancelled; it throws an operation-cancelled exception. This scenario is tested by
-`TextLint_SpellCheck_CancelledToken_ThrowsOperationCanceled`.
+**TextLint_SpellCheck_CanceledToken_ThrowsOperationCanceled**: A run is started with a token that is already
+canceled; it throws an operation-canceled exception. This scenario is tested by
+`TextLint_SpellCheck_CanceledToken_ThrowsOperationCanceled`.
 
 **TextLint_CspellParity_TokenizationCorpus_MatchesRecordedCspellOutput**: The corpus of word splitting, ignored text,
 escapes, scripts, and positions is checked with the settings stored beside it; the findings equal the output that

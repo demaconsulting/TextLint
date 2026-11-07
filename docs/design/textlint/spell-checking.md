@@ -53,7 +53,7 @@ verdict a gate should use.
 - _Constraints_: Throws `ArgumentNullException` and `ArgumentException` for bad arguments or unusable settings
   (before any file is touched), `DirectoryNotFoundException` for a missing root (a root that cannot be read throws
   `UnauthorizedAccessException` or `IOException` instead), `InvalidGlobPatternException` for
-  a bad pattern, and `OperationCanceledException` when cancelled. Problems with a single file are never thrown.
+  a bad pattern, and `OperationCanceledException` when canceled. Problems with a single file are never thrown.
 
 **Dependencies on other subsystems**: The subsystem consumes four others and none consumes it.
 
@@ -170,9 +170,9 @@ a bug, is a defect: it propagates to the caller, because swallowing it would tur
 report. Arguments and selection problems (a missing root, an invalid pattern, unusable settings) are exceptions as
 well, because they are mistakes of the caller and an empty result would hide them.
 
-**Cancellation.** The token is passed to the file selection, to the parallel loop, and to every read. A cancelled
+**Cancellation.** The token is passed to the file selection, to the parallel loop, and to every read. A canceled
 run throws `OperationCanceledException` and returns no result, because a partial result that looks complete is
-worse than none. A token that is already cancelled stops the run before any file is read.
+worse than none. A token that is already canceled stops the run before any file is read.
 
 **Memory.** Each worker holds one file as bytes and as text at a time, so the memory in use is bounded by the
 degree of parallelism times the size of the largest files being checked, not by the size of the repository. A

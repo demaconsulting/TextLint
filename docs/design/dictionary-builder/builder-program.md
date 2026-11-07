@@ -65,7 +65,8 @@ each name against that listing), collecting every problem into one
 list; it reports each folder in the same listing that holds word lists but was not declared; when the exclusions list
 was read without problems and no other problem was found it applies the exclusions; and when the
 list of problems is still empty it serializes every dictionary through `DictionaryWriter` in memory. Only after
-all of that does it either print the problems and return 1, or write the files.
+all of that does it either print the problems and return 1, or write the files. Each dictionary is read and written on
+its own, so a word that the lists of two dictionaries both contain is written to each of them and is not a problem.
 
 **ParseArguments**: parses the command line into the private options record. The options `--input`, `--output`,
 `--technical`, `--variants`, and `--exclusions` each need a value that is present, not empty or blank, and does not

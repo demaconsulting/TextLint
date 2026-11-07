@@ -334,4 +334,21 @@ public class DictionariesSubsystemTests
         Assert.Empty(knownExcluded);
         Assert.Empty(unknownVariants);
     }
+
+    /// <summary>
+    ///     Test that words of the reviewed common-word list are known in every selection although SCOWL lists them for one dialect.
+    /// </summary>
+    [Fact]
+    public void DictionariesSubsystem_IsKnown_ReviewedCommonWord_IsKnownInEveryLanguage()
+    {
+        // Arrange: oversized (listed by SCOWL for British English only), oversize (American only), and each selection
+        var words = new[] { "oversized", "Oversized", "OVERSIZED", "oversize", "oversizes" };
+        var selections = new[] { "en-US", "en-GB", "en-US,en-GB" }.Select(SpellingDictionary.ForLanguages).ToArray();
+
+        // Act: look the words up in every selection
+        var unknown = words.Where(word => selections.Any(selection => !selection.IsKnown(word))).ToArray();
+
+        // Assert: every selection knows every word
+        Assert.Empty(unknown);
+    }
 }

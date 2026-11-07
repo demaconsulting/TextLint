@@ -51,7 +51,7 @@ public static class SpellChecker
     ///     the number of concurrent checks times the size of a file and its text. Side effects: reads
     ///     directories and files beneath <paramref name="rootDirectory"/>; nothing is written. The first
     ///     lookup loads the language's dictionaries. Cancellation is honored during the directory walk, between
-    ///     the files being read, and while files are read; a cancelled call throws and returns no partial result.
+    ///     the files being read, and while files are read; a canceled call throws and returns no partial result.
     ///     Thread-safe.
     /// </remarks>
     /// <param name="settings">The settings that say what to check and how. Must not be null.</param>
@@ -74,7 +74,7 @@ public static class SpellChecker
     /// <exception cref="IOException">Thrown when <paramref name="rootDirectory"/> cannot be read for another reason.</exception>
     /// <exception cref="InvalidGlobPatternException">Thrown when a pattern of <paramref name="settings"/> is unsupported or malformed.</exception>
     /// <exception cref="InvalidDataException">Thrown when an embedded dictionary is missing or damaged, which indicates a defective build.</exception>
-    /// <exception cref="OperationCanceledException">Thrown when <paramref name="cancellationToken"/> is cancelled.</exception>
+    /// <exception cref="OperationCanceledException">Thrown when <paramref name="cancellationToken"/> is canceled.</exception>
     public static async Task<SpellCheckResult> CheckAsync(
         TextLintSettings settings,
         string rootDirectory,
@@ -86,7 +86,7 @@ public static class SpellChecker
         ArgumentNullException.ThrowIfNull(settings);
         ArgumentException.ThrowIfNullOrWhiteSpace(rootDirectory);
 
-        // The token is handed to the selector so that cancelling stops a long directory walk and not only the checks after it
+        // The token is handed to the selector so that canceling stops a long directory walk and not only the checks after it
         return await CheckWithSelectionAsync(
             settings,
             token => FileSelector.Select(rootDirectory, settings.Files, settings.IgnorePaths, settings.EnableGlobDot, token),
@@ -114,7 +114,7 @@ public static class SpellChecker
     /// <returns>The result, ordered by file path (ordinal), then line, then column.</returns>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="settings"/> or <paramref name="selectFiles"/> is null.</exception>
     /// <exception cref="ArgumentException">Thrown when the language or a word-list entry of the settings is not usable.</exception>
-    /// <exception cref="OperationCanceledException">Thrown when <paramref name="cancellationToken"/> is cancelled.</exception>
+    /// <exception cref="OperationCanceledException">Thrown when <paramref name="cancellationToken"/> is canceled.</exception>
     internal static async Task<SpellCheckResult> CheckWithSelectionAsync(
         TextLintSettings settings,
         Func<CancellationToken, IReadOnlyList<SelectedFile>> selectFiles,
@@ -148,7 +148,7 @@ public static class SpellChecker
     /// <param name="options">How to run. Must not be null.</param>
     /// <param name="cancellationToken">Token that cancels the run.</param>
     /// <returns>The result, ordered by the order of <paramref name="files"/> and then position.</returns>
-    /// <exception cref="OperationCanceledException">Thrown when <paramref name="cancellationToken"/> is cancelled.</exception>
+    /// <exception cref="OperationCanceledException">Thrown when <paramref name="cancellationToken"/> is canceled.</exception>
     internal static async Task<SpellCheckResult> CheckFilesAsync(
         IReadOnlyList<SelectedFile> files,
         long maxFileSize,
@@ -196,7 +196,7 @@ public static class SpellChecker
     /// <param name="checkText">Checks a text given its source name. Must not be null.</param>
     /// <param name="cancellationToken">Token that cancels the read.</param>
     /// <returns>The outcome for the file.</returns>
-    /// <exception cref="OperationCanceledException">Thrown when <paramref name="cancellationToken"/> is cancelled.</exception>
+    /// <exception cref="OperationCanceledException">Thrown when <paramref name="cancellationToken"/> is canceled.</exception>
     private static async Task<FileOutcome> CheckFileAsync(
         SelectedFile file,
         long maxFileSize,
