@@ -92,7 +92,7 @@ sections:
                   and shall not list further directories once it is cancelled.
                 justification: |
                   The directory walk is the long part of a selection on a large tree. A token that is only
-                  honored once the walk has ended would make cancelling useless exactly when it matters. The
+                  honored once the walk has ended would make canceling useless exactly when it matters. The
                   test double cancels the token at a chosen point of the walk, so the property is proven
                   without timing.
                 tests:

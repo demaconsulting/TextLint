@@ -86,7 +86,7 @@ internal static class Program
             using var context = Context.Create(args);
 
             // Run the program logic
-            RunCancellable(context, cancellation.Token);
+            RunCancelable(context, cancellation.Token);
 
             // Return the exit code from the context
             return context.ExitCode;
@@ -121,12 +121,12 @@ internal static class Program
     /// </summary>
     /// <param name="context">The context containing command line arguments and program state.</param>
     /// <remarks>
-    ///     Equivalent to <see cref="RunCancellable"/> with a token that is never cancelled; it is the form
+    ///     Equivalent to <see cref="RunCancelable"/> with a token that is never cancelled; it is the form
     ///     used by self-validation, which runs short fixed checks.
     /// </remarks>
     public static void Run(Context context)
     {
-        RunCancellable(context, CancellationToken.None);
+        RunCancelable(context, CancellationToken.None);
     }
 
     /// <summary>
@@ -137,9 +137,9 @@ internal static class Program
     /// <remarks>
     ///     Dispatch is priority-ordered: version check first, then help, then self-validation,
     ///     then main tool logic. Only the highest-priority matching action is executed per invocation.
-    ///     Self-validation runs short fixed checks and is not cancellable.
+    ///     Self-validation runs short fixed checks and is not cancelable.
     /// </remarks>
-    public static void RunCancellable(Context context, CancellationToken cancellationToken)
+    public static void RunCancelable(Context context, CancellationToken cancellationToken)
     {
         // Priority 1: Version query
         if (context.Version)

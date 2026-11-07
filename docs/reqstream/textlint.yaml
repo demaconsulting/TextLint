@@ -2,6 +2,7 @@
 # TextLint System-Level Requirements
 #
 # cspell:ignore favourite licence
+# textlint:ignore catalogue
 #
 # PURPOSE:
 # - Define system-level requirements describing what consumers of the DemaConsulting.TextLint
@@ -297,7 +298,7 @@ sections:
         tags: [system]
         justification: |
           Source code and documentation are full of terms that no general English word list
-          contains (kubernetes, github, powershell, segoe). Reporting each as a spelling mistake would
+          contains (kubernetes, github, powershell). Reporting each as a spelling mistake would
           make the linter unusable on software projects, and these terms do not depend on the
           dialect of the prose around them.
         children:

@@ -90,7 +90,7 @@ internal static class LintReporter
     ///     Writes one line for each file that was skipped or could not be checked.
     /// </summary>
     /// <remarks>
-    ///     A deliberate skip (a binary or oversized file) is shown as information, and a file that was meant
+    ///     A deliberate skip (a binary or too large file) is shown as information, and a file that was meant
     ///     to be checked and was not as an error, so nothing is silently left out of a run. They are results
     ///     about files and so go to standard output. Side effects: writes lines to
     ///     <paramref name="context"/>.

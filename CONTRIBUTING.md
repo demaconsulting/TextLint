@@ -196,6 +196,24 @@ spell-checking failure. Doing so defeats the purpose of spell-checking and reduc
   correctly, raise a **proposal** (e.g. comment in a pull request) explaining why the word should be added. The
   proposal must be reviewed and approved before the word is added to the list.
 
+#### Checking This Repository with TextLint
+
+TextLint spell-checks its own repository with `.textlint.yaml`, which mirrors `.cspell.yaml` and selects the same
+files as `lint.ps1` does. Until the first release replaces cspell in `lint.ps1`, cspell remains the lint gate, so
+both tools must report nothing. Run TextLint from source after a Release build:
+
+```pwsh
+dotnet build --configuration Release
+dotnet src/DemaConsulting.TextLint.Tool/bin/Release/net10.0/DemaConsulting.TextLint.Tool.dll --root .
+```
+
+The run prints every finding as `file(line,column): error: ...`, ends with a summary such as
+`Checked 351 file(s): 0 issue(s) in 0 file(s)`, and exits with 0 only when there are no findings. The same rules apply
+as for cspell: fix a misspelling or a British spelling (the repository is written in American English), and propose a
+genuine term for `words` instead of adding it. Text that is deliberate test data (a misspelling, or a directive
+written inside a test string) is hidden with a narrow `textlint:disable-line`, `textlint:disable` and
+`textlint:enable`, or `textlint:ignore` comment next to it; cspell ignores comments with the `textlint:` prefix.
+
 ## Quality Checks
 
 Before submitting a pull request, ensure all quality checks pass:

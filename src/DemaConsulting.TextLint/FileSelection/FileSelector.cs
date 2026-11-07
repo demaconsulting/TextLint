@@ -210,7 +210,7 @@ public static class FileSelector
         // view that stops the walk on cancellation, because the matcher cannot be cancelled itself
         var matcher = BuildMatcher(includes, excludes);
         DirectoryInfoBase filtered = enableGlobDot ? root : new HiddenFilteringDirectory(root, includes);
-        var walked = new CancellableDirectory(filtered, cancellationToken);
+        var walked = new CancelableDirectory(filtered, cancellationToken);
         IEnumerable<string> paths = matcher.Execute(walked).Files.Select(match => match.Path);
 
         // Decide hidden files exactly, now that the matcher has found every candidate

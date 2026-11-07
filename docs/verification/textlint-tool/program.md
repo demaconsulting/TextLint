@@ -49,10 +49,10 @@ that has a misspelling; the first line is the banner, the finding follows in the
 contains the usage line with the pattern arguments, every option of the tool, and the exit codes. This scenario is
 tested by `Program_Run_HelpFlag_ListsAllOptionsAndExitCodes`.
 
-**Program_RunCancellable_CancelledToken_ReportsCancellationAndFails**: `Program.RunCancellable` is called with a
+**Program_RunCancelable_CancelledToken_ReportsCancellationAndFails**: `Program.RunCancelable` is called with a
 token that is already cancelled and a file with a misspelling; the output says the check was cancelled, contains
 no finding, and exit code is 1. This scenario is tested by
-`Program_RunCancellable_CancelledToken_ReportsCancellationAndFails`.
+`Program_RunCancelable_CancelledToken_ReportsCancellationAndFails`.
 
 **Program_Main_DuplicateOption_ReturnsNonZeroExitCode**: `Program.Main` is invoked with `--root` twice; exit code
 is 1 and standard error names the repeated option. This scenario is tested by

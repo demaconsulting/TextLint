@@ -30,7 +30,7 @@ file name is formatted without one.
 
 **WriteFileDiagnostics (private)**: Writes one line per file that was skipped or could not be checked, in the
 order the library gives (file path), formatted by `FileDiagnostic.Format` under the display name. A deliberate
-skip (a binary or oversized file) reads as information and a file that could not be checked as an error, so that
+skip (a binary or too large file) reads as information and a file that could not be checked as an error, so that
 nothing is silently left out.
 
 **WriteSummary (private)**: Writes the line

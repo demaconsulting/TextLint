@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-// cspell:ignore favourite neighbour organise tokenizer kubernetes powershell textlint xyzzyq cafè tabel catalogue labelled honoured modelling curser operants programing milage writeable unannotated mockable honour colour centre analyse judgement colourize colourized decolourize glamourize glamourized ation ations organizability unmaneuverable unmanoeuvrable manoeuvre
+// cspell:ignore favourite neighbour organise tokenizer kubernetes powershell textlint xyzzyq cafè tabel catalogue labelled honoured modelling curser operants programing milage writeable unannotated mockable honour colour centre analyse judgement colourize colourized decolourize glamourize glamourized ation ations organizability unmaneuverable unmanoeuvrable manoeuvre segoe consolas calibri menlo
 
 using System.Collections.Concurrent;
 using System.Reflection;

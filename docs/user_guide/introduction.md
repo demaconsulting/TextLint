@@ -706,6 +706,7 @@ use `textlint`.
 ## Differences from cspell
 
 <!-- cspell:ignore quixs xcspell Expx -->
+<!-- textlint:ignore nfoo -->
 
 TextLint follows cspell's documented rules, and the test suite compares it with the real cspell on a set of
 corpora (see the verification of TextLint). These differences are deliberate:

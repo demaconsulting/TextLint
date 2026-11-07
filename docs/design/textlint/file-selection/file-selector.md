@@ -8,7 +8,7 @@
 the one place that turns glob patterns into a file list, so every consumer selects files identically. It takes
 its inputs as plain parameters, so it has no dependency on the Configuration subsystem. It also defines the
 supporting type `SelectedFile` and two internal directory views, `HiddenFilteringDirectory` and
-`CancellableDirectory`, which have no unit of their own.
+`CancelableDirectory`, which have no unit of their own.
 
 #### Data Model
 
@@ -24,7 +24,7 @@ subdirectory it keeps so the filter applies at every depth. Files and non-hidden
 through unchanged. The matcher only descends into what a directory enumerates, so a dropped
 directory is never read from disk.
 
-**CancellableDirectory** is an internal view over the matcher's directory abstraction. It holds the wrapped
+**CancelableDirectory** is an internal view over the matcher's directory abstraction. It holds the wrapped
 directory and the caller's cancellation token. Before it lists a directory, and before it hands each entry of the
 listing to the matcher, it checks the token and throws `OperationCanceledException` when it is cancelled; it wraps
 every subdirectory so the check applies at every depth. The matcher is synchronous and has no cancellation of
@@ -64,7 +64,7 @@ probe the root directory with
 `ProbeRoot`; (3) return an empty list when there are no include patterns, without walking any directory; (4) build a
 matcher with ordinal comparison and add the expanded include and
 exclude patterns; (5) unless `enableGlobDot` is set, wrap the root in a `HiddenFilteringDirectory`, and always wrap
-the result in a `CancellableDirectory`, then walk it; (6) run the
+the result in a `CancelableDirectory`, then walk it; (6) run the
 matcher; (7) unless `enableGlobDot` is set, keep only the paths `HiddenPathPolicy` permits; (8) sort the
 paths by ordinal comparison and create the `SelectedFile` entries, computing each full path from the root.
 
@@ -84,7 +84,7 @@ inner exception); an access failure (`UnauthorizedAccessException`) or any other
 names a file, propagates with its own type. Below the root, the matcher's directory wrapper treats a subdirectory
 that no longer exists when it is listed (removed while the walk runs) as empty; every other failure to list a
 subdirectory, such as a permission failure, propagates unchanged. A cancelled token throws
-`OperationCanceledException`, from the check before the probe or from the `CancellableDirectory` during the walk;
+`OperationCanceledException`, from the check before the probe or from the `CancelableDirectory` during the walk;
 no partial selection is returned. Nothing is logged.
 
 #### Dependencies

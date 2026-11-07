@@ -429,6 +429,7 @@ the British selection, and `favorite` only in the American one. This scenario is
 `TextLint_Dictionary_DerivedFormsAndRegionalSpellings_FollowTheLanguageSelection`.
 
 <!-- cspell:ignore colourize glamourize colour organise analyse decolourize unmanoeuvrable manoeuvre -->
+<!-- textlint:ignore catalogue labelled honoured modelling honour centre judgement -->
 
 **TextLint_Dictionary_CuratedSpellingPairs_StayInTheirOwnRegion**: The British spellings of nine curated pairs
 (`honour`, `colour`, `centre`, `catalogue`, `labelled`, `organise`, `analyse`, `modelling`, `judgement`) are looked up

@@ -89,6 +89,7 @@ the American, the British, and the combined selection. This scenario is tested b
 `DictionariesSubsystem_IsKnown_DerivedForms_AreKnownInEveryLanguage`.
 
 <!-- cspell:ignore colour -->
+<!-- textlint:ignore catalogue labelled honoured modelling ageing -->
 
 **DictionariesSubsystem_ForLanguages_BritishOnlySpellings_AreKnownOnlyForBritish**: British spellings that other
 English word lists also accept for American English (`catalogue`, `labelled`, `honoured`, `modelling`, `colour`,
@@ -96,6 +97,7 @@ English word lists also accept for American English (`catalogue`, `labelled`, `h
 `DictionariesSubsystem_ForLanguages_BritishOnlySpellings_AreKnownOnlyForBritish`.
 
 <!-- cspell:ignore colourize decolourize glamourize colourized Organise Analyse Unmanoeuvrable -->
+<!-- textlint:ignore honour HONOUR curser operants -->
 
 **DictionariesSubsystem_ForLanguages_CapitalizedAndIzeForms_DoNotCrossRegions**: Capitalized and upper-case forms of
 American spellings (`Honor`, `HONOR`, `Judgment`, `Recognize`, `Unmaneuverable`) are unknown in the British

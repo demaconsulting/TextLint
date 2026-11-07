@@ -1,0 +1,81 @@
+---
+# Spell-Checking with TextLint
+#
+# PURPOSE:
+# - Spell-check this repository with its own tool (dogfooding)
+# - Mirror .cspell.yaml: the same project terms, ignored paths, and files, so that
+#   both tools report the same findings until the first release replaces cspell
+#   as the lint gate in lint.ps1
+# - Misspelled words should be fixed in the source
+# - NEVER add a misspelled word to the 'words' list
+# - PROPOSE only genuine technical terms/names as needed
+#
+# Run from source (until lint.ps1 runs the released tool):
+#   dotnet build -c Release
+#   dotnet src/DemaConsulting.TextLint.Tool/bin/Release/net10.0/DemaConsulting.TextLint.Tool.dll --root .
+
+version: "0.2"
+language: en
+
+# The files lint.ps1 passes to cspell
+files:
+  - "**/*.{md,yaml,yml,json,cs,cpp,hpp,h,txt}"
+
+# Project-specific technical terms and tool names
+words:
+  - Blockquotes
+  - Postconditions
+  - buildmark
+  - buildtransitive
+  - contentfiles
+  - dcterms
+  - DEMA
+  - Dema
+  - demaconsulting
+  - doctitle
+  - filesystemglobbing
+  - docversion
+  - errorlevel
+  - fileassert
+  - finalizer
+  - xunit
+  - nameof
+  - pagetitle
+  - Pandoc
+  - Qube
+  - reqstream
+  - reviewmark
+  - SARIF
+  - sarifmark
+  - setlocal
+  - snupkg
+  - sonarmark
+  - sysml
+  - sysml2tools
+  - textlint
+  - trimmable
+  - venv
+  - versionmark
+  - Weasyprint
+  # Product name of the DemaConsulting.WeasyPrintTool package (cspell splits it with its heuristic splitter)
+  - WeasyPrintTool
+  - yamlfix
+  - yamldotnet
+
+# Exclude common build artifacts, dependencies, and vendored third-party code
+ignorePaths:
+  - "**/.git/**"
+  - "**/node_modules/**"
+  - "**/.venv/**"
+  - "**/thirdparty/**"
+  - "**/third-party/**"
+  - "**/3rd-party/**"
+  - "**/generated/**"
+  - "**/AGENT_REPORT_*.md"
+  - "**/.agent-logs/**"
+  - "**/bin/**"
+  - "**/obj/**"
+  - package-lock.json
+  # Word lists: hundreds of thousands of generated entries (the technical lists include
+  # intentionally non-English terms), checked by the dictionary builder instead of spell-checking.
+  - "dictionaries/**/*.txt"

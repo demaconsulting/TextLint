@@ -57,7 +57,7 @@ selector with the settings' patterns and the caller's token; that method creates
 the language and the word lists, so
 unusable settings fail before any file or directory is touched; (3) select the files, on a
 thread-pool thread, because the selector is synchronous and the call should not block its caller while it walks the
-directory tree, with the token passed to the selector so that cancelling stops the walk itself and not only the
+directory tree, with the token passed to the selector so that canceling stops the walk itself and not only the
 wait for it; (4) call `CheckFilesAsync` with the selection, the maximum
 file size of the settings, the checker's method, and the options.
 

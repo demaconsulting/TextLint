@@ -73,7 +73,7 @@ internal static class LintRunner
     /// <remarks>
     ///     The library is asynchronous but the program entry point is synchronous, so the call is waited for
     ///     once, here, at the boundary of a console program that has no synchronization context to deadlock
-    ///     on. Cancellation is honored throughout: cancelling the token stops the settings read, the directory
+    ///     on. Cancellation is honored throughout: canceling the token stops the settings read, the directory
     ///     walk, and the file checks, and the run ends with a message and a failure exit code instead of a
     ///     partial result. Side effects: writes to <paramref name="context"/> and reads the settings file,
     ///     directories, and files.

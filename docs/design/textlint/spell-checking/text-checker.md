@@ -235,7 +235,7 @@ The patterns that are generated at build time keep a fixed limit of 5 seconds an
   _TextScanning Design_.
 - **PatternCatalog**, **PatternParser**, **MarkdownPatterns**, and **RandomStringDetector** (TextScanning subsystem) - the
   resolved patterns of the settings and of the directives and the code that runs them; the match time limit; the
-  patterns that apply to Markdown sources; and the judgement
+  patterns that apply to Markdown sources; and the judgment
   of random-looking tokens and hexadecimal sequences. `InvalidPatternException` and `NamedPattern` come with them.
 - **.NET BCL** - collections, spans, and regular expressions (the compiled patterns are held as `Regex` values).
 

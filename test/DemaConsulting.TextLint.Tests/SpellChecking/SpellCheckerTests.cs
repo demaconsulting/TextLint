@@ -966,7 +966,7 @@ public class SpellCheckerTests
     }
 
     /// <summary>
-    ///     Test that cancelling during the run stops it with a cancellation and no partial result.
+    ///     Test that canceling during the run stops it with a cancellation and no partial result.
     /// </summary>
     [Fact]
     public async Task SpellChecker_CheckFilesAsync_CancelledDuringRun_ThrowsOperationCanceledException()
@@ -991,7 +991,7 @@ public class SpellCheckerTests
     }
 
     /// <summary>
-    ///     Test that the caller's token is handed to the file selection, so that cancelling stops a directory walk.
+    ///     Test that the caller's token is handed to the file selection, so that canceling stops a directory walk.
     /// </summary>
     [Fact]
     public async Task SpellChecker_CheckWithSelectionAsync_Selection_ReceivesCallersToken()

@@ -207,7 +207,7 @@ public class FileSelectorTests
     }
 
     /// <summary>
-    ///     Test that cancelling while the walk is running stops it at the next entry, whether or not wildcards may match hidden names.
+    ///     Test that canceling while the walk is running stops it at the next entry, whether or not wildcards may match hidden names.
     /// </summary>
     /// <param name="enableGlobDot">Whether wildcards may match hidden names.</param>
     [Theory]

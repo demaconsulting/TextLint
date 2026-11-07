@@ -33,7 +33,7 @@ namespace DemaConsulting.TextLint.FileSelection;
 ///     in turn so the check applies at every depth. The view holds no mutable state of its own and is as
 ///     thread-safe as the directory it wraps.
 /// </remarks>
-internal sealed class CancellableDirectory : DirectoryInfoBase
+internal sealed class CancelableDirectory : DirectoryInfoBase
 {
     /// <summary>
     ///     The directory being wrapped.
@@ -46,7 +46,7 @@ internal sealed class CancellableDirectory : DirectoryInfoBase
     private readonly CancellationToken _cancellationToken;
 
     /// <summary>
-    ///     Initializes a new instance of the <see cref="CancellableDirectory"/> class.
+    ///     Initializes a new instance of the <see cref="CancelableDirectory"/> class.
     /// </summary>
     /// <remarks>
     ///     Side effects: none; nothing is read until the view is enumerated.
@@ -54,7 +54,7 @@ internal sealed class CancellableDirectory : DirectoryInfoBase
     /// <param name="inner">The directory to wrap. Must not be null.</param>
     /// <param name="cancellationToken">The token that stops the walk when it is cancelled.</param>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="inner"/> is null.</exception>
-    internal CancellableDirectory(DirectoryInfoBase inner, CancellationToken cancellationToken)
+    internal CancelableDirectory(DirectoryInfoBase inner, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(inner);
         _inner = inner;
@@ -87,7 +87,7 @@ internal sealed class CancellableDirectory : DirectoryInfoBase
         {
             // Stop between entries, so a large directory does not delay a cancellation until its end
             _cancellationToken.ThrowIfCancellationRequested();
-            yield return entry is DirectoryInfoBase directory ? new CancellableDirectory(directory, _cancellationToken) : entry;
+            yield return entry is DirectoryInfoBase directory ? new CancelableDirectory(directory, _cancellationToken) : entry;
         }
     }
 
@@ -96,7 +96,7 @@ internal sealed class CancellableDirectory : DirectoryInfoBase
     public override DirectoryInfoBase? GetDirectory(string path)
     {
         var directory = _inner.GetDirectory(path);
-        return directory is null ? null : new CancellableDirectory(directory, _cancellationToken);
+        return directory is null ? null : new CancelableDirectory(directory, _cancellationToken);
     }
 
     /// <inheritdoc />

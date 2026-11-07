@@ -568,7 +568,7 @@ public class SpellCheckingSubsystemTests
     }
 
     /// <summary>
-    ///     Test that cancelling stops the run with a cancellation and no result.
+    ///     Test that canceling stops the run with a cancellation and no result.
     /// </summary>
     [Fact]
     public async Task SpellCheckingSubsystem_CheckAsync_CancelledToken_ThrowsOperationCanceledException()
@@ -642,7 +642,7 @@ public class SpellCheckingSubsystemTests
         // Arrange: a settings pattern that a directive names, a directive with an expression, an unusable directive, and words
         var settings = new TextLintSettings { Patterns = [new NamedPattern("Marker", "/qwzx[a-z]+/")] };
         var checker = new TextChecker(settings);
-        var text = "qwzxabc wrold\n// cspell:ignoreRegExp Marker\n// cspell:ignoreRegExp /speling/\nspeling\n// cspell:ignoreRegExp /(?i)x/";
+        var text = "qwzxabc wrold\n// cspell:ignoreRegExp Marker\n// cspell:ignoreRegExp /speling/\nspeling\n// cspell:ignoreRegExp /(?i)x/"; // textlint:disable-line
 
         // Act: check the text
         var issues = checker.Check(text);

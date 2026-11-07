@@ -96,7 +96,7 @@ Three further rules keep the split sound:
 - **British English is -ise only.** An -ize form that has a known British -ise counterpart (`organize` for
   `organise`, and `glamourize` for `glamorise`) is never written to `en-GB`; a Hunspell stem that is such a form is
   skipped with all its generated forms (`colourize`, `colourized`), and a common -ize word with such a counterpart is
-  written to `en-US`. Words such as `size`, `capsized`, and `oversized` have no counterpart and are unaffected.
+  written to `en-US`. Words such as `size`, `capsized`, and `resized` have no counterpart and are unaffected.
 - **A spell check does not know the part of speech.** Words whose British form differs only by part of speech
   (`license` and `licence`, `practice` and `practise`) are accepted in both forms by `en-GB`, because one form is
   common to both dialects. This is inherent and is not a leak.
@@ -223,7 +223,9 @@ Prerequisites:
 
 <!-- cspell:ignore PYTHONUTF ogue Kuenning Moby wordlist -->
 <!-- cspell:ignore organise glamorise colourize colourized licence practise colour analyse ered manoeuvre -->
-<!-- cspell:ignore Bourges Deventer unmaneuverable maneuverable -->
+<!-- textlint:ignore catalogue labelled honoured modelling honour centre judgement programme -->
+<!-- textlint:ignore curser operants glamourize -->
+<!-- cspell:ignore Bourges Deventer unmaneuverable maneuverable Segoe Consolas -->
 
 - Python 3.7 or later with SQLite 3.33.0 or later, git, and npm on the path. The scripts use nothing newer than
   Python 3.7 (checked with the `vermin` tool).

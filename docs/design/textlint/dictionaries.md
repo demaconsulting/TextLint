@@ -102,6 +102,7 @@ is capped at one cycle of the table, so a damaged file can only produce an excep
 out-of-range read or an endless loop.
 
 <!-- cspell:ignore colourize licence practise unmaneuverable -->
+<!-- textlint:ignore glamourize -->
 
 **Regional spellings and the part of speech.** The data decides which dictionary a spelling belongs to, and the
 lookup never looks at anything but the folded word, so four consequences follow and are deliberate. First, a

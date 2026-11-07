@@ -145,7 +145,7 @@ N/A - not a safety-classified software item.
    parses the arguments and opens the log
    file if `--log` was specified. An `ArgumentException` or `InvalidOperationException` at
    this point is caught, written to stderr, and causes exit code 1.
-3. `Program.RunCancellable(context, token)` inspects the parsed flags and dispatches to one handler:
+3. `Program.RunCancelable(context, token)` inspects the parsed flags and dispatches to one handler:
    - `--version` flag → `context.WriteLine(Version)`, then return.
    - Otherwise, `PrintBanner` is called first; then:
      - `--help` flag → `PrintHelp(context)`, then return.

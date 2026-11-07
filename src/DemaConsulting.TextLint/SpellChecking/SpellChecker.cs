@@ -86,7 +86,7 @@ public static class SpellChecker
         ArgumentNullException.ThrowIfNull(settings);
         ArgumentException.ThrowIfNullOrWhiteSpace(rootDirectory);
 
-        // The token is handed to the selector so that cancelling stops a long directory walk and not only the checks after it
+        // The token is handed to the selector so that canceling stops a long directory walk and not only the checks after it
         return await CheckWithSelectionAsync(
             settings,
             token => FileSelector.Select(rootDirectory, settings.Files, settings.IgnorePaths, settings.EnableGlobDot, token),

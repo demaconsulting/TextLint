@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-// cspell:ignore zorbs zorb zorbed ings ning
+// cspell:ignore zorbs zorb zorbed ings ning nfoo
 
 using System.Collections.Immutable;
 using System.Globalization;

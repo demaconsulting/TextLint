@@ -375,7 +375,7 @@ public class LintingSubsystemTests
     }
 
     /// <summary>
-    ///     Test that cancelling stops the run with a message and no result.
+    ///     Test that canceling stops the run with a message and no result.
     /// </summary>
     [Fact]
     public async Task LintingSubsystem_Run_CancelledToken_ReportsCancellation()

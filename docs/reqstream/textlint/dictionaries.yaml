@@ -9,6 +9,7 @@
 #   by DictionariesSubsystemTests.cs
 #
 # cspell:ignore colourize licence
+# textlint:ignore catalogue labelled
 sections:
   - title: TextLint Requirements
     sections:

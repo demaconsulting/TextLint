@@ -141,7 +141,7 @@ sections:
                 justification: |
                   A run over a large repository can take long enough that a user or a host needs to abandon
                   it, and abandoning it must not leave work running or return a partial result that looks
-                  complete. Selecting the files in a large tree is a long part of the run, so cancelling
+                  complete. Selecting the files in a large tree is a long part of the run, so canceling
                   must not wait for it to end.
                 tests:
                   - SpellChecker_CheckAsync_CancelledToken_ThrowsOperationCanceledException
