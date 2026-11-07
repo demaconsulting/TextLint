@@ -323,6 +323,71 @@ public class JavaScriptCaseFoldingTests
     }
 
     /// <summary>
+    ///     Verifies that closing a set of code points adds the other cases of the characters outside the basic plane as
+    ///     well as those inside it, and joins the ranges.
+    /// </summary>
+    [Fact]
+    public void JavaScriptCaseFolding_CloseCodePoints_BasicAndAstralMembers_AddsTheOtherCaseOfEach()
+    {
+        // Arrange: the Deseret capital letters and the letter k, as unsorted ranges
+        (int Low, int High)[] set = [(0x10400, 0x1044F), ('k', 'k'), (0x10400, 0x10410)];
+
+        // Act: close it
+        var closed = JavaScriptCaseFolding.CloseCodePoints(set);
+
+        // Assert: the Deseret small letters and the capital K and the Kelvin sign are added, and the ranges are joined
+        Assert.Multiple(
+            () => Assert.Contains(('K', 'K'), closed),
+            () => Assert.Contains((0x212A, 0x212A), closed),
+            () => Assert.Contains((0x10400, 0x1044F), closed),
+            () => Assert.Contains(closed, range => range.Low <= 0x10428 && 0x10428 <= range.High),
+            () => Assert.All(closed.Zip(closed.Skip(1)), pair => Assert.True(pair.First.High + 1 < pair.Second.Low)));
+    }
+
+    /// <summary>
+    ///     Verifies that closing a set of code points gives, for every character outside the basic plane, the same
+    ///     result as the definition with the groups of the table.
+    /// </summary>
+    [Fact]
+    public void JavaScriptCaseFolding_CloseCodePoints_EveryAstralLetter_EqualsItsGroup()
+    {
+        // Arrange: every character outside the basic plane that has a case, as a set of its own
+        var wrong = new List<int>();
+        foreach (var codePoint in Enumerable.Range(0x10000, 0x10FFFF - 0x10000 + 1))
+        {
+            var forms = JavaScriptCaseFolding.AstralForms(char.ConvertFromUtf32(codePoint)).Select(form => char.ConvertToUtf32(form, 0)).Order().ToArray();
+            if (forms.Length == 1)
+            {
+                continue;
+            }
+
+            // Act: close the set of that character
+            var closed = JavaScriptCaseFolding.CloseCodePoints([(codePoint, codePoint)]);
+            var members = closed.SelectMany(range => Enumerable.Range(range.Low, range.High - range.Low + 1)).ToArray();
+
+            // Assert (collected): the closed set is the group
+            if (!members.SequenceEqual(forms))
+            {
+                wrong.Add(codePoint);
+            }
+        }
+
+        Assert.Empty(wrong);
+    }
+
+    /// <summary>
+    ///     Verifies that closing a set of code points rejects a null set.
+    /// </summary>
+    [Fact]
+    public void JavaScriptCaseFolding_CloseCodePoints_NullSet_ThrowsArgumentNullException()
+    {
+        // Arrange: null for the set
+
+        // Act and assert: the call refuses it
+        Assert.Throws<ArgumentNullException>(() => JavaScriptCaseFolding.CloseCodePoints(null!));
+    }
+
+    /// <summary>
     ///     Verifies that closing a range merges adjacent code units into ascending, non-overlapping ranges.
     /// </summary>
     [Fact]

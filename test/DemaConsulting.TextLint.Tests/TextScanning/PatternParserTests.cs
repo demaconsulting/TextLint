@@ -65,7 +65,12 @@ public class PatternParserTests
     /// <summary>
     ///     A number of case-insensitive properties that is within the translation limit.
     /// </summary>
-    private const int FewProperties = 50;
+    private const int FewProperties = 20;
+
+    /// <summary>
+    ///     A number of negated shorthands, each about 180 characters with the Unicode flag, that is within the limit.
+    /// </summary>
+    private const int ManyShorthands = 1000;
 
     /// <summary>
     ///     The number of translations that run at once in the concurrency test.
@@ -561,7 +566,6 @@ public class PatternParserTests
     [InlineData("/\\c1/", "followed by a letter")]
     [InlineData("/\\u{110000}/u", "code point")]
     [InlineData("/\\u{}/u", "code point")]
-    [InlineData("/[\uD83D\uDE00]/", "Basic Multilingual")]
     [InlineData("/\\p{L}/", "u flag")]
     [InlineData("/\\P{L}/", "u flag")]
     [InlineData("/\\p{Script=Greek}/u", "not supported")]
@@ -693,17 +697,17 @@ public class PatternParserTests
     }
 
     /// <summary>
-    ///     Test that patterns that need a long translation but stay within the limit are accepted, and that the limit
-    ///     does not apply to an expansion that the flags do not ask for.
+    ///     Test that patterns that need a long translation but stay within the limit are accepted, and that ordinary
+    ///     patterns are not affected by it.
     /// </summary>
     [Fact]
     public void PatternParser_Parse_TranslationWithinTheLimit_IsAccepted()
     {
         // Arrange: the longest ordinary pattern (letters with the case flag), a few properties with the case flag,
-        // as many properties as fit in the source without the case flag, and many shorthands with it
+        // many negated shorthands with the Unicode flag, and many shorthands with the case flag
         var letters = "/" + new string('a', DocumentedMaximumLength) + "/i";
         var properties = "/" + string.Concat(Enumerable.Repeat("\\p{L}", FewProperties)) + "/iu";
-        var plain = "/" + string.Concat(Enumerable.Repeat("\\p{L}", DocumentedMaximumLength / 5)) + "/u";
+        var plain = "/" + string.Concat(Enumerable.Repeat("\\W", ManyShorthands)) + "/u";
         var shorthands = "/" + string.Concat(Enumerable.Repeat("\\W", DocumentedMaximumLength / 2)) + "/i";
 
         // A class that collects properties whose union is nearly every character has a short translation, however
