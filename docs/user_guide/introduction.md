@@ -13,6 +13,11 @@ dictionaries, and to check files in parallel across all processor cores. Both th
 Usage_ below) can already do this: they load a `.textlint.yaml` settings file, select the files to check,
 check their spelling in parallel, and look words up in the embedded dictionaries.
 
+The following diagram shows how the `textlint` tool and the library check your files:
+
+![TextLint architecture: the Linting subsystem of the textlint tool calls the TextLint library, whose
+SpellChecking subsystem uses Configuration, FileSelection, Dictionaries and TextScanning to check files.](architecture.svg)
+
 ## Scope
 
 This user guide covers:

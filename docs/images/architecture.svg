@@ -1,0 +1,96 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="590" viewBox="0 0 900 590" font-family="Segoe UI, Arial, sans-serif">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#475569"/>
+    </marker>
+  </defs>
+  <rect x="14" y="16" width="875" height="565" rx="28" fill="#d5dce6"/>
+  <rect x="10" y="10" width="875" height="565" rx="28" fill="#ffffff" stroke="#cbd5e1" stroke-width="2"/>
+
+  <g transform="translate(30,30)">
+    <rect x="150" y="0" width="510" height="70" rx="10" fill="#fef3c7" stroke="#d97706" stroke-width="2"/>
+    <text x="405" y="31" font-size="16" font-family="Consolas, monospace" font-weight="600" fill="#92400e" text-anchor="middle">textlint</text>
+    <text x="405" y="53" font-size="13" fill="#92400e" text-anchor="middle">command-line tool run by you or your CI pipeline</text>
+    <line x1="405" y1="74" x2="405" y2="118" stroke="#475569" stroke-width="2" marker-end="url(#a)"/>
+    <text x="417" y="100" font-size="12" fill="#334155">file paths and options</text>
+
+    <rect x="150" y="122" width="510" height="128" rx="14" fill="#f8fafc" stroke="#2563eb" stroke-width="2" stroke-dasharray="8 5"/>
+    <text x="166" y="148" font-size="14" font-weight="600" fill="#2563eb">DemaConsulting.TextLint.Tool</text>
+
+    <rect x="170" y="162" width="107" height="74" rx="8" fill="#dcfce7" stroke="#16a34a" stroke-width="2"/>
+    <text x="223" y="187" font-size="15" font-weight="600" fill="#166534" text-anchor="middle">Cli</text>
+    <text x="223" y="208" font-size="11" fill="#166534" text-anchor="middle">Arguments and</text>
+    <text x="223" y="222" font-size="11" fill="#166534" text-anchor="middle">output streams</text>
+    <rect x="291" y="162" width="107" height="74" rx="8" fill="#dcfce7" stroke="#16a34a" stroke-width="2"/>
+    <text x="344" y="187" font-size="15" font-weight="600" fill="#166534" text-anchor="middle">Linting</text>
+    <text x="344" y="208" font-size="11" fill="#166534" text-anchor="middle">Runs one check</text>
+    <text x="344" y="222" font-size="11" fill="#166534" text-anchor="middle">and reports it</text>
+    <rect x="412" y="162" width="107" height="74" rx="8" fill="#dbeafe" stroke="#2563eb" stroke-width="2"/>
+    <text x="465" y="187" font-size="15" font-weight="600" fill="#1e3a8a" text-anchor="middle">SelfTest</text>
+    <text x="465" y="208" font-size="11" fill="#1e40af" text-anchor="middle">Built-in checks</text>
+    <text x="465" y="222" font-size="11" fill="#1e40af" text-anchor="middle">for --validate</text>
+    <rect x="533" y="162" width="107" height="74" rx="8" fill="#dbeafe" stroke="#2563eb" stroke-width="2"/>
+    <text x="586" y="187" font-size="15" font-weight="600" fill="#1e3a8a" text-anchor="middle">Utilities</text>
+    <text x="586" y="208" font-size="11" fill="#1e40af" text-anchor="middle">Path helpers</text>
+
+    <line x1="344" y1="254" x2="344" y2="286" stroke="#475569" stroke-width="2" marker-end="url(#a)"/>
+    <text x="356" y="274" font-size="12" fill="#334155">calls the library</text>
+
+    <rect x="150" y="290" width="510" height="230" rx="14" fill="#f8fafc" stroke="#2563eb" stroke-width="2" stroke-dasharray="8 5"/>
+    <text x="166" y="314" font-size="14" font-weight="600" fill="#2563eb">DemaConsulting.TextLint</text>
+
+    <rect x="170" y="326" width="470" height="52" rx="10" fill="#dcfce7" stroke="#16a34a" stroke-width="2"/>
+    <text x="405" y="349" font-size="16" font-weight="600" fill="#166534" text-anchor="middle">SpellChecking</text>
+    <text x="405" y="367" font-size="12" fill="#166534" text-anchor="middle">Checks the selected files in parallel</text>
+
+    <g stroke="#475569" stroke-width="2" marker-end="url(#a)">
+      <line x1="223" y1="380" x2="223" y2="406"/>
+      <line x1="344" y1="380" x2="344" y2="406"/>
+      <line x1="465" y1="380" x2="465" y2="406"/>
+      <line x1="586" y1="380" x2="586" y2="406"/>
+    </g>
+
+    <g font-size="11" fill="#5b21b6" text-anchor="middle">
+      <rect x="170" y="410" width="107" height="90" rx="10" fill="#ede9fe" stroke="#7c3aed" stroke-width="2"/>
+      <text x="223" y="434" font-size="13" font-weight="600" fill="#4c1d95">Configuration</text>
+      <text x="223" y="454">Loads and validates</text>
+      <text x="223" y="468">.textlint.yaml</text>
+      <text x="223" y="482">settings</text>
+      <rect x="291" y="410" width="107" height="90" rx="10" fill="#ede9fe" stroke="#7c3aed" stroke-width="2"/>
+      <text x="344" y="434" font-size="13" font-weight="600" fill="#4c1d95">FileSelection</text>
+      <text x="344" y="454">Applies include and</text>
+      <text x="344" y="468">ignore globs to</text>
+      <text x="344" y="482">pick the files</text>
+      <rect x="412" y="410" width="107" height="90" rx="10" fill="#ede9fe" stroke="#7c3aed" stroke-width="2"/>
+      <text x="465" y="434" font-size="13" font-weight="600" fill="#4c1d95">Dictionaries</text>
+      <text x="465" y="454">Embedded English</text>
+      <text x="465" y="468">and technical</text>
+      <text x="465" y="482">word lookup</text>
+      <rect x="533" y="410" width="107" height="90" rx="10" fill="#ede9fe" stroke="#7c3aed" stroke-width="2"/>
+      <text x="586" y="434" font-size="13" font-weight="600" fill="#4c1d95">TextScanning</text>
+      <text x="586" y="454">Words, ignored</text>
+      <text x="586" y="468">text, patterns,</text>
+      <text x="586" y="482">and directives</text>
+    </g>
+
+    <text x="60" y="300" font-size="13" font-weight="600" fill="#475569" text-anchor="middle">Inputs</text>
+    <rect x="0" y="314" width="120" height="66" rx="6" fill="#f1f5f9" stroke="#64748b" stroke-width="2"/>
+    <text x="60" y="341" font-size="15" font-weight="600" fill="#334155" text-anchor="middle">Files</text>
+    <text x="60" y="362" font-size="12" fill="#475569" text-anchor="middle">source and docs</text>
+    <rect x="0" y="396" width="120" height="66" rx="6" fill="#f1f5f9" stroke="#64748b" stroke-width="2"/>
+    <text x="60" y="423" font-size="15" font-weight="600" fill="#334155" text-anchor="middle">Settings</text>
+    <text x="60" y="444" font-size="12" fill="#475569" text-anchor="middle">.textlint.yaml</text>
+    <line x1="124" y1="347" x2="146" y2="347" stroke="#475569" stroke-width="2" marker-end="url(#a)"/>
+    <line x1="124" y1="429" x2="146" y2="429" stroke="#475569" stroke-width="2" marker-end="url(#a)"/>
+
+    <rect x="690" y="136" width="150" height="114" rx="12" fill="#dcfce7" stroke="#16a34a" stroke-width="2"/>
+    <text x="765" y="162" font-size="16" font-weight="600" fill="#166534" text-anchor="middle">Outputs</text>
+    <g font-size="12" fill="#14532d" text-anchor="middle">
+      <rect x="704" y="174" width="122" height="26" rx="5" fill="#ffffff" stroke="#16a34a"/>
+      <text x="765" y="191">Findings per file</text>
+      <rect x="704" y="206" width="122" height="26" rx="5" fill="#ffffff" stroke="#16a34a"/>
+      <text x="765" y="223">Exit status</text>
+    </g>
+    <line x1="660" y1="193" x2="686" y2="193" stroke="#475569" stroke-width="2" marker-end="url(#a)"/>
+  </g>
+</svg>
