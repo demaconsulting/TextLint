@@ -716,8 +716,12 @@ def read_common_overrides(output: Path, cspell_excludes: Iterable[str] = ()) -> 
     if data is None:
         raise InputError(f"{COMMON_ADDITIONS} is missing; it is a curated list that this script reads but never writes.")
     excluded = {word.lower() for word in cspell_excludes}
+    try:
+        text = data.decode("utf-8-sig")
+    except UnicodeDecodeError as error:
+        raise InputError(f"{COMMON_ADDITIONS} is not valid UTF-8: {error}") from error
     words: Set[str] = set()
-    for line_number, line in enumerate(data.decode("utf-8-sig").splitlines(), start=1):
+    for line_number, line in enumerate(text.splitlines(), start=1):
         entry = line.strip()
         if not entry or entry.startswith("#"):
             continue
