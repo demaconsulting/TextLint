@@ -15,7 +15,9 @@ is and interprets list entries; `DefaultPatterns`, which finds the text that is 
 interprets directives such as the disable directive and finds the patterns of `ignoreRegExp` directives;
 `PatternParser`, which turns a pattern written the way cspell
 writes it into a .NET regular expression that has its JavaScript meaning (with `JavaScriptRegexTranslator`, which does
-the translation, and `InvalidPatternException`, which reports an unusable pattern); `PatternCatalog`, which knows the
+the translation, `JavaScriptSyntax` and `JavaScriptCaseFolding`, which give every unit that writes a pattern the
+JavaScript meaning of white space and letter case, and `InvalidPatternException`, which reports an unusable pattern);
+`PatternCatalog`, which knows the
 predefined pattern names and turns the `ignoreRegExpList` and `patterns` settings into regular expressions
 (with `NamedPattern`); `MarkdownPatterns`, which finds the link targets, labels, anchors, and entities of a Markdown
 document; and `RandomStringDetector`, which recognizes tokens that look random and hexadecimal sequences. The
@@ -74,7 +76,8 @@ All members are in-process .NET static methods, so every unit is stateless and e
 **PatternParser.Parse**: Reads one pattern entry.
 
 - _Contract_: Accepts an entry, `/body/flags` or a bare expression, and returns a .NET regular expression that has the
-  JavaScript meaning of the pattern, built with the invariant culture and a five-second match time limit. The flags
+  JavaScript meaning of the pattern (white space, word characters, line terminators, and the letter case of the `i`
+  flag included), built with the invariant culture and a five-second match time limit. The flags
   `g`, `i`, `m`, `s` (the dot also matches line terminators), and `u` are accepted and every other flag (`x`, `y`, `d`,
   `v`) is rejected by name. An internal overload takes the time limit, so that tests can prove the time-out behavior
   in milliseconds; production code never passes one.

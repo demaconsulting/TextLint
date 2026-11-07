@@ -141,9 +141,12 @@ Design choices and their reasons:
 
 - **Patterns ported from cspell, as regular expressions.** The directive grammar is cspell's, and users depend on its
   edge cases, so the patterns are ports that keep the cspell shape: the same JavaScript differences as in
-  `DefaultPatterns` apply (ASCII-only word characters, the four line terminators, case-insensitive with the invariant
-  culture) and are handled the same way. Hand-written scanning would be faster but would make it hard to prove that
-  the edge cases agree.
+  `DefaultPatterns` apply (ASCII-only word characters, the four line terminators, the JavaScript white space set) and
+  are handled the same way; the case-insensitive patterns are run on the text with the Kelvin sign replaced by a
+  placeholder of the same length (`JavaScriptCaseFolding.MaskKelvinSign`), because the .NET case option would read it
+  as `k` where JavaScript does not, and the offsets do not change. The words of a directive are split, and the
+  directive names are trimmed, with `JavaScriptSyntax.IsSpace`, not the .NET white space test. Hand-written scanning
+  would be faster but would make it hard to prove that the edge cases agree.
 - **The guard search is a pure optimization.** Most files hold no directive, and running six patterns over every file
   would be wasted work. Every prefix contains `spell` or `textlint`, so a text that holds neither cannot contain a
   directive, and a vectorized, case-insensitive substring search rules that out at almost no cost. The guard can

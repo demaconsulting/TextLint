@@ -196,3 +196,12 @@ is reported more than once, with every range inside the text.
 **DefaultPatterns_FindExcludedRanges_EmptyText_ReturnsNoRanges**: An empty text has no ranges.
 
 **DefaultPatterns_FindExcludedRanges_NullArguments_ThrowArgumentNullException**: A null text and a null list each throw.
+
+**DefaultPatterns_All_JavaScriptWhiteSpace_EndsAndJoinsLikeJavaScript**: Each row, recorded by running cspell's own
+JavaScript expression, gives a pattern, a text with the byte order mark, the no-break space, the line separator, or the
+next-line character where a pattern reads white space, and the matches; the byte order mark and the others of the
+JavaScript set end or join a match, and the next-line character does not.
+
+**DefaultPatterns_All_CaseHandling_IsExplicitAndFollowsJavaScript**: No pattern uses the .NET case option, and the
+Kelvin sign is not read as `k` by the patterns that cspell applies case-insensitively, while their ASCII letters match
+in both cases.

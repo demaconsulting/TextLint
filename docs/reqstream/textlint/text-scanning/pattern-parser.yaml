@@ -28,6 +28,7 @@ sections:
                   - PatternParser_Parse_BareForm_IsCaseInsensitiveAndMultiline
                   - PatternParser_Parse_WhiteSpaceAndSlashesInBody_AreHandled
                   - PatternParser_Parse_LeadingSlashWithoutFlagsEnding_IsBareExpression
+                  - PatternParser_Parse_EntryEdges_TrimsOnlyJavaScriptWhiteSpace
 
               - id: TextLint-TextScanning-PatternParser-Flags
                 title: >-
@@ -62,6 +63,54 @@ sections:
                   - PatternParser_Parse_NamedAndPlainGroups_AreNumberedInOrder
                   - PatternParser_Parse_AstralLiteralWithQuantifier_FollowsTheUnicodeFlag
                   - PatternParser_Parse_BackReferenceToUnmatchedGroup_DoesNotMatch
+
+              - id: TextLint-TextScanning-PatternParser-JavaScriptCase
+                title: >-
+                  PatternParser shall, for a pattern with the i flag, treat as the same letter the characters that
+                  JavaScript treats as the same letter, and no others: without the u flag by the simple upper-case
+                  form (the micro sign, the Greek mu, and the sigma forms are one letter; the Kelvin sign and the
+                  long s are not the letters k and s), and with the u flag by simple case folding (the Kelvin
+                  sign and the long s are the letters k and s); the rule shall apply to literals, classes and their
+                  negations, word shorthands, Unicode properties, word boundaries, and back-references, and shall
+                  not depend on the culture of the machine.
+                justification: |
+                  The case rules of the .NET engine differ from those of the JavaScript engine on about eighty
+                  pairs of characters, in both directions, so a pattern that ignores case would exclude different
+                  text than in cspell. The five pairs that depend on a newer Unicode version than the .NET data
+                  are documented as the remaining difference.
+                tests:
+                  - PatternParser_Parse_CaseFlag_KeepsTheJavaScriptLetterEquivalence
+                  - PatternParser_Parse_BareExpression_UsesTheJavaScriptCaseRules
+                  - JavaScriptCaseFolding_Equivalents_EveryRecordedGroup_IsReproducedWithoutExtras
+                  - JavaScriptCaseFolding_Equivalents_KnownDivergentLetters_FollowJavaScript
+                  - JavaScriptCaseFolding_Equivalents_CharacterWithoutCase_ReturnsOnlyItself
+                  - JavaScriptCaseFolding_Close_LowerCaseLetter_AddsTheJavaScriptForms
+                  - JavaScriptCaseFolding_Close_ContiguousRange_ReturnsAscendingNonOverlappingRanges
+                  - JavaScriptCaseFolding_Close_EmptySet_ReturnsEmpty
+                  - JavaScriptCaseFolding_AstralForms_LetterOutsideBasicPlane_ListsTheOtherCase
+                  - JavaScriptCaseFolding_AstralForms_CharacterWithoutCase_ListsOnlyItself
+                  - JavaScriptCaseFolding_MaskKelvinSign_TextWithSign_KeepsLengthAndReplacesOnlyTheSign
+                  - JavaScriptCaseFolding_MaskKelvinSign_TextWithoutSign_ReturnsTheSameInstance
+                  - JavaScriptCaseFolding_EntryPoints_NullArgument_ThrowArgumentNullException
+
+              - id: TextLint-TextScanning-PatternParser-JavaScriptWhiteSpace
+                title: >-
+                  PatternParser shall define the JavaScript white space set once, as the characters U+0009 to
+                  U+000D, U+0020, U+00A0, U+1680, U+2000 to U+200A, U+2028, U+2029, U+202F, U+205F, U+3000, and
+                  U+FEFF, shall use it for the shorthand \s and for trimming, and shall make it available to the
+                  other patterns of the subsystem, together with the JavaScript line start and line terminators.
+                justification: |
+                  The .NET white space set differs from the JavaScript one (the byte order mark and the next-line
+                  character), and the patterns of the subsystem are ports of cspell patterns that run in
+                  JavaScript. One definition keeps every unit consistent.
+                tests:
+                  - JavaScriptSyntax_IsSpace_EveryCodeUnit_AgreesWithJavaScript
+                  - JavaScriptSyntax_SpaceAndNotSpace_EveryCodeUnit_ArePartitionedLikeIsSpace
+                  - JavaScriptSyntax_Space_TranslatedShorthand_MatchesTheSameCodeUnits
+                  - JavaScriptSyntax_IsSpace_DivergentCharacters_FollowJavaScript
+                  - JavaScriptSyntax_Trim_Text_RemovesOnlyJavaScriptWhiteSpace
+                  - JavaScriptSyntax_Trim_NullText_ThrowsArgumentNullException
+                  - JavaScriptSyntax_LineConstants_LineTerminators_FollowJavaScript
 
               - id: TextLint-TextScanning-PatternParser-UnsupportedConstructs
                 title: >-

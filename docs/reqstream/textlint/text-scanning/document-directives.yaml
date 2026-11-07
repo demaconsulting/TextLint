@@ -306,3 +306,15 @@ sections:
                   failure deep inside a scan.
                 tests:
                   - DocumentDirectives_Scan_NullText_ThrowsArgumentNullException
+
+              - id: TextLint-TextScanning-DocumentDirectives-JavaScriptSemantics
+                title: >-
+                  DocumentDirectives shall read white space in directives as the JavaScript white space set, so that
+                  prefixes, words, and patterns are separated at the same characters as in cspell, and shall
+                  not read the Kelvin sign as the letter k in a prefix or a name.
+                justification: |
+                  The .NET white space and case rules differ from those of the JavaScript engine that cspell runs
+                  its reader in, and a directive that is read differently would hide or add different text.
+                tests:
+                  - DocumentDirectives_Scan_JavaScriptWhiteSpace_SeparatesLikeCspell
+                  - DocumentDirectives_Scan_KelvinSignInPrefix_IsNotReadAsLetterK

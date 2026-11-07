@@ -43,8 +43,8 @@ definition is the one in force, so cspell does not exclude `&Zorb;`. The unit fo
 package declares, so the entity is case-sensitive.
 
 The patterns follow the translation rules of `DefaultPatterns` (see _DefaultPatterns_): word characters are explicit
-ASCII classes, and the case-sensitivity is that of the original. Where a pattern uses `\s` it keeps the .NET meaning,
-which differs from the JavaScript set only in U+0085 and U+FEFF.
+ASCII classes, and the case-sensitivity is that of the original. White space is the JavaScript set
+(`JavaScriptSyntax.Space`), not `\s`, so U+FEFF ends a target and U+0085 does not, as in cspell.
 
 #### Key Methods
 

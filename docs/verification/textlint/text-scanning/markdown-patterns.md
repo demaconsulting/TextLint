@@ -51,4 +51,9 @@ another extension, the bare word `md`, a leading dot with a backup extension, a 
 that looks like a Markdown file holding a file without an extension, with either separator, and a similar but different
 extension do not apply.
 
+**MarkdownPatterns_All_JavaScriptWhiteSpace_EndsAndJoinsLikeJavaScript**: Each row, recorded from cspell's JavaScript
+expressions, puts the byte order mark, the no-break space, the line separator, or the next-line character where a link,
+a footer, or an anchor reads white space; the first three end the match as JavaScript white space does, and the
+next-line character does not.
+
 <!-- cspell:ignore mdtext mdtxt mdwn -->

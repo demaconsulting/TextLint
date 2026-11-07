@@ -474,6 +474,16 @@ pattern at both of its places with a reason that names the limit, and the word i
 excess was not read. This scenario is tested by
 `TextChecker_Check_IgnoreRegExpDirectivePatternLimit_RejectsTheExcessWithoutReadingIt`.
 
+**TextChecker_Check_IgnoreRegExpDirectiveNamesDifferingInCase_CountOnceTowardsTheLimit**: A text that names 31 patterns
+of the settings in three letter cases each, and a predefined name in two, is within the limit of 32 because names that
+differ only in case are one pattern; no directive is rejected and only the misspelling is reported. This scenario is
+tested by `TextChecker_Check_IgnoreRegExpDirectiveNamesDifferingInCase_CountOnceTowardsTheLimit`.
+
+**TextChecker_Check_IgnoreRegExpDirectiveExpressionsDifferingInCase_CountSeparatelyTowardsTheLimit**: A text with 31
+different literal expressions and then one expression in two letter cases has 33 different patterns, because an
+expression is case-significant; the second letter case is the one reported over the limit. This scenario is tested by
+`TextChecker_Check_IgnoreRegExpDirectiveExpressionsDifferingInCase_CountSeparatelyTowardsTheLimit`.
+
 **TextChecker_Check_MarkdownFile_SkipsLinkTargetsLabelsAnchorsAndEntities**: A line with a link, a reference, an anchor,
 and an entity checked under a Markdown name, in upper case, reports only the word outside them; under a text name the
 same line reports more. This scenario is tested by

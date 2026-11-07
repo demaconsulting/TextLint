@@ -82,6 +82,7 @@ sections:
               - TextLint-TextScanning-DefaultPatterns-Uuids
               - TextLint-TextScanning-DefaultPatterns-OrdinaryText
               - TextLint-TextScanning-DefaultPatterns-AsciiWordBoundaries
+              - TextLint-TextScanning-DefaultPatterns-JavaScriptSemantics
               - TextLint-TextScanning-DefaultPatterns-BoundedMatching
               - TextLint-TextScanning-DefaultPatterns-AppendedRanges
               - TextLint-TextScanning-DefaultPatterns-ArgumentValidation
@@ -124,6 +125,7 @@ sections:
               - TextLint-TextScanning-DocumentDirectives-Positions
               - TextLint-TextScanning-DocumentDirectives-LargeText
               - TextLint-TextScanning-DocumentDirectives-ArgumentValidation
+              - TextLint-TextScanning-DocumentDirectives-JavaScriptSemantics
             tests:
               - TextScanningSubsystem_Scan_DisabledBlock_ExcludesWordsInside
               - TextScanningSubsystem_Scan_IgnoreDirective_AddsWordsAndExcludesDirectiveText
@@ -151,6 +153,8 @@ sections:
               - TextLint-TextScanning-PatternParser-InvalidEntries
               - TextLint-TextScanning-PatternParser-BoundedInput
               - TextLint-TextScanning-PatternParser-BoundedMatching
+              - TextLint-TextScanning-PatternParser-JavaScriptCase
+              - TextLint-TextScanning-PatternParser-JavaScriptWhiteSpace
               - TextLint-TextScanning-PatternCatalog-PredefinedNames
               - TextLint-TextScanning-PatternCatalog-OptionalPatterns
               - TextLint-TextScanning-PatternCatalog-NamedPatterns
@@ -158,6 +162,7 @@ sections:
               - TextLint-TextScanning-PatternCatalog-InvalidNames
               - TextLint-TextScanning-PatternCatalog-ExcludedRanges
               - TextLint-TextScanning-PatternCatalog-ArgumentValidation
+              - TextLint-TextScanning-PatternCatalog-JavaScriptSemantics
             tests:
               - TextScanningSubsystem_ResolvePatterns_ExpressionsAndNames_FindMatchedRanges
               - TextScanningSubsystem_ResolvePatterns_UnusableEntry_ThrowsWithEntryAndReason
@@ -175,6 +180,7 @@ sections:
               - TextLint-TextScanning-MarkdownPatterns-Patterns
               - TextLint-TextScanning-MarkdownPatterns-Applicability
               - TextLint-TextScanning-MarkdownPatterns-BoundedMatching
+              - TextLint-TextScanning-MarkdownPatterns-JavaScriptSemantics
             tests:
               - TextScanningSubsystem_MarkdownPatterns_LinkTarget_IsExcludedOnlyForMarkdownNames
 

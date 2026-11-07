@@ -46,14 +46,15 @@ includes the supporting type `NamedPattern`, the pair of a name and a pattern th
     and a semicolon.
   - **Everything** (insensitive): every line of text, without its line terminator.
 
-  Where an optional pattern uses `\s` it keeps the .NET meaning, which differs from the JavaScript set only in U+0085 and
-  U+FEFF.
+  Where an optional pattern has white space it is the JavaScript set (`JavaScriptSyntax.Space`), not the .NET `\s`,
+  which differs in U+0085 and U+FEFF; the patterns that cspell applies case-insensitively spell their letters out as
+  classes, so the Kelvin sign is not read as `k`.
 - **PredefinedNames**: the set of all twenty-eight names, compared ignoring letter case, exposed so that the tests and
   the documentation can state the complete list in one place. **OptionalRegexes** exposes the nine generated regular
   expressions, so the time limit that bounds every one of them can be verified in one place.
-- The constants for the shared text of the translation (the ASCII word boundary, the line start, and the character that
-  is not a line terminator), written once, and the two sets of regular expression options (case-insensitive and
-  case-sensitive, both with the invariant culture).
+- The constants for the shared text of the translation (the ASCII word boundary, the line start, the character that
+  is not a line terminator, and the white space set), which now live in `JavaScriptSyntax` and are shared with the
+  other units, and the set of regular expression options (case-sensitive, with the invariant culture).
 
 `NamedPattern` is a `public sealed record` with `Name` (the name that `ignoreRegExpList` uses; compared ignoring letter
 case) and `Pattern` (the pattern, `/body/flags` or a bare expression), both kept exactly as given. Only a null is

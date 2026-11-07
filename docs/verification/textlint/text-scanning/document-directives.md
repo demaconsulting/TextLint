@@ -232,3 +232,10 @@ A directive at the end of a text of one megabyte
 is found and only its line is excluded.
 
 **DocumentDirectives_Scan_NullText_ThrowsArgumentNullException**: A null text throws.
+
+**DocumentDirectives_Scan_JavaScriptWhiteSpace_SeparatesLikeCspell**: A prefix is followed by the JavaScript white
+space (the byte order mark and the no-break space separate; the next-line character does not), the words of an `ignore`
+directive are split on that set, and a pattern name is trimmed of it; the rows were checked against cspell.
+
+**DocumentDirectives_Scan_KelvinSignInPrefix_IsNotReadAsLetterK**: The prefix `spell-checker` is read with the
+letter k in either case and is not read when the Kelvin sign takes the place of the k.

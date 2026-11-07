@@ -140,4 +140,8 @@ different letter case, an expression, and a name that is always applied resolves
 expression with the limit of 400 milliseconds; an unknown name is rejected with an exception, and a null list, null
 definitions, a null entry, and null definitions for a single entry each throw a null-argument error.
 
+**PatternCatalog_Resolve_JavaScriptWhiteSpace_EndsAndJoinsLikeJavaScript**: Each row, recorded from cspell's JavaScript
+expressions, puts the byte order mark, the no-break space, the line separator, or the next-line character where an
+optional pattern reads white space, and finds the matches of JavaScript.
+
 <!-- cspell:ignore metacharacters -->

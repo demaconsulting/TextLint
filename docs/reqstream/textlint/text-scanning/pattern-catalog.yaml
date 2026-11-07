@@ -116,3 +116,14 @@ sections:
                   - PatternCatalog_Resolve_EmptyListsAndNulls_AreHandled
                   - PatternCatalog_FindExcludedRanges_NullArguments_ThrowArgumentNullException
                   - NamedPattern_Constructor_KeepsValuesAndRejectsNull
+
+              - id: TextLint-TextScanning-PatternCatalog-JavaScriptSemantics
+                title: >-
+                  PatternCatalog shall read white space in its optional patterns as the JavaScript white space set,
+                  decide their letter case without the culture tables of .NET, and trim entries and names of that
+                  set only.
+                justification: |
+                  The .NET white space and case rules differ from those of the JavaScript engine that cspell runs
+                  its patterns in, and a pattern or a name that is read differently would exclude different text.
+                tests:
+                  - PatternCatalog_Resolve_JavaScriptWhiteSpace_EndsAndJoinsLikeJavaScript

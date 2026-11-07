@@ -7,10 +7,12 @@
 `PatternParser` turns a pattern written the way cspell writes it, between slashes with flags or as a bare expression,
 into a .NET regular expression that has the meaning the pattern has in JavaScript and that is safe to run on any text.
 A project migrated from cspell brings its `ignoreRegExpList` and `patterns` entries unchanged, and each must exclude the
-same text as before. The unit is made of three types: `PatternParser`, which reads the entry form and the flags and
+same text as before. The unit is made of five types: `PatternParser`, which reads the entry form and the flags and
 builds the regular expression; `JavaScriptRegexTranslator`, which translates the body of the pattern from the JavaScript
-syntax to .NET and reports what it cannot translate; and `InvalidPatternException`, the exception that reports an
-unusable entry. The three are documented together because they are used only together.
+syntax to .NET and reports what it cannot translate; `InvalidPatternException`, the exception that reports an
+unusable entry; and the two helpers `JavaScriptSyntax` and `JavaScriptCaseFolding`, which give the translator and the
+other units the JavaScript meaning of white space and letter case. The five are documented together because they are
+used only together.
 
 #### Data Model
 
@@ -47,6 +49,15 @@ groups with their numbers, the position, the number of capturing groups opened s
 the pattern has a named group, the current depth, and the first problem found. A reader is never shared, which is what
 makes the translator thread-safe.
 
+`JavaScriptSyntax` is an `internal static` class of constants and two functions, shared by every unit that writes a
+pattern by hand: `SpaceBody`, `Space`, and `NotSpace` (the JavaScript white space set as the body of a class, as a
+class, and as its complement), `WordBoundary`, `LineStart`, `NotLineTerminator`, `IsSpace(char)`, and `Trim(string)`.
+`JavaScriptCaseFolding` is an `internal static` class whose tables are built once, lazily and thread-safely, for each
+of the two modes: for every UTF-16 code unit, a ring of the code units that are the same letter. Its functions are
+`Equivalents` (the ring of one code unit), `Close` (the closure of a set of ranges under the equivalence),
+`AstralForms` (the other forms of a character outside the basic plane), and `MaskKelvinSign` (replaces U+212A by a
+placeholder of the same length, for the library patterns that still use the .NET case option).
+
 `InvalidPatternException` is a `public sealed` class derived from `ArgumentException`, because an unusable pattern is an
 invalid argument supplied by the caller. It has `Pattern` (public: the entry exactly as supplied) and `Reason` (internal:
 why the entry is rejected, as a sentence, without the entry text, so that the settings loader can build a message that
@@ -55,7 +66,7 @@ message is always `Invalid pattern '<entry>': <reason>`, so a bare exception tex
 entry. The exception of the regular expression engine, when it caused the rejection, is the inner exception. Instances
 are immutable.
 
-**Entry forms.** An entry is, after white space around it is removed, one of two forms:
+**Entry forms.** An entry is, after JavaScript white space around it is removed, one of two forms:
 
 - **A literal**, `/body/flags`: the text starts with a slash, has a last slash that is not the first character, and the
   text after the last slash is empty or made only of flag letters. The body is what lies between the first and the last
@@ -66,13 +77,16 @@ are immutable.
   at every line, as cspell reads it.
 
 **Flags.** The flags `g`, `i`, `m`, `s`, and `u` are accepted in any combination. `g` changes nothing, because every
-match is wanted. `i` selects case-insensitive matching with the invariant culture. `m`, `s`, and `u` are passed to the
-translator; `s` makes `.` match every UTF-16 code unit, line terminators included. The flags `x`, `y`, `d`, and `v` are
+match is wanted. `i`, `m`, `s`, and `u` are passed to the translator. The .NET case-insensitive option is **never** used:
+it follows the culture tables of .NET, which differ from JavaScript (for example, .NET matches the Kelvin sign U+212A with
+`k` in every mode, and does not match `µ` with `μ`), so the translator writes the case behavior of `i` itself (see _Letter
+case_ below) and the options are only the invariant culture. `s` makes `.` match every UTF-16 code unit, line terminators
+included. The flags `x`, `y`, `d`, and `v` are
 rejected by name, with the reason `the flag 'x' is not supported; use only g, i, m, s, and u.`, because they have no
 safe equivalent and cspell drops some of them silently, so a pattern that depends on one would not mean what its author
 wrote. The `s` flag has an exact equivalent, so it is accepted. A pattern written in an in-document directive cannot
 carry `s`, because there only the flag letters that cspell reads (`g`, `i`, `m`, `u`, and `y`) are taken as flags (see
-_DocumentDirectives_); the flag works in the entries of the settings.
+_DocumentDirectives_); this is a deliberate parity decision, and the flag works in the entries of the settings.
 
 **Translation rules.** The translator is a strict recursive-descent reader of the JavaScript syntax. For each construct
 it understands it writes the .NET form, and it rejects everything else with a reason, instead of passing text through
@@ -82,9 +96,21 @@ that .NET might read differently. Each rule is covered by a unit test.
   are Unicode-aware. `\d` and `\w` are written as classes of the ASCII ranges and `\D` and `\W` as their negations;
   `\b` and `\B` are written as look-around assertions on the ASCII word characters, the same text that
   `DefaultPatterns` uses. Inside a class, `\b` is the backspace character, as in JavaScript.
-- _White space._ `\s` is the JavaScript set listed above, and `\S` its negation. Inside a class, the negated
+- _White space._ `\s` is the JavaScript set listed above (the shared `JavaScriptSyntax.SpaceBody`, which the
+  hand-written patterns of the other units use too), and `\S` its negation. It is not the .NET set: U+FEFF is in the
+  JavaScript set and U+0085 is not. Inside a class, the negated
   shorthands `\D`, `\W`, and `\S` have no .NET spelling with the JavaScript meaning, so they are written out as the
   complementary ranges over the UTF-16 code units.
+- _Letter case._ With the `i` flag the translator expands the characters so that the .NET engine, run without its case
+  option, matches what JavaScript matches. A literal letter becomes a class of its equivalents, a class is closed
+  under the equivalence (a negated class is the complement of the closed set, so `[^a]` excludes `A`), the shorthands
+  `\w` and `\W` are closed too, and a `\p{..}` or `\P{..}` is written as the explicit ranges of the category, closed.
+  The equivalence is the one of JavaScript, taken from `JavaScriptCaseFolding`: without the `u` flag two code units are
+  the same letter when their simple upper-case forms are equal, except that a code unit whose full upper case is
+  several characters keeps itself and that a non-ASCII character is never the same as an ASCII one; with the `u` flag
+  it is simple case folding. A literal outside the basic plane is expanded only with the `u` flag, into an alternation
+  of its forms; with `\b` under `iu` the word class includes U+017F and U+212A, as in JavaScript. A back-reference
+  under `i` is written `(?i:\k<N>)`.
 - _Line terminators._ `.` is the class of every character except `\n`, `\r`, U+2028, and U+2029; with the `s` flag it
   is the class `[\u0000-\uFFFF]` of every UTF-16 code unit, line terminators included. In multiline mode `^`
   is the look-behind that is true at the start of the text or after one of those four characters, and `$` the
@@ -140,6 +166,11 @@ of matching.
 - `.` and negated classes match one UTF-16 code unit, so with the `u` flag (and with `s`) they match half of a
   character outside the basic plane where JavaScript matches the whole character. The columns that the checker reports
   count UTF-16 code units for the same reason.
+- Case folding follows JavaScript for the basic plane except for five pairs that the JavaScript engine used to record
+  the tests (Node.js 22, Unicode 16) folds and the .NET Unicode data of the build does not (U+019B with U+A7DC, U+0264
+  with U+A7CB, U+1C89 with U+1C8A, U+A7CC with U+A7CD, and U+A7DA with U+A7DB), and a back-reference under `i` compares
+  with the .NET rules. A newer .NET removes the five pairs without a change here; the unit test accepts exactly them as
+  missing and nothing else.
 
 #### Key Methods
 
@@ -154,19 +185,22 @@ their own fixed limit of 5 seconds; the seam reaches only the expressions that `
 - _Returns_: a `Regex`, never null.
 - _Preconditions_: the entry is not null; the limit is positive and not infinite, otherwise
   `ArgumentOutOfRangeException` is thrown.
-- _Postconditions_: the regular expression is built with the invariant culture, the case option of the `i` flag, and
-  the match time limit. The multiline and dot-all behavior is in the translated pattern, not in the options.
-- _Algorithm_: (1) trim the entry; (2) when it starts with a slash, find the last slash, and when that slash is not the
-  first character and what follows consists only of flag letters, take the text between the slashes as the body and the
-  letters as the flags, otherwise take the whole text as a bare expression with `im`; (3) reject a blank entry;
+- _Postconditions_: the regular expression is built with the invariant culture, no case option (the case behavior is in
+  the translated pattern), and the match time limit. The multiline and dot-all behavior is in the translated pattern,
+  not in the options.
+- _Algorithm_: (1) trim the entry of JavaScript white space (`JavaScriptSyntax.Trim`, not the .NET trim, which treats
+  U+0085 and U+FEFF the other way round); (2) when it starts with a slash, find the last slash, and when that slash is
+  not the first character and what follows consists only of flag letters, take the text between the slashes as the body
+  and the letters as the flags, otherwise take the whole text as a bare expression with `im`; (3) reject a blank entry;
   (4) reject the first flag that is not `g`, `i`, `m`, `s`, or `u`; (5) translate the body with the multiline, Unicode,
-  and dot-all flags; (6) construct the `Regex` with the limit and turn any `ArgumentException` of the engine into the
-  exception below.
+  dot-all, and ignore-case flags; (6) construct the `Regex` with the limit and turn any `ArgumentException` of the
+  engine into the exception below.
 
 **JavaScriptRegexTranslator.TryTranslate**: Translates a body to a .NET pattern.
 
 - _Parameters_: the body, whether the multiline flag is set, whether the Unicode flag is set, whether the dot-all flag
-  (`s`) is set, and the out parameters for the translation and for the problem.
+  (`s`) is set, whether the ignore-case flag (`i`) is set, and the out parameters for the translation and for the
+  problem.
 - _Returns_: `true` and the .NET pattern, or `false` and the reason as a sentence. Failure is data: nothing is thrown
   for a bad pattern.
 - _Preconditions_: the body is not null; a null body throws `ArgumentNullException`.
@@ -198,6 +232,16 @@ The design choices and their reasons:
 - **Runtime-constructed, interpreted expressions.** The patterns are known only at run time, so the source generator
   that the default patterns use cannot be applied. The regular expressions are constructed without the compiled option,
   so no code is generated at run time.
+- **Case behavior in the translation, not in an option.** The .NET case-insensitive option is culture-table driven and
+  differs from JavaScript on about 80 pairs of characters (the Kelvin sign, the long s, the micro sign, the sigma
+  forms, and others), in both directions. Writing the equivalent characters out gives the JavaScript behavior whatever
+  the culture of the computer, at the price of longer patterns for letters and classes. `JavaScriptCaseFolding` builds
+  its tables once, lazily, from the .NET simple case mappings, and the unit tests compare every code unit with the
+  groups recorded from Node.js, so a drift is detected.
+- **One shared definition of the JavaScript syntax.** `JavaScriptSyntax` holds the white space set, the word boundary,
+  the line start, and the dot, as text constants, and `IsSpace` and `Trim`. The translator, `DefaultPatterns`,
+  `MarkdownPatterns`, `PatternCatalog`, and `DocumentDirectives` use them, so no unit relies on the .NET meaning of
+  `\s`, `\w`, `\d`, `\b`, `.`, `^`, or `$`.
 - **A time limit on every expression, with its limits stated.** A pattern that works on every file of a project can
   still backtrack catastrophically on a file built to make it, and cspell, which has no limit, would hang. The limit
   of five seconds turns that into a `RegexMatchTimeoutException` that `SpellChecker` reports as a timed-out file.
@@ -231,6 +275,8 @@ regular expressions they create are immutable and safe for concurrent matching.
 
 - **DefaultPatterns** (same subsystem) - the constant `MatchTimeoutMilliseconds`, so that every pattern of the library
   shares one time limit.
+- **JavaScriptSyntax** and **JavaScriptCaseFolding** (same subsystem, described in this unit) - the shared white space
+  set and trim, and the JavaScript letter equivalence.
 - **.NET base class library** - `System.Text.RegularExpressions`, number parsing, and text handling. No other unit,
   subsystem, or OTS item is used.
 

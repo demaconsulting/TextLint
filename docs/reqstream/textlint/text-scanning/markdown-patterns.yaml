@@ -47,3 +47,14 @@ sections:
                   worse than one that reports the file as not checked.
                 tests:
                   - MarkdownPatterns_All_EveryPattern_HasDocumentedMatchTimeout
+
+              - id: TextLint-TextScanning-MarkdownPatterns-JavaScriptSemantics
+                title: >-
+                  MarkdownPatterns shall read white space as the JavaScript white space set, so that a link, a
+                  definition, or an anchor ends at the same characters as in cspell.
+                justification: |
+                  The .NET white space set differs from that of the JavaScript engine that cspell runs its
+                  patterns in (the byte order mark and the next-line character), and a target that ends at another
+                  character would exclude different text.
+                tests:
+                  - MarkdownPatterns_All_JavaScriptWhiteSpace_EndsAndJoinsLikeJavaScript

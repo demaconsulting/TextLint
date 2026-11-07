@@ -122,8 +122,12 @@ invalid directive pattern; (6) convert offsets to lines and columns.
   disabled region (there it is applied but not reported, because `IsReportable` is false). The text of the directive
   itself is never checked, because the scan excludes it; a pattern that cannot be used hides nothing else.
 - _Algorithm_: for each directive in text order: (1) when its pattern text was already seen, reuse the earlier outcome,
-  so each DISTINCT pattern text (compared exactly, ordinal) is resolved and matched once, however many directives
-  repeat it, while every repetition is still reported at its own position; (2) otherwise, when 32 different patterns
+  so each DISTINCT pattern (see the key below) is resolved and matched once, however many directives
+  repeat it, while every repetition is still reported at its own position. The key is the one the lookup uses: an
+  entry that has the shape of a pattern name is keyed by its trimmed text compared ignoring letter case (the catalog
+  resolves a name ignoring letter case, so `Name`, `name`, and `NAME` are one pattern and use one of the 32), and any
+  other entry is keyed by its exact text, because a literal or bare expression is case-significant; the trim is the
+  JavaScript trim, not the .NET one; (2) otherwise, when 32 different patterns
   were already seen (`MaxDirectivePatterns`), the pattern is rejected without being read, with the reason `a text may
   use at most 32 different ignoreRegExp patterns.`; (3) otherwise resolve it with `PatternCatalog.TryResolveEntry`, like
   an `ignoreRegExpList` entry: a literal `/body/flags` with the flags as written, a bare expression read with `i` and

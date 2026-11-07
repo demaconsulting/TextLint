@@ -562,14 +562,30 @@ The expressions are JavaScript regular expressions, as in cspell, translated to 
 gives each construct its JavaScript meaning or rejects it with a reason, so a pattern that loads means what its author
 wrote:
 
-- `\w`, `\d`, and `\b` are ASCII-only; `\s` is the JavaScript white space set (which includes U+FEFF and U+00A0).
+- `\w`, `\d`, and `\b` are ASCII-only; `\s` is the JavaScript white space set: the characters U+0009 to U+000D, U+0020,
+  U+00A0, U+1680, U+2000 to U+200A, U+2028, U+2029, U+202F, U+205F, U+3000, and U+FEFF. This is not the .NET set:
+  U+FEFF is white space here and U+0085 is not. The predefined patterns, the Markdown patterns, and the trimming of
+  pattern names use the same set, so they match what cspell's definitions match.
 - `.` does not match `\n`, `\r`, U+2028, or U+2029; with the `m` flag, `^` and `$` match at those line breaks; without
   it they match only at the start and the end of the text.
 - Groups are numbered by their opening parenthesis, and named groups (`(?<name>...)`, `\k<name>`) are numbered with
   the others, as in JavaScript.
-- The flags `g`, `i`, `m`, `s`, and `u` are accepted. The `s` flag makes `.` match every character, line breaks
-  included. `\p{...}` and `\P{...}` need the `u` flag and accept the general categories (`\p{Lu}`; `\p{Letter}` is not
-  accepted: use the short names). Look-ahead and look-behind are supported.
+- The flags `g`, `i`, `m`, `s`, and `u` are accepted in the `ignoreRegExpList` and `patterns` settings. The `s` flag
+  makes `.` match every character, line breaks included. In an `ignoreRegExp` **directive** the flags are only the
+  ones cspell reads there, `g`, `i`, `m`, `u`, and `y`; the `s` flag cannot be written in a directive, for parity
+  with cspell. `\p{...}` and `\P{...}` need the `u` flag and accept the general categories (`\p{Lu}`; `\p{Letter}` is
+  not accepted: use the short names). Look-ahead and look-behind are supported.
+- **Letter case (`i` flag).** Which characters are the same letter follows JavaScript, not .NET. Without the `u` flag
+  a character is the same as another when their simple upper-case forms are equal (`µ`, `Μ`, and `μ` are one letter;
+  `σ`, `ς`, and `Σ` are one letter), but a character is never the same as an ASCII letter unless it is one, so the
+  Kelvin sign `K` (U+212A) and the long s `ſ` (U+017F) do not match `k` and `s`, and `ß` does not match `ẞ`. With the
+  `u` flag the simple case folding applies, so the Kelvin sign matches `k`, `ſ` matches `s`, and `ß` matches `ẞ`; a
+  class such as `[a-z]` or `\w` then includes them, and `\W` and `[^a-z]` exclude them. Characters outside the basic
+  plane are folded only with the `u` flag. The translator expands each letter and class into the equivalent
+  characters, so the result does not depend on the culture of the computer. The only differences left are five pairs
+  of letters that the JavaScript engine of the comparison (Unicode 16) folds and the .NET data does not yet know
+  (U+019B with U+A7DC, U+0264 with U+A7CB, U+1C89 with U+1C8A, U+A7CC with U+A7CD, and U+A7DA with U+A7DB), and a
+  back-reference with the `i` flag, which compares with the .NET rules.
 - Rejected, with a message that names the construct: the flags `x`, `y`, `d`, and `v` (for example
   `the flag 'x' is not supported; use only g, i, m, s, and u.`); inline options such as
   `(?i)`; atomic groups, conditionals, and every other `(?...)` form that JavaScript lacks; octal escapes; the .NET
@@ -644,7 +660,9 @@ letter case, and the prefix must not follow a letter, digit, or underscore. The 
   follow it, otherwise the first word. So `ignoreRegExp /a/i trailing words` uses `/a/i`, `ignoreRegExp /a/ and /b/`
   uses all of `/a/ and /b/` as one literal (not two), and `ignoreRegExp abc` uses the bare expression `abc`. Names
   work as in `ignoreRegExpList`: the name of a pattern of the `patterns` setting, or a predefined name such as
-  `HexValues`. The `s` flag cannot be written in a directive, because cspell does not read it there.
+  `HexValues`. The `s` flag cannot be written in a directive, because cspell does not read it there (the settings
+  accept it; a directive keeps cspell's flags `g`, `i`, `m`, `u`, and `y` for parity). Names that differ only in
+  letter case are one pattern for the limit of 32 below, as they are for the lookup of the name.
 - A pattern in an `ignoreRegExp` directive that cannot be used (an invalid or unsupported expression, or a name that
   nothing defines) is **reported** as an invalid directive at the pattern, with the reason, for example
   `a.md(3,24): error: Cannot use the pattern '/(?i)x/' of the directive 'ignoreRegExp': the group syntax '(?i)' is not
@@ -687,8 +705,8 @@ corpora (see the verification of TextLint). These differences are deliberate:
   directives accept JavaScript regular expressions, but the flags `x`, `y`, `d`, and `v`, and constructs without a
   safe .NET equivalent, are errors where cspell would run them as the JavaScript engine decides, or, in a directive,
   drop them without a word. A back-reference to a group that did not match, and `.` beside characters outside the
-  basic plane, differ as described under _Regular Expression Rules_. Every pattern has a 5-second limit, which cspell
-  lacks.
+  basic plane, differ as described under _Regular Expression Rules_, as do five letter pairs of a newer Unicode
+  version and the case rules of a back-reference. Every pattern has a 5-second limit, which cspell lacks.
 - **Unknown pattern names are errors (stricter than cspell).** A name in `ignoreRegExpList` or in an `ignoreRegExp`
   directive that is neither defined by `patterns` nor predefined is an error, where cspell reads it as a literal
   expression and hides that word. Write a literal between slashes (`/word/`) to match it. Only 28 predefined names are
@@ -708,8 +726,8 @@ corpora (see the verification of TextLint). These differences are deliberate:
 - **Stricter language names.** Only `en`, `en-US`, and `en-GB` are accepted; cspell also accepts forms such as
   `en_US`.
 - **Default ignore patterns are the same list, and the Markdown link patterns and random-string rule are ported;** the
-  per-language additions of cspell are not. The patterns are .NET regular expressions with the ASCII meaning of a word
-  character and a word boundary, as in JavaScript.
+  per-language additions of cspell are not. The patterns are .NET regular expressions with the JavaScript meaning of a
+  word character, a word boundary, white space, and letter case.
 - **Binary files** are recognized by a NUL character in the first 1,024 characters, whatever the file extension; UTF-32
   files and UTF-16 files without a byte order mark are therefore skipped as binary.
 - **Per-file problems are results.** A file that cannot be read, is binary, is too large, or takes too long to check
