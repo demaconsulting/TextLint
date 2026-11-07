@@ -221,9 +221,9 @@ internal static class JavaScriptRegexTranslator
     /// </summary>
     /// <remarks>
     ///     Failure is data: nothing is thrown for a bad pattern, so the caller can report the reason with
-    ///     the position of the entry it came from. The translated pattern must be built with the case
-    ///     option the flags ask for and without the multiline option, because the translation already
-    ///     spells out what <c>^</c> and <c>$</c> mean. Stateless and thread-safe.
+    ///     the position of the entry it came from. The translated pattern must be built without the case
+    ///     option and without the multiline option, because the translation already
+    ///     spells out what the <c>i</c> flag, <c>^</c>, and <c>$</c> mean. Stateless and thread-safe.
     /// </remarks>
     /// <param name="source">The pattern body, without the slashes and flags. Must not be null.</param>
     /// <param name="multiline"><see langword="true"/> when the <c>m</c> flag is set.</param>
@@ -1059,12 +1059,23 @@ internal static class JavaScriptRegexTranslator
         /// </remarks>
         /// <param name="shorthand">One of <c>d</c>, <c>D</c>, <c>w</c>, <c>W</c>, <c>s</c>, <c>S</c>.</param>
         /// <returns>The class body of the positive class.</returns>
-        private static string ShorthandBody(char shorthand) => char.ToLowerInvariant(shorthand) switch
+        private static string ShorthandBody(char shorthand) => AsciiLower(shorthand) switch
         {
             'd' => DigitBody,
             'w' => WordBody,
             _ => SpaceBody,
         };
+
+        /// <summary>
+        ///     Gets the lower-case form of an ASCII letter, by arithmetic and not by a casing function.
+        /// </summary>
+        /// <remarks>
+        ///     The casing functions of .NET follow the Unicode data of the runtime; the shorthand letters are ASCII, so
+        ///     the translation path does not need them. Stateless.
+        /// </remarks>
+        /// <param name="letter">An ASCII letter.</param>
+        /// <returns>The lower-case letter.</returns>
+        private static char AsciiLower(char letter) => char.IsAsciiLetterUpper(letter) ? (char)(letter + ('a' - 'A')) : letter;
 
         /// <summary>
         ///     Gets the set of code units that a shorthand escape matches when the expression ignores case.
@@ -1080,7 +1091,7 @@ internal static class JavaScriptRegexTranslator
         private List<(int Low, int High)> ShorthandSet(char shorthand)
         {
             var positive = JavaScriptCaseFolding.Close(
-                char.ToLowerInvariant(shorthand) switch
+                AsciiLower(shorthand) switch
                 {
                     'd' => DigitRanges,
                     'w' => WordRanges,
@@ -1184,7 +1195,16 @@ internal static class JavaScriptRegexTranslator
                 return Fail($"the escape '{shown}' refers to a group that is not complete at that point.");
             }
 
-            _output.Append(_ignoreCase ? "(?i:\\k<" : "(?:\\k<").Append(number.ToString(CultureInfo.InvariantCulture)).Append(">)");
+            if (_ignoreCase)
+            {
+                // .NET could only compare the text with its own case rules, which depend on the runtime and differ from
+                // JavaScript, so the combination is rejected instead of being given a meaning that varies
+                return Fail($"the escape '{shown}' cannot be used with the flag 'i', because a back-reference would " +
+                            "compare letters by the case rules of .NET instead of those of JavaScript; remove the flag " +
+                            "or the back-reference.");
+            }
+
+            _output.Append("(?:\\k<").Append(number.ToString(CultureInfo.InvariantCulture)).Append(">)");
             return true;
         }
 

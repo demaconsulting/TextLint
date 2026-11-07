@@ -91,6 +91,34 @@ internal static partial class DocumentDirectives
     /// </summary>
     private const string CspellPatternFlags = "gimuy";
 
+    // The keywords of the directive patterns, with both cases of every letter spelled out. cspell reads them with the
+    // JavaScript i flag, which without the u flag lets an ASCII letter match only itself and its other case; the .NET
+    // case-insensitive option also lets the long s (U+017F), the Kelvin sign (U+212A), and others match, so no pattern
+    // of this class uses it, and the keywords are classes instead. The plain spelling is in the remarks of each pattern.
+    private const string SpellKeyword = "[Ss][Pp][Ee][Ll][Ll]";
+    private const string CheckerKeyword = "[Cc][Hh][Ee][Cc][Kk][Ee][Rr]";
+    private const string TextLintKeyword = "[Tt][Ee][Xx][Tt][Ll][Ii][Nn][Tt]";
+    private const string DisableKeyword = "[Dd][Ii][Ss][Aa][Bb][Ll][Ee]";
+    private const string EnableKeyword = "[Ee][Nn][Aa][Bb][Ll][Ee]";
+    private const string IgnoreKeyword = "[Ii][Gg][Nn][Oo][Rr][Ee]";
+    private const string WordKeyword = "[Ww][Oo][Rr][Dd]";
+    private const string RegKeyword = "[Rr][Ee][Gg]";
+    private const string ExpKeyword = "[Ee][Xx][Pp]";
+    private const string IncludeKeyword = "[Ii][Nn][Cc][Ll][Uu][Dd][Ee]";
+    private const string AllowKeyword = "[Aa][Ll][Ll][Oo][Ww]";
+    private const string CompoundWordsKeyword = "[Cc][Oo][Mm][Pp][Oo][Uu][Nn][Dd][Ww][Oo][Rr][Dd][Ss]";
+    private const string CaseSensitiveKeyword = "[Cc][Aa][Ss][Ee][Ss][Ee][Nn][Ss][Ii][Tt][Ii][Vv][Ee]";
+    private const string FlagKeyword = "[Ff][Ll][Aa][Gg]";
+    private const string ForbidKeyword = "[Ff][Oo][Rr][Bb][Ii][Dd]";
+    private const string LocalKeyword = "[Ll][Oo][Cc][Aa][Ll]";
+    private const string LocaleKeyword = "[Ll][Oo][Cc][Aa][Ll][Ee]";
+    private const string LanguageKeyword = "[Ll][Aa][Nn][Gg][Uu][Aa][Gg][Ee]";
+    private const string DictionarKeyword = "[Dd][Ii][Cc][Tt][Ii][Oo][Nn][Aa][Rr]";
+    private const string NextKeyword = "[Nn][Ee][Xx][Tt]";
+    private const string LineKeyword = "[Ll][Ii][Nn][Ee]";
+    private const string IesKeyword = "[Ii][Ee][Ss]";
+    private const string OptionalS = "[Ss]?";
+
     /// <summary>
     ///     The words whose presence in a text means the text might contain a directive prefix.
     /// </summary>
@@ -199,15 +227,12 @@ internal static partial class DocumentDirectives
     /// <returns>The directives in text order; empty when the text has no prefix.</returns>
     private static List<Directive> FindDirectives(string text)
     {
-        // The patterns ignore letter case with the .NET rules, which also equate the Kelvin sign with k; JavaScript does
-        // not, so the sign is replaced by a character of the same length that no pattern reads as a letter
-        var view = JavaScriptCaseFolding.MaskKelvinSign(text);
         var directives = new List<Directive>();
-        foreach (Match prefix in DirectivePrefix().Matches(view))
+        foreach (Match prefix in DirectivePrefix().Matches(text))
         {
             // Classify the name that follows the prefix and its optional white space
             var nameStart = prefix.Index + prefix.Length;
-            var name = DirectiveName().Match(view, nameStart);
+            var name = DirectiveName().Match(text, nameStart);
             var kind = DirectiveKind.None;
             var nameEnd = nameStart;
             if (name.Success)
@@ -595,8 +620,9 @@ internal static partial class DocumentDirectives
     /// </remarks>
     /// <returns>The generated regular expression.</returns>
     [GeneratedRegex(
-        "(?<![A-Za-z0-9_])(?<prefix>(?:c?spell(?:-?checker)?|textlint)::?)" + Space + "*",
-        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, MatchTimeoutMilliseconds)]
+        "(?<![A-Za-z0-9_])(?<prefix>(?:[Cc]?" + SpellKeyword + "(?:-?" + CheckerKeyword + ")?|" + TextLintKeyword +
+        ")::?)" + Space + "*",
+        RegexOptions.CultureInvariant, MatchTimeoutMilliseconds)]
     private static partial Regex DirectivePrefix();
 
     /// <summary>
@@ -605,8 +631,8 @@ internal static partial class DocumentDirectives
     /// </summary>
     /// <returns>The generated regular expression.</returns>
     [GeneratedRegex(
-        "^(?:spell-?checker|c?spell|textlint)::?$",
-        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, MatchTimeoutMilliseconds)]
+        "^(?:" + SpellKeyword + "-?" + CheckerKeyword + "|[Cc]?" + SpellKeyword + "|" + TextLintKeyword + ")::?$",
+        RegexOptions.CultureInvariant, MatchTimeoutMilliseconds)]
     private static partial Regex ReadablePrefix();
 
     /// <summary>
@@ -640,22 +666,25 @@ internal static partial class DocumentDirectives
     /// </remarks>
     /// <returns>The generated regular expression.</returns>
     [GeneratedRegex(
-        "\\G(?:(?<next>disable-next(?![A-Za-z0-9_]))" +
-        "|(?<line>disable-line(?![A-Za-z0-9_]))" +
-        "|(?<disable>disable(?![A-Za-z0-9_-]))" +
-        "|(?<enable>enable(?![A-Za-z0-9_]))" +
-        "|(?<ignore>ignore(?:-?words?)?(?![A-Za-z0-9_-]))" +
-        "|(?<words>words?(?![A-Za-z0-9_-]))" +
-        "|(?<regexp>ignore_?Reg_?Exp(?=" + Space + "+" + NotSpace + "))" +
-        "|(?<unsupported>(?:enable|disable)(?:allow)?CompoundWords(?![A-Za-z0-9_-])" +
-        "|(?:enable|disable)CaseSensitive(?![A-Za-z0-9_-])" +
-        "|(?:flag|forbid)(?:-?words?)?(?![A-Za-z0-9_-])" +
-        "|include_?Reg_?Exp(?=" + Space + "+" + NotSpace + ")" +
-        "|(?:locale|local)(?![A-Za-z0-9_-])" +
-        "|language(?=" + Space + "[A-Za-z0-9_])" +
-        "|dictionar(?:y|ies)(?![A-Za-z0-9_-]))" +
-        "|(?<nearMiss>(?:disable|enable|ignore|word|flag|forbid|local|language|dictionar|include)))",
-        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, MatchTimeoutMilliseconds)]
+        "\\G(?:(?<next>" + DisableKeyword + "-" + NextKeyword + "(?![A-Za-z0-9_]))" +
+        "|(?<line>" + DisableKeyword + "-" + LineKeyword + "(?![A-Za-z0-9_]))" +
+        "|(?<disable>" + DisableKeyword + "(?![A-Za-z0-9_-]))" +
+        "|(?<enable>" + EnableKeyword + "(?![A-Za-z0-9_]))" +
+        "|(?<ignore>" + IgnoreKeyword + "(?:-?" + WordKeyword + OptionalS + ")?(?![A-Za-z0-9_-]))" +
+        "|(?<words>" + WordKeyword + OptionalS + "(?![A-Za-z0-9_-]))" +
+        "|(?<regexp>" + IgnoreKeyword + "_?" + RegKeyword + "_?" + ExpKeyword + "(?=" + Space + "+" + NotSpace + "))" +
+        "|(?<unsupported>(?:" + EnableKeyword + "|" + DisableKeyword + ")(?:" + AllowKeyword + ")?" +
+        CompoundWordsKeyword + "(?![A-Za-z0-9_-])" +
+        "|(?:" + EnableKeyword + "|" + DisableKeyword + ")" + CaseSensitiveKeyword + "(?![A-Za-z0-9_-])" +
+        "|(?:" + FlagKeyword + "|" + ForbidKeyword + ")(?:-?" + WordKeyword + OptionalS + ")?(?![A-Za-z0-9_-])" +
+        "|" + IncludeKeyword + "_?" + RegKeyword + "_?" + ExpKeyword + "(?=" + Space + "+" + NotSpace + ")" +
+        "|(?:" + LocaleKeyword + "|" + LocalKeyword + ")(?![A-Za-z0-9_-])" +
+        "|" + LanguageKeyword + "(?=" + Space + "[A-Za-z0-9_])" +
+        "|" + DictionarKeyword + "(?:[Yy]|" + IesKeyword + ")(?![A-Za-z0-9_-]))" +
+        "|(?<nearMiss>(?:" + DisableKeyword + "|" + EnableKeyword + "|" + IgnoreKeyword + "|" + WordKeyword + "|" +
+        FlagKeyword + "|" + ForbidKeyword + "|" + LocalKeyword + "|" + LanguageKeyword + "|" + DictionarKeyword + "|" +
+        IncludeKeyword + ")))",
+        RegexOptions.CultureInvariant, MatchTimeoutMilliseconds)]
     private static partial Regex DirectiveName();
 
     /// <summary>
