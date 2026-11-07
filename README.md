@@ -21,6 +21,8 @@ their spelling in parallel with cspell's word-splitting, ignore, directive, and 
 words up in the embedded dictionaries. Custom ignore patterns and the remaining cspell settings are not
 supported yet.
 
+![TextLint architecture: the textlint tool calls the TextLint library, which loads settings, selects files and spell-checks them][architecture]
+
 ## Features
 
 The project currently provides:
@@ -446,5 +448,6 @@ By contributing to this project, you agree that your contributions will be licen
 [link-quality]: https://sonarcloud.io/dashboard?id=demaconsulting_TextLint
 [link-security]: https://sonarcloud.io/dashboard?id=demaconsulting_TextLint
 [link-nuget]: https://www.nuget.org/packages/DemaConsulting.TextLint.Tool
+[architecture]: https://raw.githubusercontent.com/demaconsulting/TextLint/main/docs/images/architecture.png
 [link-guide]: https://github.com/demaconsulting/TextLint/blob/main/docs/user_guide/introduction.md
 [link-continuous-compliance]: https://github.com/demaconsulting/ContinuousCompliance
