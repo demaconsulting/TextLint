@@ -27,7 +27,13 @@
 #   English at variant level 0 and for British English only at level 4, and "oversized" for British English at
 #   level 0 and for American English only at level 4. The three forms are one lemma that both dialects
 #   use, so the size 70 base lists, which keep variant level 1 and below, split it by accident.
+#
+#   abaci, cactuses: the plurals of "abacus" and "cactus" that Merriam-Webster (American) and the Oxford
+#   and Collins dictionaries (British) list beside "abacuses" and "cacti"; the size 70 SCOWL lists have the
+#   other plural of each word only, so a text that uses these standard plurals gets a false finding.
 
+abaci
+cactuses
 oversize
 oversized
 oversizes

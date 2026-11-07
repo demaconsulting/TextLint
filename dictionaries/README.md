@@ -119,6 +119,7 @@ the SCOWL lists classify them as regional (or lack them): the owner's override o
 Its first words are `oversize`, `oversized`, and `oversizes`; SCOWL lists `oversized` for British English at variant
 level 0 and for American English only at level 4, and the reverse for `oversize`, so the size 70 base lists give each
 form to one dialect by accident, and every American project that writes "oversized" would see a false finding. The
+other words are `abaci` and `cactuses`, standard plurals that SCOWL lacks. The
 file's header states the review rule and the evidence: add a word only when both dialects use it, never a genuine
 spelling variant, and never merely to silence an error.
 
@@ -174,12 +175,28 @@ The format is enforced by the builder, which reports every violation with its fi
 
 ## Adding a Word
 
+Choose the file by what the word is:
+
+- A general technical or scientific term (for example `metafile`, `bigram`, `commitish`), or an inflection that no
+  list has (`dialogs`, the plural of the known `dialog`): `technical/general/additions.txt`.
+- A programming term that has an American and a British spelling and is in the American or British list
+  (`tokenizer`): `technical/variant-keep.txt`.
+- An ordinary English word that every dialect uses but that SCOWL lacks or classifies as regional (`oversized`,
+  `abaci`): `en-common/additions.txt`.
+- A British or American spelling of an ordinary word (`centre`, `labelled`): no list; it is a finding when the other
+  dialect is selected.
+- A product, a person, an internal abbreviation, or an identifier of one project: no list; it belongs to the `words`
+  setting of that project.
+
 Add genuine project-specific technical terms to `technical/general/additions.txt`, one per line. That file is
 owned by the project and is never overwritten by the refresh script; a spelling variant added there is removed
 by the rule above, so a genuine programming term in a variant spelling belongs in `technical/variant-keep.txt`
-instead. An ordinary English word that every dialect uses but that SCOWL classifies wrongly belongs in
-`en-common/additions.txt` (see _Reviewed Common Words_). Do not edit the imported files by hand, because the next
-refresh replaces them, and never add a misspelling to hide a spelling error.
+instead. The builder fails the build for a word in the keep list that is not a variant, so an inflection that is in
+neither the American nor the British list (`dialogs`) goes in `additions.txt`. An ordinary English word that every
+dialect uses but that SCOWL classifies wrongly belongs in `en-common/additions.txt` (see _Reviewed Common Words_).
+Every word of the curated lists is written for this project from its own review, with a public definition as the
+evidence, and no third-party word list is copied into them. Do not edit the imported files by hand, because the
+next refresh replaces them, and never add a misspelling to hide a spelling error.
 
 ## Provenance and Licenses
 
@@ -240,7 +257,7 @@ build or by CI.
 
 Prerequisites:
 
-<!-- cspell:ignore PYTHONUTF ogue Kuenning Moby wordlist -->
+<!-- cspell:ignore PYTHONUTF ogue Kuenning Moby wordlist bigram commitish -->
 <!-- cspell:ignore organise glamorise colourize colourized licence practise colour analyse ered manoeuvre -->
 <!-- textlint:ignore catalogue labelled honoured modelling honour centre judgement programme -->
 <!-- textlint:ignore curser operants glamourize -->

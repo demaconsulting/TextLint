@@ -427,6 +427,15 @@ looked up as written, capitalized, and in upper case in the American, the Britis
 each is known in all of them. The list holds `oversized`, and no word of it is repeated in the generated American or
 British word lists. This scenario is tested by `TextLint_Dictionary_ReviewedCommonWords_AreKnownInEveryLanguage`.
 
+<!-- cspell:ignore metafile codestream hypernym hypernyms lemmatizer commitish dialogs -->
+
+**TextLint_Dictionary_ReviewedTechnicalVocabulary_IsKnownInEveryLanguage**: A sample of the reviewed general
+technical and scientific terms (for example `metafile`, `codestream`, `hypernyms`, `lemmatizer`, `commitish`,
+`dialog`, and `dialogs`) is looked up as written, in lower case, and in upper case in the American, the British, and
+the combined selection, and each is known in all of them. The British spellings `acknowledgement`, `cancellable`,
+`centre`, `labelled`, and `tyre` are known in the British selection and stay unknown in the American one. This
+scenario is tested by `TextLint_Dictionary_ReviewedTechnicalVocabulary_IsKnownInEveryLanguage`.
+
 **TextLint_Dictionary_DerivedFormsAndRegionalSpellings_FollowTheLanguageSelection**: Derived forms that a base word
 list lacks (`testability`, `reviewable`, `precomputed`, `unannotated`, `untestable`) are known in the American and
 the British selection; British-only spellings (`catalogue`, `labelled`, `honoured`, `modelling`) are known only in
@@ -434,7 +443,7 @@ the British selection, and `favorite` only in the American one. This scenario is
 `TextLint_Dictionary_DerivedFormsAndRegionalSpellings_FollowTheLanguageSelection`.
 
 <!-- cspell:ignore colourize glamourize colour organise analyse decolourize unmanoeuvrable manoeuvre -->
-<!-- textlint:ignore catalogue labelled honoured modelling honour centre judgement -->
+<!-- textlint:ignore catalogue labelled honoured modelling honour centre judgement acknowledgement cancellable tyre -->
 
 **TextLint_Dictionary_CuratedSpellingPairs_StayInTheirOwnRegion**: The British spellings of nine curated pairs
 (`honour`, `colour`, `centre`, `catalogue`, `labelled`, `organise`, `analyse`, `modelling`, `judgement`) are looked up

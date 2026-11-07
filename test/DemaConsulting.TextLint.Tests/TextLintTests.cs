@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-// cspell:ignore favourite neighbour organise tokenizer kubernetes powershell textlint xyzzyq cafè tabel catalogue labelled honoured modelling curser operants programing milage writeable unannotated mockable honour colour centre analyse judgement colourize colourized decolourize glamourize glamourized ation ations organizability unmaneuverable unmanoeuvrable manoeuvre segoe consolas calibri menlo
+// cspell:ignore favourite neighbour organise tokenizer kubernetes powershell textlint xyzzyq cafè tabel catalogue labelled honoured modelling curser operants programing milage writeable unannotated mockable honour colour centre analyse judgement colourize colourized decolourize glamourize glamourized ation ations organizability unmaneuverable unmanoeuvrable manoeuvre segoe consolas calibri menlo acknowledgement cancellable tyre metafile metafiles boxplot hypernyms multinomial upscaling datastream codestream substream orderable unsplit underflows unvalidated unreviewed postconditions lemmatizer autoscale redownload quantizer clitics exponentiated retirable commitish zipball chatbot fpga saml dialogs viterbi abaci cactuses bigram
 
 using System.Collections.Concurrent;
 using System.Reflection;
@@ -1404,6 +1404,55 @@ public class TextLintTests
             .Where(line => line.Length > 0 && line[0] != '#')
             .Select(line => line.ToLowerInvariant())
             .ToHashSet(StringComparer.Ordinal);
+
+    /// <summary>
+    ///     Test that general technical and scientific terms found in real projects are known in every language selection.
+    /// </summary>
+    /// <remarks>
+    ///     The terms are real vocabulary (imaging and data-stream terms, language-processing terms, and
+    ///     software terms) that the imported English lists lack. They must not depend on the spelling
+    ///     dialect, so each is known to the American, the British, and the combined selection, in every
+    ///     letter case. The British spellings that DEMA projects use are a different matter: they stay
+    ///     findings under the American selection, so they are checked as still unknown there.
+    /// </remarks>
+    [Fact]
+    public void TextLint_Dictionary_ReviewedTechnicalVocabulary_IsKnownInEveryLanguage()
+    {
+        // Arrange: a representative sample of the added terms (dialog is old, its plural dialogs is new) and the three selections
+        var terms = new[]
+        {
+            "metafile", "metafiles", "boxplot", "bigram", "hypernyms", "multinomial", "upscaling", "datastream", "codestream",
+            "substream", "orderable", "unsplit", "underflows", "unvalidated", "unreviewed", "postconditions", "lemmatizer",
+            "autoscale", "redownload", "quantizer", "clitics", "exponentiated", "retirable", "commitish", "zipball",
+            "chatbot", "fpga", "saml", "dialog", "dialogs", "Viterbi", "abaci", "cactuses",
+        };
+        var britishOnly = new[] { "acknowledgement", "cancellable", "centre", "labelled", "tyre" };
+        var american = SpellingDictionary.ForLanguages("en-US");
+        var british = SpellingDictionary.ForLanguages("en-GB");
+        var combined = SpellingDictionary.ForLanguages("en-US,en-GB");
+        var failures = new List<string>();
+
+        // Act: look up each term as written, in lower case, and in upper case in every selection
+        foreach (var term in terms)
+        {
+            foreach (var form in new[] { term, term.ToLowerInvariant(), UpperCaseLatin1(term) })
+            {
+                foreach (var (name, dictionary) in new[] { ("en-US", american), ("en-GB", british), ("en-US,en-GB", combined) })
+                {
+                    if (!dictionary.IsKnown(form))
+                    {
+                        failures.Add($"{form} is not known in {name}");
+                    }
+                }
+            }
+        }
+
+        // Assert: every term is known everywhere, and the British spellings are still reported under the American selection
+        Assert.Multiple(
+            () => Assert.Empty(failures.Take(MaxReportedFailures)),
+            () => Assert.All(britishOnly, word => Assert.False(american.IsKnown(word), $"{word} must stay unknown in en-US")),
+            () => Assert.All(britishOnly, word => Assert.True(british.IsKnown(word), $"{word} must be known in en-GB")));
+    }
 
     /// <summary>
     ///     Test that lookups from many threads at once all return the correct answers.
