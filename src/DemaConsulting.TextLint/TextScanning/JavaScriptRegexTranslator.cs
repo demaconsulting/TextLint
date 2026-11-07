@@ -18,6 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+// cspell:ignore Titlecase
+
 using System.Globalization;
 using System.Text;
 
@@ -125,6 +127,24 @@ internal static class JavaScriptRegexTranslator
     private const string NotWordBoundary = "(?:(?<=[A-Za-z0-9_])(?=[A-Za-z0-9_])|(?<![A-Za-z0-9_])(?![A-Za-z0-9_]))";
 
     /// <summary>
+    ///     The pattern text of a word character when the expression ignores case and has the Unicode flag, which
+    ///     adds the long s U+017F and the Kelvin sign U+212A to the ASCII word characters.
+    /// </summary>
+    private const string FoldedWordClass = "[A-Za-z0-9_\\u017F\\u212A]";
+
+    /// <summary>
+    ///     The pattern text of an ASCII word boundary for an expression with the Unicode and case flags.
+    /// </summary>
+    private const string FoldedWordBoundary =
+        "(?:(?<=" + FoldedWordClass + ")(?!" + FoldedWordClass + ")|(?<!" + FoldedWordClass + ")(?=" + FoldedWordClass + "))";
+
+    /// <summary>
+    ///     The pattern text of the place that is not a word boundary for an expression with the Unicode and case flags.
+    /// </summary>
+    private const string FoldedNotWordBoundary =
+        "(?:(?<=" + FoldedWordClass + ")(?=" + FoldedWordClass + ")|(?<!" + FoldedWordClass + ")(?!" + FoldedWordClass + "))";
+
+    /// <summary>
     ///     The characters of ASCII punctuation and digits that are written as they are in the translated pattern.
     /// </summary>
     /// <remarks>
@@ -132,6 +152,11 @@ internal static class JavaScriptRegexTranslator
     ///     anything but itself.
     /// </remarks>
     private const string PlainCharacters = "_/-,:;<>=!@%&'\"~`";
+
+    /// <summary>
+    ///     The body of a class of the characters that JavaScript counts as white space.
+    /// </summary>
+    private const string SpaceBody = JavaScriptSyntax.SpaceBody;
 
     /// <summary>
     ///     The general categories that <c>\p{...}</c> may name, which .NET writes the same way as JavaScript.
@@ -148,14 +173,19 @@ internal static class JavaScriptRegexTranslator
     };
 
     /// <summary>
+    ///     The ranges of the ASCII digits, which is what <c>\d</c> means.
+    /// </summary>
+    private static readonly (int Low, int High)[] DigitRanges = [('0', '9')];
+
+    /// <summary>
     ///     The body of a class of the ASCII digits, which is what <c>\d</c> means.
     /// </summary>
-    private static readonly string DigitBody = ClassBody([('0', '9')]);
+    private static readonly string DigitBody = ClassBody(DigitRanges);
 
     /// <summary>
     ///     The body of a class of every code unit except the ASCII digits, which is what <c>\D</c> means.
     /// </summary>
-    private static readonly string NotDigitBody = ClassBody(Complement([('0', '9')]));
+    private static readonly string NotDigitBody = ClassBody(Complement(DigitRanges));
 
     /// <summary>
     ///     The ranges of the ASCII word characters, which is what <c>\w</c> means.
@@ -182,11 +212,6 @@ internal static class JavaScriptRegexTranslator
     ];
 
     /// <summary>
-    ///     The body of a class of the characters that JavaScript counts as white space.
-    /// </summary>
-    private static readonly string SpaceBody = ClassBody(SpaceRanges);
-
-    /// <summary>
     ///     The body of a class of every code unit that JavaScript does not count as white space.
     /// </summary>
     private static readonly string NotSpaceBody = ClassBody(Complement(SpaceRanges));
@@ -204,11 +229,22 @@ internal static class JavaScriptRegexTranslator
     /// <param name="multiline"><see langword="true"/> when the <c>m</c> flag is set.</param>
     /// <param name="unicode"><see langword="true"/> when the <c>u</c> flag is set.</param>
     /// <param name="dotAll"><see langword="true"/> when the <c>s</c> flag is set, so that <c>.</c> also matches line terminators.</param>
+    /// <param name="ignoreCase">
+    ///     <see langword="true"/> when the <c>i</c> flag is set; the translation then spells out which characters
+    ///     count as the same letter, and the .NET case-insensitive option must not be used.
+    /// </param>
     /// <param name="translated">The .NET pattern when the method returns true; otherwise an empty string.</param>
     /// <param name="problem">The reason, as a sentence, when the method returns false; otherwise null.</param>
     /// <returns><see langword="true"/> when the pattern was translated.</returns>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="source"/> is null.</exception>
-    internal static bool TryTranslate(string source, bool multiline, bool unicode, bool dotAll, out string translated, out string? problem)
+    internal static bool TryTranslate(
+        string source,
+        bool multiline,
+        bool unicode,
+        bool dotAll,
+        bool ignoreCase,
+        out string translated,
+        out string? problem)
     {
         ArgumentNullException.ThrowIfNull(source);
         translated = string.Empty;
@@ -228,7 +264,7 @@ internal static class JavaScriptRegexTranslator
         }
 
         // Read the pattern; the reader records the reason itself when it stops
-        var reader = new Reader(source, multiline, unicode, dotAll);
+        var reader = new Reader(source, multiline, unicode, dotAll, ignoreCase);
         if (!reader.Run())
         {
             problem = reader.Problem;
@@ -338,6 +374,26 @@ internal static class JavaScriptRegexTranslator
         private readonly bool _dotAll;
 
         /// <summary>
+        ///     Whether the case flag is set.
+        /// </summary>
+        private readonly bool _ignoreCase;
+
+        /// <summary>
+        ///     The ranges of the class being read, as sets of code units, when the case flag is set.
+        /// </summary>
+        private readonly List<(int Low, int High)> _classSet = [];
+
+        /// <summary>
+        ///     The ranges of the set that the atom just read stands for, when the case flag is set; null for a single character.
+        /// </summary>
+        private List<(int Low, int High)>? _atomSet;
+
+        /// <summary>
+        ///     The set that the property escape just read stands for, when the case flag is set.
+        /// </summary>
+        private List<(int Low, int High)> _propertySet = [];
+
+        /// <summary>
         ///     The translation written so far.
         /// </summary>
         private readonly StringBuilder _output = new();
@@ -387,12 +443,14 @@ internal static class JavaScriptRegexTranslator
         /// <param name="multiline"><see langword="true"/> when the <c>m</c> flag is set.</param>
         /// <param name="unicode"><see langword="true"/> when the <c>u</c> flag is set.</param>
         /// <param name="dotAll"><see langword="true"/> when the <c>s</c> flag is set.</param>
-        internal Reader(string source, bool multiline, bool unicode, bool dotAll)
+        /// <param name="ignoreCase"><see langword="true"/> when the <c>i</c> flag is set.</param>
+        internal Reader(string source, bool multiline, bool unicode, bool dotAll, bool ignoreCase)
         {
             _source = source;
             _multiline = multiline;
             _unicode = unicode;
             _dotAll = dotAll;
+            _ignoreCase = ignoreCase;
         }
 
         /// <summary>
@@ -954,18 +1012,24 @@ internal static class JavaScriptRegexTranslator
             {
                 case 'b':
                     _position++;
-                    _output.Append(WordBoundary);
+                    _output.Append(_ignoreCase && _unicode ? FoldedWordBoundary : WordBoundary);
                     canRepeat = false;
                     return true;
 
                 case 'B':
                     _position++;
-                    _output.Append(NotWordBoundary);
+                    _output.Append(_ignoreCase && _unicode ? FoldedNotWordBoundary : NotWordBoundary);
                     canRepeat = false;
                     return true;
 
                 case 'd' or 'D' or 'w' or 'W' or 's' or 'S':
                     _position++;
+                    if (_ignoreCase)
+                    {
+                        AppendSet(ShorthandSet(character));
+                        return true;
+                    }
+
                     _output.Append(character is 'd' or 'w' or 's' ? "[" : "[^");
                     _output.Append(ShorthandBody(character));
                     _output.Append(']');
@@ -1001,6 +1065,48 @@ internal static class JavaScriptRegexTranslator
             'w' => WordBody,
             _ => SpaceBody,
         };
+
+        /// <summary>
+        ///     Gets the set of code units that a shorthand escape matches when the expression ignores case.
+        /// </summary>
+        /// <remarks>
+        ///     The set is closed under the letters that JavaScript treats as the same. For <c>\w</c> that adds the
+        ///     long s and the Kelvin sign with the Unicode flag. A negated shorthand is the complement of the
+        ///     closed positive set, as the specification defines it, so <c>\W</c> does not match <c>s</c> through
+        ///     the long s. Stateless apart from the flag.
+        /// </remarks>
+        /// <param name="shorthand">One of <c>d</c>, <c>D</c>, <c>w</c>, <c>W</c>, <c>s</c>, <c>S</c>.</param>
+        /// <returns>The ranges of the set, in ascending order and not overlapping.</returns>
+        private List<(int Low, int High)> ShorthandSet(char shorthand)
+        {
+            var positive = JavaScriptCaseFolding.Close(
+                char.ToLowerInvariant(shorthand) switch
+                {
+                    'd' => DigitRanges,
+                    'w' => WordRanges,
+                    _ => SpaceRanges,
+                },
+                _unicode);
+            return char.IsAsciiLetterLower(shorthand) ? positive : JavaScriptCaseFolding.Close(Complement(positive), _unicode);
+        }
+
+        /// <summary>
+        ///     Writes a set of code units as a class, or as a pattern that matches nothing when the set is empty.
+        /// </summary>
+        /// <remarks>
+        ///     Side effect: appends to the output.
+        /// </remarks>
+        /// <param name="ranges">The ranges of the set, in ascending order and not overlapping. Must not be null.</param>
+        private void AppendSet(IReadOnlyCollection<(int Low, int High)> ranges)
+        {
+            if (ranges.Count == 0)
+            {
+                _output.Append("(?!)");
+                return;
+            }
+
+            _output.Append('[').Append(ClassBody(ranges)).Append(']');
+        }
 
         /// <summary>
         ///     Reads a back-reference to a numbered group, such as <c>\1</c>.
@@ -1078,7 +1184,7 @@ internal static class JavaScriptRegexTranslator
                 return Fail($"the escape '{shown}' refers to a group that is not complete at that point.");
             }
 
-            _output.Append("(?:\\k<").Append(number.ToString(CultureInfo.InvariantCulture)).Append(">)");
+            _output.Append(_ignoreCase ? "(?i:\\k<" : "(?:\\k<").Append(number.ToString(CultureInfo.InvariantCulture)).Append(">)");
             return true;
         }
 
@@ -1113,9 +1219,98 @@ internal static class JavaScriptRegexTranslator
             }
 
             _position = close + 1;
+            if (_ignoreCase)
+            {
+                // The class is written out, so that its letters follow the JavaScript rules for ignoring case
+                _propertySet = JavaScriptCaseFolding.Close(
+                    negated ? Complement(CategoryRanges(name)) : CategoryRanges(name),
+                    _unicode);
+                AppendSet(_propertySet);
+                return true;
+            }
+
             _output.Append(negated ? "\\P{" : "\\p{").Append(name).Append('}');
             return true;
         }
+
+        /// <summary>
+        ///     Gets the ranges of the code units that belong to a general category, or to a group of categories.
+        /// </summary>
+        /// <remarks>
+        ///     Taken from the character data of .NET, which is also what <c>\p{...}</c> means in .NET, so the set
+        ///     is the one the pattern would match without the case flag. Only the basic plane is covered, as in
+        ///     .NET, where a code unit of a surrogate pair is a character of the category <c>Cs</c>. Stateless.
+        /// </remarks>
+        /// <param name="name">The name of the category, such as <c>L</c> or <c>Lu</c>.</param>
+        /// <returns>The ranges, in ascending order and not overlapping.</returns>
+        private static List<(int Low, int High)> CategoryRanges(string name)
+        {
+            var ranges = new List<(int Low, int High)>();
+            var start = -1;
+            for (var unit = 0; unit <= MaxCodeUnit; unit++)
+            {
+                var code = CategoryCode(char.GetUnicodeCategory((char)unit));
+                var inside = code == name || (name.Length == 1 && code[0] == name[0]);
+                if (inside && start < 0)
+                {
+                    start = unit;
+                }
+                else if (!inside && start >= 0)
+                {
+                    ranges.Add((start, unit - 1));
+                    start = -1;
+                }
+            }
+
+            if (start >= 0)
+            {
+                ranges.Add((start, MaxCodeUnit));
+            }
+
+            return ranges;
+        }
+
+        /// <summary>
+        ///     Gets the two-letter code of a general category, as <c>\p{...}</c> writes it.
+        /// </summary>
+        /// <remarks>
+        ///     Stateless.
+        /// </remarks>
+        /// <param name="category">The category.</param>
+        /// <returns>The code, such as <c>Lu</c>.</returns>
+        private static string CategoryCode(UnicodeCategory category) => category switch
+        {
+            UnicodeCategory.UppercaseLetter => "Lu",
+            UnicodeCategory.LowercaseLetter => "Ll",
+            UnicodeCategory.TitlecaseLetter => "Lt",
+            UnicodeCategory.ModifierLetter => "Lm",
+            UnicodeCategory.OtherLetter => "Lo",
+            UnicodeCategory.NonSpacingMark => "Mn",
+            UnicodeCategory.SpacingCombiningMark => "Mc",
+            UnicodeCategory.EnclosingMark => "Me",
+            UnicodeCategory.DecimalDigitNumber => "Nd",
+            UnicodeCategory.LetterNumber => "Nl",
+            UnicodeCategory.OtherNumber => "No",
+            UnicodeCategory.SpaceSeparator => "Zs",
+            UnicodeCategory.LineSeparator => "Zl",
+            UnicodeCategory.ParagraphSeparator => "Zp",
+            UnicodeCategory.Control => "Cc",
+            UnicodeCategory.Format => "Cf",
+            UnicodeCategory.Surrogate => "Cs",
+            UnicodeCategory.PrivateUse => "Co",
+            UnicodeCategory.ConnectorPunctuation => "Pc",
+            UnicodeCategory.DashPunctuation => "Pd",
+            UnicodeCategory.OpenPunctuation => "Ps",
+            UnicodeCategory.ClosePunctuation => "Pe",
+            UnicodeCategory.InitialQuotePunctuation => "Pi",
+            UnicodeCategory.FinalQuotePunctuation => "Pf",
+            UnicodeCategory.OtherPunctuation => "Po",
+            UnicodeCategory.MathSymbol => "Sm",
+            UnicodeCategory.CurrencySymbol => "Sc",
+            UnicodeCategory.ModifierSymbol => "Sk",
+            UnicodeCategory.OtherSymbol => "So",
+            _ => "Cn",
+        };
 
         /// <summary>
         ///     Reads an escape that stands for one character, in or outside a class, and writes it.
@@ -1254,11 +1449,7 @@ internal static class JavaScriptRegexTranslator
                 }
 
                 isAstral = true;
-                var pair = char.ConvertFromUtf32(codePoint);
-                _output.Append("(?:");
-                AppendCodeUnit(_output, pair[0]);
-                AppendCodeUnit(_output, pair[1]);
-                _output.Append(')');
+                AppendAstral(char.ConvertFromUtf32(codePoint), wrap: true);
                 return true;
             }
 
@@ -1315,6 +1506,7 @@ internal static class JavaScriptRegexTranslator
                 _position++;
             }
 
+            _classSet.Clear();
             var body = new StringBuilder();
             while (true)
             {
@@ -1333,6 +1525,14 @@ internal static class JavaScriptRegexTranslator
                 {
                     return false;
                 }
+            }
+
+            // When the case flag is set the class is the set of characters that are the same letter as a member
+            if (_ignoreCase)
+            {
+                var closed = JavaScriptCaseFolding.Close(_classSet, _unicode);
+                AppendSet(negated ? Complement(closed) : closed);
+                return true;
             }
 
             // Write the class; an empty one matches nothing, and a negated empty one matches everything
@@ -1364,11 +1564,14 @@ internal static class JavaScriptRegexTranslator
                 return false;
             }
 
+            var firstSet = _atomSet;
+
             // A hyphen followed by something other than the end of the class makes a range
             var startsRange = _position + 1 < _source.Length && _source[_position] == '-' && _source[_position + 1] != ']';
             if (!startsRange)
             {
                 body.Append(firstText);
+                AddToClassSet(first, firstSet);
                 return true;
             }
 
@@ -1378,6 +1581,7 @@ internal static class JavaScriptRegexTranslator
                 return false;
             }
 
+            var secondSet = _atomSet;
             if (first < 0 || second < 0)
             {
                 // A shorthand class cannot end or start a range
@@ -1389,6 +1593,9 @@ internal static class JavaScriptRegexTranslator
                 body.Append(firstText);
                 AppendCodeUnit(body, '-');
                 body.Append(secondText);
+                AddToClassSet(first, firstSet);
+                AddToClassSet('-', null);
+                AddToClassSet(second, secondSet);
                 return true;
             }
 
@@ -1398,7 +1605,37 @@ internal static class JavaScriptRegexTranslator
             }
 
             body.Append(firstText).Append('-').Append(secondText);
+            if (_ignoreCase)
+            {
+                _classSet.Add((first, second));
+            }
+
             return true;
+        }
+
+        /// <summary>
+        ///     Adds the members of a class atom to the set of the class, when the case flag is set.
+        /// </summary>
+        /// <remarks>
+        ///     Side effect: changes the set of the class.
+        /// </remarks>
+        /// <param name="value">The code unit of a single character, or -1 for a set.</param>
+        /// <param name="set">The ranges of the set when the atom is a set; otherwise null.</param>
+        private void AddToClassSet(int value, List<(int Low, int High)>? set)
+        {
+            if (!_ignoreCase)
+            {
+                return;
+            }
+
+            if (set is not null)
+            {
+                _classSet.AddRange(set);
+            }
+            else
+            {
+                _classSet.Add((value, value));
+            }
         }
 
         /// <summary>
@@ -1416,6 +1653,7 @@ internal static class JavaScriptRegexTranslator
         {
             value = -1;
             text = string.Empty;
+            _atomSet = null;
             var character = _source[_position];
             if (character != '\\')
             {
@@ -1457,6 +1695,7 @@ internal static class JavaScriptRegexTranslator
                         's' => SpaceBody,
                         _ => NotSpaceBody,
                     };
+                    _atomSet = _ignoreCase ? ShorthandSet(escaped) : null;
                     return true;
 
                 case 'p' or 'P':
@@ -1497,6 +1736,7 @@ internal static class JavaScriptRegexTranslator
 
             text = _output.ToString(before, _output.Length - before);
             _output.Length = before;
+            _atomSet = _ignoreCase ? _propertySet : null;
             return true;
         }
 
@@ -1528,12 +1768,7 @@ internal static class JavaScriptRegexTranslator
             var character = _source[_position];
             if (char.IsHighSurrogate(character) && _position + 1 < _source.Length && char.IsLowSurrogate(_source[_position + 1]))
             {
-                var pair = _source.AsSpan(_position, 2);
-                var wrap = _unicode;
-                _output.Append(wrap ? "(?:" : string.Empty);
-                AppendCodeUnit(_output, pair[0]);
-                AppendCodeUnit(_output, pair[1]);
-                _output.Append(wrap ? ")" : string.Empty);
+                AppendAstral(_source.Substring(_position, 2), _unicode);
                 _position += 2;
                 return;
             }
@@ -1543,15 +1778,69 @@ internal static class JavaScriptRegexTranslator
         }
 
         /// <summary>
+        ///     Writes a character outside the basic plane, which is two code units.
+        /// </summary>
+        /// <remarks>
+        ///     When the expression ignores case and has the Unicode flag, the character is written as the choice
+        ///     between its forms, because with the flag it is one character that has a case. Otherwise it is the
+        ///     two code units, in a group when a quantifier must cover both. Side effect: appends to the output.
+        /// </remarks>
+        /// <param name="pair">The character as a surrogate pair. Must not be null.</param>
+        /// <param name="wrap"><see langword="true"/> to write the two code units in a group.</param>
+        private void AppendAstral(string pair, bool wrap)
+        {
+            if (_ignoreCase && _unicode)
+            {
+                var forms = JavaScriptCaseFolding.AstralForms(pair);
+                if (forms.Count > 1)
+                {
+                    _output.Append("(?:");
+                    for (var index = 0; index < forms.Count; index++)
+                    {
+                        _output.Append(index > 0 ? "|" : string.Empty);
+                        AppendCodeUnit(_output, forms[index][0]);
+                        AppendCodeUnit(_output, forms[index][1]);
+                    }
+
+                    _output.Append(')');
+                    return;
+                }
+            }
+
+            _output.Append(wrap ? "(?:" : string.Empty);
+            AppendCodeUnit(_output, pair[0]);
+            AppendCodeUnit(_output, pair[1]);
+            _output.Append(wrap ? ")" : string.Empty);
+        }
+
+        /// <summary>
         ///     Writes one literal code unit so that .NET can read it only as itself.
         /// </summary>
         /// <remarks>
         ///     ASCII letters, digits, and a short list of harmless punctuation are written as they are;
-        ///     everything else is written as a <c>\u</c> escape. Side effect: appends to the output.
+        ///     everything else is written as a <c>\u</c> escape. When the expression ignores case, a code unit
+        ///     that has other forms is written as the class of all the code units that are the same letter.
+        ///     Side effect: appends to the output.
         /// </remarks>
         /// <param name="character">The code unit to write.</param>
         private void AppendLiteral(char character)
         {
+            if (_ignoreCase)
+            {
+                var forms = JavaScriptCaseFolding.Equivalents(character, _unicode);
+                if (forms.Count > 1)
+                {
+                    _output.Append('[');
+                    foreach (var form in forms)
+                    {
+                        AppendCodeUnit(_output, form);
+                    }
+
+                    _output.Append(']');
+                    return;
+                }
+            }
+
             if (char.IsAsciiLetterOrDigit(character) || PlainCharacters.Contains(character, StringComparison.Ordinal))
             {
                 _output.Append(character);

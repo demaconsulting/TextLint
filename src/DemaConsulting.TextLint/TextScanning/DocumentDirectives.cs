@@ -21,6 +21,7 @@
 using System.Buffers;
 using System.Collections.Immutable;
 using System.Text.RegularExpressions;
+using static DemaConsulting.TextLint.TextScanning.JavaScriptSyntax;
 
 namespace DemaConsulting.TextLint.TextScanning;
 
@@ -198,12 +199,15 @@ internal static partial class DocumentDirectives
     /// <returns>The directives in text order; empty when the text has no prefix.</returns>
     private static List<Directive> FindDirectives(string text)
     {
+        // The patterns ignore letter case with the .NET rules, which also equate the Kelvin sign with k; JavaScript does
+        // not, so the sign is replaced by a character of the same length that no pattern reads as a letter
+        var view = JavaScriptCaseFolding.MaskKelvinSign(text);
         var directives = new List<Directive>();
-        foreach (Match prefix in DirectivePrefix().Matches(text))
+        foreach (Match prefix in DirectivePrefix().Matches(view))
         {
             // Classify the name that follows the prefix and its optional white space
             var nameStart = prefix.Index + prefix.Length;
-            var name = DirectiveName().Match(text, nameStart);
+            var name = DirectiveName().Match(view, nameStart);
             var kind = DirectiveKind.None;
             var nameEnd = nameStart;
             if (name.Success)
@@ -430,13 +434,13 @@ internal static partial class DocumentDirectives
     {
         // Trim white space around the rest of the line, as cspell trims the directive text
         var start = nameEnd;
-        while (start < lineEnd && char.IsWhiteSpace(text[start]))
+        while (start < lineEnd && JavaScriptSyntax.IsSpace(text[start]))
         {
             start++;
         }
 
         var end = lineEnd;
-        while (end > start && char.IsWhiteSpace(text[end - 1]))
+        while (end > start && JavaScriptSyntax.IsSpace(text[end - 1]))
         {
             end--;
         }
@@ -463,7 +467,7 @@ internal static partial class DocumentDirectives
 
         // Otherwise the pattern is the first word
         var length = 0;
-        while (length < rest.Length && !char.IsWhiteSpace(rest[length]))
+        while (length < rest.Length && !JavaScriptSyntax.IsSpace(rest[length]))
         {
             length++;
         }
@@ -557,7 +561,7 @@ internal static partial class DocumentDirectives
     /// </remarks>
     /// <param name="character">The character to test.</param>
     /// <returns><see langword="true"/> for a comma, a semicolon, or white space.</returns>
-    private static bool IsWordSeparator(char character) => character is ',' or ';' || char.IsWhiteSpace(character);
+    private static bool IsWordSeparator(char character) => character is ',' or ';' || JavaScriptSyntax.IsSpace(character);
 
     /// <summary>
     ///     Determines whether an offset lies inside any of a list of ranges.
@@ -591,7 +595,7 @@ internal static partial class DocumentDirectives
     /// </remarks>
     /// <returns>The generated regular expression.</returns>
     [GeneratedRegex(
-        "(?<![A-Za-z0-9_])(?<prefix>(?:c?spell(?:-?checker)?|textlint)::?)\\s*",
+        "(?<![A-Za-z0-9_])(?<prefix>(?:c?spell(?:-?checker)?|textlint)::?)" + Space + "*",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, MatchTimeoutMilliseconds)]
     private static partial Regex DirectivePrefix();
 
@@ -614,7 +618,7 @@ internal static partial class DocumentDirectives
     /// </remarks>
     /// <returns>The generated regular expression.</returns>
     [GeneratedRegex(
-        "\\G[^\\r\\n\\u2028\\u2029]*\\s\\s?[^\\r\\n\\u2028\\u2029]*",
+        "\\G" + NotLineTerminator + "*" + Space + Space + "?" + NotLineTerminator + "*",
         RegexOptions.CultureInvariant, MatchTimeoutMilliseconds)]
     private static partial Regex NextLineTail();
 
@@ -642,13 +646,13 @@ internal static partial class DocumentDirectives
         "|(?<enable>enable(?![A-Za-z0-9_]))" +
         "|(?<ignore>ignore(?:-?words?)?(?![A-Za-z0-9_-]))" +
         "|(?<words>words?(?![A-Za-z0-9_-]))" +
-        "|(?<regexp>ignore_?Reg_?Exp(?=\\s+\\S))" +
+        "|(?<regexp>ignore_?Reg_?Exp(?=" + Space + "+" + NotSpace + "))" +
         "|(?<unsupported>(?:enable|disable)(?:allow)?CompoundWords(?![A-Za-z0-9_-])" +
         "|(?:enable|disable)CaseSensitive(?![A-Za-z0-9_-])" +
         "|(?:flag|forbid)(?:-?words?)?(?![A-Za-z0-9_-])" +
-        "|include_?Reg_?Exp(?=\\s+\\S)" +
+        "|include_?Reg_?Exp(?=" + Space + "+" + NotSpace + ")" +
         "|(?:locale|local)(?![A-Za-z0-9_-])" +
-        "|language(?=\\s[A-Za-z0-9_])" +
+        "|language(?=" + Space + "[A-Za-z0-9_])" +
         "|dictionar(?:y|ies)(?![A-Za-z0-9_-]))" +
         "|(?<nearMiss>(?:disable|enable|ignore|word|flag|forbid|local|language|dictionar|include)))",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, MatchTimeoutMilliseconds)]

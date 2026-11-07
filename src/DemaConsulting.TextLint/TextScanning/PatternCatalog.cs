@@ -22,6 +22,7 @@
 
 using System.Collections.Immutable;
 using System.Text.RegularExpressions;
+using static DemaConsulting.TextLint.TextScanning.JavaScriptSyntax;
 
 namespace DemaConsulting.TextLint.TextScanning;
 
@@ -48,27 +49,10 @@ namespace DemaConsulting.TextLint.TextScanning;
 internal static partial class PatternCatalog
 {
     /// <summary>
-    ///     The pattern text of an ASCII word boundary, which is what <c>\b</c> means in JavaScript.
-    /// </summary>
-    private const string WordBoundary = "(?:(?<=[A-Za-z0-9_])(?![A-Za-z0-9_])|(?<![A-Za-z0-9_])(?=[A-Za-z0-9_]))";
-
-    /// <summary>
-    ///     The pattern text of the start of a line, which is what <c>^</c> means in JavaScript multiline mode.
-    /// </summary>
-    private const string LineStart = "(?<![^\\r\\n\\u2028\\u2029])";
-
-    /// <summary>
-    ///     The pattern text of a character that is not a JavaScript line terminator, which is what <c>.</c> means.
-    /// </summary>
-    private const string NotLineTerminator = "[^\\r\\n\\u2028\\u2029]";
-
-    /// <summary>
-    ///     The options of the patterns that cspell compiles with the case-insensitive flag.
-    /// </summary>
-    private const RegexOptions Insensitive = RegexOptions.IgnoreCase | RegexOptions.CultureInvariant;
-
-    /// <summary>
-    ///     The options of the patterns that cspell compiles without the case-insensitive flag.
+    ///     The options of the predefined patterns: the invariant culture, and no case-insensitive option. The
+    ///     patterns that cspell compiles case-insensitively are written with both cases of every letter instead,
+    ///     because the .NET option would also equate the Kelvin sign U+212A with <c>k</c>, which JavaScript does
+    ///     not without the <c>u</c> flag.
     /// </summary>
     private const RegexOptions Sensitive = RegexOptions.CultureInvariant;
 
@@ -147,7 +131,7 @@ internal static partial class PatternCatalog
     internal static bool IsNameShaped(string entry)
     {
         ArgumentNullException.ThrowIfNull(entry);
-        var text = entry.Trim();
+        var text = Trim(entry);
         return text.Length > 0 &&
                char.IsAsciiLetter(text[0]) &&
                text.All(static character => char.IsAsciiLetterOrDigit(character) || character is '_' or '-');
@@ -165,7 +149,7 @@ internal static partial class PatternCatalog
     internal static bool IsPredefined(string name)
     {
         ArgumentNullException.ThrowIfNull(name);
-        return PredefinedNameSet.Contains(name.Trim());
+        return PredefinedNameSet.Contains(Trim(name));
     }
 
     /// <summary>
@@ -181,7 +165,7 @@ internal static partial class PatternCatalog
     internal static string? CheckDefinitionName(string name)
     {
         ArgumentNullException.ThrowIfNull(name);
-        if (!IsNameShaped(name) || name.Trim() != name)
+        if (!IsNameShaped(name) || Trim(name) != name)
         {
             return "a pattern name must start with a letter and hold only letters, digits, '_' and '-'.";
         }
@@ -206,7 +190,7 @@ internal static partial class PatternCatalog
     {
         ArgumentNullException.ThrowIfNull(name);
         ArgumentNullException.ThrowIfNull(definedNames);
-        return IsPredefined(name) || definedNames.Contains(name.Trim()) ? null : UnknownNameReason(name);
+        return IsPredefined(name) || definedNames.Contains(Trim(name)) ? null : UnknownNameReason(name);
     }
 
     /// <summary>
@@ -219,7 +203,7 @@ internal static partial class PatternCatalog
     /// <param name="name">The name. Must not be null.</param>
     /// <returns>The reason, as a sentence.</returns>
     private static string UnknownNameReason(string name) =>
-        $"'{name.Trim()}' is not a defined or predefined pattern name; define it in 'patterns', " +
+        $"'{Trim(name)}' is not a defined or predefined pattern name; define it in 'patterns', " +
         "or write a regular expression between slashes, such as /text/, to match literal text.";
 
     /// <summary>
@@ -310,7 +294,7 @@ internal static partial class PatternCatalog
         foreach (var entry in ignoreRegExpList)
         {
             ArgumentNullException.ThrowIfNull(entry);
-            if (IsNameShaped(entry) && !used.Add(entry.Trim()))
+            if (IsNameShaped(entry) && !used.Add(Trim(entry)))
             {
                 continue;
             }
@@ -375,7 +359,7 @@ internal static partial class PatternCatalog
         }
 
         // A name is a user pattern first, then a predefined pattern; a user pattern cannot clash with a predefined name
-        var name = entry.Trim();
+        var name = Trim(entry);
         if (defined.TryGetValue(name, out var userPattern))
         {
             regex = userPattern;
@@ -441,25 +425,26 @@ internal static partial class PatternCatalog
     ///     or <c>\x{</c> and four and <c>}</c>.
     /// </remarks>
     /// <returns>The generated regular expression.</returns>
-    [GeneratedRegex("(?:#[0-9a-f]{3,8})|(?:0x[0-9a-f]+)|(?:\\\\u[0-9a-f]{4})|(?:\\\\x\\{[0-9a-f]{4}\\})", Insensitive, MatchTimeoutMilliseconds)]
+    [GeneratedRegex("(?:#[0-9A-Fa-f]{3,8})|(?:0[Xx][0-9A-Fa-f]+)|(?:\\\\[Uu][0-9A-Fa-f]{4})|(?:\\\\[Xx]\\{[0-9A-Fa-f]{4}\\})", Sensitive, MatchTimeoutMilliseconds)]
     private static partial Regex HexValues();
 
     /// <summary>
     ///     Matches a public key block, from its BEGIN line to the END line of the same kind.
     /// </summary>
     /// <remarks>
-    ///     Case-sensitive, as in cspell. <c>\s</c> keeps the .NET meaning, which differs from JavaScript's
-    ///     only for two characters that do not occur in keys.
+    ///     Case-sensitive, as in cspell. White space is the JavaScript set.
     /// </remarks>
     /// <returns>The generated regular expression.</returns>
-    [GeneratedRegex("-{5}BEGIN\\s+((?:RSA\\s+)?PUBLIC\\s+KEY)[A-Za-z0-9_=+\\-/\\\\\\s]+?END\\s+\\1-{5}", Sensitive, MatchTimeoutMilliseconds)]
+    [GeneratedRegex(
+        "-{5}BEGIN" + Space + "+((?:RSA" + Space + "+)?PUBLIC" + Space + "+KEY)[A-Za-z0-9_=+\\-/\\\\" + SpaceBody + "]+?END" + Space + "+\\1-{5}",
+        Sensitive, MatchTimeoutMilliseconds)]
     private static partial Regex PublicKey();
 
     /// <summary>
     ///     Matches the escape of a character: a backslash and one of <c>anrvtbf</c>, or <c>x</c> or <c>u</c> and hexadecimal digits.
     /// </summary>
     /// <returns>The generated regular expression.</returns>
-    [GeneratedRegex("\\\\(?:[anrvtbf]|[xu][a-f0-9]+)", Insensitive, MatchTimeoutMilliseconds)]
+    [GeneratedRegex("\\\\(?:[AaNnRrVvTtBbFf]|[XxUu][A-Fa-f0-9]+)", Sensitive, MatchTimeoutMilliseconds)]
     private static partial Regex EscapeCharacters();
 
     /// <summary>
@@ -470,8 +455,8 @@ internal static partial class PatternCatalog
     /// </remarks>
     /// <returns>The generated regular expression.</returns>
     [GeneratedRegex(
-        "(?<![A-Za-z0-9/+])(?:[A-Za-z0-9/+]{40,})(?:\\s" + LineStart + "\\s*[A-Za-z0-9/+]{40,})*" +
-        "(?:\\s" + LineStart + "\\s*[A-Za-z0-9/+]+=*)?(?![A-Za-z0-9/+=])",
+        "(?<![A-Za-z0-9/+])(?:[A-Za-z0-9/+]{40,})(?:" + Space + LineStart + Space + "*[A-Za-z0-9/+]{40,})*" +
+        "(?:" + Space + LineStart + Space + "*[A-Za-z0-9/+]+=*)?(?![A-Za-z0-9/+=])",
         Sensitive, MatchTimeoutMilliseconds)]
     private static partial Regex Base64();
 
@@ -479,7 +464,7 @@ internal static partial class PatternCatalog
     ///     Matches an HTML <c>href</c> attribute with its quoted value.
     /// </summary>
     /// <returns>The generated regular expression.</returns>
-    [GeneratedRegex(WordBoundary + "href\\s*=\\s*\"" + NotLineTerminator + "*?\"", Insensitive, MatchTimeoutMilliseconds)]
+    [GeneratedRegex(WordBoundary + "[Hh][Rr][Ee][Ff]" + Space + "*=" + Space + "*\"" + NotLineTerminator + "*?\"", Sensitive, MatchTimeoutMilliseconds)]
     private static partial Regex Href();
 
     /// <summary>
@@ -513,6 +498,6 @@ internal static partial class PatternCatalog
     ///     Matches every line of text, without its line terminator.
     /// </summary>
     /// <returns>The generated regular expression.</returns>
-    [GeneratedRegex(NotLineTerminator + "*", Insensitive, MatchTimeoutMilliseconds)]
+    [GeneratedRegex(NotLineTerminator + "*", Sensitive, MatchTimeoutMilliseconds)]
     private static partial Regex Everything();
 }

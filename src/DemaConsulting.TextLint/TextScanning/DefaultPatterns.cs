@@ -21,6 +21,7 @@
 // cspell:ignore subresource
 
 using System.Text.RegularExpressions;
+using static DemaConsulting.TextLint.TextScanning.JavaScriptSyntax;
 
 namespace DemaConsulting.TextLint.TextScanning;
 
@@ -33,11 +34,14 @@ namespace DemaConsulting.TextLint.TextScanning;
 ///     findings. The set of patterns is the default ignore list of cspell (its <c>ignoreRegExpList</c>
 ///     defaults), ported so that a project migrated from cspell stays quiet where it was quiet. The port
 ///     is by hand, because the two engines differ: in JavaScript (without the <c>u</c> flag) <c>\w</c>, <c>\d</c>,
-///     and <c>\b</c> are ASCII-only while in .NET they are Unicode-aware, so every pattern spells out ASCII
-///     classes and an ASCII word boundary; <c>^</c> in multiline mode starts a line after any of <c>\n</c>,
-///     <c>\r</c>, U+2028, and U+2029; and <c>.</c> excludes all four of those line terminators. The patterns
-///     that cspell applies case-insensitively are case-insensitive here, with the invariant culture, and
-///     the encoded-data patterns stay case-sensitive as in cspell. Every pattern has a match timeout, so
+///     and <c>\b</c> are ASCII-only while in .NET they are Unicode-aware, <c>\s</c> is a different set of
+///     characters, <c>^</c> in multiline mode starts a line after any of <c>\n</c>, <c>\r</c>, U+2028, and U+2029,
+///     and <c>.</c> excludes all four of those line terminators, so every pattern is built from the shared
+///     definitions of <see cref="JavaScriptSyntax"/> (explicit ASCII classes, the JavaScript white space set, an
+///     ASCII word boundary) and never from the shorthand. The patterns that cspell applies case-insensitively
+///     are written with both cases of every letter instead of the .NET case-insensitive option, which would
+///     also equate the Kelvin sign U+212A with <c>k</c>, as JavaScript does not without the <c>u</c> flag; the
+///     encoded-data patterns stay case-sensitive as in cspell. Every pattern has a match timeout, so
 ///     hostile input surfaces as a <see cref="RegexMatchTimeoutException"/> instead of hanging a run. The
 ///     patterns are compiled at build time by the regular-expression source generator, which keeps the
 ///     library trim and Native AOT safe. The class is stateless and thread-safe; the generated regular
@@ -55,24 +59,7 @@ internal static partial class DefaultPatterns
     internal const int MatchTimeoutMilliseconds = 5000;
 
     /// <summary>
-    ///     The pattern text of an ASCII word boundary: the place where an ASCII word character meets a non-word
-    ///     character or an edge of the text, which is what <c>\b</c> means in JavaScript.
-    /// </summary>
-    private const string WordBoundary = "(?:(?<=[A-Za-z0-9_])(?![A-Za-z0-9_])|(?<![A-Za-z0-9_])(?=[A-Za-z0-9_]))";
-
-    /// <summary>
-    ///     The pattern text of the start of a line: the start of the text, or the place after a line terminator
-    ///     (<c>\n</c>, <c>\r</c>, U+2028, or U+2029), which is what <c>^</c> means in JavaScript multiline mode.
-    /// </summary>
-    private const string LineStart = "(?<![^\\r\\n\\u2028\\u2029])";
-
-    /// <summary>
-    ///     The options shared by the patterns that cspell compiles with the case-insensitive flag.
-    /// </summary>
-    private const RegexOptions Insensitive = RegexOptions.IgnoreCase | RegexOptions.CultureInvariant;
-
-    /// <summary>
-    ///     The options shared by the patterns that cspell compiles without the case-insensitive flag.
+    ///     The options of every pattern: the invariant culture, and no case-insensitive option (see the remarks of the class).
     /// </summary>
     private const RegexOptions Sensitive = RegexOptions.CultureInvariant;
 
@@ -144,7 +131,7 @@ internal static partial class DefaultPatterns
     ///     The host and path of a URL are not prose. A bare <c>www.</c> host without a scheme is not matched.
     /// </remarks>
     /// <returns>The generated regular expression.</returns>
-    [GeneratedRegex("(?:https?|ftp)://[^\\s\"]+", Insensitive, MatchTimeoutMilliseconds)]
+    [GeneratedRegex("(?:[Hh][Tt][Tt][Pp][Ss]?|[Ff][Tt][Pp])://[^" + SpaceBody + "\"]+", Sensitive, MatchTimeoutMilliseconds)]
     private static partial Regex Urls();
 
     /// <summary>
@@ -156,7 +143,7 @@ internal static partial class DefaultPatterns
     /// </remarks>
     /// <returns>The generated regular expression.</returns>
     [GeneratedRegex("<?" + WordBoundary + "[A-Za-z0-9_.\\-+]{1,128}@[A-Za-z0-9_]{1,63}(?:\\.[A-Za-z0-9_]{1,63}){1,4}" + WordBoundary + ">?",
-        Insensitive, MatchTimeoutMilliseconds)]
+        Sensitive, MatchTimeoutMilliseconds)]
     private static partial Regex Email();
 
     /// <summary>
@@ -166,7 +153,9 @@ internal static partial class DefaultPatterns
     ///     Case-sensitive, as in cspell. The END line must name the same kind of block as the BEGIN line.
     /// </remarks>
     /// <returns>The generated regular expression.</returns>
-    [GeneratedRegex("-{5}BEGIN\\s+(CERTIFICATE|(?:RSA\\s+)?(?:PRIVATE|PUBLIC)\\s+KEY)[A-Za-z0-9_=+\\-/\\\\\\s]+?END\\s+\\1-{5}",
+    [GeneratedRegex(
+        "-{5}BEGIN" + Space + "+(CERTIFICATE|(?:RSA" + Space + "+)?(?:PRIVATE|PUBLIC)" + Space + "+KEY)" +
+        "[A-Za-z0-9_=+\\-/\\\\" + SpaceBody + "]+?END" + Space + "+\\1-{5}",
         Sensitive, MatchTimeoutMilliseconds)]
     private static partial Regex RsaCert();
 
@@ -174,7 +163,7 @@ internal static partial class DefaultPatterns
     ///     Matches an SSH public key line: <c>ssh-rsa</c> and its Base64 key.
     /// </summary>
     /// <returns>The generated regular expression.</returns>
-    [GeneratedRegex("ssh-rsa\\s+[a-z0-9/+]{28,}={0,3}(?![a-z0-9/+=])", Insensitive, MatchTimeoutMilliseconds)]
+    [GeneratedRegex("[Ss][Ss][Hh]-[Rr][Ss][Aa]" + Space + "+[A-Za-z0-9/+]{28,}={0,3}(?![A-Za-z0-9/+=])", Sensitive, MatchTimeoutMilliseconds)]
     private static partial Regex SshRsa();
 
     /// <summary>
@@ -187,8 +176,8 @@ internal static partial class DefaultPatterns
     /// <returns>The generated regular expression.</returns>
     [GeneratedRegex(
         "(?<![A-Za-z0-9/+])[\"']?(?:[A-Za-z0-9/+]{40,})[\"']?" +
-        "(?:\\s" + LineStart + "\\s*[\"']?[A-Za-z0-9/+]{40,}[\"']?)+" +
-        "(?:\\s" + LineStart + "\\s*[\"']?[A-Za-z0-9/+]+={0,3}[\"']?)?(?![A-Za-z0-9/+=])",
+        "(?:" + Space + LineStart + Space + "*[\"']?[A-Za-z0-9/+]{40,}[\"']?)+" +
+        "(?:" + Space + LineStart + Space + "*[\"']?[A-Za-z0-9/+]+={0,3}[\"']?)?(?![A-Za-z0-9/+=])",
         Sensitive, MatchTimeoutMilliseconds)]
     private static partial Regex Base64MultiLine();
 
@@ -219,35 +208,35 @@ internal static partial class DefaultPatterns
     ///     <c>defaced</c>, from being taken as hashes.
     /// </remarks>
     /// <returns>The generated regular expression.</returns>
-    [GeneratedRegex(WordBoundary + "(?![a-f]+" + WordBoundary + ")(?:0x)?[0-9a-f]{7,}" + WordBoundary, Insensitive, MatchTimeoutMilliseconds)]
+    [GeneratedRegex(WordBoundary + "(?![A-Fa-f]+" + WordBoundary + ")(?:0[Xx])?[0-9A-Fa-f]{7,}" + WordBoundary, Sensitive, MatchTimeoutMilliseconds)]
     private static partial Regex CommitHash();
 
     /// <summary>
     ///     Matches a Markdown commit-hash link: seven or more hexadecimal digits in square brackets.
     /// </summary>
     /// <returns>The generated regular expression.</returns>
-    [GeneratedRegex("\\[[0-9a-f]{7,}\\]", Insensitive, MatchTimeoutMilliseconds)]
+    [GeneratedRegex("\\[[0-9A-Fa-f]{7,}\\]", Sensitive, MatchTimeoutMilliseconds)]
     private static partial Regex CommitHashLink();
 
     /// <summary>
     ///     Matches a C-style hexadecimal literal: <c>0x</c>, hexadecimal digits and underscores, and an optional <c>n</c>.
     /// </summary>
     /// <returns>The generated regular expression.</returns>
-    [GeneratedRegex(WordBoundary + "0x[0-9a-f_]+n?" + WordBoundary, Insensitive, MatchTimeoutMilliseconds)]
+    [GeneratedRegex(WordBoundary + "0[Xx][0-9A-Fa-f_]+[Nn]?" + WordBoundary, Sensitive, MatchTimeoutMilliseconds)]
     private static partial Regex CStyleHexValue();
 
     /// <summary>
     ///     Matches a CSS hexadecimal color: a number sign and three to eight hexadecimal digits.
     /// </summary>
     /// <returns>The generated regular expression.</returns>
-    [GeneratedRegex("#[0-9a-f]{3,8}" + WordBoundary, Insensitive, MatchTimeoutMilliseconds)]
+    [GeneratedRegex("#[0-9A-Fa-f]{3,8}" + WordBoundary, Sensitive, MatchTimeoutMilliseconds)]
     private static partial Regex CssHexValue();
 
     /// <summary>
     ///     Matches a subresource-integrity style digest: <c>sha</c>, a number, a hyphen, and at least 25 Base64 characters.
     /// </summary>
     /// <returns>The generated regular expression.</returns>
-    [GeneratedRegex(WordBoundary + "sha[0-9]+-[a-z0-9+/]{25,}={0,3}", Insensitive, MatchTimeoutMilliseconds)]
+    [GeneratedRegex(WordBoundary + "[Ss][Hh][Aa][0-9]+-[A-Za-z0-9+/]{25,}={0,3}", Sensitive, MatchTimeoutMilliseconds)]
     private static partial Regex Sha();
 
     /// <summary>
@@ -260,17 +249,19 @@ internal static partial class DefaultPatterns
     /// </remarks>
     /// <returns>The generated regular expression.</returns>
     [GeneratedRegex(
-        "(?:" + WordBoundary + "(?:sha[0-9]+|md5|base64|crypt|bcrypt|scrypt|security-token|assertion)[-,:$=]|#code[/])" +
+        "(?:" + WordBoundary + "(?:[Ss][Hh][Aa][0-9]+|[Mm][Dd]5|[Bb][Aa][Ss][Ee]64|[Cc][Rr][Yy][Pp][Tt]|[Bb][Cc][Rr][Yy][Pp][Tt]|" +
+        "[Ss][Cc][Rr][Yy][Pp][Tt]|[Ss][Ee][Cc][Uu][Rr][Ii][Tt][Yy]-[Tt][Oo][Kk][Ee][Nn]|" +
+        "[Aa][Ss][Ss][Ee][Rr][Tt][Ii][Oo][Nn])[-,:$=]|#[Cc][Oo][Dd][Ee][/])" +
         "[-A-Za-z0-9_/+%.]{25,}={0,3}" +
-        "(?:(['\"])\\s*\\+?\\s*\\1?[-A-Za-z0-9_/+%.]+={0,3})*(?![-A-Za-z0-9_/+=%.])",
-        Insensitive, MatchTimeoutMilliseconds)]
+        "(?:(['\"])" + Space + "*\\+?" + Space + "*\\1?[-A-Za-z0-9_/+%.]+={0,3})*(?![-A-Za-z0-9_/+=%.])",
+        Sensitive, MatchTimeoutMilliseconds)]
     private static partial Regex HashStrings();
 
     /// <summary>
     ///     Matches a Unicode code point reference such as <c>U+1F600</c> or a range <c>U+0041-005A</c>.
     /// </summary>
     /// <returns>The generated regular expression.</returns>
-    [GeneratedRegex(WordBoundary + "U\\+[0-9a-f]{4,5}(?:-[0-9a-f]{4,5})?", Insensitive, MatchTimeoutMilliseconds)]
+    [GeneratedRegex(WordBoundary + "[Uu]\\+[0-9A-Fa-f]{4,5}(?:-[0-9A-Fa-f]{4,5})?", Sensitive, MatchTimeoutMilliseconds)]
     private static partial Regex UnicodeRef();
 
     /// <summary>
@@ -278,7 +269,7 @@ internal static partial class DefaultPatterns
     /// </summary>
     /// <returns>The generated regular expression.</returns>
     [GeneratedRegex(
-        WordBoundary + "[0-9a-fx]{8}-[0-9a-fx]{4}-[0-9a-fx]{4}-[0-9a-fx]{4}-[0-9a-fx]{12}" + WordBoundary,
-        Insensitive, MatchTimeoutMilliseconds)]
+        WordBoundary + "[0-9A-Fa-fXx]{8}-[0-9A-Fa-fXx]{4}-[0-9A-Fa-fXx]{4}-[0-9A-Fa-fXx]{4}-[0-9A-Fa-fXx]{12}" + WordBoundary,
+        Sensitive, MatchTimeoutMilliseconds)]
     private static partial Regex Uuid();
 }

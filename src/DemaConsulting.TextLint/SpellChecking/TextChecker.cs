@@ -293,7 +293,12 @@ public sealed class TextChecker
         var resolved = new Dictionary<string, string?>(StringComparer.Ordinal);
         foreach (var directive in directives)
         {
-            if (!resolved.TryGetValue(directive.Text, out var problem))
+            // A name is compared ignoring letter case, as when it is resolved, so the same pattern named in
+            // another case is the same pattern; the case of an expression can change its meaning, so it is kept
+            var key = PatternCatalog.IsNameShaped(directive.Text)
+                ? "name:" + JavaScriptSyntax.Trim(directive.Text).ToUpperInvariant()
+                : "expression:" + directive.Text;
+            if (!resolved.TryGetValue(key, out var problem))
             {
                 // Resolve and match a pattern once; the patterns after the limit are rejected without being read
                 if (resolved.Count >= MaxDirectivePatterns)
@@ -306,7 +311,7 @@ public sealed class TextChecker
                     PatternCatalog.FindExcludedRanges([regex], text, excluded);
                 }
 
-                resolved[directive.Text] = problem;
+                resolved[key] = problem;
             }
 
             if (problem is not null && directive.IsReportable)

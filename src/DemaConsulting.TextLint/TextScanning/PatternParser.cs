@@ -124,7 +124,7 @@ internal static class PatternParser
         ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(matchTimeout, TimeSpan.Zero);
 
         // Separate the body from the flags, with the forms cspell recognizes
-        var text = entry.Trim();
+        var text = JavaScriptSyntax.Trim(entry);
         var body = text;
         var flags = BareFlags;
         if (text.Length > 0 && text[0] == Slash)
@@ -155,12 +155,13 @@ internal static class PatternParser
         var multiline = flags.Contains('m', StringComparison.Ordinal);
         var unicode = flags.Contains('u', StringComparison.Ordinal);
         var dotAll = flags.Contains('s', StringComparison.Ordinal);
-        if (!JavaScriptRegexTranslator.TryTranslate(body, multiline, unicode, dotAll, out var translated, out var problem))
+        if (!JavaScriptRegexTranslator.TryTranslate(body, multiline, unicode, dotAll, ignoreCase, out var translated, out var problem))
         {
             throw new InvalidPatternException(entry, problem!);
         }
 
-        var options = RegexOptions.CultureInvariant | (ignoreCase ? RegexOptions.IgnoreCase : RegexOptions.None);
+        // The case flag is written into the translation, because the .NET option follows other rules than JavaScript
+        var options = RegexOptions.CultureInvariant;
         try
         {
             return new Regex(translated, options, matchTimeout);

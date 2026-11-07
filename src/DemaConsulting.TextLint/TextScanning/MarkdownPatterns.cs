@@ -21,6 +21,7 @@
 // cspell:ignore zorb markdn mdown mdtext mdtxt mdwn
 
 using System.Text.RegularExpressions;
+using static DemaConsulting.TextLint.TextScanning.JavaScriptSyntax;
 
 namespace DemaConsulting.TextLint.TextScanning;
 
@@ -34,7 +35,8 @@ namespace DemaConsulting.TextLint.TextScanning;
 ///     an anchor (<c>&lt;a id="name"&gt;</c>), and an HTML entity (<c>&amp;nbsp;</c>) are names and addresses,
 ///     and their fragments would be reported as unknown words. cspell excludes them for Markdown files with
 ///     patterns of its Markdown dictionary package and its default settings, which are ported here with the
-///     same translation rules as the default patterns: ASCII word characters, and the case-sensitivity of the
+///     same translation rules as the default patterns: ASCII word characters, the JavaScript white space set
+///     (see <see cref="JavaScriptSyntax"/>), and the case-sensitivity of the
 ///     originals. The set
 ///     applies to files whose name ends in one of the extensions that cspell reads as Markdown, ignoring
 ///     letter case. Every pattern has a match time limit. The class is stateless and thread-safe; the
@@ -107,21 +109,21 @@ internal static partial class MarkdownPatterns
     ///     Matches the definition of a reference: <c>[label]:</c> and the address that follows it on the line.
     /// </summary>
     /// <returns>The generated regular expression.</returns>
-    [GeneratedRegex("\\[[-A-Za-z0-9_.`'\"*&;#@ ]+\\]:( [^\\s]*)?", Sensitive, MatchTimeoutMilliseconds)]
+    [GeneratedRegex("\\[[-A-Za-z0-9_.`'\"*&;#@ ]+\\]:( [^" + SpaceBody + "]*)?", Sensitive, MatchTimeoutMilliseconds)]
     private static partial Regex LinkFooter();
 
     /// <summary>
     ///     Matches the target of a link: what follows the <c>](</c> of <c>[text](target)</c>.
     /// </summary>
     /// <returns>The generated regular expression.</returns>
-    [GeneratedRegex("(?<=\\]\\()[^)\\s]+", Sensitive, MatchTimeoutMilliseconds)]
+    [GeneratedRegex("(?<=\\]\\()[^)" + SpaceBody + "]+", Sensitive, MatchTimeoutMilliseconds)]
     private static partial Regex Link();
 
     /// <summary>
     ///     Matches the id of an anchor: the value of <c>&lt;a id="..."&gt;</c>.
     /// </summary>
     /// <returns>The generated regular expression.</returns>
-    [GeneratedRegex("(?<=<a\\s+id=\")[^\"\\s]+", Sensitive, MatchTimeoutMilliseconds)]
+    [GeneratedRegex("(?<=<a" + Space + "+id=\")[^\"" + SpaceBody + "]+", Sensitive, MatchTimeoutMilliseconds)]
     private static partial Regex Anchor();
 
     /// <summary>
