@@ -20,6 +20,7 @@
 
 // cspell:ignore Titlecase
 
+using System.Collections.Concurrent;
 using System.Globalization;
 using System.Text;
 
@@ -43,9 +44,13 @@ namespace DemaConsulting.TextLint.TextScanning;
 ///     inline group options, atomic groups, conditionals, octal escapes, and so on), the escapes that
 ///     JavaScript treats as plain letters but .NET treats as anchors or classes (<c>\z</c>, <c>\A</c>,
 ///     <c>\e</c>), and a back-reference to a group that is not complete. The translator never throws for bad
-///     input: every problem is returned as a reason. Its work is bounded by the length limit and by a
-///     nesting limit, so no pattern can exhaust the stack or the processor while it is read. The class is
-///     stateless and thread-safe; each call uses its own reader.
+///     input: every problem is returned as a reason. Its work is bounded by the length limit, by a limit on the
+///     length of the translation (which the length of the source does not bound, because a case-insensitive
+///     Unicode property or class is written out as the set it stands for), and by a nesting limit, so no pattern
+///     can exhaust the stack or the processor while it is read. The sets that are expensive to compute (the
+///     categories, and the shorthand classes with the case flag) are computed once per process and kept in
+///     caches whose size is fixed by the number of categories and shorthands, not by the patterns. The class is
+///     thread-safe; each call uses its own reader.
 /// </remarks>
 internal static class JavaScriptRegexTranslator
 {
@@ -57,6 +62,25 @@ internal static class JavaScriptRegexTranslator
     ///     and the size of the regular expression that is built from it.
     /// </remarks>
     internal const int MaxPatternLength = 4096;
+
+    /// <summary>
+    ///     The longest translation, in characters, that is accepted.
+    /// </summary>
+    /// <remarks>
+    ///     The length of the source does not bound the length of the translation: with the case flag, a Unicode
+    ///     property or a class is written out as the explicit set of characters it matches, which is several
+    ///     thousand characters for one <c>\p{L}</c>, so a few hundred of them would build a pattern of megabytes
+    ///     before a single match could be tried. The limit is more than four times the longest translation of
+    ///     an ordinary pattern of the maximum length (4,096 letters give 57,344 characters) and allows about sixty
+    ///     case-insensitive Unicode property escapes. It is checked after every term and every member of a
+    ///     class, so a pattern that goes over it is rejected after the first few expansions, not after all.
+    /// </remarks>
+    internal const int MaxTranslatedLength = 262144;
+
+    /// <summary>
+    ///     The number of characters that one range of a set takes in the translation, <c>\uXXXX-\uXXXX</c>.
+    /// </summary>
+    private const int RangeTextLength = 13;
 
     /// <summary>
     ///     The deepest nesting of groups that is accepted.
@@ -217,6 +241,25 @@ internal static class JavaScriptRegexTranslator
     private static readonly string NotSpaceBody = ClassBody(Complement(SpaceRanges));
 
     /// <summary>
+    ///     The closed sets of the Unicode properties, by category name and negation, computed on first use.
+    /// </summary>
+    /// <remarks>
+    ///     Writing a property out as a set needs one pass over all 65,536 code units and a closure under the
+    ///     letter case, so doing it for every escape of a pattern would make the cost of a pattern a multiple of
+    ///     its length. The size is fixed: the 37 category names, each with and without negation. Only the
+    ///     mode of the Unicode flag exists for a property.
+    /// </remarks>
+    private static readonly ConcurrentDictionary<(string Name, bool Negated), SetClass> PropertySets = new();
+
+    /// <summary>
+    ///     The closed sets of the shorthand classes, by letter and mode, computed on first use.
+    /// </summary>
+    /// <remarks>
+    ///     The size is fixed: six shorthand letters in two modes.
+    /// </remarks>
+    private static readonly ConcurrentDictionary<(char Shorthand, bool Unicode), SetClass> ShorthandSets = new();
+
+    /// <summary>
     ///     Translates the body of a JavaScript regular expression to a .NET pattern.
     /// </summary>
     /// <remarks>
@@ -344,6 +387,16 @@ internal static class JavaScriptRegexTranslator
         builder.Append("\\u").Append(codeUnit.ToString("X4", CultureInfo.InvariantCulture));
 
     /// <summary>
+    ///     A set of code units together with its pattern text, so that both are computed once.
+    /// </summary>
+    /// <remarks>
+    ///     Instances are shared between translations, so the ranges must never be changed.
+    /// </remarks>
+    /// <param name="Ranges">The ranges of the set, in ascending order and not overlapping.</param>
+    /// <param name="Text">The pattern text of the set.</param>
+    private sealed record SetClass(IReadOnlyList<(int Low, int High)> Ranges, string Text);
+
+    /// <summary>
     ///     Reads one pattern and writes its translation.
     /// </summary>
     /// <remarks>
@@ -386,12 +439,10 @@ internal static class JavaScriptRegexTranslator
         /// <summary>
         ///     The ranges of the set that the atom just read stands for, when the case flag is set; null for a single character.
         /// </summary>
-        private List<(int Low, int High)>? _atomSet;
-
-        /// <summary>
-        ///     The set that the property escape just read stands for, when the case flag is set.
-        /// </summary>
-        private List<(int Low, int High)> _propertySet = [];
+        /// <remarks>
+        ///     May be a shared set, so it is only read.
+        /// </remarks>
+        private IReadOnlyList<(int Low, int High)>? _atomSet;
 
         /// <summary>
         ///     The translation written so far.
@@ -598,7 +649,7 @@ internal static class JavaScriptRegexTranslator
         {
             while (_position < _source.Length && _source[_position] is not ('|' or ')'))
             {
-                if (!ReadTerm())
+                if (!ReadTerm() || !WithinTranslationLimit())
                 {
                     return false;
                 }
@@ -1026,7 +1077,7 @@ internal static class JavaScriptRegexTranslator
                     _position++;
                     if (_ignoreCase)
                     {
-                        AppendSet(ShorthandSet(character));
+                        _output.Append(ShorthandSet(character).Text);
                         return true;
                     }
 
@@ -1084,39 +1135,58 @@ internal static class JavaScriptRegexTranslator
         ///     The set is closed under the letters that JavaScript treats as the same. For <c>\w</c> that adds the
         ///     long s and the Kelvin sign with the Unicode flag. A negated shorthand is the complement of the
         ///     closed positive set, as the specification defines it, so <c>\W</c> does not match <c>s</c> through
-        ///     the long s. Stateless apart from the flag.
+        ///     the long s. The set is computed once per shorthand and mode, and shared. Thread-safe.
         /// </remarks>
         /// <param name="shorthand">One of <c>d</c>, <c>D</c>, <c>w</c>, <c>W</c>, <c>s</c>, <c>S</c>.</param>
-        /// <returns>The ranges of the set, in ascending order and not overlapping.</returns>
-        private List<(int Low, int High)> ShorthandSet(char shorthand)
-        {
-            var positive = JavaScriptCaseFolding.Close(
-                AsciiLower(shorthand) switch
-                {
-                    'd' => DigitRanges,
-                    'w' => WordRanges,
-                    _ => SpaceRanges,
-                },
-                _unicode);
-            return char.IsAsciiLetterLower(shorthand) ? positive : JavaScriptCaseFolding.Close(Complement(positive), _unicode);
-        }
+        /// <returns>The set, with its pattern text; its ranges are in ascending order and not overlapping.</returns>
+        private SetClass ShorthandSet(char shorthand) => ShorthandSets.GetOrAdd(
+            (shorthand, _unicode),
+            static key =>
+            {
+                var positive = JavaScriptCaseFolding.Close(
+                    AsciiLower(key.Shorthand) switch
+                    {
+                        'd' => DigitRanges,
+                        'w' => WordRanges,
+                        _ => SpaceRanges,
+                    },
+                    key.Unicode);
+                var ranges = char.IsAsciiLetterLower(key.Shorthand)
+                    ? positive
+                    : JavaScriptCaseFolding.Close(Complement(positive), key.Unicode);
+                return new SetClass(ranges, SetText(ranges));
+            });
 
         /// <summary>
         ///     Writes a set of code units as a class, or as a pattern that matches nothing when the set is empty.
         /// </summary>
         /// <remarks>
-        ///     Side effect: appends to the output.
+        ///     Stateless and thread-safe.
         /// </remarks>
         /// <param name="ranges">The ranges of the set, in ascending order and not overlapping. Must not be null.</param>
-        private void AppendSet(IReadOnlyCollection<(int Low, int High)> ranges)
+        /// <returns>The pattern text of the set.</returns>
+        private static string SetText(IReadOnlyCollection<(int Low, int High)> ranges) =>
+            ranges.Count == 0 ? "(?!)" : "[" + ClassBody(ranges) + "]";
+
+        /// <summary>
+        ///     Checks that the translation, and the set of the class being read, are within the allowed length.
+        /// </summary>
+        /// <remarks>
+        ///     The set of a class is counted as the text it will become, so a class that collects many properties is
+        ///     stopped before its set is built. Side effect: records the reason when the limit is passed.
+        /// </remarks>
+        /// <returns><see langword="true"/> when the translation is still within the limit.</returns>
+        private bool WithinTranslationLimit()
         {
-            if (ranges.Count == 0)
+            if (_output.Length + (_classSet.Count * RangeTextLength) <= MaxTranslatedLength)
             {
-                _output.Append("(?!)");
-                return;
+                return true;
             }
 
-            _output.Append('[').Append(ClassBody(ranges)).Append(']');
+            return Fail(
+                $"the translation of the pattern would be longer than {MaxTranslatedLength} characters; with the flag " +
+                "'i', every Unicode property, negated class, and shorthand is written out as the set of characters it " +
+                "matches, so use fewer of them or remove the flag.");
         }
 
         /// <summary>
@@ -1219,7 +1289,35 @@ internal static class JavaScriptRegexTranslator
         /// <returns><see langword="true"/> when the escape was read and written.</returns>
         private bool ReadProperty()
         {
-            var negated = _source[_position] == 'P';
+            if (!ReadPropertyName(out var name, out var negated))
+            {
+                return false;
+            }
+
+            if (_ignoreCase)
+            {
+                // The class is written out, so that its letters follow the JavaScript rules for ignoring case
+                _output.Append(PropertySet(name, negated).Text);
+                return true;
+            }
+
+            _output.Append(negated ? "\\P{" : "\\p{").Append(name).Append('}');
+            return true;
+        }
+
+        /// <summary>
+        ///     Reads the name of a Unicode property escape and checks it.
+        /// </summary>
+        /// <remarks>
+        ///     Side effect: advances the position past the escape.
+        /// </remarks>
+        /// <param name="name">Receives the name of the category.</param>
+        /// <param name="negated">Receives whether the escape is <c>\P</c>.</param>
+        /// <returns><see langword="true"/> when the escape was read.</returns>
+        private bool ReadPropertyName(out string name, out bool negated)
+        {
+            name = string.Empty;
+            negated = _source[_position] == 'P';
             _position++;
             if (!_unicode)
             {
@@ -1232,26 +1330,34 @@ internal static class JavaScriptRegexTranslator
                 return Fail("a Unicode property must be written like \\p{L}.");
             }
 
-            var name = _source[(_position + 1)..close];
+            name = _source[(_position + 1)..close];
             if (!GeneralCategories.Contains(name))
             {
                 return Fail($"the Unicode property '{name}' is not supported; only general categories such as \\p{{L}} are.");
             }
 
             _position = close + 1;
-            if (_ignoreCase)
-            {
-                // The class is written out, so that its letters follow the JavaScript rules for ignoring case
-                _propertySet = JavaScriptCaseFolding.Close(
-                    negated ? Complement(CategoryRanges(name)) : CategoryRanges(name),
-                    _unicode);
-                AppendSet(_propertySet);
-                return true;
-            }
-
-            _output.Append(negated ? "\\P{" : "\\p{").Append(name).Append('}');
             return true;
         }
+
+        /// <summary>
+        ///     Gets the set of code units that a property matches when the expression ignores case.
+        /// </summary>
+        /// <remarks>
+        ///     Computed once per category and negation, and shared; see <see cref="PropertySets"/>. Thread-safe.
+        /// </remarks>
+        /// <param name="name">The name of a general category, which must be one of the supported names.</param>
+        /// <param name="negated">Whether the property is the negated form, <c>\P</c>.</param>
+        /// <returns>The closed set, with its pattern text.</returns>
+        private static SetClass PropertySet(string name, bool negated) => PropertySets.GetOrAdd(
+            (name, negated),
+            static key =>
+            {
+                var ranges = JavaScriptCaseFolding.Close(
+                    key.Negated ? Complement(CategoryRanges(key.Name)) : CategoryRanges(key.Name),
+                    unicode: true);
+                return new SetClass(ranges, SetText(ranges));
+            });
 
         /// <summary>
         ///     Gets the ranges of the code units that belong to a general category, or to a group of categories.
@@ -1458,7 +1564,7 @@ internal static class JavaScriptRegexTranslator
                     !int.TryParse(digits, NumberStyles.AllowHexSpecifier, CultureInfo.InvariantCulture, out var codePoint) ||
                     codePoint > 0x10FFFF)
                 {
-                    return Fail("the escape '\\u{...}' must hold a code point of up to six hexadecimal digits.");
+                    return Fail("the escape '\\u{...}' must hold a code point from 0 to 10FFFF, in hexadecimal digits.");
                 }
 
                 _position = close + 1;
@@ -1541,7 +1647,7 @@ internal static class JavaScriptRegexTranslator
                     break;
                 }
 
-                if (!ReadClassItem(body))
+                if (!ReadClassItem(body) || !WithinTranslationLimit())
                 {
                     return false;
                 }
@@ -1551,7 +1657,8 @@ internal static class JavaScriptRegexTranslator
             if (_ignoreCase)
             {
                 var closed = JavaScriptCaseFolding.Close(_classSet, _unicode);
-                AppendSet(negated ? Complement(closed) : closed);
+                _classSet.Clear();
+                _output.Append(SetText(negated ? Complement(closed) : closed));
                 return true;
             }
 
@@ -1641,7 +1748,7 @@ internal static class JavaScriptRegexTranslator
         /// </remarks>
         /// <param name="value">The code unit of a single character, or -1 for a set.</param>
         /// <param name="set">The ranges of the set when the atom is a set; otherwise null.</param>
-        private void AddToClassSet(int value, List<(int Low, int High)>? set)
+        private void AddToClassSet(int value, IReadOnlyList<(int Low, int High)>? set)
         {
             if (!_ignoreCase)
             {
@@ -1715,7 +1822,7 @@ internal static class JavaScriptRegexTranslator
                         's' => SpaceBody,
                         _ => NotSpaceBody,
                     };
-                    _atomSet = _ignoreCase ? ShorthandSet(escaped) : null;
+                    _atomSet = _ignoreCase ? ShorthandSet(escaped).Ranges : null;
                     return true;
 
                 case 'p' or 'P':
@@ -1740,23 +1847,27 @@ internal static class JavaScriptRegexTranslator
         ///     Reads a Unicode property escape inside a class and returns its text for the class body.
         /// </summary>
         /// <remarks>
-        ///     Reuses <see cref="ReadProperty"/>, which writes the escape to the output; the written text is
-        ///     taken back from the output so that it lands in the class body instead.
+        ///     Without the case flag the text is the escape itself; with it the members are returned as the set of the
+        ///     atom, and the text is empty because the class body is not used.
         /// </remarks>
         /// <param name="text">Receives the escape text, for example <c>\p{L}</c>.</param>
         /// <returns><see langword="true"/> when the property was read.</returns>
         private bool ReadClassProperty(out string text)
         {
             text = string.Empty;
-            var before = _output.Length;
-            if (!ReadProperty())
+            if (!ReadPropertyName(out var name, out var negated))
             {
                 return false;
             }
 
-            text = _output.ToString(before, _output.Length - before);
-            _output.Length = before;
-            _atomSet = _ignoreCase ? _propertySet : null;
+            // With the case flag the members are taken from the set, and the text of the class body is not used
+            if (_ignoreCase)
+            {
+                _atomSet = PropertySet(name, negated).Ranges;
+                return true;
+            }
+
+            text = (negated ? "\\P{" : "\\p{") + name + "}";
             return true;
         }
 

@@ -115,58 +115,105 @@ internal static class JavaScriptCaseFolding
     /// </summary>
     /// <remarks>
     ///     This is what a character class means when the expression ignores case: a character matches when
-    ///     some member of the class is the same letter. Stateless and thread-safe.
+    ///     some member of the class is the same letter. The work is proportional to the number of ranges and to the
+    ///     number of letters that have a case (a few thousand), not to the 65,536 code units, so a pattern with
+    ///     many classes does not pay for the whole range in each. Stateless and thread-safe.
     /// </remarks>
     /// <param name="ranges">The inclusive ranges of the set. Must not be null.</param>
     /// <param name="unicode"><see langword="true"/> for the mode of the <c>u</c> flag.</param>
-    /// <returns>The inclusive ranges of the closed set, in ascending order and not overlapping.</returns>
+    /// <returns>The inclusive ranges of the closed set, in ascending order and not overlapping or touching.</returns>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="ranges"/> is null.</exception>
     internal static List<(int Low, int High)> Close(IEnumerable<(int Low, int High)> ranges, bool unicode)
     {
         ArgumentNullException.ThrowIfNull(ranges);
         var tables = (unicode ? UnicodeTables : NonUnicodeTables).Value;
 
-        // Mark the members, then every other form of each member that has a case
-        var marked = new bool[CodeUnitCount];
-        foreach (var (low, high) in ranges)
-        {
-            for (var unit = low; unit <= high; unit++)
-            {
-                marked[unit] = true;
-            }
-        }
-
+        // Put the members in order, then add every other form of each member that has a case
+        var members = Merge([.. ranges]);
+        var others = new List<(int Low, int High)>();
         foreach (var unit in tables.Cased)
         {
-            if (!marked[unit])
+            if (!Contains(members, unit))
             {
                 continue;
             }
 
             for (var member = tables.Next[unit]; member != unit; member = tables.Next[member])
             {
-                marked[member] = true;
+                if (!Contains(members, member))
+                {
+                    others.Add((member, member));
+                }
             }
         }
 
-        // Read the marks back as ranges
-        var result = new List<(int Low, int High)>();
-        var start = -1;
-        for (var unit = 0; unit <= CodeUnitCount; unit++)
+        if (others.Count == 0)
         {
-            var isMarked = unit < CodeUnitCount && marked[unit];
-            if (isMarked && start < 0)
+            return members;
+        }
+
+        members.AddRange(others);
+        return Merge(members);
+    }
+
+    /// <summary>
+    ///     Sorts ranges and joins those that overlap or touch.
+    /// </summary>
+    /// <remarks>
+    ///     Side effect: sorts <paramref name="ranges"/> in place. Stateless.
+    /// </remarks>
+    /// <param name="ranges">The inclusive ranges, in any order. Must not be null.</param>
+    /// <returns>The ranges in ascending order, not overlapping and not touching.</returns>
+    private static List<(int Low, int High)> Merge(List<(int Low, int High)> ranges)
+    {
+        ranges.Sort(static (first, second) => first.Low.CompareTo(second.Low));
+        var result = new List<(int Low, int High)>();
+        foreach (var (low, high) in ranges)
+        {
+            if (result.Count > 0 && low <= result[^1].High + 1)
             {
-                start = unit;
+                result[^1] = (result[^1].Low, Math.Max(result[^1].High, high));
             }
-            else if (!isMarked && start >= 0)
+            else
             {
-                result.Add((start, unit - 1));
-                start = -1;
+                result.Add((low, high));
             }
         }
 
         return result;
+    }
+
+    /// <summary>
+    ///     Determines whether a code unit lies in one of the ranges.
+    /// </summary>
+    /// <remarks>
+    ///     A binary search. Stateless.
+    /// </remarks>
+    /// <param name="ranges">Ranges in ascending order, not overlapping. Must not be null.</param>
+    /// <param name="unit">The code unit.</param>
+    /// <returns><see langword="true"/> when some range holds the code unit.</returns>
+    private static bool Contains(List<(int Low, int High)> ranges, int unit)
+    {
+        var low = 0;
+        var high = ranges.Count - 1;
+        while (low <= high)
+        {
+            var middle = low + ((high - low) / 2);
+            if (unit < ranges[middle].Low)
+            {
+                high = middle - 1;
+            }
+            else if (unit > ranges[middle].High)
+            {
+                low = middle + 1;
+            }
+            else
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>
