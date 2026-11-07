@@ -2114,6 +2114,60 @@ public class TextCheckerTests
     }
 
     /// <summary>
+    ///     Test that directive names that differ only in letter case are one pattern and do not use up the limit.
+    /// </summary>
+    [Fact]
+    public void TextChecker_Check_IgnoreRegExpDirectiveNamesDifferingInCase_CountOnceTowardsTheLimit()
+    {
+        // Arrange: as many settings patterns as the limit allows together with one predefined name, each named in a
+        // directive in three letter cases (the predefined one in two); counted case-sensitively that would be far over
+        var limit = TextChecker.MaxDirectivePatterns;
+        static string Name(int index) => $"Zorb{(char)('a' + (index / 26))}{(char)('a' + (index % 26))}";
+        var names = Enumerable.Range(0, limit - 1).Select(Name).ToArray();
+        var settings = new TextLintSettings
+        {
+            Patterns = names.Select(name => new NamedPattern(name, $"/{name.ToLowerInvariant()}x/")).ToArray(),
+        };
+        var lines = names
+            .SelectMany(name => new[] { name, name.ToLowerInvariant(), name.ToUpperInvariant() })
+            .Concat(["Urls", "URLS"])
+            .Select(name => $"// cspell:ignoreRegExp {name}")
+            .Append("wrold")
+            .ToArray();
+
+        // Act: check the text
+        var issues = Check(string.Join('\n', lines), settings);
+
+        // Assert: no directive is rejected, and only the real misspelling is reported
+        Assert.Multiple(
+            () => Assert.DoesNotContain(issues, issue => issue.Kind == SpellingIssueKind.InvalidDirective),
+            () => Assert.Equal("wrold", issues[^1].Text));
+    }
+
+    /// <summary>
+    ///     Test that expressions that differ only in letter case are different patterns for the limit.
+    /// </summary>
+    [Fact]
+    public void TextChecker_Check_IgnoreRegExpDirectiveExpressionsDifferingInCase_CountSeparatelyTowardsTheLimit()
+    {
+        // Arrange: one fewer different expression than the limit, then one expression in two letter cases
+        var limit = TextChecker.MaxDirectivePatterns;
+        static string Word(int index) => $"zorb{(char)('a' + (index / 26))}{(char)('a' + (index % 26))}qq";
+        var lines = Enumerable.Range(0, limit - 1)
+            .Select(index => $"// cspell:ignoreRegExp /{Word(index)}/")
+            .Append($"// cspell:ignoreRegExp /{Word(limit)}/")
+            .Append($"// cspell:ignoreRegExp /{Word(limit).ToUpperInvariant()}/")
+            .ToArray();
+
+        // Act: check the text
+        var issues = Check(string.Join('\n', lines));
+
+        // Assert: the second letter case is a different expression, so it is the one over the limit
+        var reason = Assert.Single(issues, issue => issue.Kind == SpellingIssueKind.InvalidDirective);
+        Assert.Contains($"at most {limit} different", reason.Detail, StringComparison.Ordinal);
+    }
+
+    /// <summary>
     ///     Test that a directive pattern that backtracks without end ends with a time-out error instead of hanging.
     /// </summary>
     [Fact]

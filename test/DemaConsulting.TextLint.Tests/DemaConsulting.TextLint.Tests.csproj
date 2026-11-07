@@ -81,7 +81,9 @@
     <!-- The cspell parity corpora, their settings, the recorded cspell output, and the list of deliberate
          differences, copied beside the test assembly (the folder layout is preserved under 'SpellChecking/Parity'). -->
     <Content Include="SpellChecking\Parity\corpus\*;SpellChecking\Parity\expected\*;SpellChecking\Parity\known-divergences.txt" CopyToOutputDirectory="PreserveNewest" />
-
+    <!-- The groups of letters that the JavaScript engine treats as the same when a pattern ignores case, recorded for the
+         tests of the case rules. -->
+    <Content Include="TextScanning\Data\javascript-case-groups.txt" CopyToOutputDirectory="PreserveNewest" />
     <!-- A resource that is not a valid dictionary, used to prove that a damaged embedded dictionary is
          reported by name. -->
     <EmbeddedResource Include="TestSupport\Resources\corrupt-dictionary.tld" LogicalName="DemaConsulting.TextLint.Tests.corrupt-dictionary.tld" />

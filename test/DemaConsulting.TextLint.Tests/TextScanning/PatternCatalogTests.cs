@@ -18,7 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-// cspell:ignore zorb quix flib urlz MIIBIjANBg predefined hexvalues thref azzbz zorbone zorbdef
+// cspell:ignore zorb quix flib urlz MIIBIjANBg predefined hexvalues thref azzbz zorbone zorbdef feff feffend feffkey
+// cspell:ignore feffmiib feffpublic miib
 
 using DemaConsulting.TextLint.TextScanning;
 
@@ -174,6 +175,38 @@ public class PatternCatalogTests
 
         // Assert: the matches are the ones cspell finds
         Assert.Equal(expected, matches);
+    }
+
+    /// <summary>
+    ///     Test that the optional patterns end and join at the characters that JavaScript counts as white space, which are
+    ///     not the ones .NET counts, as recorded from the JavaScript engine with cspell's definitions, and that none of them uses the
+    ///     .NET case-insensitive option, so that they still ignore case where cspell's do.
+    /// </summary>
+    /// <param name="name">The name of the predefined pattern.</param>
+    /// <param name="input">The text to search.</param>
+    /// <param name="expected">The matches the JavaScript engine finds, separated by U+0001.</param>
+    [Theory]
+    [InlineData("PublicKey", "-----BEGIN\u0085PUBLIC\u0085KEY-----\u0085MIIB\u0085END\u0085PUBLIC\u0085KEY-----", "")]
+    [InlineData("PublicKey", "-----BEGIN\uFEFFPUBLIC\uFEFFKEY-----\uFEFFMIIB\uFEFFEND\uFEFFPUBLIC\uFEFFKEY-----", "-----BEGIN\uFEFFPUBLIC\uFEFFKEY-----\uFEFFMIIB\uFEFFEND\uFEFFPUBLIC\uFEFFKEY-----")]
+    [InlineData("PublicKey", "-----BEGIN\u00A0PUBLIC\u00A0KEY-----\u00A0MIIB\u00A0END\u00A0PUBLIC\u00A0KEY-----", "-----BEGIN\u00A0PUBLIC\u00A0KEY-----\u00A0MIIB\u00A0END\u00A0PUBLIC\u00A0KEY-----")]
+    [InlineData("PublicKey", "-----BEGIN\u2028PUBLIC\u2028KEY-----\u2028MIIB\u2028END\u2028PUBLIC\u2028KEY-----", "-----BEGIN\u2028PUBLIC\u2028KEY-----\u2028MIIB\u2028END\u2028PUBLIC\u2028KEY-----")]
+    [InlineData("href", "href\u0085=\u0085\"x\" end", "")]
+    [InlineData("href", "href\uFEFF=\uFEFF\"x\" end", "href\uFEFF=\uFEFF\"x\"")]
+    [InlineData("href", "href\u00A0=\u00A0\"x\" end", "href\u00A0=\u00A0\"x\"")]
+    [InlineData("href", "href\u2028=\u2028\"x\" end", "href\u2028=\u2028\"x\"")]
+    [InlineData("HREF", "HREF = \"x\" end", "HREF = \"x\"")]
+    [InlineData("Base64", "aB3aB3aB3aB3aB3aB3aB3aB3aB3aB3aB3aB3aB3aB3\u000A\u0085aB3aB3aB3aB3aB3aB3aB3aB3aB3aB3aB3aB3aB3aB3\u000AaB3aB3aB3aB3aB3aB3aB3aB3aB3aB3aB3aB3aB3aB3", "aB3aB3aB3aB3aB3aB3aB3aB3aB3aB3aB3aB3aB3aB3\u0001aB3aB3aB3aB3aB3aB3aB3aB3aB3aB3aB3aB3aB3aB3\u000AaB3aB3aB3aB3aB3aB3aB3aB3aB3aB3aB3aB3aB3aB3")]
+    [InlineData("Base64", "aB3aB3aB3aB3aB3aB3aB3aB3aB3aB3aB3aB3aB3aB3\u000A\uFEFFaB3aB3aB3aB3aB3aB3aB3aB3aB3aB3aB3aB3aB3aB3\u000AaB3aB3aB3aB3aB3aB3aB3aB3aB3aB3aB3aB3aB3aB3", "aB3aB3aB3aB3aB3aB3aB3aB3aB3aB3aB3aB3aB3aB3\u000A\uFEFFaB3aB3aB3aB3aB3aB3aB3aB3aB3aB3aB3aB3aB3aB3\u000AaB3aB3aB3aB3aB3aB3aB3aB3aB3aB3aB3aB3aB3aB3")]
+    public void PatternCatalog_Resolve_JavaScriptWhiteSpace_EndsAndJoinsLikeJavaScript(string name, string input, string expected)
+    {
+        // Arrange: the name, the text, and the matches recorded from the JavaScript engine are passed in by the theory data
+        // Act: resolve the name and find its matches
+        var matches = Matches([name], input);
+
+        // Assert: the matches are the ones JavaScript finds, and no optional pattern uses the case-insensitive option
+        Assert.Multiple(
+            () => Assert.Equal(expected, matches),
+            () => Assert.All(PatternCatalog.OptionalRegexes, regex => Assert.Equal(System.Text.RegularExpressions.RegexOptions.CultureInvariant, regex.Options)));
     }
 
     /// <summary>

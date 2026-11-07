@@ -20,7 +20,7 @@
 
 using DemaConsulting.TextLint.TextScanning;
 
-// cspell:ignore enablex nextline bareword yyxx zorbtrail zzxx
+// cspell:ignore enablex nextline bareword yyxx zorbtrail zzxx feff fgamma ftail fwords chec
 
 namespace DemaConsulting.TextLint.Tests.TextScanning;
 
@@ -901,7 +901,69 @@ public class DocumentDirectivesTests
     }
 
     /// <summary>
-    ///     Test that the pattern of a directive ends at the line end, whichever line terminator the text uses.
+    ///     Test that the white space of a directive is the JavaScript set, as cspell's own reader reads it: U+0085 does not separate
+    ///     words and U+FEFF does, and neither a prefix nor a name is separated from its argument by U+0085.
+    /// </summary>
+    [Fact]
+    public void DocumentDirectives_Scan_JavaScriptWhiteSpace_SeparatesLikeCspell()
+    {
+        // Arrange: directives with U+0085, U+FEFF, and U+00A0 where the reader looks for white space; the results were recorded
+        // from cspell's own in-document settings reader
+        var words = "// " + Cspell + "words alpha\u0085beta\uFEFFgamma\u00A0delta;eps";
+        var ignored = "// " + Cspell + "ignore alpha\u0085beta\uFEFFgamma";
+        var nextNotSpace = "// " + Cspell + "\u0085words alpha";
+        var nextSpace = "// " + Cspell + "\uFEFFwords alpha";
+        var nameNotSpace = "// " + Cspell + "ignoreRegExp\u0085/x/";
+        var token = "// " + Cspell + "ignoreRegExp \uFEFF\u0085abc\u0085def";
+        var trailing = "// " + Cspell + "ignoreRegExp /x/\uFEFFtail";
+
+        // Act: scan the texts
+        var wordsScan = DocumentDirectives.Scan(words);
+        var ignoredScan = DocumentDirectives.Scan(ignored);
+        var nextNotSpaceScan = DocumentDirectives.Scan(nextNotSpace);
+        var nextSpaceScan = DocumentDirectives.Scan(nextSpace);
+        var nameNotSpaceScan = DocumentDirectives.Scan(nameNotSpace);
+        var tokenScan = DocumentDirectives.Scan(token);
+        var trailingScan = DocumentDirectives.Scan(trailing);
+
+        // Assert: the words, the patterns, and the directives that are not read are the ones cspell finds
+        Assert.Multiple(
+            () => Assert.Equal(["alpha\u0085beta", "gamma", "delta", "eps"], wordsScan.Words.ToArray()),
+            () => Assert.Equal(["alpha\u0085beta", "gamma"], ignoredScan.IgnoredWords.ToArray()),
+            () => Assert.Empty(nextNotSpaceScan.Words),
+            () => Assert.Equal(["alpha"], nextSpaceScan.Words.ToArray()),
+            () => Assert.Empty(nameNotSpaceScan.PatternDirectives),
+            () => Assert.Equal(["\u0085abc\u0085def"], tokenScan.PatternDirectives.Select(pattern => pattern.Text).ToArray()),
+            () => Assert.Equal(["/x/"], trailingScan.PatternDirectives.Select(pattern => pattern.Text).ToArray()));
+    }
+
+    /// <summary>
+    ///     Test that the Kelvin sign is not read as the letter k in a directive prefix, as in JavaScript, where the
+    ///     case-insensitive prefix pattern does not equate the two.
+    /// </summary>
+    [Fact]
+    public void DocumentDirectives_Scan_KelvinSignInPrefix_IsNotReadAsLetterK()
+    {
+        // Arrange: the prefix spell-checker, once with the ordinary letter k and once with the Kelvin sign in its place,
+        // and once with the capital K, which is the same letter in any case
+        var ordinary = "// spell-checker:words alpha";
+        var capital = "// spell-checKer:words alpha";
+        var kelvin = "// spell-chec\u212Aer:words alpha";
+
+        // Act: scan the texts
+        var ordinaryScan = DocumentDirectives.Scan(ordinary);
+        var capitalScan = DocumentDirectives.Scan(capital);
+        var kelvinScan = DocumentDirectives.Scan(kelvin);
+
+        // Assert: only the Kelvin sign makes the prefix unreadable
+        Assert.Multiple(
+            () => Assert.Equal(["alpha"], ordinaryScan.Words.ToArray()),
+            () => Assert.Equal(["alpha"], capitalScan.Words.ToArray()),
+            () => Assert.Empty(kelvinScan.Words));
+    }
+
+    /// <summary>
+    ///     Test that a pattern directive ends at the end of the line, whichever line terminator the text uses.
     /// </summary>
     /// <param name="lineEnding">The line terminator of the text.</param>
     [Theory]

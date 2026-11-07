@@ -140,6 +140,24 @@ public class PatternParserTests
     }
 
     /// <summary>
+    ///     Test that the white space trimmed from an entry is the JavaScript set, not the .NET one.
+    /// </summary>
+    [Fact]
+    public void PatternParser_Parse_EntryEdges_TrimsOnlyJavaScriptWhiteSpace()
+    {
+        // Arrange: a literal with the byte order mark and a no-break space around it, which JavaScript trims, and a bare
+        // expression with the next-line character around it, which JavaScript does not trim
+        // Act: find the matches
+        var trimmed = Matches("\uFEFF\u00A0/zorb/\u00A0\uFEFF", "zorb");
+        var kept = Matches("\u0085zorb\u0085", "zorb \u0085zorb\u0085");
+
+        // Assert: the literal is read as a literal, and the next-line characters stay part of the expression
+        Assert.Multiple(
+            () => Assert.Equal("zorb", trimmed),
+            () => Assert.Equal("\u0085zorb\u0085", kept));
+    }
+
+    /// <summary>
     ///     Test that text that starts with a slash but does not end in flags is a bare expression, such as a path.
     /// </summary>
     [Fact]
@@ -216,7 +234,9 @@ public class PatternParserTests
         // Assert: the options and the limit are as documented; the multiline flag is written into the translation
         Assert.Multiple(
             () => Assert.Equal(RegexOptions.CultureInvariant, sensitive.Options),
-            () => Assert.Equal(RegexOptions.CultureInvariant | RegexOptions.IgnoreCase, insensitive.Options),
+            () => Assert.Equal(RegexOptions.CultureInvariant, insensitive.Options),
+            () => Assert.Equal("ZORB", Matches("/zorb/i", "ZORB")),
+            () => Assert.Equal(string.Empty, Matches("/zorb/", "ZORB")),
             () => Assert.Equal(TimeSpan.FromMilliseconds(DocumentedTimeoutMilliseconds), sensitive.MatchTimeout),
             () => Assert.Equal(DocumentedTimeoutMilliseconds, PatternParser.MatchTimeoutMilliseconds));
     }
@@ -317,6 +337,89 @@ public class PatternParserTests
 
         // Assert: the matches are the ones JavaScript finds
         Assert.Equal(expected, matches);
+    }
+
+    /// <summary>
+    ///     Test that the letters that are the same when the expression ignores case are the ones JavaScript equates, with and
+    ///     without the Unicode flag, as recorded from the JavaScript engine.
+    /// </summary>
+    /// <param name="entry">The pattern entry as written in the settings.</param>
+    /// <param name="input">The text to search.</param>
+    /// <param name="expected">The expected non-empty matches, separated by U+0001.</param>
+    [Theory]
+    [InlineData("/k/i", "k K \u212A", "k\u0001K")]
+    [InlineData("/\u212A/i", "k K \u212A", "\u212A")]
+    [InlineData("/k/iu", "k K \u212A", "k\u0001K\u0001\u212A")]
+    [InlineData("/s/i", "s S \u017F", "s\u0001S")]
+    [InlineData("/\u017F/i", "s S \u017F", "\u017F")]
+    [InlineData("/s/iu", "s S \u017F", "s\u0001S\u0001\u017F")]
+    [InlineData("/\u00B5/i", "\u00B5 \u039C \u03BC", "\u00B5\u0001\u039C\u0001\u03BC")]
+    [InlineData("/\u03C3/i", "\u03C3 \u03C2 \u03A3", "\u03C3\u0001\u03C2\u0001\u03A3")]
+    [InlineData("/\u03C2/iu", "\u03C3 \u03C2 \u03A3", "\u03C3\u0001\u03C2\u0001\u03A3")]
+    [InlineData("/\u00DF/i", "\u00DF \u1E9E", "\u00DF")]
+    [InlineData("/\u00DF/iu", "\u00DF \u1E9E", "\u00DF\u0001\u1E9E")]
+    [InlineData("/\u0130/i", "\u0130 i I \u0131", "\u0130")]
+    [InlineData("/\u0131/i", "\u0130 i I \u0131", "\u0131")]
+    [InlineData("/i/i", "\u0130 i I \u0131", "i\u0001I")]
+    [InlineData("/[a-z]/i", "\u212A \u017F k", "k")]
+    [InlineData("/[a-z]/iu", "\u212A \u017F k", "\u212A\u0001\u017F\u0001k")]
+    [InlineData("/[^k]/i", "k K \u212A", " \u0001 \u0001\u212A")]
+    [InlineData("/[^k]/iu", "k K \u212A", " \u0001 ")]
+    [InlineData("/\\w/i", "\u017F \u212A s", "s")]
+    [InlineData("/\\w/iu", "\u017F \u212A s", "\u017F\u0001\u212A\u0001s")]
+    [InlineData("/\\W/iu", "\u017F \u212A s -", " \u0001 \u0001 \u0001-")]
+    [InlineData("/\\W/i", "\u017F \u212A s -", "\u017F\u0001 \u0001\u212A\u0001 \u0001 \u0001-")]
+    [InlineData("/[\\W]/iu", "\u017F \u212A s -", " \u0001 \u0001 \u0001-")]
+    [InlineData("/\\bs\\b/iu", "\u017F s", "\u017F\u0001s")]
+    [InlineData("/(a)\\1/i", "aA Aa ab", "aA\u0001Aa")]
+    [InlineData("/\\p{Lu}/u", "a B", "B")]
+    [InlineData("/\\p{Lu}/iu", "a B 1", "a\u0001B")]
+    [InlineData("/\\P{Lu}/iu", "a B 1", "a\u0001 \u0001B\u0001 \u00011")]
+    [InlineData("/[\\p{Ll}\\d]/iu", "a B 1 -", "a\u0001B\u00011")]
+    [InlineData("/[\u03B1-\u03C9]/i", "\u03A3 \u03C2 \u03C3 \u0391 a", "\u03A3\u0001\u03C2\u0001\u03C3\u0001\u0391")]
+    [InlineData("/\uD801\uDC00/iu", "\uD801\uDC28 \uD801\uDC00", "\uD801\uDC28\u0001\uD801\uDC00")]
+    [InlineData("/\uD801\uDC00/i", "\uD801\uDC28 \uD801\uDC00", "\uD801\uDC00")]
+    [InlineData("/[\u00E0-\u00FE]/i", "\u00C0 \u00D7 \u00FF \u0178 \u00DE", "\u00C0\u0001\u00DE")]
+    [InlineData("/\u00FF/i", "\u0178 \u00FF", "\u0178\u0001\u00FF")]
+    [InlineData("/\u01C5/i", "\u01C4 \u01C5 \u01C6", "\u01C4\u0001\u01C5\u0001\u01C6")]
+    [InlineData("/\u1E9B/i", "\u1E9B \u1E60 \u1E61", "\u1E9B\u0001\u1E60\u0001\u1E61")]
+    [InlineData("/\u1E9B/iu", "\u1E9B \u1E60 \u1E61", "\u1E9B\u0001\u1E60\u0001\u1E61")]
+    [InlineData("/\u1F80/i", "\u1F80 \u1F88", "\u1F80")]
+    [InlineData("/\u1F80/iu", "\u1F80 \u1F88", "\u1F80\u0001\u1F88")]
+    [InlineData("/\u212B/i", "\u00C5 \u00E5 \u212B", "\u212B")]
+    [InlineData("/\u2126/iu", "\u03A9 \u03C9 \u2126", "\u03A9\u0001\u03C9\u0001\u2126")]
+    public void PatternParser_Parse_CaseFlag_KeepsTheJavaScriptLetterEquivalence(string entry, string input, string expected)
+    {
+        // Arrange: the entry, the text, and the matches recorded from the JavaScript engine are passed in by the theory data
+        // Act: parse the entry and find its matches
+        var matches = Matches(entry, input);
+
+        // Assert: the matches are the ones JavaScript finds, where .NET's own case option would give others (the Kelvin sign,
+        // the long s, the micro sign, the Greek sigmas, and the letters with several-character upper-case forms), and
+        // that option is not used
+        Assert.Multiple(
+            () => Assert.Equal(expected, matches),
+            () => Assert.Equal(RegexOptions.CultureInvariant, PatternParser.Parse(entry).Options));
+    }
+
+    /// <summary>
+    ///     Test that a bare expression is case-insensitive with the JavaScript rules, and that no letter case is applied
+    ///     to an expression written without the flag.
+    /// </summary>
+    [Fact]
+    public void PatternParser_Parse_BareExpression_UsesTheJavaScriptCaseRules()
+    {
+        // Arrange: a bare expression with the letter k, and the same as a literal without the flag
+        const string text = "k K \u212A";
+
+        // Act: find the matches
+        var bare = Matches("k", text);
+        var sensitive = Matches("/k/", text);
+
+        // Assert: the bare expression matches both ASCII letters but not the Kelvin sign; the literal only the lower case
+        Assert.Multiple(
+            () => Assert.Equal("k\u0001K", bare),
+            () => Assert.Equal("k", sensitive));
     }
 
     /// <summary>

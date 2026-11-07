@@ -106,6 +106,38 @@ public class MarkdownPatternsTests
     }
 
     /// <summary>
+    ///     Test that the patterns end and join at the characters that JavaScript counts as white space, which are not the ones
+    ///     .NET counts: U+0085 is not white space and U+FEFF is, as recorded from the JavaScript engine with cspell's definitions.
+    /// </summary>
+    /// <param name="name">The name of the pattern.</param>
+    /// <param name="input">The text to search.</param>
+    /// <param name="expected">The matches the JavaScript engine finds, separated by U+0001.</param>
+    [Theory]
+    [InlineData("Link", "[a](b\u0085c)", "b\u0085c")]
+    [InlineData("Link", "[a](b\uFEFFc)", "b")]
+    [InlineData("Link", "[a](b\u00A0c)", "b")]
+    [InlineData("Link", "[a](b\u2028c)", "b")]
+    [InlineData("LinkFooter", "[ref]: http://x\u0085more", "[ref]: http://x\u0085more")]
+    [InlineData("LinkFooter", "[ref]: http://x\uFEFFmore", "[ref]: http://x")]
+    [InlineData("LinkFooter", "[ref]: http://x\u00A0more", "[ref]: http://x")]
+    [InlineData("LinkFooter", "[ref]: http://x\u2028more", "[ref]: http://x")]
+    [InlineData("Anchor", "<a\u0085id=\"x\u0085y\">", "")]
+    [InlineData("Anchor", "<a\uFEFFid=\"x\uFEFFy\">", "x")]
+    [InlineData("Anchor", "<a\u00A0id=\"x\u00A0y\">", "x")]
+    [InlineData("Anchor", "<a\u2028id=\"x\u2028y\">", "x")]
+    public void MarkdownPatterns_All_JavaScriptWhiteSpace_EndsAndJoinsLikeJavaScript(string name, string input, string expected)
+    {
+        // Arrange: the pattern name, the text, and the matches recorded from the JavaScript engine are passed in by the theory data
+        // Act: find the matches of the pattern
+        var matches = Matches(name, input);
+
+        // Assert: the matches are the ones JavaScript finds, and every pattern is built without the case option
+        Assert.Multiple(
+            () => Assert.Equal(expected, matches),
+            () => Assert.All(MarkdownPatterns.All, regex => Assert.Equal(System.Text.RegularExpressions.RegexOptions.CultureInvariant, regex.Options)));
+    }
+
+    /// <summary>
     ///     Test that there are five patterns and every one has the documented time limit.
     /// </summary>
     [Fact]
