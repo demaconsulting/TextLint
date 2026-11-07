@@ -20,7 +20,7 @@
 
 using DemaConsulting.TextLint.TextScanning;
 
-// cspell:ignore enablex nextline bareword yyxx zorbtrail zzxx feff fgamma ftail fwords chec
+// cspell:ignore enablex nextline bareword yyxx zorbtrail zzxx feff fgamma ftail fwords chec dotless gnore nzzqxb zzqxa
 
 namespace DemaConsulting.TextLint.Tests.TextScanning;
 
@@ -960,6 +960,77 @@ public class DocumentDirectivesTests
             () => Assert.Equal(["alpha"], ordinaryScan.Words.ToArray()),
             () => Assert.Equal(["alpha"], capitalScan.Words.ToArray()),
             () => Assert.Empty(kelvinScan.Words));
+    }
+
+    /// <summary>
+    ///     Test that letters that look like ASCII letters, or that a case-insensitive comparison of another engine equates
+    ///     with them, are not letters of a directive prefix or name, and that case folding of the ASCII letters still works.
+    ///     The expected results were recorded from cspell, whose patterns ignore case the JavaScript way: an ASCII letter
+    ///     matches only itself and its other case.
+    /// </summary>
+    /// <param name="directiveLine">The comment line that holds the directive.</param>
+    /// <param name="hidden">Whether cspell reads it as a disable directive that hides the next line.</param>
+    [Theory]
+    [InlineData("// cspell:disable", true)]
+    [InlineData("// CSPELL:DISABLE", true)]
+    [InlineData("// SpElL-ChEcKeR:DiSaBlE", true)]
+    [InlineData("// c\u017Fpell:disable", false)]
+    [InlineData("// cspell:di\u017Fable", false)]
+    [InlineData("// spell-chec\u212Aer:disable", false)]
+    [InlineData("// \u212Aspell:disable", true)]
+    [InlineData("// cspell:d\u0130sable", false)]
+    [InlineData("// cspell:d\u0131sable", false)]
+    [InlineData("// text\u0130int:disable", false)]
+    [InlineData("// textl\u0131nt:disable", false)]
+    public void DocumentDirectives_Scan_LookalikeLetters_AreNotLettersOfADirective(string directiveLine, bool hidden)
+    {
+        // Arrange: a directive line, the line it would hide, and an enable that ends the block
+        var text = directiveLine + "\nzzqxa\n// cspell:enable\nzzqxb";
+        var start = text.IndexOf("zzqxa", StringComparison.Ordinal);
+
+        // Act: scan the text
+        var scan = DocumentDirectives.Scan(text);
+
+        // Assert: the line is hidden only when cspell reads the directive
+        Assert.Equal(hidden, scan.ExcludedRanges.Any(range => range.Start <= start && start < range.End));
+    }
+
+    /// <summary>
+    ///     Test that a name that is followed by the long s is read as the name without the letter, as in cspell: the long s
+    ///     is not the letter s, so it neither extends the name nor is it part of the name's keyword.
+    /// </summary>
+    [Fact]
+    public void DocumentDirectives_Scan_LongSAfterWordKeyword_IsNotTheLetterS()
+    {
+        // Arrange: a words directive whose keyword is followed by the long s, and one with the ordinary letter s
+        var longS = "// " + Cspell + "word\u017F zzqxa";
+        var ordinary = "// " + Cspell + "words zzqxa";
+
+        // Act: scan the texts
+        var longSScan = DocumentDirectives.Scan(longS);
+        var ordinaryScan = DocumentDirectives.Scan(ordinary);
+
+        // Assert: cspell hides zzqxa in both, so both directives add it (the long s alone is too short to be a word)
+        Assert.Multiple(
+            () => Assert.Equal(["zzqxa"], longSScan.Words.ToArray()),
+            () => Assert.Equal(["zzqxa"], ordinaryScan.Words.ToArray()));
+    }
+
+    /// <summary>
+    ///     Test that a pattern directive's name with the dotless i in place of its first letter is not that directive, as
+    ///     in cspell, which reports the word and does not read the pattern.
+    /// </summary>
+    [Fact]
+    public void DocumentDirectives_Scan_DotlessIInIgnoreRegExp_IsNotThatDirective()
+    {
+        // Arrange: the name with the dotless i in place of the i
+        var text = "// " + Cspell + "\u0131gnoreRegExp /zzqxa/";
+
+        // Act: scan the text
+        var scan = DocumentDirectives.Scan(text);
+
+        // Assert: no pattern is added
+        Assert.Empty(scan.PatternDirectives);
     }
 
     /// <summary>

@@ -1,0 +1,19 @@
+zorbA visible line
+// cspell:dısable zorbB visible: a dotless i is not the letter i
+zorbC visible
+// cſpell:disable zorbD visible: a long s is not the letter s
+zorbE visible
+// cspell:diſable zorbF visible
+zorbG visible
+// cspell:dİsable zorbH visible: a dotted capital i is not the letter i
+zorbI visible
+zorbK visible
+// cspell:ıgnoreRegExp /zorbL/
+zorbL visible
+// cspell:ignoreRegExp /zorbM/
+zorbM hidden by a real directive
+// CSPELL:IGNOREREGEXP /zorbN/
+zorbN hidden by an upper-case directive
+zorbO hidden by a mixed-case directive
+// Kspell:disable zorbP hidden: the Kelvin sign before a prefix is not a letter
+zorbQ hidden to the end

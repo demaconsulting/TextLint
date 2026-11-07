@@ -18,6 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+// cspell:ignore dotless
+
 using DemaConsulting.TextLint.Configuration;
 using DemaConsulting.TextLint.SpellChecking;
 
@@ -89,6 +91,12 @@ public class CspellParityTests
     ///     The corpus of directive names that cspell's patterns end differently from its directive reader.
     /// </summary>
     private const string DirectiveBoundariesCorpus = "directive-boundaries";
+
+    /// <summary>
+    ///     The corpus of directives written with letters that look like, or that another engine equates with, the ASCII
+    ///     letters of a prefix or a name.
+    /// </summary>
+    private const string DirectiveLookalikesCorpus = "directive-lookalikes";
 
     /// <summary>
     ///     The corpus of <c>ignoreRegExpList</c> entries and named patterns.
@@ -481,6 +489,24 @@ public class CspellParityTests
         // Assert: the findings equal cspell's except for the listed differences, which are the patterns that cspell drops silently
         AssertMatchesRecorded(IgnoreRegExpCorpus, ours, IgnoreRegExpCorpus);
         AssertMatchesRecorded(IgnoreRegExpCorpus, crlf, IgnoreRegExpCorpus + CrLfRecordingSuffix);
+    }
+
+    /// <summary>
+    ///     Test that directives written with the dotless i, the dotted capital i, the long s, and the Kelvin sign give the same
+    ///     findings as cspell, with line feed and CRLF line endings.
+    /// </summary>
+    [Fact]
+    public async Task TextLint_CspellParity_DirectiveLookalikesCorpus_MatchesRecordedCspellOutput()
+    {
+        // Arrange: directives whose prefix or name has a look-alike in place of a letter, which cspell does not read, a
+        // Kelvin sign before a prefix, which it does, and upper-case and mixed-case directives, which it also reads
+        // Act: check the corpus with the settings stored beside it
+        var ours = await CheckCorpusAsync(DirectiveLookalikesCorpus);
+        var crlf = await CheckCorpusAsync(DirectiveLookalikesCorpus, useCrLf: true);
+
+        // Assert: the findings equal cspell's, with no listed differences
+        AssertMatchesRecorded(DirectiveLookalikesCorpus, ours, DirectiveLookalikesCorpus);
+        AssertMatchesRecorded(DirectiveLookalikesCorpus, crlf, DirectiveLookalikesCorpus + CrLfRecordingSuffix);
     }
 
     /// <summary>

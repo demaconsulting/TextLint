@@ -36,7 +36,7 @@ $lifted = 100000
 
 # The corpora that are also recorded with CRLF line endings: the ones whose result depends on lines (the directives,
 # and the patterns that use line anchors and the dot)
-$crlfCorpora = @('directives', 'unterminated', 'custom-patterns', 'markdown-links', 'ignore-regexp')
+$crlfCorpora = @('directives', 'unterminated', 'custom-patterns', 'markdown-links', 'ignore-regexp', 'directive-lookalikes')
 
 # The corpora that cspell must read as a language, because their file name has the neutral extension .input. TextLint
 # reads the same corpus under a source name with the matching extension (see CspellParityTests).

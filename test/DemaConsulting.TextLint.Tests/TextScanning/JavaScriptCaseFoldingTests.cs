@@ -21,19 +21,21 @@
 // cspell:ignore Deseret nonunicode
 
 using System.Globalization;
+using System.Text;
 using DemaConsulting.TextLint.TextScanning;
 
 namespace DemaConsulting.TextLint.Tests.TextScanning;
 
 /// <summary>
-///     Unit tests for the <see cref="JavaScriptCaseFolding"/> class.
+///     Unit tests for the <see cref="JavaScriptCaseFolding"/> class and its generated table.
 /// </summary>
 /// <remarks>
 ///     The class is pure logic over code units and depends on nothing but the .NET base class library, so these
 ///     tests use the real class with no test doubles. The reference is a file of the letter groups of the
-///     JavaScript engine that cspell runs its patterns in, recorded by <c>record-case-groups.mjs</c>. The groups
-///     that the .NET data cannot reproduce, because the Unicode version of the JavaScript engine is newer, are
-///     the five pairs listed in <see cref="UnicodeVersionPairs"/>; every other group must match exactly.
+///     JavaScript engine that cspell runs its patterns in, recorded by <c>generate-javascript-case-data.mjs</c>,
+///     the script that also generates the table the library embeds. The library must reproduce the file exactly
+///     on every platform and every .NET version, because the table is data and nothing is derived from the
+///     casing functions of the runtime; a failure on one platform only would mean such a function was used.
 /// </remarks>
 public class JavaScriptCaseFoldingTests
 {
@@ -53,30 +55,41 @@ public class JavaScriptCaseFoldingTests
     private const int CodeUnitCount = 0x10000;
 
     /// <summary>
-    ///     The pairs of code units that the JavaScript engine of the recording treats as one letter and the
-    ///     .NET Unicode data does not, because the engine knows a newer version of Unicode.
+    ///     The last Unicode code point.
     /// </summary>
-    private static readonly (char First, char Second)[] UnicodeVersionPairs =
+    private const int LastCodePoint = 0x10FFFF;
+
+    /// <summary>
+    ///     The files of the library that read or write patterns, which must not use the casing of the runtime.
+    /// </summary>
+    private static readonly string[] PatternSources =
     [
-        ('\u019B', '\uA7DC'),
-        ('\u0264', '\uA7CB'),
-        ('\u1C89', '\u1C8A'),
-        ('\uA7CC', '\uA7CD'),
-        ('\uA7DA', '\uA7DB')
+        "JavaScriptRegexTranslator.cs",
+        "JavaScriptCaseFolding.cs",
+        "JavaScriptSyntax.cs",
+        "PatternParser.cs",
+        "PatternCatalog.cs",
+        "DefaultPatterns.cs",
+        "MarkdownPatterns.cs",
+        "DocumentDirectives.cs",
+        "RandomStringDetector.cs",
     ];
 
     /// <summary>
-    ///     Verifies that the code units that are the same letter in the library are the same letter in JavaScript.
+    ///     Verifies that the code units that are the same letter in the library are exactly those that are the same
+    ///     letter in the recorded JavaScript groups, with nothing added and nothing missing.
     /// </summary>
     /// <param name="mode">The mode to compare: the recorded mode name.</param>
     /// <param name="unicode">Whether the mode is the one of the <c>u</c> flag.</param>
     [Theory]
     [InlineData(NonUnicodeMode, false)]
     [InlineData(UnicodeMode, true)]
-    public void JavaScriptCaseFolding_Equivalents_EveryRecordedGroup_IsReproducedWithoutExtras(string mode, bool unicode)
+    public void JavaScriptCaseFolding_Equivalents_EveryCodeUnit_ReproducesTheRecordedGroupsExactly(string mode, bool unicode)
     {
-        // Arrange: the recorded groups, as the set of ordered pairs each one implies
-        var recorded = ReadRecordedPairs(mode);
+        // Arrange: the recorded groups of the basic plane, as the set of ordered pairs each one implies
+        var recorded = ReadRecordedGroups(mode).Where(group => group.All(member => member < CodeUnitCount))
+            .SelectMany(group => group.SelectMany(one => group.Where(two => two != one).Select(two => ((char)one, (char)two))))
+            .ToHashSet();
 
         // Act: the pairs of the library, over every code unit
         var actual = new HashSet<(char, char)>();
@@ -91,16 +104,87 @@ public class JavaScriptCaseFoldingTests
             }
         }
 
-        // Assert: the library invents no pair, and misses only pairs of a newer Unicode version
-        var extra = actual.Where(pair => !recorded.Contains(pair)).ToList();
-        var missing = recorded.Where(pair => !actual.Contains(pair)).ToList();
-        Assert.Multiple(
-            () => Assert.Empty(extra),
-            () => Assert.All(missing, pair => Assert.Contains(pair, AllowedMissingPairs(unicode))));
+        // Assert: the sets are equal, so the library invents no pair and misses none
+        Assert.True(recorded.SetEquals(actual), $"Missing {recorded.Except(actual).Count()}, extra {actual.Except(recorded).Count()}.");
     }
 
     /// <summary>
-    ///     Verifies the letter groups that differ between .NET and JavaScript.
+    ///     Verifies that the characters outside the basic plane that are the same letter in the library are exactly
+    ///     those of the recorded groups of the mode of the <c>u</c> flag.
+    /// </summary>
+    [Fact]
+    public void JavaScriptCaseFolding_AstralForms_EveryCodePoint_ReproducesTheRecordedGroupsExactly()
+    {
+        // Arrange: the recorded groups of characters outside the basic plane, by member
+        var recorded = ReadRecordedGroups(UnicodeMode)
+            .Where(group => group.All(member => member >= CodeUnitCount))
+            .SelectMany(group => group.Select(member => (member, group)))
+            .ToDictionary(entry => entry.member, entry => entry.group);
+
+        // Act: ask the library for every character outside the basic plane
+        var wrong = new List<int>();
+        for (var codePoint = CodeUnitCount; codePoint <= LastCodePoint; codePoint++)
+        {
+            var forms = JavaScriptCaseFolding.AstralForms(char.ConvertFromUtf32(codePoint));
+            var expected = recorded.TryGetValue(codePoint, out var group)
+                ? group.Select(char.ConvertFromUtf32).ToHashSet()
+                : [char.ConvertFromUtf32(codePoint)];
+            if (!expected.SetEquals(forms) || forms[0] != char.ConvertFromUtf32(codePoint) || forms.Distinct().Count() != forms.Count)
+            {
+                wrong.Add(codePoint);
+            }
+        }
+
+        // Assert: there is no character on which the library and the recording disagree
+        Assert.Empty(wrong);
+    }
+
+    /// <summary>
+    ///     Verifies that the table compiled into the library is the one the recording produced, line for line.
+    /// </summary>
+    /// <param name="mode">The mode to compare: the recorded mode name.</param>
+    /// <param name="embedded">The embedded table of that mode.</param>
+    [Theory]
+    [InlineData(NonUnicodeMode, "NonUnicodeGroups")]
+    [InlineData(UnicodeMode, "UnicodeGroups")]
+    public void JavaScriptCaseData_Groups_TableText_IsTheRecordedFileLineForLine(string mode, string embedded)
+    {
+        // Arrange: the lines of the recorded file of the mode, and the lines of the embedded table
+        var recorded = File.ReadLines(ReferencePath())
+            .Where(line => line.StartsWith(mode + ":", StringComparison.Ordinal))
+            .Select(line => line[(mode.Length + 1)..].Trim())
+            .ToArray();
+        var table = embedded == "NonUnicodeGroups" ? JavaScriptCaseData.NonUnicodeGroups : JavaScriptCaseData.UnicodeGroups;
+
+        // Act: split the table the way the library does
+        var lines = table.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries);
+
+        // Assert: the same groups in the same order, so the table and the file come from one recording
+        Assert.Equal(recorded, lines);
+    }
+
+    /// <summary>
+    ///     Verifies that the table states the versions of the engine it was recorded from.
+    /// </summary>
+    [Fact]
+    public void JavaScriptCaseData_Versions_AreStated()
+    {
+        // Arrange: the recorded file, whose header states the versions too
+
+        // Act: read the versions of the table and the header of the file
+        var header = string.Join('\n', File.ReadLines(ReferencePath()).Where(line => line.StartsWith('#')));
+
+        // Assert: the table names a Node.js version and a Unicode version, and the file header repeats them
+        Assert.Multiple(
+            () => Assert.StartsWith("v", JavaScriptCaseData.NodeVersion, StringComparison.Ordinal),
+            () => Assert.NotEmpty(JavaScriptCaseData.UnicodeVersion),
+            () => Assert.Contains(JavaScriptCaseData.NodeVersion, header, StringComparison.Ordinal),
+            () => Assert.Contains("Unicode " + JavaScriptCaseData.UnicodeVersion, header, StringComparison.Ordinal));
+    }
+
+    /// <summary>
+    ///     Verifies the letter groups that differ between .NET and JavaScript, and those on which the casing of one
+    ///     .NET runtime differs from another.
     /// </summary>
     /// <param name="first">The first code unit.</param>
     /// <param name="second">The second code unit.</param>
@@ -120,10 +204,19 @@ public class JavaScriptCaseFoldingTests
     [InlineData('\u00DF', '\u1E9E', false, false)]
     [InlineData('\u00DF', '\u1E9E', true, true)]
     [InlineData('i', '\u0130', false, false)]
+    [InlineData('i', '\u0130', true, false)]
     [InlineData('i', '\u0131', false, false)]
     [InlineData('I', '\u0131', true, false)]
     [InlineData('a', 'A', false, true)]
     [InlineData('a', 'b', true, false)]
+    [InlineData('\uA7CE', '\uA7CF', false, false)]
+    [InlineData('\uA7CE', '\uA7CF', true, false)]
+    [InlineData('\uA7D2', '\uA7D3', true, false)]
+    [InlineData('\uA7D4', '\uA7D5', true, false)]
+    [InlineData('\u0390', '\u1FD3', false, false)]
+    [InlineData('\u0390', '\u1FD3', true, true)]
+    [InlineData('\uA7DA', '\uA7DB', false, true)]
+    [InlineData('\uA7DA', '\uA7DB', true, true)]
     public void JavaScriptCaseFolding_Equivalents_KnownDivergentLetters_FollowJavaScript(
         char first,
         char second,
@@ -258,42 +351,6 @@ public class JavaScriptCaseFoldingTests
     }
 
     /// <summary>
-    ///     Verifies that masking the Kelvin sign keeps the length and changes nothing else.
-    /// </summary>
-    [Fact]
-    public void JavaScriptCaseFolding_MaskKelvinSign_TextWithSign_KeepsLengthAndReplacesOnlyTheSign()
-    {
-        // Arrange: a text with the sign twice
-        const string text = "a\u212Ab\u212A";
-
-        // Act: mask it
-        var masked = JavaScriptCaseFolding.MaskKelvinSign(text);
-
-        // Assert: the length is the same, the other letters stay, and the sign is gone
-        Assert.Multiple(
-            () => Assert.Equal(text.Length, masked.Length),
-            () => Assert.DoesNotContain('\u212A', masked),
-            () => Assert.Equal('a', masked[0]),
-            () => Assert.Equal('b', masked[2]));
-    }
-
-    /// <summary>
-    ///     Verifies that a text without the sign is returned as it is.
-    /// </summary>
-    [Fact]
-    public void JavaScriptCaseFolding_MaskKelvinSign_TextWithoutSign_ReturnsTheSameInstance()
-    {
-        // Arrange: a text with an ordinary K
-        var text = new string(['K', 'e', 'l', 'v', 'i', 'n']);
-
-        // Act: mask it
-        var masked = JavaScriptCaseFolding.MaskKelvinSign(text);
-
-        // Assert: no copy was made
-        Assert.Same(text, masked);
-    }
-
-    /// <summary>
     ///     Verifies that the entry points reject a null argument.
     /// </summary>
     [Fact]
@@ -303,60 +360,158 @@ public class JavaScriptCaseFoldingTests
 
         // Act and assert: each call refuses it
         Assert.Multiple(
-            () => Assert.Throws<ArgumentNullException>(() => JavaScriptCaseFolding.MaskKelvinSign(null!)),
             () => Assert.Throws<ArgumentNullException>(() => JavaScriptCaseFolding.AstralForms(null!)),
-            () => Assert.Throws<ArgumentNullException>(() => JavaScriptCaseFolding.Close(null!, unicode: true)));
+            () => Assert.Throws<ArgumentNullException>(() => JavaScriptCaseFolding.Close(null!, unicode: true)),
+            () => Assert.Throws<ArgumentNullException>(() => JavaScriptCaseFolding.Parse(null!)));
     }
 
     /// <summary>
-    ///     Gets the pairs a mode may miss compared with the recorded JavaScript groups.
+    ///     Verifies that the table text is read the same with either line ending.
     /// </summary>
-    /// <param name="unicode">Whether the mode is the one of the <c>u</c> flag.</param>
-    /// <returns>Both orders of each pair that depends on a newer Unicode version.</returns>
-    private static HashSet<(char, char)> AllowedMissingPairs(bool unicode)
+    [Fact]
+    public void JavaScriptCaseFolding_Parse_AnyLineEnding_GivesTheSameTables()
     {
-        // The two modes share the pairs; the argument keeps the call site explicit about the mode
-        _ = unicode;
-        var allowed = new HashSet<(char, char)>();
-        foreach (var (first, second) in UnicodeVersionPairs)
+        // Arrange: two groups, written with line feeds, with carriage returns and line feeds, and with a trailing break
+        const string lf = "0041 0061\n0042 0062";
+        const string crlf = "0041 0061\r\n0042 0062\r\n";
+
+        // Act: parse them
+        var fromLf = JavaScriptCaseFolding.Parse(lf);
+        var fromCrlf = JavaScriptCaseFolding.Parse(crlf);
+
+        // Assert: the tables are equal
+        Assert.Multiple(
+            () => Assert.Equal(fromLf.Next, fromCrlf.Next),
+            () => Assert.Equal(fromLf.Cased, fromCrlf.Cased),
+            () => Assert.Equal([(ushort)0x41, (ushort)0x42, (ushort)0x61, (ushort)0x62], fromLf.Cased));
+    }
+
+    /// <summary>
+    ///     Verifies that data that is damaged is refused with a message that quotes the group.
+    /// </summary>
+    /// <param name="groups">The damaged table text.</param>
+    [Theory]
+    [InlineData("0041")]
+    [InlineData("0041 0041")]
+    [InlineData("0041 0061\n0061 0062")]
+    [InlineData("0041 10400")]
+    [InlineData("10400 10428\n10428 10429")]
+    public void JavaScriptCaseFolding_Parse_DamagedGroup_ThrowsInvalidDataException(string groups)
+    {
+        // Arrange: a table with a group that has one member, repeats a character, shares a character with another group,
+        // or mixes the basic plane with the astral planes
+
+        // Act and assert: it is refused
+        var exception = Assert.Throws<InvalidDataException>(() => JavaScriptCaseFolding.Parse(groups));
+        Assert.Contains("case group", exception.Message, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    ///     Verifies that a member that is not hexadecimal is refused.
+    /// </summary>
+    [Fact]
+    public void JavaScriptCaseFolding_Parse_MemberNotHexadecimal_ThrowsFormatException()
+    {
+        // Arrange: a group with a member that is not a number
+
+        // Act and assert: it is refused
+        Assert.Throws<FormatException>(() => JavaScriptCaseFolding.Parse("0041 zz"));
+    }
+
+    /// <summary>
+    ///     Verifies that no source of the library that reads or writes patterns uses the case option of the regular
+    ///     expression engine or a casing function of the runtime, which are the two ways in which the behavior of a
+    ///     pattern could depend on the platform or the runtime version.
+    /// </summary>
+    [Fact]
+    public void JavaScriptCaseFolding_PatternSources_DoNotUseTheCasingOfTheRuntime()
+    {
+        // Arrange: the sources, found from the test assembly up to the repository; the test cannot run without them
+        var folder = FindSourceFolder();
+        Assert.SkipWhen(folder is null, "The source files are not beside the test assembly.");
+        string[] forbidden =
+        [
+            "RegexOptions.IgnoreCase", "(?i", "ToUpper", "ToLower", "TextInfo", "CompareInfo", "CurrentCulture",
+            "InvariantCultureIgnoreCase", "Rune.To", "string.Normalize", ".Normalize(",
+        ];
+
+        // Act: find the code lines (comments are not code) that use any of them
+        var offending = PatternSources
+            .SelectMany(file => File.ReadLines(Path.Combine(folder, file)).Select(line => (file, line: line.Trim())))
+            .Where(entry => !entry.line.StartsWith("//", StringComparison.Ordinal))
+            .Where(entry => forbidden.Any(token => entry.line.Contains(token, StringComparison.Ordinal)))
+            .Select(entry => $"{entry.file}: {entry.line}")
+            .ToList();
+
+        // Assert: none (the ordinal comparison that ignores case is only used on ASCII keywords and extensions, where it
+        // is the same on every platform)
+        Assert.Empty(offending);
+    }
+
+    /// <summary>
+    ///     Verifies that nothing in the library builds a regular expression with the case option, whatever it is for.
+    /// </summary>
+    [Fact]
+    public void JavaScriptCaseFolding_Library_NoRegularExpressionUsesTheCaseOption()
+    {
+        // Arrange: every source file of the library
+        var folder = FindSourceFolder();
+        Assert.SkipWhen(folder is null, "The source files are not beside the test assembly.");
+        var library = Directory.GetParent(folder)!.FullName;
+
+        // Act: find the code lines that name the case option or an inline case group
+        var offending = Directory.EnumerateFiles(library, "*.cs", SearchOption.AllDirectories)
+            .Where(file => !file.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}", StringComparison.Ordinal))
+            .SelectMany(file => File.ReadLines(file).Select(line => (file: Path.GetFileName(file), line: line.Trim())))
+            .Where(entry => !entry.line.StartsWith("//", StringComparison.Ordinal))
+            .Where(entry => entry.line.Contains("RegexOptions.IgnoreCase", StringComparison.Ordinal) ||
+                            entry.line.Contains("(?i", StringComparison.Ordinal))
+            .Select(entry => $"{entry.file}: {entry.line}")
+            .ToList();
+
+        // Assert: there is none
+        Assert.Empty(offending);
+    }
+
+    /// <summary>
+    ///     Gets the path of the recorded groups.
+    /// </summary>
+    /// <returns>The path of the file beside the test assembly.</returns>
+    private static string ReferencePath() =>
+        Path.Combine(AppContext.BaseDirectory, "TextScanning", "Data", "javascript-case-groups.txt");
+
+    /// <summary>
+    ///     Finds the folder of the pattern sources of the library, by walking up from the test assembly.
+    /// </summary>
+    /// <returns>The folder, or null when the repository is not above the test assembly.</returns>
+    private static string? FindSourceFolder()
+    {
+        for (var directory = new DirectoryInfo(AppContext.BaseDirectory); directory is not null; directory = directory.Parent)
         {
-            allowed.Add((first, second));
-            allowed.Add((second, first));
+            var candidate = Path.Combine(directory.FullName, "src", "DemaConsulting.TextLint", "TextScanning");
+            if (File.Exists(Path.Combine(candidate, "JavaScriptCaseFolding.cs")))
+            {
+                return candidate;
+            }
         }
 
-        return allowed;
+        return null;
     }
 
     /// <summary>
-    ///     Reads the recorded groups of a mode and expands each into all its ordered pairs.
+    ///     Reads the recorded groups of a mode.
     /// </summary>
     /// <param name="mode">The recorded mode name.</param>
-    /// <returns>The ordered pairs of distinct code units that are one letter.</returns>
-    private static HashSet<(char, char)> ReadRecordedPairs(string mode)
+    /// <returns>The groups, each the code points of its members.</returns>
+    private static List<int[]> ReadRecordedGroups(string mode)
     {
-        var path = Path.Combine(AppContext.BaseDirectory, "TextScanning", "Data", "javascript-case-groups.txt");
-        var pairs = new HashSet<(char, char)>();
-        foreach (var line in File.ReadLines(path))
-        {
-            var prefix = mode + ":";
-            if (!line.StartsWith(prefix, StringComparison.Ordinal))
-            {
-                continue;
-            }
-
-            var members = line[prefix.Length..]
+        var prefix = mode + ":";
+        return File.ReadLines(ReferencePath())
+            .Where(line => line.StartsWith(prefix, StringComparison.Ordinal))
+            .Select(line => line[prefix.Length..]
                 .Split(' ', StringSplitOptions.RemoveEmptyEntries)
-                .Select(hex => (char)int.Parse(hex, NumberStyles.HexNumber, CultureInfo.InvariantCulture))
-                .ToList();
-            foreach (var one in members)
-            {
-                foreach (var two in members.Where(member => member != one))
-                {
-                    pairs.Add((one, two));
-                }
-            }
-        }
-
-        return pairs;
+                .Select(hex => int.Parse(hex, NumberStyles.HexNumber, CultureInfo.InvariantCulture))
+                .ToArray())
+            .ToList();
     }
 }
