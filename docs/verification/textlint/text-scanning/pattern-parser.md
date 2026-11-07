@@ -33,7 +33,9 @@ N/A - standard test environment.
 - The flags g, i, m, s, and u are accepted in any combination, and every other flag is rejected by name.
 - The s flag makes the dot match the four JavaScript line terminators, and without it the dot does not match them.
 - Every construct of the meaning theory finds exactly the matches recorded from the JavaScript engine, groups are
-  numbered in order of their opening parenthesis, and an astral character is one character only with the u flag.
+  numbered in order of their opening parenthesis, and an astral character is one character only with the u flag, where
+  the dot, negated classes, negated shorthands, properties, and classes with such characters read it whole (211 recorded
+  cases, with lone surrogates).
 - A back-reference to a group that did not take part in the match does not match.
 - Every construct without a safe equivalent is rejected with an exception that names the entry and gives a reason.
 - A blank entry and an empty body are rejected, and a missing entry throws a null-argument error.
@@ -125,8 +127,8 @@ The rows cover inline options, atomic groups, conditionals, quoted and comment g
 group name, an unclosed name, escapes that are plain letters in JavaScript, references to groups that do not exist or
 are not complete, a named reference without a named group, octal escapes, misplaced and repeated quantifiers, repeated
 assertions, counts that are out of order or too large, unclosed groups and classes, a stray closing parenthesis, ranges
-that are out of order, a trailing backslash, malformed escapes, a code point out of range, an astral character in a
-class without the u flag, Unicode properties without the u flag or that are not general categories, characters that
+that are out of order, a trailing backslash, malformed escapes, a code point out of range, Unicode properties without the
+u flag or that are not general categories, characters that
 must be escaped with the u flag, a class escape as the end of a range, escapes that are not allowed inside a class, and
 back-references when the i flag is set (numbered, named, with the u flag, and in a bare expression).
 
@@ -148,9 +150,9 @@ takes milliseconds), with the limit of 262,144 characters named in the reason. T
 megabytes, and the published limit constant is 262,144.
 
 **PatternParser_Parse_TranslationWithinTheLimit_IsAccepted**: The longest ordinary pattern (4,096 letters with the `i`
-flag), fifty case-insensitive properties, as many properties as fit in the source without the `i` flag, 2,048
-case-insensitive shorthands, and fifty classes that collect properties whose union is nearly every character, are all
-accepted, so ordinary patterns are not affected by the limit.
+flag), twenty case-insensitive properties, a thousand negated shorthands with the `u` flag, 2,048 case-insensitive
+shorthands, and twenty classes that collect properties whose union is nearly every character, are all accepted, so
+ordinary patterns are not affected by the limit.
 
 **PatternParser_Parse_ConcurrentTranslations_GiveTheSameResult**: Two patterns that use the cached sets of a property, a
 negated property, and shorthands, in both modes, are translated by two hundred parallel calls, and every result equals
@@ -214,6 +216,43 @@ touching, the whole range, and scattered, in each mode, a code unit is in the cl
 equal to it is a member, tested for all 65,536 code units, and the ranges neither overlap nor touch.
 
 **JavaScriptCaseFolding_Close_EmptySet_ReturnsEmpty**: An empty set stays empty.
+
+**JavaScriptCaseFolding_CloseCodePoints_BasicAndAstralMembers_AddsTheOtherCaseOfEach**: A set of the Deseret capital
+letters and the letter `k`, given as unsorted and overlapping ranges, gains the small letters, `K`, and the Kelvin sign,
+and its ranges are joined.
+
+**JavaScriptCaseFolding_CloseCodePoints_EveryAstralLetter_EqualsItsGroup**: For every character outside the basic plane
+that has a case, the closed set of that character is exactly its group.
+
+**JavaScriptCaseFolding_CloseCodePoints_NullSet_ThrowsArgumentNullException**: A null set throws a null-argument error.
+
+The translation with the `u` flag has its own test file, `JavaScriptUnicodeModeTests.cs`. Its reference is
+`Data/javascript-unicode-matches.txt`, 211 cases recorded from Node.js v22.18.0 by `Data/record-unicode-mode-matches.mjs`
+(checked in; the script is not run by the build): each case is a pattern, its flags, a text, and the non-empty matches
+that JavaScript finds, with the strings as hexadecimal code units so that lone surrogates survive.
+
+**JavaScriptUnicodeMode_Translation_EveryRecordedCase_FindsWhatJavaScriptFinds**: Every recorded case is translated,
+searched, and compared with the recorded matches (a pattern that JavaScript rejects must be rejected). The cases cover
+the dot with and without the `s` flag, `m`, and without the `u` flag (where it is one code unit); quantifiers on the
+dot, on a character outside the basic plane written as a literal, as `\u{...}`, and as two `\u` escapes; lone high
+and low surrogates as literals, as escapes, and in classes, with and without the `u` flag, and a lone surrogate beside a
+pair; negated classes and `[^]`, with characters outside the basic plane, with surrogate ranges, and with quantifiers;
+classes with characters outside the basic plane alone, in ranges, ending a range at the highest code point, and
+mixed with BMP members, and a range that is out of order; the negated shorthands `\W`, `\S`, and `\D`, alone, in
+classes, negated, and repeated; the properties `\p{L}`, `\P{L}`, `\p{Lu}`, `\p{So}`, `\p{Cs}`, `\p{C}`, and `\p{N}`
+alone and in classes, with the `i` flag as well; the letter case of characters outside the basic plane in literals,
+classes, and negated classes; look-behind, look-ahead, `\b`, `\B`, and anchors beside such characters; and
+back-references to a captured character.
+
+**JavaScriptUnicodeMode_RecordedCases_CoverEveryConstructOfTheMode**: The recorded file holds a case of each family that
+the translation writes specially, so that deleting a family from the recording is noticed.
+
+**JavaScriptUnicodeMode_Dot_OnlyTheUnicodeFlagReadsAPairAsOneCharacter**: An emoji is one character for `/^.$/u` and
+`/^.$/su` and two for `/^.$/` and `/^..$/`.
+
+**JavaScriptUnicodeMode_Sets_OrdinaryUseIsWithinTheTranslationLimitAndManyAreRefused**: Patterns that use a property, a
+negated property, a negated class, and the negated shorthands translate to less than half of the limit, and 400
+properties are refused with the limit named.
 
 **JavaScriptCaseFolding_AstralForms_LetterOutsideBasicPlane_ListsTheOtherCase**: A Deseret letter lists itself first
 and its other case, without duplicates.

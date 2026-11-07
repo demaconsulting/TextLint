@@ -568,6 +568,15 @@ wrote:
   pattern names use the same set, so they match what cspell's definitions match.
 - `.` does not match `\n`, `\r`, U+2028, or U+2029; with the `m` flag, `^` and `$` match at those line breaks; without
   it they match only at the start and the end of the text.
+- **Characters outside the basic plane (`u` flag).** Without the `u` flag a pattern reads UTF-16 code units, as
+  JavaScript does, so `.` matches half of an emoji and `/^..$/` matches one. With the `u` flag a pair of code units is
+  one character, as in JavaScript: `.` (also with `s`), a negated class such as `[^a]`, the negated shorthands `\W`,
+  `\S`, and `\D`, and `\P{...}` match an emoji whole; a class can hold a character outside the basic plane, alone or in
+  a
+  range (`[😀-😂]`, `[\u{1F600}-\u{1F64F}]`); `\p{...}` matches such characters of its category; a quantifier covers
+  the whole character (`.{2}` is two emoji, `😀{2}` and `\uD83D\uDE00{2}` repeat the pair); and a surrogate that is not
+  half of a pair is a character of its own that matches only where it is alone, and no match starts inside a pair.
+  This was checked against Node.js on more than 200 cases, including lone surrogates.
 - Groups are numbered by their opening parenthesis, and named groups (`(?<name>...)`, `\k<name>`) are numbered with
   the others, as in JavaScript.
 - The flags `g`, `i`, `m`, `s`, and `u` are accepted in the `ignoreRegExpList` and `patterns` settings. The `s` flag
@@ -593,14 +602,13 @@ wrote:
   escapes `\A`, `\z`, `\Z`, `\G`, `\e`, `\a`, and `\h`; a back-reference to a group that is not complete, or any
   back-reference when the `i` flag is set (which includes every bare expression, because it is read with `i`);
   properties other than the general categories; a quantifier with nothing to repeat; a pattern longer than 4,096
-  characters, nested deeper than 100 groups, or whose translation would be longer than 262,144 characters (a
-  case-insensitive `\p{...}`, negated class, or shorthand is written out as the set of characters it stands for, so
-  with the `i` flag about sixty properties are the most one pattern can hold; the message names the limit); and an
+  characters, nested deeper than 100 groups, or whose translation would be longer than 262,144 characters (with the `i`
+  or the `u` flag, a `\p{...}`, negated class, shorthand, or dot is written out as the set of characters it stands for,
+  so about thirty properties are the most one pattern can hold; the message names the limit); and an
   empty expression.
 - A back-reference to a group that did not take part in a match matches the empty text in JavaScript and fails in
-  .NET; `.` matches one UTF-16 code unit, so with the `u` flag it matches half of a character outside the basic plane;
-  `\p{...}` follows the Unicode categories of the .NET runtime, which can differ from those of Node.js for characters
-  that a recent Unicode version assigned.
+  .NET; `\p{...}` follows the Unicode categories of the .NET runtime, which can differ from those of Node.js for
+  characters that a recent Unicode version assigned.
 
 **Time limit and the worst case.** Every expression has a limit of 5 seconds for one match operation on one text. A
 pattern that backtracks catastrophically on a file (for example `/^(a|aa)+$/` on a long run of `a` followed by `b`)

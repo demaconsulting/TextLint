@@ -16,7 +16,7 @@ used only together.
 
 #### Data Model
 
-<!-- cspell:ignore dgimsuvxy gimsu foldings -->
+<!-- cspell:ignore dgimsuvxy gimsu foldings dbff -->
 
 `PatternParser` is an `internal static` class with no state. Its constants are the flag letters and the time limit:
 
@@ -59,7 +59,9 @@ pinned Node.js treats as the same letter, one group per line in hexadecimal (cod
 points with it), with the Node.js and Unicode versions they were recorded from. The tables hold, for every UTF-16 code
 unit, a ring of the code units that are the same letter, and for every character outside the basic plane that has a
 case, its group. Its functions are `Equivalents` (the ring of one code unit), `Close` (the closure of a set of ranges
-under the equivalence), `AstralForms` (the other forms of a character outside the basic plane), and `Parse` (reads a
+under the equivalence), `CloseCodePoints` (the same for code points, closing the characters outside the basic plane by
+the groups), `Merge` (sorts and joins ranges), `AstralForms` (the other forms of a character outside the basic plane),
+and `Parse` (reads a
 table, and refuses damaged data). It calls no casing function, culture, or case option of the regular expression engine.
 The table is produced by `Data/generate-javascript-case-data.mjs`, a script that is kept in the repository and is not
 run by the build.
@@ -118,7 +120,8 @@ that .NET might read differently. Each rule is covered by a unit test.
   of its forms; with `\b` under `iu` the word class includes U+017F and U+212A, as in JavaScript. A back-reference
   is rejected under `i` (see below).
 - _Line terminators._ `.` is the class of every character except `\n`, `\r`, U+2028, and U+2029; with the `s` flag it
-  is the class `[\u0000-\uFFFF]` of every UTF-16 code unit, line terminators included. In multiline mode `^`
+  is the class `[\u0000-\uFFFF]` of every UTF-16 code unit, line terminators included, and with the `u` flag it is one
+  character in the sense of the next rule. In multiline mode `^`
   is the look-behind that is true at the start of the text or after one of those four characters, and `$` the
   look-ahead that is true at the end of the text or before one. Without the multiline flag, `^` is `\A` and `$` is
   `\z`, so `$` does not match before a final line feed, as in JavaScript (where .NET's `$` would). The translated
@@ -136,11 +139,15 @@ that .NET might read differently. Each rule is covered by a unit test.
   compare the text with its own case rules, which follow the runtime and differ from JavaScript, and an answer that
   depends on the platform is worse than a refusal. A pattern that needs both uses a literal without the flag.
 - _Classes._ The members of a bracketed class are written as `\uXXXX` escapes, ranges as a pair of escapes, and
-  shorthand classes as their ranges, so no character can be read as class syntax. An empty class `[]` matches nothing
-  (`(?!)`) and `[^]` matches every code unit, as in JavaScript. A range that is out of order is rejected. Without the
+  shorthand classes as their ranges, so no character can be read as class syntax. With the `i` or the `u` flag a class
+  is built as a set of characters (with the case flag closed under letter case, and with the Unicode flag by code
+  points, see above) and written from the set. An empty class `[]` matches nothing
+  (`(?!)`) and `[^]` matches every code unit (every character with the `u` flag), as in JavaScript. A range that is out
+  of order is rejected. Without the
   `u` flag a shorthand next to a hyphen makes the hyphen a plain character, as in JavaScript; with it, that is rejected.
 - _Unicode properties._ `\p{..}` and `\P{..}` are accepted only with the `u` flag, which is when JavaScript gives them
-  their meaning, and only for the general categories. Scripts and binary properties have no .NET equivalent and are
+  their meaning, and only for the general categories. They are written out as the set of the code points of the
+  category, so they read characters outside the basic plane. Scripts and binary properties have no .NET equivalent and are
   rejected, as is the bare `\p` of a pattern without the flag, which JavaScript would read as the letter `p`.
 - _Character escapes._ `\t`, `\n`, `\r`, `\f`, `\v`, `\0` (not followed by a digit), `\cX`, `\xHH`, `\uHHHH`, and, with
   the `u` flag, `\u{H..}` are translated. The braced form takes any number of hexadecimal digits, leading zeros
@@ -151,9 +158,32 @@ that .NET might read differently. Each rule is covered by a unit test.
   of them a meaning, such as `\z`, `\A`, and `\e`. Octal escapes are rejected.
 - _Literal characters._ ASCII letters, digits, and a short list of harmless punctuation are written as they are. Every
   other character is written as a `\uXXXX` escape, so .NET can read it only as itself.
-- _Characters outside the basic plane._ A literal surrogate pair, or `\u{...}` above U+FFFF, is two code units. With
-  the `u` flag it is written as a group of the two escapes, so a quantifier covers both; without the flag the
-  quantifier applies to the second unit only, as in JavaScript. Inside a class such a character is rejected.
+- _Characters outside the basic plane, and the Unicode flag._ Without the `u` flag JavaScript reads the text by UTF-16
+  code units, as .NET does, so a literal surrogate pair is two code units and the quantifier applies to the second
+  unit only; `.`, a negated class, and the negated shorthands match one code unit, and a class may hold the two units of
+  a pair as two members. With the `u` flag JavaScript reads the text by characters: a surrogate pair is one character,
+  a surrogate that is not half of a pair is a character of its own, and a match never starts inside a pair. .NET does
+  not, so with the flag everything that reads one character is written to read one character:
+  - a set of characters (a class, a negated class, a negated shorthand, a Unicode property, and the dot) is written by
+    `CodePointSetText` as the alternation of up to four parts: the code units outside the surrogate range as one class,
+    the high surrogates followed by no low surrogate, the low surrogates preceded by no high surrogate (the look-around
+    is what makes a half of a pair unable to match alone), and the characters outside the basic plane as pairs of a
+    lead and a trail class, where adjacent leads with the same trails are joined, so a range of a million code
+    points is one pair of classes; a set that has only code units outside the surrogate range stays a plain class, and
+    anything else is wrapped in a group so a quantifier covers the whole character;
+  - the complement of a set is taken over all code points up to 10FFFF, so `[^a]`, `\W`, `\P{L}`, and `[^]` match a
+    pair whole, and a lone surrogate too;
+  - a class may hold a character outside the basic plane, as a literal, as `\u{...}`, or as two `\u` escapes of a pair,
+    alone or as the end of a range, and a lone surrogate as a member (`[\uD800-\uDBFF]` matches only a high surrogate
+    that is not half of a pair);
+  - a literal surrogate that is not half of a pair, or an escape of one (`\uD83D`, `\u{D83D}`), matches only where it
+    is alone, and two four-digit escapes of a high and a low surrogate in a row are one character (the braced forms are
+    never joined), so `\uD83D\uDE00{2}` repeats the pair;
+  - a Unicode property is the set of the code points of the category (all planes, from the .NET character data), and
+    with the `i` flag the set is closed under letter case (`CloseCodePoints`, which closes the characters outside the
+    basic plane by the groups of the table).
+  Look-behind needs nothing more: .NET reads the same alternation backwards, and the look-around of the lone surrogate
+  forms look at the characters on the right and left of the unit, which is what they must do in either direction.
 - _Quantifiers._ `*`, `+`, `?`, `{n}`, `{n,}`, and `{n,m}`, each with an optional lazy `?`. A brace that does not form a
   quantifier is a literal character without the `u` flag (a lone `{`, `}`, or `]` is rejected with it). A quantifier with
   nothing before it, one that follows another, one on an assertion that cannot be repeated, one whose numbers are out of
@@ -168,37 +198,40 @@ naming the construct.
 
 **Limits.** A pattern body is rejected when it is empty or longer than 4096 characters, when its groups are nested
 more than 100 levels deep, or when its translation would be longer than 262,144 characters. The length limit bounds the
-work of reading a pattern, but it does not bound the size of the translation: with the `i` flag a Unicode property, a
-negated class, or a shorthand is written out as the explicit set of characters it matches, about 4,400 characters for
-one `\p{L}`, so 800 of them would give a pattern of 3.5 million characters, and the work to build it, before any match
-could be tried (and before the match time limit applies). The translation limit stops that: it is more than four
-times the longest translation of an ordinary pattern of the maximum length (4,096 letters with the `i` flag give 57,344
-characters), allows about sixty case-insensitive properties, and is checked after every term and after every member of
-a class (a class counts the ranges it has collected, as the text it will become), so a hostile pattern is refused after
-the first few expansions, in milliseconds, with a reason that names the limit and the flag. Without the `i` flag a
-property stays `\p{L}` and a class its members, so the limit is never reached by a pattern within the length limit.
+work of reading a pattern, but it does not bound the size of the translation: with the `i` flag or the `u` flag a
+Unicode property, a negated class, or a shorthand is written out as the explicit set of characters it matches, about
+8,600 characters for one `\p{L}` (all planes), so 400 of them would give a pattern of 3.4 million characters, and the
+work to build it, before any match could be tried (and before the match time limit applies). The translation limit
+stops that: it is more than four times the longest translation of an ordinary pattern of the maximum length (4,096
+letters with the `i` flag give 57,344 characters), allows about thirty Unicode properties, and is checked after every
+term and after every member of a class (a class counts the ranges it has collected, as the text it will become), so a
+hostile pattern is refused after the first few expansions, in milliseconds, with a reason that names the limit and the
+flags. Without both flags a class stays its members, so the limit is never reached by a pattern within the length limit.
 The nesting limit exists because the reader recurses once per level, so a hostile pattern cannot exhaust
 the stack. Repetition counts that fit a 32-bit integer are accepted, because .NET does not unroll them and the
 translation does not grow with them, so the time limit, not the count, bounds the work of matching.
 
 **The cost of every construct** was checked against the source length. Literals, groups, quantifiers, anchors,
 escapes, and look-around assertions give a constant amount of output per source character (at most 29 characters for
-a letter outside the basic plane with the `i` and `u` flags). The constructs that expand with the `i` flag (a property,
-a shorthand, a negated class, a class that collects sets) are the ones that the translation limit bounds, and their work
-is bounded too: the set of a category (a pass over 65,536 code units) and the closed set of a shorthand are computed
-once per process and kept in two caches of fixed size (37 names with and without negation, and six shorthands in two
-modes), and the closure of a set under letter case (`Close`) works on the ranges and on the few thousand letters that
-have a case, not on the 65,536 code units, so 1,300 classes of three characters cost milliseconds. The caches hold
-immutable values and are filled with a thread-safe dictionary; two threads that fill an entry at once compute the same
-value.
+a letter outside the basic plane with the `i` and `u` flags, and about 40 for a lone surrogate with the `u` flag). The
+constructs that expand with the `i` or `u` flag (a property, a shorthand, a negated class, a dot with the `u` flag, a
+class that collects sets) are the ones that the translation limit bounds, and their work is bounded too: the set of a
+category (a pass over the 1,114,112 code points) and the set of a shorthand are computed once per process and kept in
+caches of fixed size (37 names, with and without negation and with and without the case flag, and six shorthands in
+three modes), and the closure of a set under letter case (`Close`, `CloseCodePoints`) works on the ranges and on the few
+thousand letters that have a case, not on all code points, so 1,300 classes of three characters cost milliseconds. The
+caches hold immutable values and are filled with a thread-safe dictionary; two threads that fill an entry at once compute
+the same value.
 
 **Known differences from JavaScript** that the translation cannot remove, and that are stated rather than hidden:
 
 - A back-reference to a group that did not take part in the match matches the empty string in JavaScript and fails to
   match in .NET. The pattern is accepted, and the match differs only on a text that reaches that case.
-- `.` and negated classes match one UTF-16 code unit, so with the `u` flag (and with `s`) they match half of a
-  character outside the basic plane where JavaScript matches the whole character. The columns that the checker reports
-  count UTF-16 code units for the same reason.
+- A pattern is matched on UTF-16 code units, and the columns that the checker reports count UTF-16 code units, as the
+  text of cspell does. With the `u` flag the translation reads characters outside the basic plane whole (the dot,
+  negated classes, negated shorthands, properties, classes with such characters, and surrogates that are not halves of a
+  pair), as JavaScript does; this was recorded from Node.js v22.18.0 on 211 cases. A back-reference with the `u` flag
+  compares code units, which is the same as comparing the characters.
 - Case folding follows JavaScript exactly as far as the table goes: the table is what Node.js 22 (Unicode 16) does, so a
   character that a later Unicode version gives a case (and a newer JavaScript engine therefore folds) is not folded
   until the table is regenerated, and a character that .NET treats as cased is not folded unless the table says so.

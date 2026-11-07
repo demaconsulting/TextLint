@@ -12,6 +12,7 @@ package TextLint {
         comment testRef /* Test: test/DemaConsulting.TextLint.Tests/TextScanning/PatternParserTests.cs */
         comment testRef2 /* Test: test/DemaConsulting.TextLint.Tests/TextScanning/JavaScriptCaseFoldingTests.cs */
         comment testRef3 /* Test: test/DemaConsulting.TextLint.Tests/TextScanning/JavaScriptSyntaxTests.cs */
+        comment testRef4 /* Test: test/DemaConsulting.TextLint.Tests/TextScanning/JavaScriptUnicodeModeTests.cs */
         comment designRef /* Design: docs/design/textlint/text-scanning/pattern-parser.md */
         comment verificationRef /* Verification: docs/verification/textlint/text-scanning/pattern-parser.md */
         comment reqRef /* Requirements: docs/reqstream/textlint/text-scanning/pattern-parser.yaml */

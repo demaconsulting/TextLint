@@ -345,6 +345,9 @@ reviews:
       - "test/**/TextScanning/PatternParserTests.cs"
       - "test/**/TextScanning/JavaScriptCaseFoldingTests.cs"
       - "test/**/TextScanning/JavaScriptSyntaxTests.cs"
+      - "test/**/TextScanning/JavaScriptUnicodeModeTests.cs"
+      - "test/**/TextScanning/Data/javascript-unicode-matches.txt"
+      - "test/**/TextScanning/Data/record-unicode-mode-matches.mjs"
       - "test/**/TextScanning/Data/javascript-case-groups.txt"
 
   - id: TextLint-TextScanning-PatternCatalog

@@ -51,12 +51,17 @@ sections:
                   the s flag; classes, ranges, groups, named
                   groups, back-references, look-ahead, look-behind, quantifiers, escapes, and Unicode general
                   categories behave as in JavaScript; groups are numbered in order of their opening parenthesis;
-                  and a character outside the basic plane is one character with the u flag. A back-reference to a
+                  and, with the u flag, a character outside the basic plane is one character: the dot, a negated
+                  class, the negated shorthands, and the Unicode properties match it whole, a class may hold it, a
+                  quantifier covers all of it, a surrogate that is not half of a pair is a character that matches
+                  only where it is alone, and no match starts inside a pair. A back-reference to a
                   group that did not take part in the match does not match.
                 justification: |
                   The same pattern must exclude the same text as in cspell, so a project migrated from cspell stays
                   quiet where it was quiet. The two engines give several constructs different meanings, and a
-                  pattern passed through unchanged would silently mean something else. The back-reference of an
+                  pattern passed through unchanged would silently mean something else; with the u flag .NET reads
+                  UTF-16 code units where JavaScript reads characters, so an emoji would be two characters to the
+                  dot. The back-reference of an
                   unmatched group is the one construct whose meaning cannot be kept, and the difference is stated.
                 tests:
                   - PatternParser_Parse_Construct_KeepsItsJavaScriptMeaning
@@ -64,6 +69,10 @@ sections:
                   - PatternParser_Parse_AstralLiteralWithQuantifier_FollowsTheUnicodeFlag
                   - PatternParser_Parse_BackReferenceToUnmatchedGroup_DoesNotMatch
                   - PatternParser_Parse_BracedCodePointWithLeadingZeros_IsAccepted
+                  - JavaScriptUnicodeMode_Translation_EveryRecordedCase_FindsWhatJavaScriptFinds
+                  - JavaScriptUnicodeMode_RecordedCases_CoverEveryConstructOfTheMode
+                  - JavaScriptUnicodeMode_Dot_OnlyTheUnicodeFlagReadsAPairAsOneCharacter
+                  - JavaScriptUnicodeMode_Sets_OrdinaryUseIsWithinTheTranslationLimitAndManyAreRefused
 
               - id: TextLint-TextScanning-PatternParser-JavaScriptCase
                 title: >-
@@ -96,6 +105,9 @@ sections:
                   - JavaScriptCaseFolding_Close_LowerCaseLetter_AddsTheJavaScriptForms
                   - JavaScriptCaseFolding_Close_ContiguousRange_ReturnsAscendingNonOverlappingRanges
                   - JavaScriptCaseFolding_Close_AnySet_EqualsTheCodeUnitByCodeUnitDefinition
+                  - JavaScriptCaseFolding_CloseCodePoints_BasicAndAstralMembers_AddsTheOtherCaseOfEach
+                  - JavaScriptCaseFolding_CloseCodePoints_EveryAstralLetter_EqualsItsGroup
+                  - JavaScriptCaseFolding_CloseCodePoints_NullSet_ThrowsArgumentNullException
                   - JavaScriptCaseFolding_Close_EmptySet_ReturnsEmpty
                   - JavaScriptCaseFolding_AstralForms_LetterOutsideBasicPlane_ListsTheOtherCase
                   - JavaScriptCaseFolding_AstralForms_CharacterWithoutCase_ListsOnlyItself
