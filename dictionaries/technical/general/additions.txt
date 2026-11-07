@@ -22,7 +22,7 @@ yamllint
 
 # Developer terms and phrase fragments found by running TextLint over the DEMA repositories that the imported
 # English lists do not have (the tokenizer splits "de facto", "post mortem", "pre-emptive", "et cetera", and
-# "qualType" into parts, which is why fragments such as "facto" and "qual" appear).
+# "qualType" into parts, which is why fragments such as "facto" and "qual" appear; "café au lait" likewise gives "lait").
 actionability
 approacher
 approachers
@@ -39,6 +39,7 @@ facto
 frusta
 invocable
 keyset
+lait
 meridiem
 mortem
 nullability
@@ -59,3 +60,68 @@ triangulator
 unactionable
 unformatted
 unwelded
+
+# General technical and scientific vocabulary found by running TextLint over the DEMA repositories (a second
+# survey, after the English lists were expanded). Every word is a real term with a public definition, written
+# for this project from its own review (no third-party word list was copied). References:
+#   Wiktionary (en.wiktionary.org): autoscale, bigram, boxplot, chatbot, clitic, codestream, datastream, FPGA,
+#     hypernym, lait, lemmatizer, metafile, multinomial, orderable, postconditions, quantizer, redownload,
+#     retirable, rhoticity, SAML, subcategorization, substream, underflows, unreviewed, unsplit, unvalidated,
+#     upscaling, Viterbi (and their listed inflections).
+#   dialogs: the plural of "dialog" (a window or box in a user interface), which is already a known word.
+#   commitish: the Git glossary term "commit-ish" and the GitHub REST API release field "target_commitish".
+#   zipball: the GitHub REST API "zipball_url" and "Download a repository archive (zip)" endpoint.
+#   JPEG 2000 codestream: ISO/IEC 15444-1; PNG datastream: the PNG specification (ISO/IEC 15948).
+# The words that have an American and a British spelling (lemmatizer, quantizer, subcategorization) are not in the
+# American or the British list, so the builder keeps them; the -ize spelling is the one the term is known by.
+autoscale
+autoscaled
+autoscaling
+bigram
+bigrams
+boxplot
+boxplots
+chatbot
+chatbots
+clitic
+clitics
+codestream
+codestreams
+commitish
+datastream
+datastreams
+dialogs
+exponentiate
+exponentiated
+exponentiates
+exponentiating
+fpga
+fpgas
+hypernym
+hypernyms
+lemmatizer
+lemmatizers
+metafile
+metafiles
+multinomial
+orderable
+postconditions
+quantizer
+quantizers
+redownload
+redownloaded
+redownloading
+redownloads
+retirable
+rhoticity
+saml
+subcategorization
+substream
+substreams
+underflows
+unreviewed
+unsplit
+unvalidated
+upscaling
+Viterbi
+zipball

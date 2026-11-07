@@ -974,7 +974,8 @@ The word lists the dictionaries are built from are third-party data, and the def
 checker are ported from cspell-lib. Their license notices are in the `THIRD-PARTY-NOTICES.txt` file at the root of
 both NuGet packages.
 
-<!-- cspell:ignore colourize glamourize colourise organise practise licence -->
+<!-- cspell:ignore colourize glamourize colourise organise practise licence centre -->
+<!-- cspell:ignore metafile codestream bigram hypernym lemmatizer commitish -->
 
 ### Dictionary Contents
 
@@ -986,12 +987,38 @@ The dictionaries are generated from these sources, with their versions and licen
   Each word is routed to the common, the American, or the British list by one documented rule, so a spelling that
   belongs to one dialect never lands in the common list.
 - **Technical terms**: the cspell dictionaries for software terms, companies, file types, licenses, font names, and the
-  programming languages and tools in common use.
+  programming languages and tools in common use, plus a reviewed list of general technical and scientific terms
+  that real projects use and no English list has (for example `metafile`, `codestream`, `bigram`, `hypernym`,
+  `lemmatizer`, `commitish`, and `dialogs`). The reviewed list is data written for this project from a public
+  definition of each word, not copied from another list. Its terms are known in every language selection, because
+  they do not depend on the spelling dialect.
 - **Exclusions**: a reviewed list of words that imported lists contain but that are almost always a mistyped
   common word. An excluded word is unknown in every language, in every letter case, whichever list it came from.
   The build fails when an exclusion is not a word of any list, so a stale entry is noticed.
 - **Reviewed common words**: a short reviewed list of words that both dialects use but that the base lists give to one
   of them by a data error, such as `oversized`. They are known in every language selection.
+
+Reviewed terms are known in every selection, while an ordinary spelling of one dialect still follows the language you
+choose:
+
+```csharp
+var american = SpellingDictionary.ForLanguages("en-US");
+var british = SpellingDictionary.ForLanguages("en-GB");
+
+Console.WriteLine(american.IsKnown("metafile"));  // True: a reviewed technical term
+Console.WriteLine(british.IsKnown("dialogs"));    // True: known in every language
+Console.WriteLine(american.IsKnown("centre"));    // False: a British spelling
+Console.WriteLine(british.IsKnown("centre"));     // True
+```
+
+#### Words That Are Not in the Dictionaries
+
+A word that only your project uses, such as a product name, a person, an internal abbreviation, or an identifier,
+belongs in the `words` setting of your `.textlint.yaml` (or in an inline `textlint:words` comment), not in the
+dictionaries. A British spelling of an ordinary word is a real finding under `en-US`: choose `en-GB`, or fix the
+text. A general technical or scientific term that other projects would also use, and that a public dictionary or
+standard defines, can be proposed as an issue or a pull request that adds it to the reviewed list
+(`dictionaries/technical/general/additions.txt`; see `dictionaries/README.md` for the rules).
 
 Two rules of the English data are worth knowing:
 

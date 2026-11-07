@@ -43,8 +43,10 @@ The project currently provides:
 - **Word Lookup**: The library reports whether a word is known to American English (the default), British
   English, or both (including derived forms such as `testability`, with the regional spellings kept apart),
   plus a dictionary of technical terms (programming languages, tools, companies, file
-  types, and licenses). The dictionaries are embedded in the assembly, so no data files are needed, and
-  lookups are safe from many threads at once
+  types, and licenses, and a reviewed list of general technical and scientific terms such as `metafile` and
+  `bigram`, known in every language selection). The dictionaries are embedded in the assembly, so no data files are
+  needed, and lookups are safe from many threads at once. Project-specific words belong in the `words` setting;
+  general terms that other projects would need are proposed as an issue or pull request (see the user guide)
 - **Command-Line Spell Checker**: The `textlint` tool checks the files you name (or those of the settings file)
   and reports each issue as `file(line,column): error: message`, a format that editors and CI systems link to,
   followed by a summary. It accepts relative and absolute paths and globs, backslash paths on Windows, and exits
@@ -84,7 +86,7 @@ dotnet add package DemaConsulting.TextLint
 
 Load a `.textlint.yaml` settings file, check the spelling of the files it selects, and print every finding:
 
-<!-- cspell:ignore wrold -->
+<!-- cspell:ignore wrold bigram -->
 
 ```csharp
 using DemaConsulting.TextLint.Configuration;
@@ -293,7 +295,7 @@ Results are written to standard output; errors of the tool itself (a bad argumen
 directory) are written to standard error. Each issue is one line in the compiler style that editors and CI
 systems understand, followed by files that were skipped, and a summary:
 
-<!-- cspell:ignore wrold -->
+<!-- cspell:ignore wrold bigram -->
 
 ```text
 TextLint Tool version <version>

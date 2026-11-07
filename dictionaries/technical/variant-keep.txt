@@ -14,6 +14,8 @@
 #   The builder fails the build for a word here that is not a spelling variant, which keeps this file
 #   tight: remove a word when it stops being stripped (for example when a language list gains it).
 #   Never add a word merely to silence a spelling error. One word per line, in lower case, sorted.
+#   A word that is in neither the American nor the British list (for example the plural "dialogs") is not a
+#   spelling variant and the builder would fail on it: put it in general/additions.txt instead.
 
 analyzer
 colorize

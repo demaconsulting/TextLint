@@ -427,6 +427,17 @@ looked up as written, capitalized, and in upper case in the American, the Britis
 each is known in all of them. The list holds `oversized`, and no word of it is repeated in the generated American or
 British word lists. This scenario is tested by `TextLint_Dictionary_ReviewedCommonWords_AreKnownInEveryLanguage`.
 
+<!-- cspell:ignore metafile codestream hypernym hypernyms lemmatizer commitish dialogs abaci viterbi -->
+
+**TextLint_Dictionary_ReviewedTechnicalVocabulary_IsKnownInEveryLanguage**: Every entry of the reviewed
+general technical and scientific vocabulary (`technical/general/additions.txt`) and of the reviewed common-word list
+(`en-common/additions.txt`) is read from the word-list folder, so no entry can be dropped unnoticed, and is looked up
+as written, capitalized, and in upper case in the American, the British, and the combined selection; each is known in
+all of them. The test also checks that the lists hold `dialogs`, `metafile`, `codestream`, `hypernyms`, `lemmatizer`,
+`commitish`, `abaci`, and `viterbi`, and looks up `dialog` as well. The British spellings `acknowledgement`,
+`cancellable`, `centre`, `labelled`, and `tyre` are known in the British selection and stay unknown in the American
+one. This scenario is tested by `TextLint_Dictionary_ReviewedTechnicalVocabulary_IsKnownInEveryLanguage`.
+
 **TextLint_Dictionary_DerivedFormsAndRegionalSpellings_FollowTheLanguageSelection**: Derived forms that a base word
 list lacks (`testability`, `reviewable`, `precomputed`, `unannotated`, `untestable`) are known in the American and
 the British selection; British-only spellings (`catalogue`, `labelled`, `honoured`, `modelling`) are known only in
@@ -434,7 +445,7 @@ the British selection, and `favorite` only in the American one. This scenario is
 `TextLint_Dictionary_DerivedFormsAndRegionalSpellings_FollowTheLanguageSelection`.
 
 <!-- cspell:ignore colourize glamourize colour organise analyse decolourize unmanoeuvrable manoeuvre -->
-<!-- textlint:ignore catalogue labelled honoured modelling honour centre judgement -->
+<!-- textlint:ignore catalogue labelled honoured modelling honour centre judgement acknowledgement cancellable tyre -->
 
 **TextLint_Dictionary_CuratedSpellingPairs_StayInTheirOwnRegion**: The British spellings of nine curated pairs
 (`honour`, `colour`, `centre`, `catalogue`, `labelled`, `organise`, `analyse`, `modelling`, `judgement`) are looked up

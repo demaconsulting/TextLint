@@ -1,8 +1,8 @@
 ---
 # TextLint System-Level Requirements
 #
-# cspell:ignore favourite licence
-# textlint:ignore catalogue
+# cspell:ignore favourite licence metafile codestream bigram hypernym dialogs
+# textlint:ignore catalogue centre
 #
 # PURPOSE:
 # - Define system-level requirements describing what consumers of the DemaConsulting.TextLint
@@ -410,6 +410,22 @@ sections:
           - TextLint-Dictionaries-ReviewedCommonWords
         tests:
           - TextLint_Dictionary_ReviewedCommonWords_AreKnownInEveryLanguage
+
+      - id: TextLint-System-TechnicalVocabulary
+        title: >-
+          The library shall know the reviewed general technical and scientific terms in every
+          language selection, while the British spellings of ordinary words stay unknown in the
+          American selection.
+        tags: [system]
+        justification: |
+          Real projects use terms that no general English word list has, such as the metafile and
+          codestream of image formats, the bigram and hypernym of language processing, and the
+          plural "dialogs" of a user interface dialog. Reporting them would bury real findings, and
+          they do not depend on the spelling dialect, so a reviewed list makes them known in every
+          selection. A British spelling such as "centre" is a genuine finding in an American
+          project, so it must stay unknown there. Both are observed through the public lookup.
+        tests:
+          - TextLint_Dictionary_ReviewedTechnicalVocabulary_IsKnownInEveryLanguage
 
       - id: TextLint-System-ConcurrentLookup
         title: The library shall allow word lookups from many threads at the same time.
