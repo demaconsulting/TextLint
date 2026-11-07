@@ -53,6 +53,26 @@ public class PatternParserTests
     private const int DocumentedMaximumNesting = 100;
 
     /// <summary>
+    ///     The documented longest translation, in characters.
+    /// </summary>
+    private const int DocumentedMaximumTranslation = 262144;
+
+    /// <summary>
+    ///     The time, in seconds, in which a pattern over the translation limit must be refused; it takes milliseconds.
+    /// </summary>
+    private const int DocumentedTranslationSeconds = 2;
+
+    /// <summary>
+    ///     A number of case-insensitive properties that is within the translation limit.
+    /// </summary>
+    private const int FewProperties = 50;
+
+    /// <summary>
+    ///     The number of translations that run at once in the concurrency test.
+    /// </summary>
+    private const int ParallelTranslations = 200;
+
+    /// <summary>
     ///     The separator between several expected matches in the theory data.
     /// </summary>
     private const char MatchSeparator = '\u0001';
@@ -638,6 +658,142 @@ public class PatternParserTests
         Assert.Multiple(
             () => Assert.NotNull(accepted),
             () => Assert.Contains("nested", exception.Reason, StringComparison.Ordinal));
+    }
+
+    /// <summary>
+    ///     Test that a pattern whose translation would be too long is rejected quickly, with the reason, however it
+    ///     builds up the translation: with many case-insensitive Unicode properties, with a class that collects them,
+    ///     or with a negated class of them.
+    /// </summary>
+    /// <param name="unit">The piece that is repeated to fill the pattern up to its length limit.</param>
+    [Theory]
+    [InlineData("\\p{L}")]
+    [InlineData("\\P{L}")]
+    [InlineData("\\p{Lo}")]
+    [InlineData("[\\p{L}]")]
+    [InlineData("[^\\p{L}]")]
+    public void PatternParser_Parse_CaseInsensitiveExpansionOverTheLimit_IsRejectedQuicklyWithReason(string unit)
+    {
+        // Arrange: a pattern of the longest allowed length made of the piece, with the flags that expand it
+        var body = string.Concat(Enumerable.Repeat(unit, DocumentedMaximumLength / unit.Length));
+        var started = System.Diagnostics.Stopwatch.StartNew();
+
+        // Act: parse it
+        var exception = Rejected("/" + body + "/iu");
+        started.Stop();
+
+        // Assert: it is refused with the limit named, and in far less time than building the regular expression would take
+        Assert.Multiple(
+            () => Assert.Equal(DocumentedMaximumTranslation, JavaScriptRegexTranslator.MaxTranslatedLength),
+            () => Assert.Contains(
+                $"longer than {DocumentedMaximumTranslation} characters",
+                exception.Reason,
+                StringComparison.Ordinal),
+            () => Assert.True(started.Elapsed < TimeSpan.FromSeconds(DocumentedTranslationSeconds), $"Took {started.Elapsed}."));
+    }
+
+    /// <summary>
+    ///     Test that patterns that need a long translation but stay within the limit are accepted, and that the limit
+    ///     does not apply to an expansion that the flags do not ask for.
+    /// </summary>
+    [Fact]
+    public void PatternParser_Parse_TranslationWithinTheLimit_IsAccepted()
+    {
+        // Arrange: the longest ordinary pattern (letters with the case flag), a few properties with the case flag,
+        // as many properties as fit in the source without the case flag, and many shorthands with it
+        var letters = "/" + new string('a', DocumentedMaximumLength) + "/i";
+        var properties = "/" + string.Concat(Enumerable.Repeat("\\p{L}", FewProperties)) + "/iu";
+        var plain = "/" + string.Concat(Enumerable.Repeat("\\p{L}", DocumentedMaximumLength / 5)) + "/u";
+        var shorthands = "/" + string.Concat(Enumerable.Repeat("\\W", DocumentedMaximumLength / 2)) + "/i";
+
+        // A class that collects properties whose union is nearly every character has a short translation, however
+        // many are written, so it is accepted, as is the work of building each one
+        var unions = "/" + string.Concat(Enumerable.Repeat("[\\p{L}\\p{Ll}\\P{Lu}]", FewProperties)) + "/iu";
+
+        // Act: parse them
+        var parsed = new[] { letters, properties, plain, shorthands, unions }.Select(PatternParser.Parse).ToArray();
+
+        // Assert: all are accepted
+        Assert.All(parsed, regex => Assert.NotNull(regex));
+    }
+
+    /// <summary>
+    ///     Test that the translation of a pattern is the same when many threads translate it at once, so that the
+    ///     shared caches of the sets do not change a result.
+    /// </summary>
+    [Fact]
+    public void PatternParser_Parse_ConcurrentTranslations_GiveTheSameResult()
+    {
+        // Arrange: a pattern that uses the cached sets of a property, a negated property, and shorthands, in both modes
+        string[] entries = ["/\\p{Lu}\\P{Nd}\\w\\W[\\s\\S]/iu", "/\\w\\D[\\W\\d]/i"];
+        var expected = entries.Select(entry => PatternParser.Parse(entry).ToString()).ToArray();
+
+        // Act: translate them again on many threads
+        var results = new System.Collections.Concurrent.ConcurrentBag<string>();
+        Parallel.For(
+            0,
+            ParallelTranslations,
+            index => results.Add(PatternParser.Parse(entries[index % entries.Length]).ToString()));
+
+        // Assert: every result equals the sequential one
+        Assert.All(results, result => Assert.Contains(result, expected));
+    }
+
+    /// <summary>
+    ///     Test that a braced code point is read as JavaScript reads it: any number of leading zeros is accepted, as
+    ///     long as the value is not above 10FFFF. The results were recorded from Node.js v22.18.0.
+    /// </summary>
+    /// <param name="entry">The pattern entry.</param>
+    /// <param name="canonical">The same pattern written without the extra leading zeros.</param>
+    /// <param name="input">The text to search.</param>
+    /// <param name="expected">The expected match.</param>
+    [Theory]
+    [InlineData("/\\u{41}/u", "/\\u{41}/u", "A", "A")]
+    [InlineData("/\\u{00000041}/u", "/\\u{41}/u", "A", "A")]
+    [InlineData("/\\u{0000000000041}/u", "/\\u{41}/u", "A", "A")]
+    [InlineData("/\\u{10FFFF}/u", "/\\u{10FFFF}/u", "\U0010FFFF", "\U0010FFFF")]
+    [InlineData("/\\u{0000000010FFFF}/u", "/\\u{10FFFF}/u", "\U0010FFFF", "\U0010FFFF")]
+    [InlineData("/\\u{00000000000000000000FFFF}/u", "/\\u{FFFF}/u", "\uFFFF", "\uFFFF")]
+    public void PatternParser_Parse_BracedCodePointWithLeadingZeros_IsAccepted(
+        string entry,
+        string canonical,
+        string input,
+        string expected)
+    {
+        // Arrange: the entry, its form without leading zeros, and the text are passed in by the theory data
+        // Act: find the matches, and translate both forms
+        var matches = Matches(entry, input);
+        var translated = PatternParser.Parse(entry).ToString();
+        var canonicalTranslated = PatternParser.Parse(canonical).ToString();
+
+        // Assert: the escape is the code point that its value names, and the translation does not depend on the zeros
+        Assert.Multiple(
+            () => Assert.Equal(expected, matches),
+            () => Assert.Equal(canonicalTranslated, translated));
+    }
+
+    /// <summary>
+    ///     Test that a braced code point above 10FFFF, an empty one, and one that is not made of hexadecimal digits are
+    ///     rejected, however many digits it has, as in Node.js v22.18.0.
+    /// </summary>
+    /// <param name="entry">The pattern entry.</param>
+    [Theory]
+    [InlineData("/\\u{110000}/u")]
+    [InlineData("/\\u{0110000}/u")]
+    [InlineData("/\\u{FFFFFFFFFFFF}/u")]
+    [InlineData("/\\u{00000000000000110000}/u")]
+    [InlineData("/\\u{}/u")]
+    [InlineData("/\\u{ 41}/u")]
+    [InlineData("/\\u{-41}/u")]
+    [InlineData("/\\u{+41}/u")]
+    public void PatternParser_Parse_BracedCodePointOutOfRange_IsRejected(string entry)
+    {
+        // Arrange: the entry is passed in by the theory data
+        // Act: parse it
+        var exception = Rejected(entry);
+
+        // Assert: the reason names the range of a code point
+        Assert.Contains("code point from 0 to 10FFFF", exception.Reason, StringComparison.Ordinal);
     }
 
     /// <summary>

@@ -276,6 +276,53 @@ public class JavaScriptCaseFoldingTests
     }
 
     /// <summary>
+    ///     Verifies that closing a set gives the same result as testing every code unit against the letters that are
+    ///     the same, for sets given in any order, overlapping, and touching.
+    /// </summary>
+    /// <param name="unicode">Whether the mode is the one of the <c>u</c> flag.</param>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void JavaScriptCaseFolding_Close_AnySet_EqualsTheCodeUnitByCodeUnitDefinition(bool unicode)
+    {
+        // Arrange: sets that are unsorted, overlapping, touching, the whole range, a single astral-adjacent unit, and a
+        // scattered one; the definition is that a code unit is in the closed set when it or a letter equal to it is a member
+        (int Low, int High)[][] sets =
+        [
+            [('z', 'z'), ('a', 'f'), ('d', 'k'), ('l', 'l')],
+            [(0x0000, 0xFFFF)],
+            [(0x00B5, 0x00B5), (0x017F, 0x017F), (0x212A, 0x212A)],
+            [(0x03A3, 0x03A3), (0x0391, 0x03A1)],
+            [(0xFFFF, 0xFFFF), (0x0000, 0x0000), (0x1E9E, 0x1E9E)],
+            [(0x2000, 0x20FF), (0x2100, 0x21FF)],
+        ];
+
+        foreach (var set in sets)
+        {
+            // Act: close the set, and compute the definition for every code unit
+            var closed = JavaScriptCaseFolding.Close(set, unicode);
+            var actual = new bool[CodeUnitCount];
+            foreach (var (low, high) in closed)
+            {
+                for (var unit = low; unit <= high; unit++)
+                {
+                    actual[unit] = true;
+                }
+            }
+
+            var wrong = Enumerable.Range(0, CodeUnitCount)
+                .Where(unit => actual[unit] != JavaScriptCaseFolding.Equivalents((char)unit, unicode)
+                    .Any(member => set.Any(range => member >= range.Low && member <= range.High)))
+                .ToList();
+
+            // Assert: no code unit differs, and the ranges neither overlap nor touch
+            Assert.Multiple(
+                () => Assert.Empty(wrong),
+                () => Assert.All(closed.Zip(closed.Skip(1)), pair => Assert.True(pair.First.High + 1 < pair.Second.Low)));
+        }
+    }
+
+    /// <summary>
     ///     Verifies that closing a range merges adjacent code units into ascending, non-overlapping ranges.
     /// </summary>
     [Fact]
