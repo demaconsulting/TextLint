@@ -1183,6 +1183,29 @@ public class BuilderProgramTests
     }
 
     /// <summary>
+    ///     Test that a word that is in the lists of two dictionaries is written to each of them.
+    /// </summary>
+    [Fact]
+    public void BuilderProgram_Run_WordInTwoDictionaries_WritesItToEach()
+    {
+        // Arrange: a word in two lists of the common folder and in the British folder
+        using var temp = new TempDirectory();
+        temp.CreateFile("input/en-common/common.txt", "table\nOversized\n");
+        temp.CreateFile("input/en-common/additions.txt", "oversized\n");
+        temp.CreateFile("input/en-GB/gb.txt", "oversized\n");
+
+        // Act: build the two dictionaries
+        var (exitCode, output, error) = Execute("--input", temp.PathOf("input"), "--output", temp.PathOf("out"), "en-common", "en-GB");
+
+        // Assert: success, the word is written once to each dictionary (letter case is folded, so the duplicates in the common folder are one word)
+        Assert.Equal(BuilderProgram.ExitSuccess, exitCode);
+        Assert.Equal(string.Empty, error);
+        Assert.Contains("en-common", output);
+        Assert.Equal(["oversized", "table"], new TldReader(File.ReadAllBytes(temp.PathOf("out/en-common.tld"))).Words);
+        Assert.Equal(["oversized"], new TldReader(File.ReadAllBytes(temp.PathOf("out/en-GB.tld"))).Words);
+    }
+
+    /// <summary>
     ///     Test that an exclusion that is in no dictionary fails the build, names the word, and writes nothing.
     /// </summary>
     [Fact]

@@ -53,8 +53,15 @@ WHAT IT PRODUCES
     ``technical/language/<name>.txt``  programming-language keyword and API lists (8 files, including the fonts list)
     ``technical/general/<name>.txt``   general technical lists (7 files, plus the project-owned additions.txt)
 
-    ``technical/general/additions.txt``, ``technical/variant-keep.txt`` and ``exclusions.txt`` are
-    project-owned and are NEVER touched by this script.
+    ``technical/general/additions.txt``, ``technical/variant-keep.txt``, ``en-common/additions.txt`` and
+    ``exclusions.txt`` are project-owned and are NEVER touched by this script.
+
+    ``en-common/additions.txt`` is the reviewed list of words that are standard in every English variant although
+    SCOWL classifies them as regional (for example ``oversized``, which SCOWL lists for British English only).
+    The script reads it: those words are taken out of every generated list (no source may add them to a
+    regional list), the self-check treats them as deliberate overrides instead of leaks, and the run fails when
+    an entry is invalid, is on a cspell-dicts exclude list, is an -ize form with a known -ise counterpart, or is
+    still in a regional list.
 
     The exclude lists of cspell-dicts (words its dictionaries deliberately do not contain) are honored
     here: those words are never written. The project's own ``exclusions.txt`` is different: it is applied
@@ -81,7 +88,7 @@ VERIFIED INPUTS
 
 STALE LISTS
     Before anything is downloaded, the run fails if a managed folder holds a ``.txt`` list that no source
-    declares and that is not curated (``additions.txt``, ``variant-keep.txt``): that is what a removed, renamed,
+    declares and that is not curated (``additions.txt``, ``variant-keep.txt``, ``en-common/additions.txt``): that is what a removed, renamed,
     or emptied source leaves behind, and the build would keep shipping its words. The files are named, and a
     person deletes them or declares the source. A source that yields no entries is an error, not an empty list.
 
@@ -691,7 +698,35 @@ def technical_managed_paths() -> Set[str]:
 
 
 # Curated lists that live beside the generated ones; the script never writes, replaces, or deletes them
-CURATED_LISTS = frozenset({"technical/variant-keep.txt", "technical/general/additions.txt"})
+COMMON_ADDITIONS = "en-common/additions.txt"
+CURATED_LISTS = frozenset({"technical/variant-keep.txt", "technical/general/additions.txt", COMMON_ADDITIONS})
+
+
+def read_common_overrides(output: Path, cspell_excludes: Iterable[str] = ()) -> Set[str]:
+    """Reads the reviewed common-word list (``en-common/additions.txt``) and returns its folded words.
+
+    The list names words that are standard in every English variant although SCOWL classifies them as regional
+    (or lacks them): the owner's override of the routing rule. Each entry is checked with the builder's entry rule,
+    and an entry that is also on a cspell-dicts exclude list is refused, because the two decisions contradict each
+    other. A missing file is an error: the list is part of the repository, and ignoring it would silently put the
+    words back into their regional lists.
+    """
+    path = output / COMMON_ADDITIONS
+    data = read_if_present(path)
+    if data is None:
+        raise InputError(f"{COMMON_ADDITIONS} is missing; it is a curated list that this script reads but never writes.")
+    excluded = {word.lower() for word in cspell_excludes}
+    words: Set[str] = set()
+    for line_number, line in enumerate(data.decode("utf-8-sig").splitlines(), start=1):
+        entry = line.strip()
+        if not entry or entry.startswith("#"):
+            continue
+        if not is_valid_entry(entry):
+            raise InputError(f"{COMMON_ADDITIONS}({line_number}): '{entry}' is not a valid word list entry.")
+        if entry.lower() in excluded:
+            raise InputError(f"{COMMON_ADDITIONS}({line_number}): '{entry}' is on a cspell-dicts exclude list.")
+        words.add(entry.lower())
+    return words
 
 
 def unexpected_lists(output: Path, folders: Iterable[str], declared: Set[str]) -> list:
@@ -719,14 +754,20 @@ def english_managed_paths() -> Set[str]:
     }
 
 
-def build_english(workdir: Path, stage: Path) -> tuple:
-    """Builds the English lists into the staging folder; returns summary rows and the staged relative paths."""
+def build_english(workdir: Path, stage: Path, output: Path) -> tuple:
+    """Builds the English lists into the staging folder; returns summary rows and the staged relative paths.
+
+    ``output`` is the committed ``dictionaries/`` folder, read only for the curated common-word list.
+    """
     dropped: list = []
     american, british, wide_american, wide_british = load_scowl_sets(workdir, dropped)
 
     cspell = fetch_cspell_english(workdir)
     hunspell = fetch_scowl_hunspell(workdir)
     excluded = read_cspell_excludes(cspell)
+    # The reviewed common words override SCOWL's regional classification: they are written only by hand to
+    # en-common/additions.txt, so every generated list leaves them out and no source may add them back
+    overrides = read_common_overrides(output, excluded)
     entry_drops: Counter = Counter()
 
     # Expand every Hunspell dictionary first (validating it); the forms of the British dictionary that are not -ize
@@ -748,8 +789,9 @@ def build_english(workdir: Path, stage: Path) -> tuple:
     # The base lists: honoring the cspell-dicts exclude lists, every case form goes to the region of its lower-cased
     # word, and a word that the -ise policy rejects is dropped
     base_excluded = sorted(word for word in american | british if word.lower() in excluded)
-    base_words = (american | british) - set(base_excluded)
-    claimed = {word.lower() for word in american | british}
+    base_overridden = sorted(word for word in american | british if word.lower() in overrides)
+    base_words = (american | british) - set(base_excluded) - set(base_overridden)
+    claimed = {word.lower() for word in american | british} | overrides
     base_regions: Dict[str, Set[str]] = defaultdict(set)
     base_policy: Counter = Counter()
     for word in sorted(base_words):
@@ -838,8 +880,10 @@ def build_english(workdir: Path, stage: Path) -> tuple:
     for key, _ in sources:
         for region, words in results[key].items():
             final[region].update(words)
+    # The reviewed common words are part of the finished common list, so the checks see what the builder combines
+    final[word_forms.REGION_COMMON].update(overrides)
     problems = classifier.check_regions(
-        final[word_forms.REGION_COMMON], final[word_forms.REGION_US], final[word_forms.REGION_GB]
+        final[word_forms.REGION_COMMON], final[word_forms.REGION_US], final[word_forms.REGION_GB], overrides=overrides
     )
     if problems:
         shown = "\n  ".join(problems[:40])
@@ -930,6 +974,7 @@ def build_english(workdir: Path, stage: Path) -> tuple:
 
     rows.append(("english entries rejected (SCOWL)", 0, len(dropped)))
     print(f"cspell-dicts exclude lists: {len(excluded)} words; removed from the base lists: {base_excluded}")
+    print(f"reviewed common words ({COMMON_ADDITIONS}): {len(overrides)}; taken out of the SCOWL base lists: {base_overridden}")
     print(f"removed from other sources, by source: {dict(excluded_found)}")
     print(f"-ise policy on the base lists: {dict(base_policy)}; on other sources, words dropped: {dict(policy_dropped)}")
     print("routing tier of every word that a source added (source, tier -> words):")
@@ -1131,12 +1176,29 @@ class _RefreshSelfTests(unittest.TestCase):
 
     def test_lists_that_no_source_declares_are_found_but_curated_lists_are_not(self) -> None:
         for relative in ("technical/general/a.txt", "technical/general/stale.txt", "technical/language/old.txt",
-                         "technical/variant-keep.txt", "technical/general/additions.txt"):
+                         "technical/variant-keep.txt", "technical/general/additions.txt", "en-common/additions.txt"):
             target = self._folder / relative
             target.parent.mkdir(parents=True, exist_ok=True)
             write_text_lf(target, "x\n")
-        found = unexpected_lists(self._folder, ["technical"], {"technical/general/a.txt"})
+        found = unexpected_lists(self._folder, ["technical", "en-common"], {"technical/general/a.txt"})
         self.assertEqual(["technical/general/stale.txt", "technical/language/old.txt"], found)
+
+    def test_the_reviewed_common_words_are_never_managed_and_are_read_with_the_entry_rule(self) -> None:
+        self.assertTrue(english_managed_paths().isdisjoint(CURATED_LISTS))
+        target = self._folder / COMMON_ADDITIONS
+        target.parent.mkdir(parents=True)
+        write_text_lf(target, "# reviewed\n\nOversized\n  oversize  \n")
+        self.assertEqual({"oversized", "oversize"}, read_common_overrides(self._folder))
+        write_text_lf(target, "oversized\nover-sized\n")
+        with self.assertRaises(InputError) as invalid:
+            read_common_overrides(self._folder)
+        self.assertIn("en-common/additions.txt(2): 'over-sized' is not a valid word list entry", str(invalid.exception))
+        write_text_lf(target, "oversized\n")
+        with self.assertRaises(InputError):
+            read_common_overrides(self._folder, ["Oversized"])
+        remove_file(target)
+        with self.assertRaises(InputError):
+            read_common_overrides(self._folder)
 
     def test_every_declared_package_is_managed_and_the_curated_lists_are_not(self) -> None:
         managed = technical_managed_paths()
@@ -1229,7 +1291,7 @@ def main() -> int:
     managed: Set[str] = set()
     try:
         if arguments.only in ("english", "all"):
-            english_rows, english_paths = build_english(workdir, stage)
+            english_rows, english_paths = build_english(workdir, stage, output)
             rows.extend(english_rows)
             produced |= english_paths
             managed |= english_managed_paths()

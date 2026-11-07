@@ -990,6 +990,8 @@ The dictionaries are generated from these sources, with their versions and licen
 - **Exclusions**: a reviewed list of words that imported lists contain but that are almost always a mistyped
   common word. An excluded word is unknown in every language, in every letter case, whichever list it came from.
   The build fails when an exclusion is not a word of any list, so a stale entry is noticed.
+- **Reviewed common words**: a short reviewed list of words that both dialects use but that the base lists give to one
+  of them by a data error, such as `oversized`. They are known in every language selection.
 
 Two rules of the English data are worth knowing:
 

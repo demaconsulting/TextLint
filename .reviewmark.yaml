@@ -19,6 +19,7 @@ needs-review:
   - "dictionaries/README.md"      # Word list documentation: provenance, format rules, and refresh procedure
   - "dictionaries/technical/variant-keep.txt"   # Curated list of reviewed spelling variants (human-reviewed data)
   - "dictionaries/exclusions.txt"   # Curated list of words that must never be known (human-reviewed data)
+  - "dictionaries/en-common/additions.txt"   # Curated words known in every English variant (human-reviewed data)
   - "dictionaries/technical/general/additions.txt"   # Curated project-owned technical terms (human-reviewed data)
   - "test/DemaConsulting.TextLint.Tests/SpellChecking/Parity/**"   # cspell parity corpora and output (reviewed data)
   - "third-party/THIRD-PARTY-NOTICES.txt"   # Legal notices for the third-party word list data
@@ -804,6 +805,7 @@ reviews:
     paths:
       - "dictionaries/technical/variant-keep.txt"
       - "dictionaries/exclusions.txt"
+      - "dictionaries/en-common/additions.txt"
       - "dictionaries/technical/general/additions.txt"
 
   # DictionaryBuilder - Third-Party Notices (legal notices for the imported data)

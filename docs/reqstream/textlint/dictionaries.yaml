@@ -140,3 +140,14 @@ sections:
               must not be reported because of it.
             tests:
               - DictionariesSubsystem_IsKnown_ExcludedWords_AreUnknownInEveryLanguage
+
+          - id: TextLint-Dictionaries-ReviewedCommonWords
+            title: >-
+              The Dictionaries subsystem shall know the words of the reviewed common-word list in every
+              selection, whichever dialect the base word lists give them to.
+            justification: |
+              A word that both dialects use but that the base lists classify as regional (for example
+              "oversized") would be reported as a mistake in the other dialect's selection. The reviewed
+              list is the owner's decision that the word is common, so no selection may reject it.
+            tests:
+              - DictionariesSubsystem_IsKnown_ReviewedCommonWord_IsKnownInEveryLanguage

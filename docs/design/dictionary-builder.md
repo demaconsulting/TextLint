@@ -96,7 +96,9 @@ lists imported from third-party sources are kept as faithful to their source as 
 apply the variant rule or to remove a typo they contain; the variant rule is applied here, when the technical
 dictionary is combined, and the words of the exclusions list are removed after that. The exclusions list is a single
 file in the same format as every word list, kept in the word-list folder beside the dictionary folders. A word in it
-is excluded in every letter case.
+is excluded in every letter case. The dictionaries are independent: a word that the lists of two dictionaries both
+contain (a reviewed common word that an imported list also gives to a regional dictionary) is built into each of them,
+which is harmless because a lookup combines the common dictionary with the regional one, and is never an error.
 
 **Dictionary Files**: the output data.
 

@@ -277,3 +277,19 @@ sections:
         tests:
           - DictionaryBuilder_Build_ExclusionInNoDictionary_FailsNamingWord
           - DictionaryBuilder_Build_ExclusionsFileMissing_FailsNamingFile
+
+      - id: DictionaryBuilder-System-SharedWords
+        title: >-
+          The builder shall build a word that is listed for two dictionaries into both of them, so a
+          reviewed common word is known in every selection even when a regional list also has it.
+        tags: [system]
+        justification: |
+          The project keeps a reviewed list of words that are standard in every English variant although
+          the imported base lists classify them as regional. The regional list is generated data that a
+          refresh rewrites, so the builder must not depend on the lists being disjoint: the word is simply
+          in both dictionaries, and the combination of the common dictionary with a regional one knows it
+          in every language selection.
+        children:
+          - DictionaryBuilder-BuilderProgram-SharedWords
+        tests:
+          - DictionaryBuilder_Build_WordInCommonAndRegionalFolders_IsInBothDictionaries

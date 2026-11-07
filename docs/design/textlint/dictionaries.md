@@ -117,6 +117,15 @@ blind to the part of speech, so a word whose British form differs only by part o
 noun `licence`, `practice` and `practise`) is accepted in both forms by British English, because one of the two forms
 is common to both dialects; that is inherent in a spelling check and is not a leak.
 
+**Reviewed common words.** The base word lists sometimes classify a word as regional by a data error (SCOWL lists
+`oversized` for British English only, although both dialects use it). The common folder therefore also holds a
+hand-written list of reviewed common words, `en-common/additions.txt`, which the generator never rewrites. The
+generator reads it: the words are left out of every generated list, so the list is the only place that classifies
+them, and its checks accept them as deliberate overrides rather than as leaks while still refusing an -ize form that
+has an -ise counterpart. The dictionary builder needs no special rule, because it builds every list of the common
+folder into the common dictionary and a lookup combines that dictionary with the regional one; a word that is in both
+a common and a regional list is simply known in both, so the common list wins and the duplicate is harmless.
+
 **Why a precomputed binary format.** The vocabulary is about two hundred thousand words, and a spell checker
 looks up millions of words in a large repository. The alternatives were to load the words into a general-purpose set
 at run time and to generate source code that initializes one. Building a set from text on every run costs

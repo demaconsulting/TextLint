@@ -1353,6 +1353,59 @@ public class TextLintTests
             .ToHashSet(StringComparer.Ordinal);
 
     /// <summary>
+    ///     Test that every word of the reviewed common-word list is known in every language selection, in every letter case, and is classified by that list alone.
+    /// </summary>
+    /// <remarks>
+    ///     SCOWL lists oversized for British English only, although both dialects use it. The reviewed list is the
+    ///     owner's override of that classification, so the word must be known to the American, the British, and the
+    ///     combined selection, and the generated regional lists must not hold it again.
+    /// </remarks>
+    [Fact]
+    public void TextLint_Dictionary_ReviewedCommonWords_AreKnownInEveryLanguage()
+    {
+        // Arrange: the reviewed words, the words of the generated regional folders, and the three selections
+        var root = Path.Combine(AppContext.BaseDirectory, "dictionaries");
+        var reviewed = ReadReviewedCommonWords(root);
+        var regional = ReadFolderWords(root, "en-US").Union(ReadFolderWords(root, "en-GB")).ToHashSet(StringComparer.Ordinal);
+        var dictionaries = new[] { "en-US", "en-GB", "en-US,en-GB" }.Select(SpellingDictionary.ForLanguages).ToArray();
+        var failures = new List<string>();
+
+        // Act: look up each reviewed word as written, capitalized, and in upper case, and check the regional folders
+        foreach (var word in reviewed)
+        {
+            foreach (var form in new[] { word, Capitalize(word), UpperCaseLatin1(word) })
+            {
+                if (dictionaries.Any(dictionary => !dictionary.IsKnown(form)))
+                {
+                    failures.Add($"{form} is not known in every selection");
+                }
+            }
+
+            if (regional.Contains(word))
+            {
+                failures.Add($"{word} is also in a regional word list");
+            }
+        }
+
+        // Assert: the list holds oversized, every word is known everywhere, and none is repeated in a regional list
+        Assert.Multiple(
+            () => Assert.Contains("oversized", reviewed),
+            () => Assert.Empty(failures.Take(MaxReportedFailures)));
+    }
+
+    /// <summary>
+    ///     Reads the words of the reviewed common-word list.
+    /// </summary>
+    /// <param name="root">The word-list folder copied beside the tests.</param>
+    /// <returns>The distinct lower-case words.</returns>
+    private static HashSet<string> ReadReviewedCommonWords(string root) =>
+        File.ReadLines(Path.Combine(root, "en-common", "additions.txt"))
+            .Select(line => line.Trim())
+            .Where(line => line.Length > 0 && line[0] != '#')
+            .Select(line => line.ToLowerInvariant())
+            .ToHashSet(StringComparer.Ordinal);
+
+    /// <summary>
     ///     Test that lookups from many threads at once all return the correct answers.
     /// </summary>
     [Fact]

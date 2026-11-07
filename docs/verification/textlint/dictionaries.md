@@ -112,3 +112,8 @@ tested: a spelling check is part-of-speech-blind, so British English accepts bot
 (`curser`, `operants`, and a capitalized form) are unknown in every selection, while the accepted
 variants `milage` and `writeable`, which are not on the list, are known. This scenario is tested by
 `DictionariesSubsystem_IsKnown_ExcludedWords_AreUnknownInEveryLanguage`.
+
+**DictionariesSubsystem_IsKnown_ReviewedCommonWord_IsKnownInEveryLanguage**: `oversized` (which the base word lists give
+to British English only), in three letter cases, and `oversize` and `oversizes` (which they give to American English
+only) are known in the American, the British, and the combined selection. This scenario is tested by
+`DictionariesSubsystem_IsKnown_ReviewedCommonWord_IsKnownInEveryLanguage`.

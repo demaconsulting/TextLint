@@ -71,6 +71,10 @@ is in neither the American nor the technical dictionary, and the other words rem
 has fails the run with an error that names the exclusions file and the word and writes nothing. This scenario is
 tested by `DictionaryBuilder_Build_ExclusionInNoDictionary_FailsNamingWord`.
 
+**DictionaryBuilder_Build_WordInCommonAndRegionalFolders_IsInBothDictionaries**: A word that is in a reviewed list of the
+common folder and also in the British folder builds successfully with no error, and both the common and the British
+dictionary contain it. This scenario is tested by `DictionaryBuilder_Build_WordInCommonAndRegionalFolders_IsInBothDictionaries`.
+
 **DictionaryBuilder_Build_ExclusionsFileMissing_FailsNamingFile**: An exclusions option that names a file that does
 not exist fails the run with an error that names the file, rather than treating it as an empty list, and writes
 nothing. This scenario is tested by `DictionaryBuilder_Build_ExclusionsFileMissing_FailsNamingFile`.

@@ -13,7 +13,7 @@ dictionary name that the build passes to the builder.
 
 | Folder | Content |
 | ------ | ------- |
-| `en-common/` | English words spelled the same in American and British (-ise) English |
+| `en-common/` | English words spelled the same in American and British (-ise) English, plus `additions.txt` |
 | `en-US/` | American-only spellings |
 | `en-GB/` | British (-ise)-only spellings |
 | `technical/language/` | Programming-language keyword and API lists, and the font names list (8 files) |
@@ -112,6 +112,24 @@ English keeps `program` for computing and accepts the verb `license`) is missing
 for `-ce`/`-se` (`license`/`licence`) and `-m`/`-mme` (`program`/`programme`) for that reason. The library test suite
 repeats the pair check over the committed lists and through the public lookup.
 
+## Reviewed Common Words
+
+`en-common/additions.txt` is the hand-written list of words that are standard in every English variant although
+the SCOWL lists classify them as regional (or lack them): the owner's override of the classification rule above.
+Its first words are `oversize`, `oversized`, and `oversizes`; SCOWL lists `oversized` for British English at variant
+level 0 and for American English only at level 4, and the reverse for `oversize`, so the size 70 base lists give each
+form to one dialect by accident, and every American project that writes "oversized" would see a false finding. The
+file's header states the review rule and the evidence: add a word only when both dialects use it, never a genuine
+spelling variant, and never merely to silence an error.
+
+The refresh script reads the file but never writes it. It leaves the words out of every generated list, so the file
+is the only place that classifies them; its self-checks treat them as deliberate overrides instead of leaks, but
+still fail for an invalid entry, an entry that is on a cspell-dicts exclude list, an -ize form that has a known -ise
+counterpart, or an entry that is still in an American or British list. The dictionary builder needs no special rule:
+it builds every list of the common folder into the common dictionary, and a lookup combines it with the regional one.
+If a word is in both a common and a regional list anyway, the common list wins, because the word is known in every
+selection and the duplicate is harmless; the builder never reports it.
+
 ## Exclusions
 
 The imported lists are faithful to their sources, and some entries hide real typos: a misspelling the source
@@ -159,8 +177,9 @@ The format is enforced by the builder, which reports every violation with its fi
 Add genuine project-specific technical terms to `technical/general/additions.txt`, one per line. That file is
 owned by the project and is never overwritten by the refresh script; a spelling variant added there is removed
 by the rule above, so a genuine programming term in a variant spelling belongs in `technical/variant-keep.txt`
-instead. Do not edit the imported files by hand, because the next refresh replaces them, and never add a
-misspelling to hide a spelling error.
+instead. An ordinary English word that every dialect uses but that SCOWL classifies wrongly belongs in
+`en-common/additions.txt` (see _Reviewed Common Words_). Do not edit the imported files by hand, because the next
+refresh replaces them, and never add a misspelling to hide a spelling error.
 
 ## Provenance and Licenses
 

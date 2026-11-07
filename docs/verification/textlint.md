@@ -422,6 +422,11 @@ up. This scenario is tested by `TextLint_Dictionary_EveryListedWord_IsKnown`.
 written, capitalized, and in upper case in the American, the British, and the combined selection; none is known,
 and the list is not empty. This scenario is tested by `TextLint_Dictionary_EveryExcludedWord_IsUnknown`.
 
+**TextLint_Dictionary_ReviewedCommonWords_AreKnownInEveryLanguage**: Every word of the reviewed common-word list is
+looked up as written, capitalized, and in upper case in the American, the British, and the combined selection, and
+each is known in all of them. The list holds `oversized`, and no word of it is repeated in the generated American or
+British word lists. This scenario is tested by `TextLint_Dictionary_ReviewedCommonWords_AreKnownInEveryLanguage`.
+
 **TextLint_Dictionary_DerivedFormsAndRegionalSpellings_FollowTheLanguageSelection**: Derived forms that a base word
 list lacks (`testability`, `reviewable`, `precomputed`, `unannotated`, `untestable`) are known in the American and
 the British selection; British-only spellings (`catalogue`, `labelled`, `honoured`, `modelling`) are known only in
