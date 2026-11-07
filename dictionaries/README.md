@@ -6,6 +6,10 @@ dictionary files at build time by the dictionary builder (`src/DemaConsulting.Te
 build of the `DemaConsulting.TextLint` library runs; the library embeds the results. Editing a list is enough: the
 next build converts it again. No binary dictionary is ever committed.
 
+The diagram below shows where the words come from and how they reach the library.
+
+![Dictionary pipeline: SCOWL, Hunspell, cspell-dicts and project-owned lists become word lists under dictionaries/, which the DictionaryBuilder converts into the dictionaries embedded in the library and selected by SpellingDictionary](../docs/images/dictionary-pipeline.svg)
+
 ## Layout
 
 The folder is the tag; there is no manifest. Each top-level folder is one dictionary, and the folder name is the

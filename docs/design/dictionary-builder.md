@@ -11,6 +11,10 @@ that the library embeds. It is modeled as its own system, rather than as untrack
 because it produces data that ships inside the library: its quality is therefore part of the quality of
 the product, and it has its own requirements, design, verification, and tests.
 
+The following diagram shows where the word lists come from and how they become the dictionaries that the library embeds:
+
+![Dictionary pipeline: source word lists become the lists under dictionaries/, which the DictionaryBuilder converts into the embedded dictionaries that SpellingDictionary selects by language](dictionary-pipeline.svg)
+
 The system consists of six units and no subsystems:
 
 ```mermaid
