@@ -947,9 +947,13 @@ public class TextLintTests
     [Fact]
     public void TextLint_Dictionary_TechnicalTerm_IsKnownInEveryLanguage()
     {
-        // Arrange: every language selection and technical terms of several kinds, including a
+        // Arrange: every language selection and technical terms of several kinds, including font names and a
         // programming term in an American spelling that the word lists keep for every language
-        string[] terms = ["kubernetes", "initialize", "github", "powershell", "microsoft", "textlint", "tokenizer"];
+        string[] terms =
+        [
+            "kubernetes", "initialize", "github", "powershell", "microsoft", "textlint", "tokenizer",
+            "segoe", "consolas", "calibri", "menlo", "roboto"
+        ];
         var selections = new[] { "en-US", "en-GB", "en-US,en-GB" }.Select(SpellingDictionary.ForLanguages).ToArray();
 
         // Act: find the terms each selection does not know

@@ -928,7 +928,7 @@ foreach (var issue in check.Issues)
 
 The library also answers whether a word is known, using dictionaries embedded in the assembly: the English words
 that American and British English share, the American-only and the British-only spellings, and a dictionary of
-technical terms (programming languages, tools, companies, file types, and licenses). A selection always includes
+technical terms (programming languages, tools, companies, file types, licenses, and font names). A selection always includes
 the common words and the technical terms, and adds the spellings of the languages you choose.
 
 ```csharp
@@ -984,7 +984,7 @@ The dictionaries are generated from these sources, with their versions and licen
   word lists and Hunspell-expanded word forms of the cspell dictionaries, and a hand-added list of developer terms.
   Each word is routed to the common, the American, or the British list by one documented rule, so a spelling that
   belongs to one dialect never lands in the common list.
-- **Technical terms**: the cspell dictionaries for software terms, companies, file types, licenses, and the
+- **Technical terms**: the cspell dictionaries for software terms, companies, file types, licenses, font names, and the
   programming languages and tools in common use.
 - **Exclusions**: a reviewed list of words that imported lists contain but that are almost always a mistyped
   common word. An excluded word is unknown in every language, in every letter case, whichever list it came from.

@@ -50,7 +50,7 @@ WHAT IT PRODUCES
     ``hunspell-legacy``      forms of the older SCOWL Hunspell en_US-large dictionary that cspell-dicts keeps
     ``cspell-legacy``        the cspell-dicts legacy English list, ONLY the words SCOWL size 80 also lists
 
-    ``technical/language/<name>.txt``  programming-language keyword and API lists (7 files)
+    ``technical/language/<name>.txt``  programming-language keyword and API lists (8 files, including the fonts list)
     ``technical/general/<name>.txt``   general technical lists (7 files, plus the project-owned additions.txt)
 
     ``technical/general/additions.txt``, ``technical/variant-keep.txt`` and ``exclusions.txt`` are
@@ -255,6 +255,8 @@ CSPELL_PACKAGES = [
      "3abd0a365b6e819d441e208cecf0a7e78432a2fb6c1458675a26c1179bead00c"),
     ("k8s", "general", "k8s", "1.0.13", ["k8s"],
      "c013c3fd69cb6d1e5e242577d62d75825919b8814d1fb8769ed873beda70b756"),
+    ("fonts", "language", "fonts", "4.0.6", ["fonts"],
+     "9cd886c1f99e4a64d52cc631f4ad5c3855b5ec0ffa3576b3a51ed82ec6815d34"),
 ]
 
 # The English sources in priority order, the file name each writes in every region folder, and the base lists.

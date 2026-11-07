@@ -7,7 +7,7 @@
 The `Dictionaries` subsystem answers one question: is this word known? It holds the vocabulary the library
 checks text against, which is shipped inside the library assembly as four binary dictionaries: the English
 words that American and British English share, the American-only spellings, the British-only spellings,
-and the technical terms (programming languages, tools, companies, file types, and licenses). A caller selects
+and the technical terms (programming languages, tools, companies, file types, licenses, and font names). A caller selects
 a language, one of `en`/`en-US` (American, the default), `en-GB` (British, with -ise spellings), or both, and
 asks about words. A selection always includes the common English words and the technical terms.
 

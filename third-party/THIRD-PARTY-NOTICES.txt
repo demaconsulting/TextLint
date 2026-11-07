@@ -403,6 +403,7 @@ packages); the legacy English list is not maintained upstream and its own proven
   @cspell/dict-html 4.0.16            Copyright (c) 2017-2025 Street Side Software <support@streetsidesoftware.nl>
   @cspell/dict-powershell 5.0.17      Copyright (c) 2017-2025 Street Side Software <support@streetsidesoftware.nl>
   @cspell/dict-css 4.1.2              Copyright (c) 2017-2025 Street Side Software <support@streetsidesoftware.nl>
+  @cspell/dict-fonts 4.0.6            Copyright (c) 2017-2025 Street Side Software <support@streetsidesoftware.nl>
   @cspell/dict-k8s 1.0.13             Copyright (c) 2017-2022 Street Side Software <info@streetsidesoftware.nl>
   @cspell/dict-en_us 4.4.43           Copyright (c) 2017-2025 Street Side Software <support@streetsidesoftware.nl>
   @cspell/dict-en-shared 1.0.58       Copyright (c) 2017-2022 Street Side Software <support@streetsidesoftware.nl>

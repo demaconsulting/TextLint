@@ -16,13 +16,15 @@ dictionary name that the build passes to the builder.
 | `en-common/` | English words spelled the same in American and British (-ise) English |
 | `en-US/` | American-only spellings |
 | `en-GB/` | British (-ise)-only spellings |
-| `technical/language/` | Programming-language keyword and API lists (7 files) |
+| `technical/language/` | Programming-language keyword and API lists, and the font names list (8 files) |
 | `technical/general/` | General technical lists and the project-owned additions (8 files) |
 | `technical/variant-keep.txt` | Reviewed spelling variants that are genuine programming terms |
 | `exclusions.txt` | Reviewed words that must never be known in any dictionary (a file, not a dictionary) |
 
 Each English folder holds one file per source, so that a reviewer can see where every word comes from (see
-_English Sources_ below). The language lists are csharp, dotnet, typescript, node, html, css, and powershell. The
+_English Sources_ below). The language lists are csharp, dotnet, typescript, node, html, css, powershell, and fonts
+(the names of font families such as `Segoe`, `Consolas`, and `Roboto`, which appear in documentation, style sheets,
+and project files in every language). The
 general lists are software-terms, companies, filetypes, public-licenses, fullstack, npm, k8s, and additions.
 
 An ordinary dictionary reads every `.txt` file beneath its folder. The technical dictionary reads only the three
@@ -182,6 +184,7 @@ after the table):
 | `technical/language/html.txt` | `@cspell/dict-html` | 4.0.16 | MIT |
 | `technical/language/css.txt` | `@cspell/dict-css` | 4.1.2 | MIT |
 | `technical/language/powershell.txt` | `@cspell/dict-powershell` | 5.0.17 | MIT |
+| `technical/language/fonts.txt` | `@cspell/dict-fonts` | 4.0.6 | MIT |
 
 The English lists (the files named under _English Sources_ above) come from:
 

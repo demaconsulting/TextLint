@@ -394,8 +394,8 @@ knows both spellings. This scenario is tested by `TextLint_Dictionary_BothLangua
 `en-AU` and lists the supported languages. This scenario is tested by
 `TextLint_Dictionary_UnsupportedLanguage_ThrowsNamingLanguage`.
 
-**TextLint_Dictionary_TechnicalTerm_IsKnownInEveryLanguage**: Technical terms of several kinds, including a
-programming term in an American spelling that the word lists keep for every language, are known in the American,
+**TextLint_Dictionary_TechnicalTerm_IsKnownInEveryLanguage**: Technical terms of several kinds, including font names
+and a programming term in an American spelling that the word lists keep for every language, are known in the American,
 British, and combined selections. This scenario is tested by
 `TextLint_Dictionary_TechnicalTerm_IsKnownInEveryLanguage`.
 

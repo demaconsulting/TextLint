@@ -293,11 +293,11 @@ sections:
       - id: TextLint-System-TechnicalTerms
         title: >-
           The library shall treat common software terms (programming languages, tools, companies,
-          file types, and licenses) as known words in every language selection.
+          file types, licenses, and font names) as known words in every language selection.
         tags: [system]
         justification: |
           Source code and documentation are full of terms that no general English word list
-          contains (kubernetes, github, powershell). Reporting each as a spelling mistake would
+          contains (kubernetes, github, powershell, segoe). Reporting each as a spelling mistake would
           make the linter unusable on software projects, and these terms do not depend on the
           dialect of the prose around them.
         children:
