@@ -823,3 +823,4 @@ sections:
           - TextLint_CspellParity_RandomStringCorpora_MatchRecordedCspellOutput
           - TextLint_CspellParity_ContractionCorpus_MatchesRecordedCspellOutput
           - TextLint_CspellParity_IgnoreRegExpCorpus_MatchesRecordedCspellOutput
+          - TextLint_CspellParity_DirectiveLookalikesCorpus_MatchesRecordedCspellOutput

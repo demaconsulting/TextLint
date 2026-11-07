@@ -15,7 +15,7 @@ cspell does; turning a pattern into a regular expression, and reporting one that
 
 #### Data Model
 
-<!-- cspell:ignore xcspell cspellchecker ignoreRegExpx -->
+<!-- cspell:ignore xcspell cspellchecker ignoreRegExpx dotless -->
 
 `DocumentDirectives` is an `internal static partial` class with no state beyond the generated regular expressions and
 the two prefix words of the search guard. Its result is the immutable `DirectiveScan` (an `internal sealed class`):
@@ -142,15 +142,20 @@ Design choices and their reasons:
 - **Patterns ported from cspell, as regular expressions.** The directive grammar is cspell's, and users depend on its
   edge cases, so the patterns are ports that keep the cspell shape: the same JavaScript differences as in
   `DefaultPatterns` apply (ASCII-only word characters, the four line terminators, the JavaScript white space set) and
-  are handled the same way; the case-insensitive patterns are run on the text with the Kelvin sign replaced by a
-  placeholder of the same length (`JavaScriptCaseFolding.MaskKelvinSign`), because the .NET case option would read it
-  as `k` where JavaScript does not, and the offsets do not change. The words of a directive are split, and the
+  are handled the same way. The keywords are spelled with both cases of every letter (`[Dd][Ii][Ss][Aa][Bb][Ll][Ee]`)
+  and the .NET case option is not used: cspell reads them with the JavaScript `i` flag, under which an ASCII letter
+  matches only itself and its other case, while the .NET option also lets the long s (U+017F) match `s` and the Kelvin
+  sign (U+212A) match `k`. So a prefix with a long s, and a keyword with a dotless i or a dotted capital I, are text,
+  as in
+  cspell, and nothing is replaced in the
+  text. The words of a directive are split, and the
   directive names are trimmed, with `JavaScriptSyntax.IsSpace`, not the .NET white space test. Hand-written scanning
   would be faster but would make it hard to prove that the edge cases agree.
 - **The guard search is a pure optimization.** Most files hold no directive, and running six patterns over every file
   would be wasted work. Every prefix contains `spell` or `textlint`, so a text that holds neither cannot contain a
-  directive, and a vectorized, case-insensitive substring search rules that out at almost no cost. The guard can
-  only skip work; it never changes a result, which is why it needs no requirement of its own.
+  directive, and a vectorized, case-insensitive substring search rules that out at almost no cost. The comparison that
+  ignores case is the ordinal one, which equates an ASCII letter only with its other case, on every platform. The guard
+  can only skip work; it never changes a result, which is why it needs no requirement of its own.
 - **Unsupported directives are reported, not ignored.** An author who writes a locale directive believes it is in force.
   A silent no-op would hide a difference from cspell, so it is reported at its name, where the author can find it.
   The same holds for a name that only begins like a directive: it neither hides text nor goes unnoticed.

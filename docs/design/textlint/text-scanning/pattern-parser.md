@@ -16,7 +16,7 @@ used only together.
 
 #### Data Model
 
-<!-- cspell:ignore dgimsuvxy gimsu -->
+<!-- cspell:ignore dgimsuvxy gimsu foldings -->
 
 `PatternParser` is an `internal static` class with no state. Its constants are the flag letters and the time limit:
 
@@ -53,10 +53,15 @@ makes the translator thread-safe.
 pattern by hand: `SpaceBody`, `Space`, and `NotSpace` (the JavaScript white space set as the body of a class, as a
 class, and as its complement), `WordBoundary`, `LineStart`, `NotLineTerminator`, `IsSpace(char)`, and `Trim(string)`.
 `JavaScriptCaseFolding` is an `internal static` class whose tables are built once, lazily and thread-safely, for each
-of the two modes: for every UTF-16 code unit, a ring of the code units that are the same letter. Its functions are
-`Equivalents` (the ring of one code unit), `Close` (the closure of a set of ranges under the equivalence),
-`AstralForms` (the other forms of a character outside the basic plane), and `MaskKelvinSign` (replaces U+212A by a
-placeholder of the same length, for the library patterns that still use the .NET case option).
+of the two modes, from `JavaScriptCaseData`: a generated class of two constants, the groups of characters that a
+pinned Node.js treats as the same letter, one group per line in hexadecimal (code units without the `u` flag, code
+points with it), with the Node.js and Unicode versions they were recorded from. The tables hold, for every UTF-16 code
+unit, a ring of the code units that are the same letter, and for every character outside the basic plane that has a
+case, its group. Its functions are `Equivalents` (the ring of one code unit), `Close` (the closure of a set of ranges
+under the equivalence), `AstralForms` (the other forms of a character outside the basic plane), and `Parse` (reads a
+table, and refuses damaged data). It calls no casing function, culture, or case option of the regular expression engine.
+The table is produced by `Data/generate-javascript-case-data.mjs`, a script that is kept in the repository and is not
+run by the build.
 
 `InvalidPatternException` is a `public sealed` class derived from `ArgumentException`, because an unusable pattern is an
 invalid argument supplied by the caller. It has `Pattern` (public: the entry exactly as supplied) and `Reason` (internal:
@@ -110,7 +115,7 @@ that .NET might read differently. Each rule is covered by a unit test.
   several characters keeps itself and that a non-ASCII character is never the same as an ASCII one; with the `u` flag
   it is simple case folding. A literal outside the basic plane is expanded only with the `u` flag, into an alternation
   of its forms; with `\b` under `iu` the word class includes U+017F and U+212A, as in JavaScript. A back-reference
-  under `i` is written `(?i:\k<N>)`.
+  is rejected under `i` (see below).
 - _Line terminators._ `.` is the class of every character except `\n`, `\r`, U+2028, and U+2029; with the `s` flag it
   is the class `[\u0000-\uFFFF]` of every UTF-16 code unit, line terminators included. In multiline mode `^`
   is the look-behind that is true at the start of the text or after one of those four characters, and `$` the
@@ -125,7 +130,10 @@ that .NET might read differently. Each rule is covered by a unit test.
 - _Back-references._ `\N` and `\k<name>` are written as `(?:\k<N>)` with the number of the group, in a group so that a
   digit that follows cannot become part of the number. The referenced group must be complete at that point; a reference
   to a group that does not exist (where JavaScript would read an octal escape), to a group that has not been closed, or
-  to a name that is not defined before it is rejected. `\k` in a pattern without a named group is rejected.
+  to a name that is not defined before it is rejected. `\k` in a pattern without a named group is rejected. With the
+  `i` flag every back-reference is rejected, with the reason that it cannot be used with the flag `i`: .NET could only
+  compare the text with its own case rules, which follow the runtime and differ from JavaScript, and an answer that
+  depends on the platform is worse than a refusal. A pattern that needs both uses a literal without the flag.
 - _Classes._ The members of a bracketed class are written as `\uXXXX` escapes, ranges as a pair of escapes, and
   shorthand classes as their ranges, so no character can be read as class syntax. An empty class `[]` matches nothing
   (`(?!)`) and `[^]` matches every code unit, as in JavaScript. A range that is out of order is rejected. Without the
@@ -149,7 +157,8 @@ that .NET might read differently. Each rule is covered by a unit test.
 
 **Rejected constructs.** Besides the cases above, the translator rejects, each with a reason: group syntax other than
 the supported groups (inline options, atomic groups, conditionals, and every other `(?...)` form), a back-reference to
-a group that is not complete, a pattern that ends with a backslash, an unclosed group or class, a closing parenthesis
+a group that is not complete, a back-reference when the `i` flag is set, a pattern that ends with a backslash, an
+unclosed group or class, a closing parenthesis
 with no opening one, and a malformed group name, `\c`, `\x`, `\u`, `\k`, or `\p`. The reason is always one sentence
 naming the construct.
 
@@ -166,11 +175,14 @@ of matching.
 - `.` and negated classes match one UTF-16 code unit, so with the `u` flag (and with `s`) they match half of a
   character outside the basic plane where JavaScript matches the whole character. The columns that the checker reports
   count UTF-16 code units for the same reason.
-- Case folding follows JavaScript for the basic plane except for five pairs that the JavaScript engine used to record
-  the tests (Node.js 22, Unicode 16) folds and the .NET Unicode data of the build does not (U+019B with U+A7DC, U+0264
-  with U+A7CB, U+1C89 with U+1C8A, U+A7CC with U+A7CD, and U+A7DA with U+A7DB), and a back-reference under `i` compares
-  with the .NET rules. A newer .NET removes the five pairs without a change here; the unit test accepts exactly them as
-  missing and nothing else.
+- Case folding follows JavaScript exactly as far as the table goes: the table is what Node.js 22 (Unicode 16) does, so a
+  character that a later Unicode version gives a case (and a newer JavaScript engine therefore folds) is not folded
+  until the table is regenerated, and a character that .NET treats as cased is not folded unless the table says so.
+  Nothing depends on the platform or the .NET version.
+- Characters outside the basic plane have a case only with the `u` flag, as in JavaScript. `\p{..}` and `\P{..}` follow
+  the Unicode general categories of the .NET runtime, which are those of the Unicode version of that runtime and not
+  those of Node.js, so a character assigned in a recent Unicode version can be in a category in one and not in the
+  other; the categories are the same on every operating system for one runtime version.
 
 #### Key Methods
 
@@ -232,12 +244,18 @@ The design choices and their reasons:
 - **Runtime-constructed, interpreted expressions.** The patterns are known only at run time, so the source generator
   that the default patterns use cannot be applied. The regular expressions are constructed without the compiled option,
   so no code is generated at run time.
-- **Case behavior in the translation, not in an option.** The .NET case-insensitive option is culture-table driven and
-  differs from JavaScript on about 80 pairs of characters (the Kelvin sign, the long s, the micro sign, the sigma
-  forms, and others), in both directions. Writing the equivalent characters out gives the JavaScript behavior whatever
-  the culture of the computer, at the price of longer patterns for letters and classes. `JavaScriptCaseFolding` builds
-  its tables once, lazily, from the .NET simple case mappings, and the unit tests compare every code unit with the
-  groups recorded from Node.js, so a drift is detected.
+- **Case behavior in the translation, not in an option, and from data, not from the runtime.** The .NET
+  case-insensitive option is culture-table driven and differs from JavaScript on about 80 pairs of characters (the
+  Kelvin sign, the long s, the micro sign, the sigma forms, and others), in both directions. Writing the equivalent
+  characters out gives the JavaScript behavior whatever the culture of the computer, at the price of longer patterns for
+  letters and classes. The equivalences themselves are not computed from the casing functions of .NET either, because
+  those follow the Unicode data of the runtime and of the platform's ICU library, and a CI run on Linux and macOS proved
+  that a table derived from them differs from one derived on another runtime (the letters U+A7CE to U+A7D5, for example).
+  `JavaScriptCaseData` is a table recorded from the pinned Node.js, so a pattern means the same on every operating
+  system and every .NET version, and only a deliberate regeneration changes it. The recording script checks the groups
+  against the JavaScript engine for every pair of characters that can have a case relation (which found the simple case
+  foldings with no `toLowerCase` or `toUpperCase` relation, such as U+0390 with U+1FD3), and the unit tests compare
+  every code unit and code point with the recorded file, so a drift or a damaged table is detected.
 - **One shared definition of the JavaScript syntax.** `JavaScriptSyntax` holds the white space set, the word boundary,
   the line start, and the dot, as text constants, and `IsSpace` and `Trim`. The translator, `DefaultPatterns`,
   `MarkdownPatterns`, `PatternCatalog`, and `DocumentDirectives` use them, so no unit relies on the .NET meaning of

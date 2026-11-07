@@ -71,17 +71,25 @@ sections:
                   form (the micro sign, the Greek mu, and the sigma forms are one letter; the Kelvin sign and the
                   long s are not the letters k and s), and with the u flag by simple case folding (the Kelvin
                   sign and the long s are the letters k and s); the rule shall apply to literals, classes and their
-                  negations, word shorthands, Unicode properties, word boundaries, and back-references, and shall
-                  not depend on the culture of the machine.
+                  negations, word shorthands, Unicode properties, and word boundaries, shall come from a table of the
+                  groups recorded from a pinned JavaScript engine and not from the casing functions or the case
+                  option of .NET, so that it is the same on every platform, culture, and .NET version, and shall
+                  reject a back-reference when the flag is set.
                 justification: |
                   The case rules of the .NET engine differ from those of the JavaScript engine on about eighty
                   pairs of characters, in both directions, so a pattern that ignores case would exclude different
-                  text than in cspell. The five pairs that depend on a newer Unicode version than the .NET data
-                  are documented as the remaining difference.
+                  text than in cspell. The casing data of .NET also differs between runtime versions and
+                  platforms (a continuous-integration run on Linux and macOS found pairs that another runtime did
+                  not have), so a rule derived from it would make the same pattern exclude different text on
+                  different computers. A back-reference could only be compared with the rules of .NET, so it is
+                  refused with a reason instead of being given a meaning that varies.
                 tests:
                   - PatternParser_Parse_CaseFlag_KeepsTheJavaScriptLetterEquivalence
                   - PatternParser_Parse_BareExpression_UsesTheJavaScriptCaseRules
-                  - JavaScriptCaseFolding_Equivalents_EveryRecordedGroup_IsReproducedWithoutExtras
+                  - JavaScriptCaseFolding_Equivalents_EveryCodeUnit_ReproducesTheRecordedGroupsExactly
+                  - JavaScriptCaseFolding_AstralForms_EveryCodePoint_ReproducesTheRecordedGroupsExactly
+                  - JavaScriptCaseData_Groups_TableText_IsTheRecordedFileLineForLine
+                  - JavaScriptCaseData_Versions_AreStated
                   - JavaScriptCaseFolding_Equivalents_KnownDivergentLetters_FollowJavaScript
                   - JavaScriptCaseFolding_Equivalents_CharacterWithoutCase_ReturnsOnlyItself
                   - JavaScriptCaseFolding_Close_LowerCaseLetter_AddsTheJavaScriptForms
@@ -89,9 +97,12 @@ sections:
                   - JavaScriptCaseFolding_Close_EmptySet_ReturnsEmpty
                   - JavaScriptCaseFolding_AstralForms_LetterOutsideBasicPlane_ListsTheOtherCase
                   - JavaScriptCaseFolding_AstralForms_CharacterWithoutCase_ListsOnlyItself
-                  - JavaScriptCaseFolding_MaskKelvinSign_TextWithSign_KeepsLengthAndReplacesOnlyTheSign
-                  - JavaScriptCaseFolding_MaskKelvinSign_TextWithoutSign_ReturnsTheSameInstance
                   - JavaScriptCaseFolding_EntryPoints_NullArgument_ThrowArgumentNullException
+                  - JavaScriptCaseFolding_Parse_AnyLineEnding_GivesTheSameTables
+                  - JavaScriptCaseFolding_Parse_DamagedGroup_ThrowsInvalidDataException
+                  - JavaScriptCaseFolding_Parse_MemberNotHexadecimal_ThrowsFormatException
+                  - JavaScriptCaseFolding_PatternSources_DoNotUseTheCasingOfTheRuntime
+                  - JavaScriptCaseFolding_Library_NoRegularExpressionUsesTheCaseOption
 
               - id: TextLint-TextScanning-PatternParser-JavaScriptWhiteSpace
                 title: >-

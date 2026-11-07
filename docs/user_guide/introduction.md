@@ -339,7 +339,7 @@ the application supplies; it does not search for it.
 
 ## Example
 
-<!-- cspell:ignore zorbs -->
+<!-- cspell:ignore zorbs dotless -->
 
 ```yaml
 version: "0.2"
@@ -582,18 +582,22 @@ wrote:
   `u` flag the simple case folding applies, so the Kelvin sign matches `k`, `ſ` matches `s`, and `ß` matches `ẞ`; a
   class such as `[a-z]` or `\w` then includes them, and `\W` and `[^a-z]` exclude them. Characters outside the basic
   plane are folded only with the `u` flag. The translator expands each letter and class into the equivalent
-  characters, so the result does not depend on the culture of the computer. The only differences left are five pairs
-  of letters that the JavaScript engine of the comparison (Unicode 16) folds and the .NET data does not yet know
-  (U+019B with U+A7DC, U+0264 with U+A7CB, U+1C89 with U+1C8A, U+A7CC with U+A7CD, and U+A7DA with U+A7DB), and a
-  back-reference with the `i` flag, which compares with the .NET rules.
+  characters, using a table that was recorded from Node.js 22 (Unicode 16) and is part of TextLint, so a pattern
+  means the same on every operating system and with every .NET version; nothing is computed from the casing of the
+  computer or of .NET. A character that a later Unicode version gives a case is folded when the table is regenerated.
+  A back-reference cannot be used with the `i` flag (the pattern is rejected with that reason), because .NET could
+  only compare it with its own case rules.
 - Rejected, with a message that names the construct: the flags `x`, `y`, `d`, and `v` (for example
   `the flag 'x' is not supported; use only g, i, m, s, and u.`); inline options such as
   `(?i)`; atomic groups, conditionals, and every other `(?...)` form that JavaScript lacks; octal escapes; the .NET
-  escapes `\A`, `\z`, `\Z`, `\G`, `\e`, `\a`, and `\h`; a back-reference to a group that is not complete; properties
-  other than the general categories; a quantifier with nothing to repeat; a pattern longer than 4,096 characters or
-  nested deeper than 100 groups; and an empty expression.
+  escapes `\A`, `\z`, `\Z`, `\G`, `\e`, `\a`, and `\h`; a back-reference to a group that is not complete, or any
+  back-reference when the `i` flag is set (which includes every bare expression, because it is read with `i`);
+  properties other than the general categories; a quantifier with nothing to repeat; a pattern longer than 4,096
+  characters or nested deeper than 100 groups; and an empty expression.
 - A back-reference to a group that did not take part in a match matches the empty text in JavaScript and fails in
-  .NET; `.` matches one UTF-16 code unit, so with the `u` flag it matches half of a character outside the basic plane.
+  .NET; `.` matches one UTF-16 code unit, so with the `u` flag it matches half of a character outside the basic plane;
+  `\p{...}` follows the Unicode categories of the .NET runtime, which can differ from those of Node.js for characters
+  that a recent Unicode version assigned.
 
 **Time limit and the worst case.** Every expression has a limit of 5 seconds for one match operation on one text. A
 pattern that backtracks catastrophically on a file (for example `/^(a|aa)+$/` on a long run of `a` followed by `b`)
@@ -637,7 +641,10 @@ Otherwise the whole word is reported, with the apostrophes.
 
 A comment can switch checking off, or add words, for the text around it. A directive is a prefix, a colon (or two),
 and the directive name. The prefixes are `cspell`, `spell`, `spellchecker`, `spell-checker`, and `textlint`, in any
-letter case, and the prefix must not follow a letter, digit, or underscore. The examples below use `textlint`.
+letter case, and the prefix must not follow a letter, digit, or underscore. Letter case means the two cases of the ASCII
+letters: a look-alike such as the long s (`ſ`), the dotless i (`ı`), the dotted capital I (`İ`), or the Kelvin sign
+(`K`) is not the letter it resembles, so a prefix or a name that contains one is text, as in cspell. The examples below
+use `textlint`.
 
 | Directive                                  | Effect                                                              |
 | :----------------------------------------- | :------------------------------------------------------------------ |
@@ -705,8 +712,8 @@ corpora (see the verification of TextLint). These differences are deliberate:
   directives accept JavaScript regular expressions, but the flags `x`, `y`, `d`, and `v`, and constructs without a
   safe .NET equivalent, are errors where cspell would run them as the JavaScript engine decides, or, in a directive,
   drop them without a word. A back-reference to a group that did not match, and `.` beside characters outside the
-  basic plane, differ as described under _Regular Expression Rules_, as do five letter pairs of a newer Unicode
-  version and the case rules of a back-reference. Every pattern has a 5-second limit, which cspell lacks.
+  basic plane, differ as described under _Regular Expression Rules_, as does the rejection of a back-reference when the
+  `i` flag is set. Every pattern has a 5-second limit, which cspell lacks.
 - **Unknown pattern names are errors (stricter than cspell).** A name in `ignoreRegExpList` or in an `ignoreRegExp`
   directive that is neither defined by `patterns` nor predefined is an error, where cspell reads it as a literal
   expression and hides that word. Write a literal between slashes (`/word/`) to match it. Only 28 predefined names are
@@ -719,6 +726,16 @@ corpora (see the verification of TextLint). These differences are deliberate:
   entry.
 - **The Markdown rules are the five link, anchor, and entity patterns only** (not the other patterns that the
   language-specific settings of cspell add).
+- **No Unicode normalization.** cspell normalizes the text it reads, so a word typed with a combining accent (`e`
+  followed by U+0301) is checked as the composed letter, and the Kelvin sign U+212A is the letter `K`. TextLint checks
+  the characters as they are written, so such a word is reported where cspell accepts it. TextLint does not normalize
+  because the result of normalization comes from the globalization library of the platform and would make the findings
+  depend on the operating system; text that is normalized (composed) is checked the same by both.
+- **Unicode versions.** Which characters are letters, and the general categories of `\p{...}`, are those of the Unicode
+  version of the .NET runtime that runs TextLint, and cspell uses those of its Node.js. The result is the same on every
+  operating system for one .NET version; characters that a very recent Unicode version added can be classified
+  differently by an older .NET. The letter-case rules of patterns do not depend on .NET (see _Regular Expression
+  Rules_).
 - **A word accepted by escape.** After cspell accepts a word through the backslash-escape rule (`\nfoo` accepts
   `foo`), it also accepts `nfoo` anywhere later in the same file, a side effect of its cache. TextLint does not.
 - **No limit on repeats.** cspell stops reporting a word after five repeats and a file after 100 problems by

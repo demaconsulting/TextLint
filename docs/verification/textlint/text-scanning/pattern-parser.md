@@ -44,9 +44,14 @@ N/A - standard test environment.
   is rejected.
 - With the i flag the letters that JavaScript treats as one (the micro sign and the Greek mu, the sigma forms) match
   each other, the Kelvin sign and the long s match `k` and `s` only with the u flag, and classes, negated classes, word
-  shorthands, properties, boundaries, and back-references follow the same rules.
-- Every code unit that the library treats as the same letter is the same letter in JavaScript, and the only recorded
-  pair that the library misses is one of five documented pairs of a newer Unicode version.
+  shorthands, properties, and boundaries follow the same rules; letters whose case relation differs between .NET
+  runtimes (U+A7CE to U+A7D5) are not related, and relations that only simple case folding has (U+0390 with U+1FD3)
+  are related with the u flag; a back-reference is rejected when the flag is set.
+- Every code unit and every code point that the library treats as the same letter is the same letter in the recorded
+  JavaScript groups, and the recorded groups have no pair that the library misses: the table the library embeds is the
+  recorded file line for line, on every platform.
+- No source of the library that reads or writes patterns uses a casing function of the runtime, and no regular
+  expression of the library uses the .NET case option.
 - The white space set of the library, its two patterns, and the translation of `\s` are the JavaScript set on every
   code unit, and the trim removes that set and nothing else (the next-line character stays, the byte order mark goes).
 - A catastrophic pattern parsed with a limit of fifty milliseconds carries that limit and ends with a time-out error.
@@ -79,10 +84,13 @@ invariant culture option and no .NET case option, because the case behavior is w
 the documented five seconds, and the published limit constant is five thousand milliseconds.
 
 **PatternParser_Parse_CaseFlag_KeepsTheJavaScriptLetterEquivalence**: Each row, recorded from the JavaScript engine
-(Node.js 22), gives an entry with the i flag, with and without u, a text, and the matches that JavaScript finds. The 42
+(Node.js 22), gives an entry with the i flag, with and without u, a text, and the matches that JavaScript finds. The
 rows cover the Kelvin sign and the long s with and without the u flag, the micro sign and the sigma forms, the sharp s
 and its capital, the Turkish dotted and dotless i, classes and their negations, the word shorthands, Unicode
-properties, a word boundary, a back-reference, and a letter outside the basic plane.
+properties, a word boundary, a letter outside the basic plane, the letters U+A7CE to U+A7D5 that a runtime may treat
+as cased and JavaScript does not, and the simple case foldings that only the u flag has (U+0390 with U+1FD3, U+03B0
+with U+1FE3, U+FB05 with U+FB06) with the pairs that every mode has (U+A7DA with U+A7DB, U+1C89 with U+1C8A, U+019B
+with U+A7DC).
 
 **PatternParser_Parse_BareExpression_UsesTheJavaScriptCaseRules**: A bare expression (read with the i flag) matches
 the micro sign and the sigma forms as JavaScript does and does not match the Kelvin sign.
@@ -115,7 +123,8 @@ are not complete, a named reference without a named group, octal escapes, mispla
 assertions, counts that are out of order or too large, unclosed groups and classes, a stray closing parenthesis, ranges
 that are out of order, a trailing backslash, malformed escapes, a code point out of range, an astral character in a
 class without the u flag, Unicode properties without the u flag or that are not general categories, characters that
-must be escaped with the u flag, a class escape as the end of a range, and escapes that are not allowed inside a class.
+must be escaped with the u flag, a class escape as the end of a range, escapes that are not allowed inside a class, and
+back-references when the i flag is set (numbered, named, with the u flag, and in a bare expression).
 
 **PatternParser_Parse_BlankOrEmptyBody_Throws**: An empty entry, an entry of white space, and two slashes with and
 without flags are rejected with a reason that says the entry is blank or empty.
@@ -142,14 +151,27 @@ out-of-range error.
 
 The helpers have their own test files, `JavaScriptCaseFoldingTests.cs` and `JavaScriptSyntaxTests.cs`. The reference
 for case folding is `Data/javascript-case-groups.txt`, the letter groups recorded from Node.js 22 (Unicode 16) by
-`Data/record-case-groups.mjs`; the data is checked in and the script is not run by the build.
+`generate-javascript-case-data.mjs` (beside the table, in `src/.../TextScanning/Data`), which also writes the table
+`JavaScriptCaseData.cs` that the library embeds; both are checked in and the script is not run by the build. The case
+tests do not use a casing function of the runtime, so they give the same result on every platform; they were run on
+Windows and on Linux.
 
-**JavaScriptCaseFolding_Equivalents_EveryRecordedGroup_IsReproducedWithoutExtras**: For each mode (`i` and `iu`), every
-code unit is compared with the recorded groups: the library invents no pair, and misses only the five documented
-pairs.
+**JavaScriptCaseFolding_Equivalents_EveryCodeUnit_ReproducesTheRecordedGroupsExactly**: For each mode (`i` and `iu`),
+every code unit is compared with the recorded groups: the library invents no pair and misses none.
+
+**JavaScriptCaseFolding_AstralForms_EveryCodePoint_ReproducesTheRecordedGroupsExactly**: Every code point outside the
+basic plane is compared with the recorded groups of the u mode: the forms of each are exactly its group, itself first,
+without duplicates, and a character with no group lists only itself.
+
+**JavaScriptCaseData_Groups_TableText_IsTheRecordedFileLineForLine**: The embedded table of each mode is the recorded
+file line for line, so the two were generated by one recording.
+
+**JavaScriptCaseData_Versions_AreStated**: The table names its Node.js and Unicode versions, and the recorded file
+header repeats them.
 
 **JavaScriptCaseFolding_Equivalents_KnownDivergentLetters_FollowJavaScript**: The Kelvin sign, the long s, the micro
-sign, the sigma forms, the sharp s, and the Turkish i, in each mode, are or are not the same letter as JavaScript says.
+sign, the sigma forms, the sharp s, the Turkish i, the letters U+A7CE to U+A7D5 on which .NET runtimes differ, and the
+simple foldings that only the u mode has, in each mode, are or are not the same letter as JavaScript says.
 
 **JavaScriptCaseFolding_Equivalents_CharacterWithoutCase_ReturnsOnlyItself**: A digit and a character of a script
 without case are only equal to themselves in both modes.
@@ -167,14 +189,25 @@ and its other case, without duplicates.
 
 **JavaScriptCaseFolding_AstralForms_CharacterWithoutCase_ListsOnlyItself**: An emoji lists only itself.
 
-**JavaScriptCaseFolding_MaskKelvinSign_TextWithSign_KeepsLengthAndReplacesOnlyTheSign**: The sign is replaced, the
-length and the other characters are unchanged.
-
-**JavaScriptCaseFolding_MaskKelvinSign_TextWithoutSign_ReturnsTheSameInstance**: A text without the sign is returned
-without a copy.
-
 **JavaScriptCaseFolding_EntryPoints_NullArgument_ThrowArgumentNullException**: Each function that takes a reference
 argument rejects null.
+
+**JavaScriptCaseFolding_Parse_AnyLineEnding_GivesTheSameTables**: A table written with line feeds, or with carriage
+returns and line feeds and a trailing break, gives the same tables.
+
+**JavaScriptCaseFolding_Parse_DamagedGroup_ThrowsInvalidDataException**: A group with one member, one that repeats a
+character, one that shares a character with another group, and one that mixes the basic plane with astral planes are
+refused with a message that names the group.
+
+**JavaScriptCaseFolding_Parse_MemberNotHexadecimal_ThrowsFormatException**: A member that is not a hexadecimal number
+is refused.
+
+**JavaScriptCaseFolding_PatternSources_DoNotUseTheCasingOfTheRuntime**: No code line of the sources that read or write
+patterns uses the case option, a casing function, a text-information or compare-information type, the current
+culture, or normalization. The test is skipped when the source files are not above the test assembly.
+
+**JavaScriptCaseFolding_Library_NoRegularExpressionUsesTheCaseOption**: No code line of any source file of the library
+uses the case option of the regular expression engine or an inline case group.
 
 **JavaScriptSyntax_IsSpace_EveryCodeUnit_AgreesWithJavaScript**: Over all 65,536 code units the function accepts
 exactly the recorded JavaScript set.
@@ -197,4 +230,4 @@ space, and the line separator at the ends and leaves the next-line character and
 **JavaScriptSyntax_LineConstants_LineTerminators_FollowJavaScript**: The line start follows the four JavaScript line
 terminators and not the next-line character, and the dot is the reverse.
 
-<!-- cspell:ignore metacharacters Deseret dotless -->
+<!-- cspell:ignore metacharacters Deseret dotless foldings -->

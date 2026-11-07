@@ -239,3 +239,16 @@ directive are split on that set, and a pattern name is trimmed of it; the rows w
 
 **DocumentDirectives_Scan_KelvinSignInPrefix_IsNotReadAsLetterK**: The prefix `spell-checker` is read with the
 letter k in either case and is not read when the Kelvin sign takes the place of the k.
+
+**DocumentDirectives_Scan_LookalikeLetters_AreNotLettersOfADirective**: A prefix or a name with the long s, the dotless
+i, the dotted capital I, or the Kelvin sign in place of a letter (and `spell-checker` with the Kelvin sign for the k) is
+not a directive and hides nothing, while an upper-case or mixed-case ASCII directive, and a Kelvin sign before a prefix
+(which is not a letter), are read; each row was recorded from cspell.
+
+**DocumentDirectives_Scan_LongSAfterWordKeyword_IsNotTheLetterS**: A words directive whose keyword is followed by the
+long s adds the same word as one followed by the letter s.
+
+**DocumentDirectives_Scan_DotlessIInIgnoreRegExp_IsNotThatDirective**: A pattern directive name that begins with the
+dotless i adds no pattern, as in cspell.
+
+<!-- cspell:ignore dotless -->

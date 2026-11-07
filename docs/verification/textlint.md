@@ -73,6 +73,8 @@ configuration checks are design-constraint guards that are not linked to a requi
   are each reported by TextLint as an invalid directive where cspell drops them silently; the word that the name
   that nothing defines spells is reported by TextLint, which does not read the name as a literal expression as cspell
   does; and a directive with no pattern on its line is reported by TextLint as unsupported where cspell ignores it.
+  The corpus of directives with look-alike letters is `directive-lookalikes`, recorded for both line endings
+  (`directive-lookalikes.cspell` and `directive-lookalikes.crlf.cspell`); it must match cspell without exceptions.
   The `unsupported-directives` corpus no longer holds an ignoreRegExp directive, because the directive is now applied;
   it keeps the locale and dictionary directives and their two listed differences.
   The one other deliberate difference is a quirk of the escape retry of cspell: after a word has been accepted through
@@ -722,4 +724,11 @@ the output that cspell recorded for each, except for the five differences listed
 patterns that cannot be used and the word a missing name spells, and a directive with no pattern). This scenario is
 tested by `TextLint_CspellParity_IgnoreRegExpCorpus_MatchesRecordedCspellOutput`.
 
-<!-- cspell:ignore nzorbq zorbq -->
+**TextLint_CspellParity_DirectiveLookalikesCorpus_MatchesRecordedCspellOutput**: The corpus of directives written with
+the dotless i, the long s, the dotted capital I, and the Kelvin sign in place of the letters of a prefix or a name (which
+cspell does not read), with a Kelvin sign before a prefix and an upper-case and a mixed-case directive (which it does),
+is checked with line feeds and with every line ending turned into a carriage return and a line feed; the findings equal
+the output that cspell recorded for each, with no listed difference. This scenario is tested by
+`TextLint_CspellParity_DirectiveLookalikesCorpus_MatchesRecordedCspellOutput`.
+
+<!-- cspell:ignore nzorbq zorbq dotless -->

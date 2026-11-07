@@ -5,6 +5,8 @@
 # the disable and enable block, the disable-line and disable-next-line directives, the ignore and words
 # directives, and the directives that cspell supports and this library does not. The DirectiveScan value it
 # produces is part of the unit.
+#
+# cspell:ignore dotless
 
 sections:
   - title: TextLint Requirements
@@ -311,10 +313,17 @@ sections:
                 title: >-
                   DocumentDirectives shall read white space in directives as the JavaScript white space set, so that
                   prefixes, words, and patterns are separated at the same characters as in cspell, and shall
-                  not read the Kelvin sign as the letter k in a prefix or a name.
+                  read the letters of a prefix and of a directive name as the ASCII letters in either case and no
+                  other character (the long s, the dotless i, the dotted capital I, and the Kelvin sign are not
+                  letters of a prefix or a name), without using the case option of the regular expression engine.
                 justification: |
                   The .NET white space and case rules differ from those of the JavaScript engine that cspell runs
-                  its reader in, and a directive that is read differently would hide or add different text.
+                  its reader in, and a directive that is read differently would hide or add different text. An
+                  ASCII letter matches only itself and its other case there, so a look-alike letter must not
+                  start a disable block.
                 tests:
                   - DocumentDirectives_Scan_JavaScriptWhiteSpace_SeparatesLikeCspell
                   - DocumentDirectives_Scan_KelvinSignInPrefix_IsNotReadAsLetterK
+                  - DocumentDirectives_Scan_LookalikeLetters_AreNotLettersOfADirective
+                  - DocumentDirectives_Scan_LongSAfterWordKeyword_IsNotTheLetterS
+                  - DocumentDirectives_Scan_DotlessIInIgnoreRegExp_IsNotThatDirective

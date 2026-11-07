@@ -339,12 +339,13 @@ reviews:
       - "src/DemaConsulting.TextLint/TextScanning/JavaScriptRegexTranslator.cs"
       - "src/DemaConsulting.TextLint/TextScanning/JavaScriptSyntax.cs"
       - "src/DemaConsulting.TextLint/TextScanning/JavaScriptCaseFolding.cs"
+      - "src/DemaConsulting.TextLint/TextScanning/JavaScriptCaseData.cs"
+      - "src/DemaConsulting.TextLint/TextScanning/Data/generate-javascript-case-data.mjs"
       - "src/DemaConsulting.TextLint/TextScanning/InvalidPatternException.cs"
       - "test/**/TextScanning/PatternParserTests.cs"
       - "test/**/TextScanning/JavaScriptCaseFoldingTests.cs"
       - "test/**/TextScanning/JavaScriptSyntaxTests.cs"
       - "test/**/TextScanning/Data/javascript-case-groups.txt"
-      - "test/**/TextScanning/Data/record-case-groups.mjs"
 
   - id: TextLint-TextScanning-PatternCatalog
     title: Review that TextLint TextScanning PatternCatalog Implementation is Correct

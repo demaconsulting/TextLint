@@ -63,8 +63,9 @@ rules, each covered by a unit test, are:
 - `^` in JavaScript multiline mode starts a line after any of `\n`, `\r`, U+2028, and U+2029, and `.` excludes all four.
   The patterns spell out an explicit line start and use negated classes instead of the dot.
 - Patterns that cspell applies case-insensitively are written as case-sensitive patterns with explicit letter classes
-  (`[Hh][Tt][Tt][Pp]`), so the result does not depend on the culture of the machine and the .NET case option, which
-  also equates the Kelvin sign U+212A with `k`, is never used. The encoded-data patterns are case-sensitive, as in
+  (`[Hh][Tt][Tt][Pp]`), so the result does not depend on the culture of the machine, the .NET case option, which
+  also equates the Kelvin sign U+212A with `k` and follows the runtime's Unicode data, is never used, and no
+  non-ASCII letter is read as an ASCII one, as in JavaScript. The encoded-data patterns are case-sensitive, as in
   cspell.
 - White space is the JavaScript set (`JavaScriptSyntax.Space` and `NotSpace`), never `\s`: U+FEFF is white space and
   U+0085 is not, which is the reverse of .NET.
