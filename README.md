@@ -36,7 +36,8 @@ The project currently provides:
   scanning them
 - **Spell Checking**: The library checks the spelling of a string or of every selected file, in parallel, and
   returns deterministic findings with file, line, column, and word. It splits camelCase and snake_case
-  identifiers, ignores URLs, email addresses, hashes, and encoded data, skips text that matches the
+  identifiers (case-separated parts that together form a known word, such as `WeasyPrint` in `WeasyPrintTool`,
+  are accepted), ignores URLs, email addresses, hashes, and encoded data, skips text that matches the
   `ignoreRegExpList` patterns of the settings (JavaScript regular expressions, translated and validated when the
   settings are loaded) and of `ignoreRegExp` comments, Markdown link targets, and random-looking tokens, honors
   the `disable`-style comments (with the prefixes `cspell:` and `textlint:`), and reads UTF-8 and UTF-16 files. A

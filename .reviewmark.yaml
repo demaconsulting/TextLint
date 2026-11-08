@@ -21,6 +21,7 @@ needs-review:
   - "dictionaries/exclusions.txt"   # Curated list of words that must never be known (human-reviewed data)
   - "dictionaries/en-common/additions.txt"   # Curated words known in every English variant (human-reviewed data)
   - "dictionaries/technical/general/additions.txt"   # Curated project-owned technical terms (human-reviewed data)
+  - "dictionaries/technical/general/tools.txt"   # Hand-curated living list of developer tool names
   - "test/DemaConsulting.TextLint.Tests/SpellChecking/Parity/**"   # cspell parity corpora and output (reviewed data)
   - "third-party/THIRD-PARTY-NOTICES.txt"   # Legal notices for the third-party word list data
   # Deliberately NOT listed: the generated English and technical word lists under dictionaries/en-*/ and
@@ -807,6 +808,7 @@ reviews:
       - "dictionaries/exclusions.txt"
       - "dictionaries/en-common/additions.txt"
       - "dictionaries/technical/general/additions.txt"
+      - "dictionaries/technical/general/tools.txt"
 
   # DictionaryBuilder - Third-Party Notices (legal notices for the imported data)
   - id: DictionaryBuilder-ThirdPartyNotices

@@ -103,6 +103,7 @@ is capped at one cycle of the table, so a damaged file can only produce an excep
 out-of-range read or an endless loop.
 
 <!-- cspell:ignore colourize licence practise unmaneuverable bigram hypernym lemmatizer commitish -->
+<!-- cspell:ignore weasyprint vstest gcovr -->
 <!-- textlint:ignore glamourize centre labelled -->
 
 **Regional spellings and the part of speech.** The data decides which dictionary a spelling belongs to, and the
@@ -134,11 +135,21 @@ never rewrites and which the technical dictionary reads with the imported genera
 language selection, because these terms do not depend on the spelling dialect: the variant rule of the builder
 strips only a word that is in the American-only or the British-only list, and none of these words is.
 
-**Where a curated word belongs.** Four reviewed, project-owned files hold the words that the imported data gets
-wrong, and a word goes in exactly one place by what it is:
+**Developer tool names.** Documentation and build files name the tools of the toolchain (`pandoc`, `weasyprint`,
+`xunit`, `vstest`, `gcovr`), which no English list has. The technical folder therefore also holds a hand-curated,
+living list, `technical/general/tools.txt`, which the owner extends on request, which the generator never rewrites
+(the generator's curated-list set names it, so that it is not reported as a stale list), and which the technical
+dictionary reads with the other general lists. It holds real, public tool names only: each entry is one lowercase
+word that no other list has, is at least as long as the default minimum word length, and was checked against the
+typo list of crate-ci/typos so that a known misspelling is never accepted as a tool name. It is known in every
+language selection, because tool names do not depend on the spelling dialect.
+
+**Where a curated word belongs.** Five reviewed, project-owned files hold the words that the imported data gets
+wrong or lacks, and a word goes in exactly one place by what it is:
 
 - A general technical or scientific term, or an inflection that no list has (`dialogs`, the plural of the known
   `dialog`): `technical/general/additions.txt`.
+- The real, public name of a developer tool that no list has (`weasyprint`, `xunit`): `technical/general/tools.txt`.
 - A programming term that is also an American-only or British-only spelling (`tokenizer`):
   `technical/variant-keep.txt`. The builder fails the build for an entry that is not such a variant, which is why
   `dialogs` is not there.
@@ -151,10 +162,10 @@ A British or American spelling of an ordinary word (`centre`, `labelled`) is in 
 when the other dialect is selected. A product, a person, or an abbreviation of one project belongs to the `words`
 setting of that project, not to the shipped data.
 
-The four files are data written for this project, reviewed by hand against a public definition of each word, and
+The five files are data written for this project, reviewed by hand against a public definition of each word, and
 never copied from a third-party list, so they carry no third-party notice. The header of each file states its review
-rule, the library tests look up every entry of the technical and the common additions in every language selection,
-and the dictionaries README guides the choice of file.
+rule, the library tests look up every entry of the technical, the tools, and the common additions in every language
+selection, and the dictionaries README guides the choice of file.
 
 **Why a precomputed binary format.** The vocabulary is about two hundred thousand words, and a spell checker
 looks up millions of words in a large repository. The alternatives were to load the words into a general-purpose set

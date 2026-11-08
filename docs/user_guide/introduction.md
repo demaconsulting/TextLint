@@ -440,6 +440,8 @@ and the comment directives; _Differences from cspell_ lists where the two tools 
 
 ## What Is Checked
 
+<!-- cspell:ignore weasy weasyprinttool -->
+
 Text is split into words, and each word is checked against the dictionary of the chosen language, the technical
 terms, and the word lists of the settings:
 
@@ -449,6 +451,12 @@ terms, and the word lists of the settings:
 - A word that is not known is split at case changes and each piece is checked: `fooBar` is `foo` and `Bar`,
   `XMLParser` is `XML` and `Parser`. A capital that begins an English ending stays with its acronym, so `APIs` and
   `URLs` are not split. A word that is known as a whole is never split.
+- Every case change is an optional break, as in cspell: adjacent pieces that together form a word you list in `words`
+  or that a dictionary holds are accepted. With `words: [WeasyPrint]`, `WeasyPrintTool` is quiet although `Weasy` alone
+  is not a word, and the fragments need not be listed. The grouping that leaves the least text unknown is used, only
+  whole words are formed by joining (a lower-case run such as `weasyprinttool` is never searched for words), at most
+  eight pieces join, nothing joins across an underscore, hyphen, digit, or other separator, and a flagged word is
+  reported even inside such a group.
 - Words and pieces shorter than `minWordLength` (4 by default, counted in UTF-16 code units) are not checked, so
   abbreviations and short variable names are quiet. A flagged word is reported whatever its length.
 - The possessive of a known word is accepted (`parser's`), and so is a known word after a backslash escape
@@ -1023,7 +1031,9 @@ belongs in the `words` setting of your `.textlint.yaml` (or in an inline `textli
 dictionaries. A British spelling of an ordinary word is a real finding under `en-US`: choose `en-GB`, or fix the
 text. A general technical or scientific term that other projects would also use, and that a public dictionary or
 standard defines, can be proposed as an issue or a pull request that adds it to the reviewed list
-(`dictionaries/technical/general/additions.txt`; see `dictionaries/README.md` for the rules).
+(`dictionaries/technical/general/additions.txt`; see `dictionaries/README.md` for the rules). The name of a public
+developer tool that the dictionaries lack goes in the hand-curated tools list (`dictionaries/technical/general/tools.txt`)
+the same way.
 
 Two rules of the English data are worth knowing:
 

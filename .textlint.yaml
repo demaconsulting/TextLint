@@ -38,13 +38,9 @@ words:
   - errorlevel
   - fileassert
   - finalizer
-  - xunit
   - nameof
   - pagetitle
-  - Pandoc
   - Qube
-  - reqstream
-  - reviewmark
   - SARIF
   - sarifmark
   - setlocal
@@ -56,9 +52,6 @@ words:
   - trimmable
   - venv
   - versionmark
-  - Weasyprint
-  # Product name of the DemaConsulting.WeasyPrintTool package (cspell splits it with its heuristic splitter)
-  - WeasyPrintTool
   - yamlfix
   - yamldotnet
 

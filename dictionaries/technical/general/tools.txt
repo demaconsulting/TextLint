@@ -1,0 +1,423 @@
+# Tool names: a hand-curated, living list of developer tools, and the frameworks, languages, and file formats that
+# come with them.
+# This file is owned by the project and is NEVER overwritten by dictionaries/refresh.py. It is not generated and not
+# pinned to any upstream list; the owner extends it on request, and each entry is written for this project from its
+# own review. Lines that start with a hash are comments; blank lines are ignored. Sections are for the reader only.
+#
+# To add a tool, all of these must hold:
+#   - The entry is the real, public name of a tool or product (not a fragment of a name, not an abbreviation of
+#     one project, not a person, not an internal identifier), and its documentation is public.
+#   - The entry is not a misspelling of an ordinary word (every entry was checked against the crate-ci/typos
+#     list of known typos), and no entry may be added to make a spelling error go away.
+#   - The entry is not already known: not in another list of dictionaries/, so that it has one home only.
+#   - It is one lowercase word of letters (and inner straight apostrophes): no digits, hyphens, spaces, or dots.
+#     A name with a digit or hyphen (flake8, pre-commit) is split by the tokenizer into parts that are checked alone.
+#   - It is at least as long as the default minimum word length (4 letters); a shorter name is never checked.
+#   - It is not a US-only or GB-only spelling variant: the dictionary builder removes those from this folder.
+# Keep each section sorted. The library tests look up every entry in every language selection.
+#
+# Homebrew 365-day install analytics (formulae and casks) guided the choice of the common developer tools; no list
+# was copied from it.
+
+# DEMA toolchain: documentation, diagrams, analysis, and hardware-description tools
+asciidoctor
+basictex
+biber
+bibtex
+clippy
+cppcheck
+doctest
+dotcover
+dvipdfmx
+excalidraw
+gcovr
+ghdl
+ghostscript
+gitbook
+graphicsmagick
+graphviz
+gtkwave
+inkscape
+isort
+iverilog
+kcov
+kubeconform
+languagetool
+latexmk
+linkchecker
+lualatex
+luatex
+mactex
+mdbook
+mkdocs
+modelsim
+mypy
+nuitka
+opencppcoverage
+openscad
+optipng
+pandoc
+pdflatex
+pdftex
+potrace
+pycodestyle
+pydocstyle
+pyflakes
+pyinstaller
+pylint
+pytest
+pytype
+quartus
+questasim
+sccache
+shellcheck
+sonarcloud
+sonarqube
+texlive
+tflint
+tfsec
+typst
+vegalite
+verilator
+vhdl
+vivado
+vunit
+weasyprint
+xelatex
+xetex
+yosys
+
+# .NET ecosystem
+altcover
+autofixture
+avalonia
+benchmarkdotnet
+blazor
+bunit
+crossgen
+dacpac
+devenv
+dnspy
+docfx
+dotmemory
+dottrace
+efcore
+fakeiteasy
+fantomas
+fluentassertions
+ilasm
+ildasm
+ilmerge
+ilrepack
+ilspy
+ilverify
+ionide
+linqpad
+minver
+msix
+mstest
+nbgv
+nsis
+nsubstitute
+nswag
+nunit
+omnisharp
+opencover
+procdump
+procmon
+psake
+reportgenerator
+reqnroll
+resharper
+roslynator
+sharpdevelop
+shouldly
+signalr
+sonarlint
+sourcelink
+specflow
+sqlpackage
+stylecop
+swashbuckle
+velopack
+vstest
+vswhere
+windbg
+winforms
+winget
+winui
+wixtoolset
+xunit
+
+# DEMA products
+# The lowercase NuGet package IDs and tool commands of the public DEMA Consulting tools, as they appear in
+# .config/dotnet-tools.json files. The PascalCase product names need no entry: the tokenizer checks their parts.
+apimark
+canvasnet
+dictionarymark
+docdown
+doclintai
+dotnettoolwrapper
+doxygentool
+nugetcaching
+nugetinstaller
+pandoctool
+spdxmodel
+spdxtool
+transitivespdx
+vhdltest
+vswheretool
+weasyprinttool
+
+# Build systems, compilers, and debuggers
+bazelisk
+binaryen
+binutils
+detekt
+emscripten
+gcov
+gofmt
+gopls
+goreleaser
+gprof
+javac
+jdeps
+jlink
+jpackage
+jshell
+kotlinc
+ktlint
+ltrace
+nasm
+rustc
+rustdoc
+rustup
+scons
+staticcheck
+swiftc
+swiftformat
+swiftlint
+turbopack
+wabt
+wasmer
+wasmtime
+yasm
+
+# Languages, runtimes, and package managers
+cpython
+ironpython
+jenv
+macports
+micromamba
+miniforge
+pacman
+pipenv
+pipx
+pyenv
+pypy
+rubygems
+sdkman
+setuptools
+virtualenv
+
+# Linters, formatters, and test runners
+assertj
+chromedriver
+codespell
+geckodriver
+hamcrest
+jacoco
+jsonlint
+phpcs
+phpstan
+phpunit
+rubocop
+semgrep
+shfmt
+spotbugs
+taplo
+xctest
+
+# Version control and CI
+codeberg
+forgejo
+gitea
+gitk
+gitui
+gogs
+sourcehut
+
+# Containers, cloud, and infrastructure
+awscli
+azcopy
+buildah
+buildkit
+buildx
+cdktf
+crossplane
+falco
+flyctl
+gsutil
+istioctl
+kaniko
+localstack
+orbstack
+pulumi
+saltstack
+sigstore
+skopeo
+supabase
+syft
+
+# Editors and IDEs
+clion
+datagrip
+gvim
+macvim
+netbeans
+nvim
+phpstorm
+rubymine
+webstorm
+
+# Databases
+clickhouse
+dbeaver
+dbmate
+duckdb
+liquibase
+pgadmin
+sqlcl
+tableplus
+valkey
+
+# Shell and command-line utilities
+btop
+diffutils
+direnv
+findutils
+ncdu
+psscriptanalyzer
+
+# Security and networking tools
+certbot
+nmap
+tcpdump
+wireshark
+
+# API, diagram, and productivity tools
+ollama
+
+# Frameworks that name their command-line tool
+cocoapods
+fastapi
+gunicorn
+laravel
+symfony
+uvicorn
+
+# Additional languages and runtimes
+applesimutils
+babashka
+cbindgen
+cpanm
+cython
+fastboot
+ghcup
+luajit
+luarocks
+maturin
+numba
+opam
+pybind
+sbcl
+scrcpy
+simctl
+tuist
+xcbeautify
+xcodegen
+
+# JVM and Python tooling
+graalvm
+gradlew
+ipython
+jbang
+mvnw
+nbconvert
+papermill
+sqlfluff
+
+# Cloud and Kubernetes tooling
+ctop
+doctl
+eksctl
+infracost
+krew
+kubectx
+kubens
+kubeseal
+lazydocker
+miniflare
+nerdctl
+workerd
+
+# Data and observability
+dagster
+litecli
+mycli
+pgcli
+pgvector
+promtail
+pyroscope
+snowsql
+trino
+usql
+vegeta
+
+# Editors and terminals
+autossh
+bbedit
+cmder
+coteditor
+geany
+ghostty
+iterm
+kakoune
+kdevelop
+lapce
+logseq
+marktext
+mobaxterm
+qtcreator
+sshuttle
+termius
+tmuxinator
+typora
+wezterm
+zettlr
+
+# Command-line productivity
+atuin
+autojump
+chezmoi
+difftastic
+mackup
+mcfly
+tealdeer
+ugrep
+yadm
+zinit
+
+# Security tooling
+dockle
+ghidra
+gosec
+kubescape
+radare
+zaproxy
+
+# Build tooling
+compiledb
+distcc
+premake
+xmake

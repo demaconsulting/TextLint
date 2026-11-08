@@ -1,6 +1,6 @@
 package TextLint {
     part def TextChecker {
-        doc /* Checks the spelling of a string of text against the dictionary of the configured language and the word lists, skipping the text that the patterns of the settings, the patterns of the ignoreRegExp directives, the Markdown rules, and the random-string rule exclude, and returns each unknown word, flagged word, unsupported directive, and unusable directive pattern with its line and column in text order. */
+        doc /* Checks the spelling of a string of text against the dictionary of the configured language and the word lists, splitting an unknown word at its optional case breaks and accepting adjacent pieces that form an accepted word, skipping the text that the patterns of the settings, the patterns of the ignoreRegExp directives, the Markdown rules, and the random-string rule exclude, and returns each unknown word, flagged word, unsupported directive, and unusable directive pattern with its line and column in text order. */
 
         comment sourceRef /* Source: src/DemaConsulting.TextLint/SpellChecking/TextChecker.cs (supporting types: SpellingIssue.cs, SpellingIssueKind.cs, WordRules.cs, WordSet.cs, FlagSet.cs) */
         comment testRef /* Test: test/DemaConsulting.TextLint.Tests/SpellChecking/TextCheckerTests.cs */

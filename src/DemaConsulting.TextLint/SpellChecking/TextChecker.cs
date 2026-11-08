@@ -18,6 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+// cspell:ignore weasy
+
 using System.Collections.Immutable;
 using System.Text.RegularExpressions;
 using DemaConsulting.TextLint.Configuration;
@@ -37,7 +39,9 @@ namespace DemaConsulting.TextLint.SpellChecking;
 ///     data, and the regions that directives switch off); what remains is split into words, and each word is
 ///     looked up: a word on the flagged list is reported; a word shorter than the minimum length is skipped;
 ///     a known word, or an acceptable form of one, passes; an unknown word is split at case changes
-///     (<c>fooBar</c>) and each piece is checked on its own. Findings are returned in text order. A checker
+///     (<c>fooBar</c>) and each piece is checked on its own, except that adjacent pieces may join into a
+///     known word (<c>WeasyPrintTool</c> passes when <c>WeasyPrint</c> is known). Findings are returned in
+///     text order. A checker
 ///     validates its settings once, when it is created, and is then immutable and safe to use from any
 ///     number of threads at the same time; each call keeps its state on its own stack and heap, so
 ///     concurrent calls do not interfere.
@@ -52,6 +56,16 @@ public sealed class TextChecker
     ///     match time limit, so the number is bounded. Real documents use a handful.
     /// </remarks>
     internal const int MaxDirectivePatterns = 32;
+
+    /// <summary>
+    ///     The largest number of adjacent case-separated pieces that may join into one accepted word.
+    /// </summary>
+    /// <remarks>
+    ///     Accepted words made of case parts have a few parts (<c>WeasyPrint</c>, <c>GitHub</c>,
+    ///     <c>JavaScript</c>, <c>PostgreSQL</c>); eight leaves ample room while bounding the lookups of a
+    ///     word to eight per piece, so even a pathological identifier is checked in linear time.
+    /// </remarks>
+    internal const int MaxJoinedPieces = 8;
 
     /// <summary>
     ///     The word rules built from the settings, shared by every call.
@@ -449,6 +463,26 @@ public sealed class TextChecker
         private readonly List<TextRange> _pieces = [];
 
         /// <summary>
+        ///     Whether each piece of the word being checked is flagged on its own.
+        /// </summary>
+        private bool[] _flaggedPieces = [];
+
+        /// <summary>
+        ///     The cost of the pieces before each index, where a piece costs its length when it would be reported alone.
+        /// </summary>
+        private int[] _prefixCosts = [];
+
+        /// <summary>
+        ///     The smallest total cost of the pieces from each index to the end of the word.
+        /// </summary>
+        private int[] _bestCosts = [];
+
+        /// <summary>
+        ///     The number of pieces in the first run of the best grouping from each index.
+        /// </summary>
+        private int[] _bestRuns = [];
+
+        /// <summary>
         ///     The hexadecimal sequences of the token being checked, when random strings are skipped.
         /// </summary>
         private readonly List<TextRange> _hexSequences = [];
@@ -621,7 +655,8 @@ public sealed class TextChecker
         ///     word, or an acceptable form of one, passes as a whole before any splitting, so identifiers made
         ///     of known words are never taken apart. Only an unknown word is split at case changes, and each
         ///     piece that is flagged, or is long enough and unknown, is reported, except a piece that is one
-        ///     repeated letter. Side effect: records findings.
+        ///     repeated letter and a piece that belongs to a run of adjacent pieces forming a known word (see
+        ///     <see cref="CheckPieces"/>). Side effect: records findings.
         /// </remarks>
         /// <param name="word">The range of the word.</param>
         private void CheckWord(TextRange word)
@@ -642,13 +677,169 @@ public sealed class TextChecker
                 return;
             }
 
-            // Split the unknown word at case changes and check each piece
+            // Split the unknown word at case changes and check the pieces
             _pieces.Clear();
             WordTokenizer.SplitCase(_text, word, _pieces);
-            foreach (var piece in _pieces)
+            if (_pieces.Count == 1)
             {
-                CheckPiece(piece, followsBackslash && piece.Start == word.Start);
+                CheckPiece(_pieces[0], followsBackslash);
+                return;
             }
+
+            CheckPieces(word.Start, followsBackslash);
+        }
+
+        /// <summary>
+        ///     Checks the pieces of an unknown word, letting adjacent pieces join into a known word.
+        /// </summary>
+        /// <remarks>
+        ///     Every case break is optional, as it is in cspell: <c>WeasyPrintTool</c> is accepted when
+        ///     <c>WeasyPrint</c> is a known word, although <c>Weasy</c> alone is not. The pieces are grouped into
+        ///     runs of adjacent pieces so that the total length of the pieces left unknown is the smallest
+        ///     possible, found by dynamic programming from the end of the word. A single piece costs its length
+        ///     when it would be reported and nothing otherwise, by the rules of <see cref="CheckPiece"/>. A run
+        ///     of two or more pieces costs nothing when its text is acceptable as a word, is not flagged, and
+        ///     holds no flagged piece; otherwise it is not a candidate. A run never spans a gap between pieces,
+        ///     never holds more than <see cref="MaxJoinedPieces"/> pieces, and is never tried when all of its
+        ///     pieces are acceptable already, so the work is at most <see cref="MaxJoinedPieces"/> lookups per
+        ///     piece. When two groupings cost the same, the one whose first run is the longer wins, and then
+        ///     the same rule applies to the rest. Only the single pieces of the chosen grouping that are
+        ///     unknown or flagged are reported, so the findings are those of checking every piece alone
+        ///     whenever no join helps. Side effect: records findings; reuses the scratch arrays.
+        /// </remarks>
+        /// <param name="wordStart">The offset of the first code unit of the word.</param>
+        /// <param name="followsBackslash"><see langword="true"/> when a backslash directly precedes the word.</param>
+        private void CheckPieces(int wordStart, bool followsBackslash)
+        {
+            var count = _pieces.Count;
+            EnsureScratch(count);
+
+            // Price each piece alone: the cost of every prefix, and which pieces are flagged
+            _prefixCosts[0] = 0;
+            for (var index = 0; index < count; index++)
+            {
+                var piece = _pieces[index];
+                var isReported = IsPieceReported(piece, followsBackslash && piece.Start == wordStart, out var isFlagged, out _);
+                _flaggedPieces[index] = isFlagged;
+                _prefixCosts[index + 1] = _prefixCosts[index] + (isReported ? piece.Length : 0);
+            }
+
+            // Nothing to report, so no join can help
+            if (_prefixCosts[count] == 0)
+            {
+                return;
+            }
+
+            // Choose the cheapest grouping, from the end of the word
+            _bestCosts[count] = 0;
+            for (var first = count - 1; first >= 0; first--)
+            {
+                var singleCost = _prefixCosts[first + 1] - _prefixCosts[first];
+                var bestCost = singleCost + _bestCosts[first + 1];
+                var bestRun = 1;
+
+                // Try the longer runs, which are only worth it when they cover a piece that is not acceptable
+                var limit = Math.Min(MaxJoinedPieces, count - first);
+                for (var run = 2; run <= limit && !_flaggedPieces[first]; run++)
+                {
+                    var last = first + run - 1;
+                    if (_pieces[last].Start != _pieces[last - 1].End || _flaggedPieces[last])
+                    {
+                        break;
+                    }
+
+                    var candidate = _bestCosts[first + run];
+                    if (candidate <= bestCost &&
+                        _prefixCosts[first + run] > _prefixCosts[first] &&
+                        IsRunAccepted(_pieces[first].Start, _pieces[last].End, followsBackslash && _pieces[first].Start == wordStart))
+                    {
+                        bestCost = candidate;
+                        bestRun = run;
+                    }
+                }
+
+                _bestCosts[first] = bestCost;
+                _bestRuns[first] = bestRun;
+            }
+
+            // Report the single pieces of the chosen grouping that are unknown or flagged
+            for (var index = 0; index < count; index += _bestRuns[index])
+            {
+                if (_bestRuns[index] == 1 && _prefixCosts[index + 1] > _prefixCosts[index])
+                {
+                    CheckPiece(_pieces[index], followsBackslash && _pieces[index].Start == wordStart);
+                }
+            }
+        }
+
+        /// <summary>
+        ///     Makes the scratch arrays of <see cref="CheckPieces"/> big enough for a number of pieces.
+        /// </summary>
+        /// <remarks>
+        ///     The arrays are kept for the rest of the call, so a run allocates them only as often as it meets
+        ///     a word with more pieces than any before. Side effect: may replace the arrays.
+        /// </remarks>
+        /// <param name="count">The number of pieces of the word.</param>
+        private void EnsureScratch(int count)
+        {
+            if (_flaggedPieces.Length >= count)
+            {
+                return;
+            }
+
+            _flaggedPieces = new bool[count];
+            _bestRuns = new int[count];
+            _prefixCosts = new int[count + 1];
+            _bestCosts = new int[count + 1];
+        }
+
+        /// <summary>
+        ///     Determines whether the text of a run of two or more adjacent pieces is acceptable as one word.
+        /// </summary>
+        /// <remarks>
+        ///     The text must be accepted by the rules of a whole word, with the same case rules, and must not
+        ///     be flagged: a flag wins over an accepted word, as it does for a whole word, so a flagged text
+        ///     is never a join. The other forms that a single piece may take (a contraction, or a run of
+        ///     capitals with an ending) are not applied, because a join is made of exact accepted words only.
+        ///     Does not allocate unless the text holds a backslash.
+        /// </remarks>
+        /// <param name="start">The offset of the first code unit of the run.</param>
+        /// <param name="end">The offset just past the last code unit of the run.</param>
+        /// <param name="followsBackslash"><see langword="true"/> when a backslash directly precedes the run.</param>
+        /// <returns><see langword="true"/> when the run is an accepted word and is not flagged.</returns>
+        private bool IsRunAccepted(int start, int end, bool followsBackslash)
+        {
+            var span = _text.AsSpan(start, end - start);
+            return !_rules.IsFlagged(span, out _) && _rules.IsAccepted(span, followsBackslash);
+        }
+
+        /// <summary>
+        ///     Determines whether one piece of an unknown word is reported, and whether it is flagged.
+        /// </summary>
+        /// <remarks>
+        ///     A piece is reported when it is flagged, or is long enough, not accepted, not a contraction of
+        ///     accepted parts, and not one repeated letter; a repeated letter is a placeholder and is never
+        ///     reported, even when flagged. Does not allocate unless the piece holds a backslash.
+        /// </remarks>
+        /// <param name="piece">The range of the piece.</param>
+        /// <param name="followsBackslash"><see langword="true"/> when a backslash directly precedes the piece.</param>
+        /// <param name="isFlagged">Receives whether the piece is flagged, whether or not it is reported.</param>
+        /// <param name="suggestions">Receives the suggestions of the flag entry; empty when not flagged.</param>
+        /// <returns><see langword="true"/> when the piece is reported.</returns>
+        private bool IsPieceReported(TextRange piece, bool followsBackslash, out bool isFlagged, out ImmutableArray<string> suggestions)
+        {
+            var span = _text.AsSpan(piece.Start, piece.Length);
+            isFlagged = _rules.IsFlagged(span, out suggestions);
+            if (!isFlagged &&
+                (piece.Length < _rules.MinWordLength ||
+                 _rules.IsAccepted(span, followsBackslash) ||
+                 _rules.IsContractionAccepted(span, followsBackslash)))
+            {
+                return false;
+            }
+
+            // A run of one repeated letter is a placeholder, not a misspelling, even when flagged
+            return !WordRules.IsRepeatedLetter(span);
         }
 
         /// <summary>
@@ -662,23 +853,10 @@ public sealed class TextChecker
         /// <param name="followsBackslash"><see langword="true"/> when a backslash directly precedes the piece.</param>
         private void CheckPiece(TextRange piece, bool followsBackslash)
         {
-            var span = _text.AsSpan(piece.Start, piece.Length);
-            var isFlagged = _rules.IsFlagged(span, out var suggestions);
-            if (!isFlagged &&
-                (piece.Length < _rules.MinWordLength ||
-                 _rules.IsAccepted(span, followsBackslash) ||
-                 _rules.IsContractionAccepted(span, followsBackslash)))
+            if (IsPieceReported(piece, followsBackslash, out var isFlagged, out var suggestions))
             {
-                return;
+                Add(piece, isFlagged ? SpellingIssueKind.FlaggedWord : SpellingIssueKind.UnknownWord, suggestions);
             }
-
-            // A run of one repeated letter is a placeholder, not a misspelling, even when flagged
-            if (WordRules.IsRepeatedLetter(span))
-            {
-                return;
-            }
-
-            Add(piece, isFlagged ? SpellingIssueKind.FlaggedWord : SpellingIssueKind.UnknownWord, suggestions);
         }
     }
 }

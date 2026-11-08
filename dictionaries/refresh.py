@@ -51,9 +51,10 @@ WHAT IT PRODUCES
     ``cspell-legacy``        the cspell-dicts legacy English list, ONLY the words SCOWL size 80 also lists
 
     ``technical/language/<name>.txt``  programming-language keyword and API lists (8 files, including the fonts list)
-    ``technical/general/<name>.txt``   general technical lists (7 files, plus the project-owned additions.txt)
+    ``technical/general/<name>.txt``   general technical lists (7 files, plus the project-owned additions.txt and tools.txt)
 
-    ``technical/general/additions.txt``, ``technical/variant-keep.txt``, ``en-common/additions.txt`` and
+    ``technical/general/additions.txt``, ``technical/general/tools.txt``, ``technical/variant-keep.txt``,
+    ``en-common/additions.txt`` and
     ``exclusions.txt`` are project-owned and are NEVER touched by this script.
 
     ``en-common/additions.txt`` is the reviewed list of words that are standard in every English variant although
@@ -88,7 +89,7 @@ VERIFIED INPUTS
 
 STALE LISTS
     Before anything is downloaded, the run fails if a managed folder holds a ``.txt`` list that no source
-    declares and that is not curated (``additions.txt``, ``variant-keep.txt``, ``en-common/additions.txt``): that is what a removed, renamed,
+    declares and that is not curated (``additions.txt``, ``tools.txt``, ``variant-keep.txt``, ``en-common/additions.txt``): that is what a removed, renamed,
     or emptied source leaves behind, and the build would keep shipping its words. The files are named, and a
     person deletes them or declares the source. A source that yields no entries is an error, not an empty list.
 
@@ -699,7 +700,8 @@ def technical_managed_paths() -> Set[str]:
 
 # Curated lists that live beside the generated ones; the script never writes, replaces, or deletes them
 COMMON_ADDITIONS = "en-common/additions.txt"
-CURATED_LISTS = frozenset({"technical/variant-keep.txt", "technical/general/additions.txt", COMMON_ADDITIONS})
+CURATED_LISTS = frozenset({"technical/variant-keep.txt", "technical/general/additions.txt", "technical/general/tools.txt",
+                           COMMON_ADDITIONS})
 
 
 def read_common_overrides(output: Path, cspell_excludes: Iterable[str] = ()) -> Set[str]:
@@ -1180,7 +1182,8 @@ class _RefreshSelfTests(unittest.TestCase):
 
     def test_lists_that_no_source_declares_are_found_but_curated_lists_are_not(self) -> None:
         for relative in ("technical/general/a.txt", "technical/general/stale.txt", "technical/language/old.txt",
-                         "technical/variant-keep.txt", "technical/general/additions.txt", "en-common/additions.txt"):
+                         "technical/variant-keep.txt", "technical/general/additions.txt", "technical/general/tools.txt",
+                         "en-common/additions.txt"):
             target = self._folder / relative
             target.parent.mkdir(parents=True, exist_ok=True)
             write_text_lf(target, "x\n")
