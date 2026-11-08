@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+// cspell:ignore vstest gcovr graphviz vswhere weasyprint
 // cspell:ignore favourite neighbour organise tokenizer kubernetes powershell textlint xyzzyq cafè tabel catalogue labelled honoured modelling curser operants programing milage writeable unannotated mockable honour colour centre analyse judgement colourize colourized decolourize glamourize glamourized ation ations organizability unmaneuverable unmanoeuvrable manoeuvre segoe consolas calibri menlo acknowledgement cancellable tyre metafile metafiles boxplot hypernyms multinomial upscaling datastream codestream substream orderable unsplit underflows unvalidated unreviewed postconditions lemmatizer autoscale redownload quantizer clitics exponentiated retirable commitish zipball chatbot fpga saml dialogs viterbi abaci cactuses bigram
 
 using System.Collections.Concurrent;
@@ -1452,6 +1453,40 @@ public class TextLintTests
             () => Assert.Empty(failures.Take(MaxReportedFailures)),
             () => Assert.All(britishOnly, word => Assert.False(american.IsKnown(word), $"{word} must stay unknown in en-US")),
             () => Assert.All(britishOnly, word => Assert.True(british.IsKnown(word), $"{word} must be known in en-GB")));
+    }
+
+    /// <summary>
+    ///     Test that every entry of the tools list and the common developer tools are known in every language selection.
+    /// </summary>
+    /// <remarks>
+    ///     The tools list is a hand-curated, living list of developer tool names. Every entry is read from the
+    ///     word-list folder, so that no entry can be dropped unnoticed, and each must be known to the American,
+    ///     the British, and the combined selection, in every letter case. Tool names do not depend on the spelling
+    ///     dialect of the prose around them.
+    /// </remarks>
+    [Fact]
+    public void TextLint_Dictionary_DeveloperTools_AreKnownInEveryLanguage()
+    {
+        // Arrange: every entry of the tools list, tool names of several kinds (a documentation tool, a Python
+        // package tool, a .NET test framework, a .NET test host, a coverage tool), and the three selections
+        var root = Path.Combine(AppContext.BaseDirectory, "dictionaries");
+        var tools = ReadWordFile(root, "technical/general/tools.txt");
+        var required = new[] { "pandoc", "weasyprint", "xunit", "vstest", "gcovr", "graphviz", "plantuml", "vswhere" };
+        var selections = new[] { "en-US", "en-GB", "en-US,en-GB" }.Select(SpellingDictionary.ForLanguages).ToArray();
+
+        // Act: look up each entry (and each required name) as written, capitalized, and in upper case in every selection
+        var failures = tools.Concat(required)
+            .SelectMany(tool => new[] { tool, Capitalize(tool), UpperCaseLatin1(tool) })
+            .SelectMany(form => selections.Where(dictionary => !dictionary.IsKnown(form)).Select(_ => form))
+            .ToArray();
+
+        // Assert: the list holds the DEMA tool names that no other list has, and every name is known everywhere
+        Assert.Multiple(
+            () => Assert.Contains("weasyprint", tools),
+            () => Assert.Contains("xunit", tools),
+            () => Assert.Contains("vstest", tools),
+            () => Assert.NotEmpty(tools),
+            () => Assert.Empty(failures.Take(MaxReportedFailures)));
     }
 
     /// <summary>

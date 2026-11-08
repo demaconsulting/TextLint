@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-// cspell:ignore wrold speling qwzx favourite cspe wrld llchecker xqzv Urlz SPELINGS qwzxabc xqzvw zorbbegin zorbend nxqzvw nzorbend
+// cspell:ignore wroldprint prnt wrold speling qwzx favourite cspe wrld llchecker xqzv Urlz SPELINGS qwzxabc xqzvw zorbbegin zorbend nxqzvw nzorbend
 
 using System.Text;
 using DemaConsulting.TextLint.Configuration;
@@ -330,6 +330,23 @@ public class TextLintSpellCheckTests
 
         // Assert: each unknown word is reported separately at its own position
         Assert.Equal(["1:3 Wrold", "1:9 speling"], Positions(issues));
+    }
+
+    /// <summary>
+    ///     Test that an identifier whose case-separated parts form a listed word is accepted.
+    /// </summary>
+    [Fact]
+    public void TextLint_CheckText_CaseSeparatedListedWord_IsAccepted()
+    {
+        // Arrange: a listed word whose first part is unknown alone, and identifiers that contain it
+        var settings = new TextLintSettings { Words = ["WroldPrint"] };
+        const string text = "WroldPrintTool HelloWroldPrintTool WroldPrntTool";
+
+        // Act: check it
+        var issues = Check(text, settings);
+
+        // Assert: the identifiers with the listed word pass, and the one that misspells it is reported
+        Assert.Equal(["1:36 Wrold", "1:41 Prnt"], Positions(issues));
     }
 
     /// <summary>

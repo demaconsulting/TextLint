@@ -27,6 +27,7 @@ sections:
             children:
               - TextLint-SpellChecking-TextChecker-UnknownWords
               - TextLint-SpellChecking-TextChecker-WordSplitting
+              - TextLint-SpellChecking-TextChecker-JoinedCaseParts
               - TextLint-SpellChecking-TextChecker-KnownWordForms
               - TextLint-SpellChecking-TextChecker-MinimumWordLength
               - TextLint-SpellChecking-TextChecker-WordListPrecedence
@@ -42,6 +43,7 @@ sections:
               - SpellCheckingSubsystem_Check_UnknownWord_ReportsLineColumnAndWord
               - SpellCheckingSubsystem_Check_KnownWords_ReportsNothing
               - SpellCheckingSubsystem_Check_CamelAndSnakeCase_ReportsEachUnknownWord
+              - SpellCheckingSubsystem_Check_CaseSeparatedListedWord_IsAccepted
               - SpellCheckingSubsystem_Check_ShortWord_IsNotChecked
               - SpellCheckingSubsystem_Check_PossessiveAndBackslashEscape_AreAccepted
               - SpellCheckingSubsystem_Check_WordLists_ApplyPrecedence

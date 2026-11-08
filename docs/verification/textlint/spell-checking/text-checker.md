@@ -33,6 +33,10 @@ No setup beyond the standard test runner. The tests read no files and are indepe
 - Unknown words are reported with source name, line, and column; known, empty, and punctuation-only texts report
   nothing; a null text is rejected.
 - A known compound is not split, and an unknown identifier reports only its unknown pieces.
+- Adjacent case-separated pieces that form an accepted word, from a word list or the dictionary, are accepted whatever
+  their own spelling; the grouping that leaves the least text unknown wins, ties go to the longer first run, no join
+  crosses a separator or exceeds eight pieces, a flagged piece or flagged joined text is never hidden, the escape letter
+  of a backslash is allowed only at the start of the word, and findings are unchanged when no join helps.
 - Possessives, escapes, capital runs with endings, and repeated letters follow the known-word-form rules.
 - The minimum length is counted in UTF-16 code units, and the boundary is exact.
 - The word lists apply in the order ignored, flagged, accepted, dictionary, with the case rules of each list.
@@ -120,6 +124,59 @@ reported as one word, because no case change separates them. This scenario is te
 
 **TextChecker_Check_ApostropheWord_StaysWhole**: Contractions are known words and are not split at the apostrophe.
 This scenario is tested by `TextChecker_Check_ApostropheWord_StaysWhole`.
+
+**TextChecker_Check_PiecesFormListedWord_AreAccepted**: With a listed word whose first part is unknown alone,
+identifiers that contain the word at the start, in the middle, at the end, and twice report nothing. This scenario is
+tested by `TextChecker_Check_PiecesFormListedWord_AreAccepted`.
+
+**TextChecker_Check_PiecesFormNoListedWord_ReportsUnknownPiece**: Without the listed word the same identifier reports
+only the unknown piece, as before the join rule. This scenario is tested by
+`TextChecker_Check_PiecesFormNoListedWord_ReportsUnknownPiece`.
+
+**TextChecker_Check_MisspelledListedWord_ReportsItsUnknownPieces**: An identifier that misspells the listed word is not
+joined, and both unknown pieces are reported. This scenario is tested by
+`TextChecker_Check_MisspelledListedWord_ReportsItsUnknownPieces`.
+
+**TextChecker_Check_PiecesAcrossSeparator_AreNotJoined**: The parts of a listed word separated by an underscore, a
+hyphen, a digit, or a space are not joined, and the first part is reported. This scenario is tested by
+`TextChecker_Check_PiecesAcrossSeparator_AreNotJoined`.
+
+**TextChecker_Check_JoinedRunOfListedWord_MatchesAnyCase**: A joined run is matched against the listed words in any
+letter case. This scenario is tested by `TextChecker_Check_JoinedRunOfListedWord_MatchesAnyCase`.
+
+**TextChecker_Check_PiecesFormDictionaryWord_AreAccepted**: With no listed words, an identifier whose first parts form
+a dictionary word whose first part is unknown alone is accepted. This scenario is tested by
+`TextChecker_Check_PiecesFormDictionaryWord_AreAccepted`.
+
+**TextChecker_Check_OverlappingJoins_LeaveTheShortestUnknownPiece**: Of two overlapping listed words, the grouping that
+leaves the four-letter piece unknown wins over the leftmost grouping that leaves a five-letter piece. This scenario is
+tested by `TextChecker_Check_OverlappingJoins_LeaveTheShortestUnknownPiece`.
+
+**TextChecker_Check_OverlappingJoinsOfEqualCost_PreferTheLongerFirstRun**: Two groupings of equal cost resolve to the
+one whose first run is longer. This scenario is tested by
+`TextChecker_Check_OverlappingJoinsOfEqualCost_PreferTheLongerFirstRun`.
+
+**TextChecker_Check_FlaggedPieceInsideListedWord_IsStillReported**: A flagged piece inside a listed word is reported as
+flagged, and the unknown piece is reported as before. This scenario is tested by
+`TextChecker_Check_FlaggedPieceInsideListedWord_IsStillReported`.
+
+**TextChecker_Check_FlaggedJoinedText_IsNotAccepted**: A word that is both listed and flagged is not accepted as a
+join, so the pieces are checked alone. This scenario is tested by `TextChecker_Check_FlaggedJoinedText_IsNotAccepted`.
+
+**TextChecker_Check_RunLongerThanMaximum_IsNotJoined**: A listed word of eight pieces is joined and a listed word of
+nine pieces is not, so each piece is reported. This scenario is tested by
+`TextChecker_Check_RunLongerThanMaximum_IsNotJoined`.
+
+**TextChecker_Check_JoinedRunAtWordStartAfterBackslash_AllowsEscapeLetter**: After a backslash the escape letter in
+front of the first piece does not stop it from joining the second. This scenario is tested by
+`TextChecker_Check_JoinedRunAtWordStartAfterBackslash_AllowsEscapeLetter`.
+
+**TextChecker_Check_JoinedRunAtWordStartWithoutBackslash_IsNotJoined**: The same identifier without the backslash is
+not joined. This scenario is tested by `TextChecker_Check_JoinedRunAtWordStartWithoutBackslash_IsNotJoined`.
+
+**TextChecker_Check_VeryManyPieces_AreCheckedWithBoundedWork**: An identifier of ten thousand pieces is accepted when
+pairs of pieces are listed and reports every piece otherwise. This scenario is tested by
+`TextChecker_Check_VeryManyPieces_AreCheckedWithBoundedWork`.
 
 **TextChecker_Check_PossessiveOfKnownWord_IsAccepted**: The possessive of a known word is accepted with a straight
 and with a typographic apostrophe. This scenario is tested by `TextChecker_Check_PossessiveOfKnownWord_IsAccepted`.

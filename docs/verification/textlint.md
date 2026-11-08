@@ -140,7 +140,8 @@ requires the DictionaryBuilder project, which the library project builds first; 
 - Lookups from many threads at once return correct answers.
 - A text is checked without any file, and each unknown word is reported with its line, column, and the word;
   known words are not reported.
-- Identifiers are split at case changes, digits, underscores, and punctuation and each word is checked; words
+- Identifiers are split at case changes, digits, underscores, and punctuation and each word is checked, except that
+  adjacent case-separated parts that form an accepted word are accepted; words
   shorter than the minimum length are not; an apostrophe stays inside a word; the possessive of a known word and a
   known word after a backslash escape are accepted.
 - URLs, email addresses, hexadecimal values, UUIDs, hashes, and encoded data are not checked.
@@ -438,6 +439,15 @@ all of them. The test also checks that the lists hold `dialogs`, `metafile`, `co
 `cancellable`, `centre`, `labelled`, and `tyre` are known in the British selection and stay unknown in the American
 one. This scenario is tested by `TextLint_Dictionary_ReviewedTechnicalVocabulary_IsKnownInEveryLanguage`.
 
+**TextLint_Dictionary_DeveloperTools_AreKnownInEveryLanguage**: Every entry of the hand-curated tools list
+(`technical/general/tools.txt`) is read from the word-list folder, so no entry can be dropped unnoticed, and is looked up
+as written, capitalized, and in upper case in the American, the British, and the combined selection; each is known in
+all of them. The test also looks up the tool names `pandoc`, `weasyprint`, `xunit`, `vstest`, `gcovr`, `graphviz`,
+`plantuml`, and `vswhere`, and checks that the list itself holds `weasyprint`, `xunit`, and `vstest`. This scenario is
+tested by `TextLint_Dictionary_DeveloperTools_AreKnownInEveryLanguage`.
+
+<!-- cspell:ignore weasyprint vstest gcovr plantuml vswhere graphviz -->
+
 **TextLint_Dictionary_DerivedFormsAndRegionalSpellings_FollowTheLanguageSelection**: Derived forms that a base word
 list lacks (`testability`, `reviewable`, `precomputed`, `unannotated`, `untestable`) are known in the American and
 the British selection; British-only spellings (`catalogue`, `labelled`, `honoured`, `modelling`) are known only in
@@ -493,6 +503,10 @@ reported. This scenario is tested by `TextLint_CheckText_KnownWords_ReportsNothi
 **TextLint_CheckText_CamelAndSnakeCase_ReportsEachWordSeparately**: An identifier made of a short word, a
 capitalized unknown word, an underscore, and a second unknown word is checked; each unknown word is reported at its
 own position. This scenario is tested by `TextLint_CheckText_CamelAndSnakeCase_ReportsEachWordSeparately`.
+
+**TextLint_CheckText_CaseSeparatedListedWord_IsAccepted**: Identifiers that contain a listed word whose first part is
+unknown alone are accepted, and one that misspells the word is reported. This scenario is tested by
+`TextLint_CheckText_CaseSeparatedListedWord_IsAccepted`.
 
 **TextLint_CheckText_ShortWords_AreNotChecked**: Two short unknown words and one unknown word of exactly four
 letters are checked; only the word of four letters is reported. This scenario is tested by

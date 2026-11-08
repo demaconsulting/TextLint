@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 // cspell:ignore wrold Wrold speling xqzv xqz zorb ZORB zorbs ZORBs nwrold wroldspeling wrolhttp wrol qqq
+// cspell:ignore wroldprint WroldPrint Prnt Quixo Postgre
 // cspell:ignore favourite textlint FEFF cspe
 // cspell:ignore quix flib cabdab fedacb xqzvw zorbquix zorbflag zorbstart zorbend neverpresent zorbinside quixone zorbq
 // cspell:ignore Dowd Artagnan quixwords nflibquix Urlz zorbcomment zorbinblockxx zorbinline zorbnamed zorbnamedxx
@@ -406,6 +407,259 @@ public class TextCheckerTests
 
         // Assert: one finding for the whole word
         Assert.Equal(["1:1 wroldspeling"], Positions(issues));
+    }
+
+    /// <summary>
+    ///     Test that adjacent case-separated pieces that form a listed word are accepted together.
+    /// </summary>
+    /// <param name="text">The identifier to check.</param>
+    [Theory]
+    [InlineData("WroldPrintTool")]
+    [InlineData("HelloWroldPrint")]
+    [InlineData("HelloWroldPrintWorld")]
+    [InlineData("WroldPrintWroldPrint")]
+    public void TextChecker_Check_PiecesFormListedWord_AreAccepted(string text)
+    {
+        // Arrange: a listed word whose first piece is not a word on its own
+        var settings = new TextLintSettings { Words = ["WroldPrint"] };
+
+        // Act: check an identifier that contains the listed word
+        var issues = Check(text, settings);
+
+        // Assert: nothing is reported, because the case break inside the listed word is optional
+        Assert.Empty(issues);
+    }
+
+    /// <summary>
+    ///     Test that the same identifier is still reported when no word joins its pieces.
+    /// </summary>
+    [Fact]
+    public void TextChecker_Check_PiecesFormNoListedWord_ReportsUnknownPiece()
+    {
+        // Arrange: an identifier whose first piece is unknown and no list holds the whole of it
+        const string text = "WroldPrintTool";
+
+        // Act: check it with the defaults
+        var issues = Check(text);
+
+        // Assert: only the unknown piece is reported, as without any join
+        Assert.Equal(["1:1 Wrold"], Positions(issues));
+    }
+
+    /// <summary>
+    ///     Test that a misspelled listed word is not joined.
+    /// </summary>
+    [Fact]
+    public void TextChecker_Check_MisspelledListedWord_ReportsItsUnknownPieces()
+    {
+        // Arrange: a listed word and an identifier that misspells the second part of it
+        var settings = new TextLintSettings { Words = ["WroldPrint"] };
+
+        // Act: check the identifier
+        var issues = Check("WroldPrntTool", settings);
+
+        // Assert: both unknown pieces are reported
+        Assert.Equal(["1:1 Wrold", "1:6 Prnt"], Positions(issues));
+    }
+
+    /// <summary>
+    ///     Test that pieces separated by anything that splits a word are never joined.
+    /// </summary>
+    /// <param name="text">The text to check.</param>
+    [Theory]
+    [InlineData("Wrold_Print")]
+    [InlineData("Wrold-Print")]
+    [InlineData("Wrold1Print")]
+    [InlineData("Wrold Print")]
+    public void TextChecker_Check_PiecesAcrossSeparator_AreNotJoined(string text)
+    {
+        // Arrange: a listed word that the text spells with a separator in the middle
+        var settings = new TextLintSettings { Words = ["WroldPrint"] };
+
+        // Act: check the text
+        var issues = Check(text, settings);
+
+        // Assert: the first part is reported, because only parts of one word can join
+        Assert.Equal(["1:1 Wrold"], Positions(issues));
+    }
+
+    /// <summary>
+    ///     Test that a joined run is matched against the listed words in any letter case, as a whole word is.
+    /// </summary>
+    [Fact]
+    public void TextChecker_Check_JoinedRunOfListedWord_MatchesAnyCase()
+    {
+        // Arrange: a listed word written with capitals, and identifiers that capitalize it differently
+        var settings = new TextLintSettings { Words = ["WroldPrint"] };
+
+        // Act: check identifiers that spell the word with capitals in different places
+        var issues = Check("WroldPrintTool wroldPrintTool", settings);
+
+        // Assert: both are accepted
+        Assert.Empty(issues);
+    }
+
+    /// <summary>
+    ///     Test that a join is accepted when the dictionary, not a word list, holds the joined word.
+    /// </summary>
+    [Fact]
+    public void TextChecker_Check_PiecesFormDictionaryWord_AreAccepted()
+    {
+        // Arrange: no listed words; the dictionary holds PostgreSQL, whose first part is unknown on its own
+        var settings = new TextLintSettings { Words = [] };
+
+        // Act: check the part alone and then an identifier that joins it to the rest of the dictionary word
+        var alone = Check("Postgre", settings);
+        var joined = Check("PostgreSQLServer", settings);
+
+        // Assert: the part alone is reported, and the identifier is accepted
+        Assert.Multiple(
+            () => Assert.Equal(["1:1 Postgre"], Positions(alone)),
+            () => Assert.Empty(joined));
+    }
+
+    /// <summary>
+    ///     Test that the grouping with the smallest total unknown length wins, even over the leftmost one.
+    /// </summary>
+    [Fact]
+    public void TextChecker_Check_OverlappingJoins_LeaveTheShortestUnknownPiece()
+    {
+        // Arrange: three unknown pieces and two listed words that overlap on the middle one
+        var settings = new TextLintSettings { Words = ["QuixSpeling", "SpelingWrold"] };
+
+        // Act: check the identifier
+        var issues = Check("QuixSpelingWrold", settings);
+
+        // Assert: joining the last two leaves the shorter piece (four letters) unknown, not the five-letter one
+        Assert.Equal(["1:1 Quix"], Positions(issues));
+    }
+
+    /// <summary>
+    ///     Test that two groupings of the same cost resolve to the one whose first run is longer.
+    /// </summary>
+    [Fact]
+    public void TextChecker_Check_OverlappingJoinsOfEqualCost_PreferTheLongerFirstRun()
+    {
+        // Arrange: three unknown pieces with the same total length left over either way
+        var settings = new TextLintSettings { Words = ["WroldSpeling", "SpelingQuixo"] };
+
+        // Act: check the identifier
+        var issues = Check("WroldSpelingQuixo", settings);
+
+        // Assert: the leftmost join wins and the last piece is reported
+        Assert.Equal(["1:13 Quixo"], Positions(issues));
+    }
+
+    /// <summary>
+    ///     Test that a flagged piece inside a listed word is still reported.
+    /// </summary>
+    [Fact]
+    public void TextChecker_Check_FlaggedPieceInsideListedWord_IsStillReported()
+    {
+        // Arrange: a listed word whose second part is also flagged
+        var settings = new TextLintSettings { Words = ["WroldPrint"], FlagWords = ["print"] };
+
+        // Act: check the identifier
+        var issues = Check("WroldPrintTool", settings);
+
+        // Assert: the flag is not hidden by the join, and the unknown first piece is reported as before
+        Assert.Equal(
+            [("Wrold", SpellingIssueKind.UnknownWord), ("Print", SpellingIssueKind.FlaggedWord)],
+            issues.Select(issue => (issue.Text, issue.Kind)));
+    }
+
+    /// <summary>
+    ///     Test that a flagged joined text is never accepted as a word, as a flagged whole word never is.
+    /// </summary>
+    [Fact]
+    public void TextChecker_Check_FlaggedJoinedText_IsNotAccepted()
+    {
+        // Arrange: a word that is both listed and flagged; the flag wins
+        var settings = new TextLintSettings { Words = ["WroldPrint"], FlagWords = ["WroldPrint"] };
+
+        // Act: check the identifier
+        var issues = Check("WroldPrintTool", settings);
+
+        // Assert: the pieces are checked on their own, as without the listed word
+        Assert.Equal(["1:1 Wrold"], Positions(issues));
+    }
+
+    /// <summary>
+    ///     Test that a joined run can hold at most the maximum number of pieces.
+    /// </summary>
+    /// <param name="runPieces">The number of pieces of the listed word.</param>
+    /// <param name="expectedFindings">The number of findings expected.</param>
+    [Theory]
+    [InlineData(TextChecker.MaxJoinedPieces, 1)]
+    [InlineData(TextChecker.MaxJoinedPieces + 1, TextChecker.MaxJoinedPieces + 2)]
+    public void TextChecker_Check_RunLongerThanMaximum_IsNotJoined(int runPieces, int expectedFindings)
+    {
+        // Arrange: a listed word of several unknown pieces, preceded by one more unknown piece
+        var listed = string.Concat(Enumerable.Repeat("Wrold", runPieces));
+        var settings = new TextLintSettings { Words = [listed] };
+
+        // Act: check an identifier that starts with a four-letter unknown piece and then the listed word
+        var issues = Check("Quix" + listed, settings);
+
+        // Assert: a run of the maximum length is joined, one piece longer is not and so reports every piece
+        Assert.Equal(expectedFindings, issues.Count);
+    }
+
+    /// <summary>
+    ///     Test that a run may start with the letter of a backslash escape when it starts the word.
+    /// </summary>
+    [Fact]
+    public void TextChecker_Check_JoinedRunAtWordStartAfterBackslash_AllowsEscapeLetter()
+    {
+        // Arrange: a listed word, and a text in which a backslash and the letter n precede the identifier
+        var settings = new TextLintSettings { Words = ["wroldSpeling"] };
+
+        // Act: check the identifier after the backslash
+        var issues = Check("\\nwroldSpelingQuix", settings);
+
+        // Assert: the escape letter does not stop the first piece from joining the second
+        Assert.Equal(["1:15 Quix"], Positions(issues));
+    }
+
+    /// <summary>
+    ///     Test that the escape allowance does not apply without a backslash.
+    /// </summary>
+    [Fact]
+    public void TextChecker_Check_JoinedRunAtWordStartWithoutBackslash_IsNotJoined()
+    {
+        // Arrange: the same listed word and identifier, without the backslash
+        var settings = new TextLintSettings { Words = ["wroldSpeling"] };
+
+        // Act: check the identifier
+        var issues = Check("nwroldSpelingQuix", settings);
+
+        // Assert: nothing joins, so every piece is reported
+        Assert.Equal(["1:1 nwrold", "1:7 Speling", "1:14 Quix"], Positions(issues));
+    }
+
+    /// <summary>
+    ///     Test that an identifier of very many pieces is checked, and joined, without trouble.
+    /// </summary>
+    /// <param name="listWord">Whether the pair of pieces is a listed word.</param>
+    /// <param name="expectedFindings">The number of findings expected.</param>
+    [Theory]
+    [InlineData(true, 0)]
+    [InlineData(false, 10_000)]
+    public void TextChecker_Check_VeryManyPieces_AreCheckedWithBoundedWork(bool listWord, int expectedFindings)
+    {
+        // Arrange: ten thousand unknown pieces; the settings keep the long token from being skipped as random
+        var settings = new TextLintSettings
+        {
+            Words = listWord ? ["WroldWrold"] : [],
+            IgnoreRandomStrings = false,
+        };
+        var text = string.Concat(Enumerable.Repeat("Wrold", 10_000));
+
+        // Act: check the identifier
+        var issues = Check(text, settings);
+
+        // Assert: pairs join when listed, and otherwise every piece is reported
+        Assert.Equal(expectedFindings, issues.Count);
     }
 
     /// <summary>

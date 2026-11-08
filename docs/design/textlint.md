@@ -177,7 +177,8 @@ words up, and check text and files:
    source name the Markdown patterns), splits what remains into tokens, skips a token that looks like random data,
    splits the others into words, and for each word applies the word rules (flagged words,
    minimum length, dictionary, word lists, the allowances for possessives, escapes, and contractions, and the split at
-   case changes for unknown words), and drops the unknown words that lie inside a hexadecimal sequence of a token. The
+   case changes for unknown words, whose adjacent pieces may join into an accepted word), and drops the unknown words
+   that lie inside a hexadecimal sequence of a token. The
    findings are returned in text order with a line and column each.
 6. **File checking**: the caller passes settings and a root directory to `SpellChecker.CheckAsync`. The checker
    creates a `TextChecker`, selects the files as in route 3 on a thread-pool thread, and checks them in parallel:

@@ -1,5 +1,7 @@
 ### TextChecker
 
+<!-- cspell:ignore weasy -->
+
 ![SpellChecking Structure](SpellCheckingView.svg)
 
 #### Purpose
@@ -156,7 +158,8 @@ which words are found (see _TextScanning Design_). For each token:
    also ignored; (b) a word shorter than the minimum length, or accepted, passes; accepted means in the dictionary or a
    list, as the possessive of such a word, without a backslash escape or without the escape letter after a backslash, or
    as a run of capitals with an ending whose capitals are accepted or too short to check; (c) an unknown word is split at
-   case changes and each piece is checked on its own: a piece that is not flagged passes when it is too short, accepted,
+   case changes and its pieces are grouped as described under _Joined case parts_ below; each piece that is left single
+   is checked on its own: a piece that is not flagged passes when it is too short, accepted,
    or a contraction whose parts are acceptable, and otherwise, unless it is one repeated letter, it is reported, as a
    flagged word when it is flagged and as an unknown word when it is not.
 4. When `ignoreRandomStrings` is on and the token produced findings, `RandomStringDetector.FindHexSequences` finds the
@@ -166,8 +169,43 @@ which words are found (see _TextScanning Design_). For each token:
 
 The precedence is therefore ignored, then flagged, then accepted words, then dictionary, and a flagged word shorter than
 the minimum is still reported. Checking the whole word before splitting it is what keeps a known compound identifier
-from being taken apart; splitting only unknown words, at case changes only, is the deliberate simplification of cspell's
-heuristic splitter.
+from being taken apart; splitting only unknown words, at case changes only, is the deliberate simplification of
+cspell's heuristic splitter.
+
+**Joined case parts (CheckPieces, private).** Every case break of an unknown word is optional, as it is in cspell's
+word splitter, where a break may be taken or ignored and the segmentation with the least unknown text wins. With
+`WeasyPrint` accepted, `WeasyPrintTool` has the pieces `Weasy`, `Print`, and `Tool`, and `Weasy` alone is unknown, yet
+the word is fine because `Weasy` and `Print` form an accepted word. The rule is limited to joining exact accepted words;
+it never looks inside a lower-case run, so it is not a compound splitter.
+
+- _Cost_: a single piece costs its length when it would be reported (flagged, or long enough, not accepted, not an
+  acceptable contraction, and not one repeated letter) and nothing otherwise. A run of two or more adjacent pieces costs
+  nothing and is a candidate only when its text, without a flag, is accepted as a whole word by `WordRules.IsAccepted`
+  (the same letter-case rules, the dictionaries, the lists, and the backslash allowance for a run that starts the word).
+  The contraction and capital-run-ending allowances are not applied to a run, because a join is made of exact accepted
+  words only.
+- _Algorithm_: first price every piece alone (prefix sums); when the total is zero, stop, because no join can help.
+  Then, from the last piece to the first, `best[i]` is the least total cost of the pieces from `i`: take the single
+  piece, or a run of 2 to 8 pieces starting at `i`. A run is tried only when it covers some cost (so all-accepted runs
+  need no lookups), when its pieces are contiguous (`End` of one equals `Start` of the next, so a run never crosses a
+  gap), and
+  when it holds no piece that is flagged on its own and its text is not flagged. Finally, walk the chosen runs and
+  report each single piece that is unknown or flagged, by the rules above, so the findings (ranges, kinds, and
+  suggestions) are those of checking every piece alone whenever no join helps.
+- _Flagged words_: a flag is never hidden. A run is never made across a flagged piece, so that piece is reported as
+  flagged exactly as before; and a joined text that is flagged is not accepted, as a flagged whole word never is, so
+  the pieces are checked alone. A flagged joined text is not itself reported: the flag lists are matched against words
+  and whole tokens, as in cspell, not against parts of a word.
+- _Bound_: a run holds at most `MaxJoinedPieces` (8) pieces. Accepted words made of case parts have a few parts
+  (`WeasyPrint`, `PostgreSQL`, `JavaScript`); eight leaves ample room, and the cap makes the work at most eight
+  lookups per piece, each on text no longer than the word, so even an identifier of a million pieces is checked in
+  linear time.
+- _Ties_: among groupings of equal cost, the one whose first run is longer wins, and the same rule applies from the
+  following piece on (each `best[i]` keeps the longest run whose cost is no greater). The choice is deterministic and
+  depends only on the pieces.
+- _Memory_: the scratch arrays (flags, prefix costs, best costs, best run lengths) belong to the `CheckRun`, grow only
+  to the largest word seen, and are reused for every word of the call.
+- A word of one piece is checked directly, without these steps, and a word accepted as a whole never reaches them.
 
 **Contractions.** The pieces of a word that has apostrophes keep them (`exec'd`, `OR'd`, `rock'n'roll`), and a piece that
 is neither too short nor accepted as a whole is tested with `WordRules.IsContractionAccepted`. The method splits the

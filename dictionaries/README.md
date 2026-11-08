@@ -21,7 +21,7 @@ dictionary name that the build passes to the builder.
 | `en-US/` | American-only spellings |
 | `en-GB/` | British (-ise)-only spellings |
 | `technical/language/` | Programming-language keyword and API lists, and the font names list (8 files) |
-| `technical/general/` | General technical lists and the project-owned additions (8 files) |
+| `technical/general/` | General technical lists and the project-owned additions and tools lists (9 files) |
 | `technical/variant-keep.txt` | Reviewed spelling variants that are genuine programming terms |
 | `exclusions.txt` | Reviewed words that must never be known in any dictionary (a file, not a dictionary) |
 
@@ -29,7 +29,11 @@ Each English folder holds one file per source, so that a reviewer can see where 
 _English Sources_ below). The language lists are csharp, dotnet, typescript, node, html, css, powershell, and fonts
 (the names of font families such as `Segoe`, `Consolas`, and `Roboto`, which appear in documentation, style sheets,
 and project files in every language). The
-general lists are software-terms, companies, filetypes, public-licenses, fullstack, npm, k8s, and additions.
+general lists are software-terms, companies, filetypes, public-licenses, fullstack, npm, k8s, additions, and tools.
+The tools list (`technical/general/tools.txt`) is a hand-curated, living list of developer tool names (build systems,
+compilers, linters, test runners, documentation and diagram tools, version control and CI, containers and cloud
+command-line tools, editors, databases, and the .NET and DEMA toolchains) that the owner extends on request; it is
+not generated or pinned, and the refresh script never writes it.
 
 An ordinary dictionary reads every `.txt` file beneath its folder. The technical dictionary reads only the three
 places above and fails the build for a word list anywhere else in its folder. The builder also fails the build if
@@ -183,6 +187,10 @@ Choose the file by what the word is:
 
 - A general technical or scientific term (for example `metafile`, `bigram`, `commitish`), or an inflection that no
   list has (`dialogs`, the plural of the known `dialog`): `technical/general/additions.txt`.
+- The real, public name of a developer tool (for example `weasyprint`, `xunit`, `vstest`, `gcovr`) that no list has:
+  `technical/general/tools.txt`. It must not be a misspelling (the entries were checked against the typo list of
+  crate-ci/typos), a fragment of a name, or already known, and it is one lowercase word of letters, at least as long
+  as the minimum word length. The owner extends this list on request; its header states the rules.
 - A programming term that has an American and a British spelling and is in the American or British list
   (`tokenizer`): `technical/variant-keep.txt`.
 - An ordinary English word that every dialect uses but that SCOWL lacks or classifies as regional (`oversized`,
@@ -193,7 +201,8 @@ Choose the file by what the word is:
   setting of that project.
 
 Add genuine project-specific technical terms to `technical/general/additions.txt`, one per line. That file is
-owned by the project and is never overwritten by the refresh script; a spelling variant added there is removed
+owned by the project and is never overwritten by the refresh script (nor is `tools.txt`); a spelling variant added
+there is removed
 by the rule above, so a genuine programming term in a variant spelling belongs in `technical/variant-keep.txt`
 instead. The builder fails the build for a word in the keep list that is not a variant, so an inflection that is in
 neither the American nor the British list (`dialogs`) goes in `additions.txt`. An ordinary English word that every
@@ -201,6 +210,8 @@ dialect uses but that SCOWL classifies wrongly belongs in `en-common/additions.t
 Every word of the curated lists is written for this project from its own review, with a public definition as the
 evidence, and no third-party word list is copied into them. Do not edit the imported files by hand, because the
 next refresh replaces them, and never add a misspelling to hide a spelling error.
+
+<!-- cspell:ignore vstest gcovr -->
 
 ## Provenance and Licenses
 
@@ -225,6 +236,12 @@ after the table):
 | `technical/language/css.txt` | `@cspell/dict-css` | 4.1.2 | MIT |
 | `technical/language/powershell.txt` | `@cspell/dict-powershell` | 5.0.17 | MIT |
 | `technical/language/fonts.txt` | `@cspell/dict-fonts` | 4.0.6 | MIT |
+
+`technical/general/tools.txt` is not in the table because it is not imported: it is a hand-curated list of public
+tool names written for this project. The Homebrew install analytics (packages and applications, 365 days) were used
+only to decide which tools developers commonly use, and every entry was checked against the typo list of crate-ci/typos
+(`crates/typos-dict/assets/words.csv`) so that no known misspelling is accepted as a tool name. No third-party list
+is copied into it, so it carries no third-party notice.
 
 The English lists (the files named under _English Sources_ above) come from:
 
@@ -306,7 +323,8 @@ all-or-nothing installation). Run one of them after changing either script.
 
 The imported English lists are generated data, not curated text, and are deliberately outside the review scope of
 `.reviewmark.yaml`: a reviewer cannot judge two hundred thousand words, so the generator, its self-tests, the curated
-lists (`exclusions.txt`, `additions.txt`, `variant-keep.txt`), and the third-party notices are in scope and are
+lists (`exclusions.txt`, `additions.txt`, `tools.txt`, `variant-keep.txt`), and the third-party notices are in scope
+and are
 reviewed instead, and the self-checks and library tests above guard the output.
 
 `python dictionaries/refresh.py --workdir <scratch-folder> --verify-expander` writes no list. It installs the pinned

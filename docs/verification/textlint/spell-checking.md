@@ -62,6 +62,10 @@ no finding. This scenario is tested by `SpellCheckingSubsystem_Check_KnownWords_
 each report only their misspelled piece, at its own column. This scenario is tested by
 `SpellCheckingSubsystem_Check_CamelAndSnakeCase_ReportsEachUnknownWord`.
 
+**SpellCheckingSubsystem_Check_CaseSeparatedListedWord_IsAccepted**: An identifier that contains a listed word whose
+first part is unknown alone is accepted, and one that misspells the word is reported. This scenario is tested by
+`SpellCheckingSubsystem_Check_CaseSeparatedListedWord_IsAccepted`.
+
 **SpellCheckingSubsystem_Check_ShortWord_IsNotChecked**: A non-word shorter than the minimum length is not
 reported. This scenario is tested by `SpellCheckingSubsystem_Check_ShortWord_IsNotChecked`.
 

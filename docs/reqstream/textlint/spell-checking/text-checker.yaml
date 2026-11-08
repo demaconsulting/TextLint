@@ -54,6 +54,35 @@ sections:
                   - TextChecker_Check_LowerCaseConcatenation_IsReportedWhole
                   - TextChecker_Check_ApostropheWord_StaysWhole
 
+              - id: TextLint-SpellChecking-TextChecker-JoinedCaseParts
+                title: >-
+                  TextChecker shall accept an unknown word whose case-separated parts include a run of
+                  adjacent parts that together form an accepted word, choosing the grouping that leaves the
+                  least text unknown, never joining across a separator, never joining more than eight
+                  parts, never hiding a flagged word, and reporting the other parts as it would without
+                  the join.
+                justification: |
+                  Every case break of an identifier is optional in cspell, so an accepted word such as
+                  WeasyPrint stays accepted inside WeasyPrintTool, and a project that lists a product name
+                  once need not list each fragment of it. Joining only exact accepted words keeps the rule
+                  from becoming a guess, the bound on the run keeps the work linear for hostile input, and
+                  the flagged-word rule keeps a forbidden term from being hidden by a join.
+                tests:
+                  - TextChecker_Check_PiecesFormListedWord_AreAccepted
+                  - TextChecker_Check_PiecesFormNoListedWord_ReportsUnknownPiece
+                  - TextChecker_Check_MisspelledListedWord_ReportsItsUnknownPieces
+                  - TextChecker_Check_PiecesAcrossSeparator_AreNotJoined
+                  - TextChecker_Check_JoinedRunOfListedWord_MatchesAnyCase
+                  - TextChecker_Check_PiecesFormDictionaryWord_AreAccepted
+                  - TextChecker_Check_OverlappingJoins_LeaveTheShortestUnknownPiece
+                  - TextChecker_Check_OverlappingJoinsOfEqualCost_PreferTheLongerFirstRun
+                  - TextChecker_Check_FlaggedPieceInsideListedWord_IsStillReported
+                  - TextChecker_Check_FlaggedJoinedText_IsNotAccepted
+                  - TextChecker_Check_RunLongerThanMaximum_IsNotJoined
+                  - TextChecker_Check_JoinedRunAtWordStartAfterBackslash_AllowsEscapeLetter
+                  - TextChecker_Check_JoinedRunAtWordStartWithoutBackslash_IsNotJoined
+                  - TextChecker_Check_VeryManyPieces_AreCheckedWithBoundedWork
+
               - id: TextLint-SpellChecking-TextChecker-KnownWordForms
                 title: >-
                   TextChecker shall accept the possessive of a known word, with a straight or a typographic

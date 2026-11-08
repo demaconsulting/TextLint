@@ -100,7 +100,9 @@ surprises, so its rules follow cspell's documented behavior and are checked agai
 parity corpus of the system tests. A word is checked as a whole before it is split: a known compound such as an
 identifier that the dictionary or a word list holds stays quiet, and only an unknown word is split at case changes
 and checked piece by piece, so an identifier made of two known words around a misspelling reports the misspelling and
-nothing else. Entries of the word lists that
+nothing else. The case breaks are optional, as in cspell: adjacent pieces that together form an accepted word (for
+example `WeasyPrint` inside `WeasyPrintTool`) are accepted, choosing the grouping with the least unknown text. Entries
+of the word lists that
 contain digits or punctuation (`k8s`, `foo-bar`) are matched against whole tokens, because the word splitter would
 otherwise cut them apart before they could match. The order of precedence is the one cspell uses: an ignored word is
 never reported, a flagged word always is (whatever its length), then the accepted words and the dictionary decide.
@@ -130,7 +132,8 @@ the predefined patterns, Markdown links, random strings, and contractions next t
 parity test compares the full list of them with the actual output so that a fixed or a new difference is noticed.
 
 - cspell's heuristic splitter, which re-segments an unknown word that mixes capitals and endings, is not replicated;
-  the checker splits at case changes only.
+  the checker splits at case changes only, although a case break is optional: pieces that form an accepted word are
+  joined.
 - The dictionaries are the library's own, so a word that cspell's bundled set knows may be unknown here.
 - A file is binary when a NUL character appears among its first 1,024 decoded characters, whatever its extension
   and whatever the file type, where cspell decides by file type first.

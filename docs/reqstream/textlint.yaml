@@ -1,7 +1,7 @@
 ---
 # TextLint System-Level Requirements
 #
-# cspell:ignore favourite licence metafile codestream bigram hypernym dialogs
+# cspell:ignore favourite licence metafile codestream bigram hypernym dialogs vstest gcovr
 # textlint:ignore catalogue centre
 #
 # PURPOSE:
@@ -427,6 +427,20 @@ sections:
         tests:
           - TextLint_Dictionary_ReviewedTechnicalVocabulary_IsKnownInEveryLanguage
 
+      - id: TextLint-System-DeveloperTools
+        title: >-
+          The library shall know the names of common developer tools in every language selection.
+        tags: [system]
+        justification: |
+          Documentation and build files name the tools of the toolchain (pandoc, weasyprint, xunit,
+          vstest, gcovr), and reporting each as a spelling mistake would bury real findings. Tool
+          names do not depend on the spelling dialect, and no general English list has them, so a
+          hand-curated, living list of real tool names makes them known in every selection. It is
+          observed through the public lookup, with every entry of the list read from the word-list
+          folder so that no entry can be dropped unnoticed.
+        tests:
+          - TextLint_Dictionary_DeveloperTools_AreKnownInEveryLanguage
+
       - id: TextLint-System-ConcurrentLookup
         title: The library shall allow word lookups from many threads at the same time.
         tags: [system]
@@ -487,19 +501,22 @@ sections:
       - id: TextLint-System-WordSplitting
         title: >-
           The library shall split identifiers and prose into words at case changes, digits,
-          underscores, hyphens, and other punctuation, keep apostrophes inside words, and not
+          underscores, hyphens, and other punctuation, accept an identifier whose case-separated
+          parts can be grouped into accepted words, keep apostrophes inside words, and not
           check words shorter than the minimum word length.
         tags: [system]
         justification: |
           Source code and documentation are full of identifiers. A user expects fooBar_baz to be
           checked as the words foo, Bar, and baz, and does not want short fragments, such as the
-          variable name idx, reported. cspell behaves this way, so migrated projects stay quiet
-          where they were quiet.
+          variable name idx, reported. A product name such as WeasyPrint that is accepted must
+          stay accepted inside WeasyPrintTool. cspell behaves this way, so migrated projects stay
+          quiet where they were quiet.
         children:
           - TextLint-TextScanning-WordExtraction
           - TextLint-SpellChecking-TextChecking
         tests:
           - TextLint_CheckText_CamelAndSnakeCase_ReportsEachWordSeparately
+          - TextLint_CheckText_CaseSeparatedListedWord_IsAccepted
           - TextLint_CheckText_ShortWords_AreNotChecked
           - TextLint_CheckText_ApostropheWords_StayWhole
 
