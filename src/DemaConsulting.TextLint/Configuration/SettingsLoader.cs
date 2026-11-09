@@ -250,7 +250,8 @@ public static class SettingsLoader
         var stream = new YamlStream();
         try
         {
-            stream.Load(new StringReader(yaml));
+            using var reader = new StringReader(yaml);
+            stream.Load(reader);
         }
         catch (YamlException exception)
         {
@@ -894,15 +895,9 @@ public static class SettingsLoader
         List<SettingsDiagnostic> diagnostics)
     {
         var text = entry.Value!;
-        string? problem;
-        if (PatternCatalog.IsNameShaped(text))
-        {
-            problem = PatternCatalog.CheckReference(text, patternNames);
-        }
-        else
-        {
-            problem = TryParsePattern(text);
-        }
+        var problem = PatternCatalog.IsNameShaped(text)
+            ? PatternCatalog.CheckReference(text, patternNames)
+            : TryParsePattern(text);
 
         if (problem is null)
         {

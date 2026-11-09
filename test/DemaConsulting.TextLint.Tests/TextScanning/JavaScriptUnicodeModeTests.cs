@@ -187,9 +187,8 @@ public class JavaScriptUnicodeModeTests
     {
         var path = Path.Combine(AppContext.BaseDirectory, "TextScanning", "Data", "javascript-unicode-matches.txt");
         var result = new List<(string, string, string, List<string>, string)>();
-        foreach (var line in File.ReadLines(path).Where(line => line.Length > 0 && line[0] != '#'))
+        foreach (var fields in File.ReadLines(path).Where(line => line.Length > 0 && line[0] != '#').Select(line => line.Split('\t')))
         {
-            var fields = line.Split('\t');
             Assert.Equal(RecordedFields, fields.Length);
             var matches = fields[3] == RejectedMarker
                 ? [RejectedMarker]

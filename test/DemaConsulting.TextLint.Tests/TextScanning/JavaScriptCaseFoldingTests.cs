@@ -95,12 +95,9 @@ public class JavaScriptCaseFoldingTests
         var actual = new HashSet<(char, char)>();
         for (var unit = 0; unit < CodeUnitCount; unit++)
         {
-            foreach (var other in JavaScriptCaseFolding.Equivalents((char)unit, unicode))
+            foreach (var other in JavaScriptCaseFolding.Equivalents((char)unit, unicode).Where(other => other != unit))
             {
-                if (other != unit)
-                {
-                    actual.Add(((char)unit, other));
-                }
+                actual.Add(((char)unit, other));
             }
         }
 

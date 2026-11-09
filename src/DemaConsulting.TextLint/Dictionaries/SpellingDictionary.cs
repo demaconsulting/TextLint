@@ -207,9 +207,8 @@ public sealed class SpellingDictionary
         // must be one that is supported, so that a typo is never silently ignored
         var american = false;
         var british = false;
-        foreach (var part in languages.Split(LanguageSeparator))
+        foreach (var name in languages.Split(LanguageSeparator).Select(static part => part.Trim()))
         {
-            var name = part.Trim();
             if (name.Length == 0)
             {
                 throw new ArgumentException(

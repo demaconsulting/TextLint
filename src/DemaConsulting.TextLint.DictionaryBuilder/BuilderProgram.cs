@@ -836,13 +836,9 @@ internal static class BuilderProgram
         finally
         {
             // Whatever happened, no staged file may be left behind unreported
-            foreach (var stagedFile in staged)
+            foreach (var leftover in staged.Select(static stagedFile => stagedFile.DeleteStaged()).OfType<string>())
             {
-                var leftover = stagedFile.DeleteStaged();
-                if (leftover is not null)
-                {
-                    leftovers.Add(leftover);
-                }
+                leftovers.Add(leftover);
             }
 
             if (leftovers.Count > 0)
@@ -1087,13 +1083,9 @@ internal static class BuilderProgram
             return exception;
         }
 
-        foreach (var file in staged)
+        foreach (var leftover in staged.Select(static file => file.DeleteBackup()).OfType<string>())
         {
-            var leftover = file.DeleteBackup();
-            if (leftover is not null)
-            {
-                leftovers.Add(leftover);
-            }
+            leftovers.Add(leftover);
         }
 
         return null;

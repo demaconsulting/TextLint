@@ -550,10 +550,9 @@ public class TextLintSpellCheckTests
         // Arrange: the five prefixes, with the first and last also in upper case
         string[] prefixes = ["cspe" + "ll", "spe" + "ll", "spe" + "llchecker", "spe" + "ll-checker", "textlint", "CSPE" + "LL", "TEXTLINT"];
 
-        foreach (var prefix in prefixes)
+        foreach (var text in prefixes.Select(prefix => $"{Unknown} {prefix}:disable-line\n{OtherUnknown}\n"))
         {
             // Act: check a text whose first line is hidden by the prefix and whose second line is not
-            var text = $"{Unknown} {prefix}:disable-line\n{OtherUnknown}\n";
             var issues = Check(text);
 
             // Assert: only the second line is reported

@@ -48,7 +48,7 @@ namespace DemaConsulting.TextLint.Tests;
 ///     Dictionaries subsystem against the real embedded dictionaries, exactly as a consuming
 ///     application would.
 /// </remarks>
-public class TextLintTests
+public partial class TextLintTests
 {
     /// <summary>
     ///     The simple name of the TextLint library assembly, which is also its NuGet package ID.
@@ -116,9 +116,30 @@ public class TextLintTests
     ];
 
     /// <summary>
+    ///     The language selections that the spelling dictionary tests are repeated over: American, British, and both.
+    /// </summary>
+    private static readonly string[] LanguageSelections = ["en-US", "en-GB", "en-US,en-GB"];
+
+    /// <summary>
+    ///     An English word, a British spelling, an American spelling, a technical term, and a nonsense word.
+    /// </summary>
+    private static readonly string[] BritishSelectionProbeWords = ["table", "neighbour", "neighbor", "kubernetes", "xyzzyq"];
+
+    /// <summary>
+    ///     Verb and derived forms of an -ize word, which the pattern read from the routing script must all recognize.
+    /// </summary>
+    private static readonly string[] IzeEndingProbeWords =
+    [
+        "organize", "organizes", "organized", "organizing", "organizer", "organizers", "organization", "organizations",
+        "organizable", "organizability", "organizational", "organizationally",
+    ];
+
+    /// <summary>
     ///     Matches the line of the routing script that defines the -ize endings and captures the pattern text.
     /// </summary>
-    private static readonly Regex IzeFormDefinition = new("^IZE_FORM = re\\.compile\\(r\"([^\"]+)\"\\)", RegexOptions.Multiline | RegexOptions.CultureInvariant);
+    /// <returns>The compiled pattern.</returns>
+    [GeneratedRegex("^IZE_FORM = re\\.compile\\(r\"([^\"]+)\"\\)", RegexOptions.Multiline | RegexOptions.CultureInvariant)]
+    private static partial Regex IzeFormDefinition();
 
     /// <summary>
     ///     Loads the TextLint library assembly by name.
@@ -955,7 +976,7 @@ public class TextLintTests
             "kubernetes", "initialize", "github", "powershell", "microsoft", "textlint", "tokenizer",
             "segoe", "consolas", "calibri", "menlo", "roboto"
         ];
-        var selections = new[] { "en-US", "en-GB", "en-US,en-GB" }.Select(SpellingDictionary.ForLanguages).ToArray();
+        var selections = LanguageSelections.Select(SpellingDictionary.ForLanguages).ToArray();
 
         // Act: find the terms each selection does not know
         var unknown = selections.SelectMany(dictionary => terms.Where(term => !dictionary.IsKnown(term))).ToArray();
@@ -988,7 +1009,7 @@ public class TextLintTests
         var isKnown = type.GetMethod("IsKnown")!.CreateDelegate<IsKnownDelegate>(dictionary);
 
         // Act: look up an English word, a British spelling, an American spelling, a technical term, and a nonsense word
-        var answers = new[] { "table", "neighbour", "neighbor", "kubernetes", "xyzzyq" }.Select(word => isKnown(word)).ToArray();
+        var answers = BritishSelectionProbeWords.Select(word => isKnown(word)).ToArray();
 
         // Assert: the answers are those of the British selection
         Assert.Equal([true, true, false, true, false], answers);
@@ -1132,20 +1153,18 @@ public class TextLintTests
         // Act: look up each spelling as written, capitalized, and in upper case in each selection
         foreach (var form in new Func<string, string>[] { word => word, Capitalize, UpperCaseLatin1 })
         {
-            foreach (var spelling in americanSpellings.Select(form))
+            var americanLeaks = americanSpellings.Select(form)
+                .Where(candidate => !american.IsKnown(candidate) || british.IsKnown(candidate) || !both.IsKnown(candidate));
+            foreach (var spelling in americanLeaks)
             {
-                if (!american.IsKnown(spelling) || british.IsKnown(spelling) || !both.IsKnown(spelling))
-                {
-                    failures.Add($"American spelling {spelling} is not American-only");
-                }
+                failures.Add($"American spelling {spelling} is not American-only");
             }
 
-            foreach (var spelling in britishSpellings.Select(form))
+            var britishLeaks = britishSpellings.Select(form)
+                .Where(candidate => american.IsKnown(candidate) || !british.IsKnown(candidate) || !both.IsKnown(candidate));
+            foreach (var spelling in britishLeaks)
             {
-                if (american.IsKnown(spelling) || !british.IsKnown(spelling) || !both.IsKnown(spelling))
-                {
-                    failures.Add($"British spelling {spelling} is not British-only");
-                }
+                failures.Add($"British spelling {spelling} is not British-only");
             }
         }
 
@@ -1221,7 +1240,7 @@ public class TextLintTests
         Assert.Multiple(
             () => Assert.Empty(failures.Take(MaxReportedFailures)),
             () => Assert.All(
-                new[] { "organize", "organizes", "organized", "organizing", "organizer", "organizers", "organization", "organizations", "organizable", "organizability", "organizational", "organizationally" },
+                IzeEndingProbeWords,
                 word => Assert.Matches(izeForm, word)),
             () => Assert.DoesNotMatch(izeForm, "organise"));
     }
@@ -1234,7 +1253,7 @@ public class TextLintTests
     private static Regex ReadProductionIzeForm(string root)
     {
         var script = File.ReadAllText(Path.Combine(root, RoutingScriptFileName));
-        var match = IzeFormDefinition.Match(script);
+        var match = IzeFormDefinition().Match(script);
         Assert.True(match.Success, "The routing script no longer defines IZE_FORM in the expected form.");
         return new Regex(match.Groups[1].Value, RegexOptions.CultureInvariant);
     }
@@ -1320,18 +1339,16 @@ public class TextLintTests
     {
         // Arrange: the excluded words and each language selection
         var excluded = ReadExcludedWords(Path.Combine(AppContext.BaseDirectory, "dictionaries"));
-        var dictionaries = new[] { "en-US", "en-GB", "en-US,en-GB" }.Select(SpellingDictionary.ForLanguages).ToArray();
+        var dictionaries = LanguageSelections.Select(SpellingDictionary.ForLanguages).ToArray();
         var failures = new List<string>();
 
         // Act: look up each excluded word as written, capitalized, and in upper case
         foreach (var word in excluded)
         {
-            foreach (var form in new[] { word, char.ToUpperInvariant(word[0]) + word[1..], UpperCaseLatin1(word) })
+            var forms = new[] { word, char.ToUpperInvariant(word[0]) + word[1..], UpperCaseLatin1(word) };
+            foreach (var form in forms.Where(candidate => dictionaries.Any(dictionary => dictionary.IsKnown(candidate))))
             {
-                if (dictionaries.Any(dictionary => dictionary.IsKnown(form)))
-                {
-                    failures.Add(form);
-                }
+                failures.Add(form);
             }
         }
 
@@ -1368,18 +1385,16 @@ public class TextLintTests
         var root = Path.Combine(AppContext.BaseDirectory, "dictionaries");
         var reviewed = ReadReviewedCommonWords(root);
         var regional = ReadFolderWords(root, "en-US").Union(ReadFolderWords(root, "en-GB")).ToHashSet(StringComparer.Ordinal);
-        var dictionaries = new[] { "en-US", "en-GB", "en-US,en-GB" }.Select(SpellingDictionary.ForLanguages).ToArray();
+        var dictionaries = LanguageSelections.Select(SpellingDictionary.ForLanguages).ToArray();
         var failures = new List<string>();
 
         // Act: look up each reviewed word as written, capitalized, and in upper case, and check the regional folders
         foreach (var word in reviewed)
         {
-            foreach (var form in new[] { word, Capitalize(word), UpperCaseLatin1(word) })
+            var forms = new[] { word, Capitalize(word), UpperCaseLatin1(word) };
+            foreach (var form in forms.Where(candidate => dictionaries.Any(dictionary => !dictionary.IsKnown(candidate))))
             {
-                if (dictionaries.Any(dictionary => !dictionary.IsKnown(form)))
-                {
-                    failures.Add($"{form} is not known in every selection");
-                }
+                failures.Add($"{form} is not known in every selection");
             }
 
             if (regional.Contains(word))
@@ -1472,7 +1487,7 @@ public class TextLintTests
         var root = Path.Combine(AppContext.BaseDirectory, "dictionaries");
         var tools = ReadWordFile(root, "technical/general/tools.txt");
         var required = new[] { "pandoc", "weasyprint", "xunit", "vstest", "gcovr", "graphviz", "plantuml", "vswhere" };
-        var selections = new[] { "en-US", "en-GB", "en-US,en-GB" }.Select(SpellingDictionary.ForLanguages).ToArray();
+        var selections = LanguageSelections.Select(SpellingDictionary.ForLanguages).ToArray();
 
         // Act: look up each entry (and each required name) as written, capitalized, and in upper case in every selection
         var failures = tools.Concat(required)

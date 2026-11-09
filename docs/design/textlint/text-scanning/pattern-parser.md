@@ -63,8 +63,8 @@ under the equivalence), `CloseCodePoints` (the same for code points, closing the
 the groups), `Merge` (sorts and joins ranges), `AstralForms` (the other forms of a character outside the basic plane),
 and `Parse` (reads a
 table, and refuses damaged data). It calls no casing function, culture, or case option of the regular expression engine.
-The table is produced by `Data/generate-javascript-case-data.mjs`, a script that is kept in the repository and is not
-run by the build.
+The table is produced by `tools/javascript-oracles/generate-javascript-case-data.mjs`, a script that is kept in the
+repository and is not run by the build.
 
 `InvalidPatternException` is a `public sealed` class derived from `ArgumentException`, because an unusable pattern is an
 invalid argument supplied by the caller. It has `Pattern` (public: the entry exactly as supplied) and `Reason` (internal:

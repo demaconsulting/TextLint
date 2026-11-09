@@ -342,14 +342,14 @@ reviews:
       - "src/DemaConsulting.TextLint/TextScanning/JavaScriptSyntax.cs"
       - "src/DemaConsulting.TextLint/TextScanning/JavaScriptCaseFolding.cs"
       - "src/DemaConsulting.TextLint/TextScanning/JavaScriptCaseData.cs"
-      - "src/DemaConsulting.TextLint/TextScanning/Data/generate-javascript-case-data.mjs"
+      - "tools/javascript-oracles/generate-javascript-case-data.mjs"
       - "src/DemaConsulting.TextLint/TextScanning/InvalidPatternException.cs"
       - "test/**/TextScanning/PatternParserTests.cs"
       - "test/**/TextScanning/JavaScriptCaseFoldingTests.cs"
       - "test/**/TextScanning/JavaScriptSyntaxTests.cs"
       - "test/**/TextScanning/JavaScriptUnicodeModeTests.cs"
       - "test/**/TextScanning/Data/javascript-unicode-matches.txt"
-      - "test/**/TextScanning/Data/record-unicode-mode-matches.mjs"
+      - "tools/javascript-oracles/record-unicode-mode-matches.mjs"
       - "test/**/TextScanning/Data/javascript-case-groups.txt"
 
   - id: TextLint-TextScanning-PatternCatalog

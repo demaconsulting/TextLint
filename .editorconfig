@@ -34,7 +34,7 @@ indent_size = 4
 
 # Code style rules
 csharp_prefer_braces = true:warning
-csharp_prefer_simple_using_statement = true:suggestion
+csharp_prefer_simple_using_statement = true:warning
 csharp_style_namespace_declarations = file_scoped:warning
 csharp_style_prefer_method_group_conversion = true:silent
 csharp_style_prefer_top_level_statements = true:silent
@@ -90,6 +90,15 @@ dotnet_separate_import_directive_groups = false
 
 # Code quality - set to suggestion to not break existing code
 dotnet_code_quality_unused_parameters = all:suggestion
+
+# Mechanical code-quality rules promoted to warnings so that TreatWarningsAsErrors
+# fails the build on them instead of leaving them for SonarCloud to report later
+dotnet_diagnostic.CA1861.severity = warning
+dotnet_diagnostic.CA1859.severity = warning
+dotnet_diagnostic.CA1832.severity = warning
+dotnet_diagnostic.SYSLIB1045.severity = warning
+dotnet_diagnostic.xUnit2032.severity = warning
+dotnet_diagnostic.IDE0063.severity = warning
 
 # Nullable reference types
 csharp_nullable_reference_types = enable

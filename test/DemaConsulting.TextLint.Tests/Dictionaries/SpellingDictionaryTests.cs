@@ -173,7 +173,7 @@ public class SpellingDictionaryTests
         var languages = SpellingDictionary.SupportedLanguages;
 
         // Act: try to change them through the list interface
-        var list = Assert.IsAssignableFrom<IList<string>>(languages);
+        var list = Assert.IsType<IList<string>>(languages, exactMatch: false);
 
         // Assert: the names are listed and the list rejects changes
         Assert.Multiple(

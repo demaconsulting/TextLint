@@ -547,7 +547,7 @@ public class ContextTests
         using var context = Context.Create(["a.md"]);
 
         // Act: try to change the patterns through a mutable interface
-        var globs = Assert.IsAssignableFrom<IList<string>>(context.Globs);
+        var globs = Assert.IsType<IList<string>>(context.Globs, exactMatch: false);
 
         // Assert: the collection refuses changes
         Assert.Throws<NotSupportedException>(() => globs.Add("b.md"));

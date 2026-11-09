@@ -511,9 +511,8 @@ public static class CommandLinePathResolver
 
         // Keep the leading segments that every absolute argument shares
         var common = first.Segments.ToList();
-        foreach (var argument in absolute.Skip(1))
+        foreach (var segments in absolute.Skip(1).Select(static argument => argument.Base!.Value.Segments))
         {
-            var segments = argument.Base!.Value.Segments;
             var length = 0;
             while (length < common.Count && length < segments.Count && comparer.Equals(common[length], segments[length]))
             {
