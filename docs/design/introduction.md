@@ -118,7 +118,8 @@ on nothing but the .NET base class library.
 - **tools/** - developer scripts that are not part of the build, CI, or any package
   - **javascript-oracles/** - Node.js scripts that record what the JavaScript regular expression engine does (letter
     case groups and matches in the mode of the `u` flag), because cspell patterns are JavaScript regular expressions; the
-    recorded data is checked in under `src/` and `test/`- **src/** - source files and projects
+    recorded data is checked in under `src/` and `test/`
+- **src/** - source files and projects
   - **DemaConsulting.TextLint/** - library source
     - **Configuration/** - settings and settings-file loading subsystem
     - **FileSelection/** - glob pattern and file selection subsystem
