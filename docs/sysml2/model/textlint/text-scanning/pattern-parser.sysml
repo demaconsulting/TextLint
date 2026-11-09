@@ -8,7 +8,7 @@ package TextLint {
         comment sourceRef4 /* Source: src/DemaConsulting.TextLint/TextScanning/JavaScriptSyntax.cs */
         comment sourceRef5 /* Source: src/DemaConsulting.TextLint/TextScanning/JavaScriptCaseFolding.cs */
         comment sourceRef6 /* Source: src/DemaConsulting.TextLint/TextScanning/JavaScriptCaseData.cs */
-        comment sourceRef7 /* Source: src/DemaConsulting.TextLint/TextScanning/Data/generate-javascript-case-data.mjs */
+        comment sourceRef7 /* Source: tools/javascript-oracles/generate-javascript-case-data.mjs */
         comment testRef /* Test: test/DemaConsulting.TextLint.Tests/TextScanning/PatternParserTests.cs */
         comment testRef2 /* Test: test/DemaConsulting.TextLint.Tests/TextScanning/JavaScriptCaseFoldingTests.cs */
         comment testRef3 /* Test: test/DemaConsulting.TextLint.Tests/TextScanning/JavaScriptSyntaxTests.cs */

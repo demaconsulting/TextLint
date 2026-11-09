@@ -257,7 +257,7 @@ public class TextCheckerTests
         var issues = Check(Unknown);
 
         // Act / Assert: the list is not a mutable collection
-        var list = Assert.IsAssignableFrom<IList<SpellingIssue>>(issues);
+        var list = Assert.IsType<IList<SpellingIssue>>(issues, exactMatch: false);
         Assert.Throws<NotSupportedException>(() => list.Clear());
     }
 
@@ -1999,7 +1999,7 @@ public class TextCheckerTests
         var issue = Assert.Single(Check("the master", settings));
 
         // Act / Assert: the suggestions are not a mutable collection
-        var suggestions = Assert.IsAssignableFrom<IList<string>>(issue.Suggestions);
+        var suggestions = Assert.IsType<IList<string>>(issue.Suggestions, exactMatch: false);
         Assert.Throws<NotSupportedException>(() => suggestions.Add("other"));
     }
 
@@ -2125,7 +2125,7 @@ public class TextCheckerTests
         // Assert: the exception names the entry, and is an argument exception
         Assert.Multiple(
             () => Assert.Equal(entry, exception.Pattern),
-            () => Assert.IsAssignableFrom<ArgumentException>(exception));
+            () => Assert.IsType<ArgumentException>(exception, exactMatch: false));
     }
 
     /// <summary>
@@ -2680,5 +2680,5 @@ public class TextCheckerTests
     /// <param name="issues">The findings to format.</param>
     /// <returns>The formatted findings, one per line.</returns>
     private static string Format(IReadOnlyList<SpellingIssue> issues) =>
-        string.Join('\n', issues.Select(issue => $"{issue.ToString()}|{string.Join(',', issue.Suggestions)}"));
+        string.Join('\n', issues.Select(issue => $"{issue}|{string.Join(',', issue.Suggestions)}"));
 }

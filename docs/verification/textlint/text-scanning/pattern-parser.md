@@ -180,7 +180,7 @@ out-of-range error.
 
 The helpers have their own test files, `JavaScriptCaseFoldingTests.cs` and `JavaScriptSyntaxTests.cs`. The reference
 for case folding is `Data/javascript-case-groups.txt`, the letter groups recorded from Node.js 22 (Unicode 16) by
-`generate-javascript-case-data.mjs` (beside the table, in `src/.../TextScanning/Data`), which also writes the table
+`generate-javascript-case-data.mjs` (in `tools/javascript-oracles`), which also writes the table
 `JavaScriptCaseData.cs` that the library embeds; both are checked in and the script is not run by the build. The case
 tests do not use a casing function of the runtime, so they give the same result on every platform; they were run on
 Windows and on Linux.
@@ -227,7 +227,8 @@ that has a case, the closed set of that character is exactly its group.
 **JavaScriptCaseFolding_CloseCodePoints_NullSet_ThrowsArgumentNullException**: A null set throws a null-argument error.
 
 The translation with the `u` flag has its own test file, `JavaScriptUnicodeModeTests.cs`. Its reference is
-`Data/javascript-unicode-matches.txt`, 211 cases recorded from Node.js v22.18.0 by `Data/record-unicode-mode-matches.mjs`
+`Data/javascript-unicode-matches.txt`, 211 cases recorded from Node.js v22.18.0 by
+`tools/javascript-oracles/record-unicode-mode-matches.mjs`
 (checked in; the script is not run by the build): each case is a pattern, its flags, a text, and the non-empty matches
 that JavaScript finds, with the strings as hexadecimal code units so that lone surrogates survive.
 

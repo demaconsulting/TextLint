@@ -1455,7 +1455,7 @@ internal static class JavaScriptRegexTranslator
         /// <param name="ranges">The ranges of the set, in ascending order and not overlapping. Must not be null.</param>
         /// <param name="unicode"><see langword="true"/> when the set holds code points, with the Unicode flag.</param>
         /// <returns>The pattern text of the set.</returns>
-        private static string SetText(IReadOnlyCollection<(int Low, int High)> ranges, bool unicode)
+        private static string SetText(List<(int Low, int High)> ranges, bool unicode)
         {
             if (unicode)
             {

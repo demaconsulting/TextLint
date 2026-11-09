@@ -1,6 +1,6 @@
 ---
 # CodeQL configuration for TextLint
-# Suppresses intentional generic catch clauses
+# Suppresses intentional generic catch clauses and reviewed false positives
 
 name: "TextLint CodeQL Config"
 
@@ -16,3 +16,21 @@ query-filters:
       id: cs/path-combine
     paths:
       - src/DemaConsulting.TextLint.Tool/Utilities/PathHelpers.cs
+  # The length guard on the same line (text.Length >= DrivePrefixLength, which is 2) proves text[1] is in range, and
+  # text[DrivePrefixLength] is only read after the text.Length == DrivePrefixLength case has been handled
+  - exclude:
+      id: cs/index-out-of-bounds
+    paths:
+      - src/DemaConsulting.TextLint/FileSelection/CommandLinePathResolver.cs
+  # The stream is disposed by 'await using (stream.ConfigureAwait(false))' on the next statement; CodeQL does not
+  # recognize the ConfigureAwait form of await using
+  - exclude:
+      id: cs/local-not-disposed
+    paths:
+      - src/DemaConsulting.TextLint/SpellChecking/FileTextReader.cs
+  # WordRules.Interpret filters on the out parameter of a TryParse call; a LINQ Where would need a tuple projection and
+  # would be harder to read than the loop
+  - exclude:
+      id: cs/linq/missed-where
+    paths:
+      - src/DemaConsulting.TextLint/SpellChecking/WordRules.cs

@@ -97,13 +97,9 @@ internal static class JavaScriptCaseFolding
         if (Rune.TryGetRuneAt(pair, 0, out var rune) &&
             UnicodeTables.Value.Astral.TryGetValue(rune.Value, out var group))
         {
-            foreach (var member in group)
+            foreach (var text in group.Select(char.ConvertFromUtf32).Where(text => !forms.Contains(text)))
             {
-                var text = char.ConvertFromUtf32(member);
-                if (!forms.Contains(text))
-                {
-                    forms.Add(text);
-                }
+                forms.Add(text);
             }
         }
 

@@ -6,10 +6,11 @@
 //   tests of the pattern translator can compare the translation with the engine: in the mode of the u flag a surrogate
 //   pair is one character, `.`, negated classes, and the negated shorthands match it whole, a surrogate that is not half
 //   of a pair is a character of its own, and a match never starts inside a pair. The recorded file
-//   (javascript-unicode-matches.txt) is checked in; this script is NOT run by the build or by CI. Run it with Node.js
-//   whenever a case is added:
+//   (test/DemaConsulting.TextLint.Tests/TextScanning/Data/javascript-unicode-matches.txt) is checked in; this script is
+//   NOT run by the build or by CI. Run it with Node.js whenever a case is added; it finds the repository root from its
+//   own location, so it can be run from any directory:
 //
-//       node test/DemaConsulting.TextLint.Tests/TextScanning/Data/record-unicode-mode-matches.mjs
+//       node tools/javascript-oracles/record-unicode-mode-matches.mjs
 //
 // HOW IT WORKS:
 //   Each case is a pattern, its flags, and a text. The script builds the regular expression with the g flag added,
@@ -18,9 +19,9 @@
 //   editor), the matches separated by semicolons, and, last, a readable form for people. A pattern that the engine
 //   rejects is recorded as the single match "!".
 
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 // The characters used by the cases: a grinning face and its neighbours (outside the basic plane), a Deseret letter with
 // its capital and small forms, a lone high surrogate, and a lone low surrogate (the halves of the grinning face)
@@ -227,6 +228,8 @@ for (const [pattern, flags, input] of cases) {
     lines.push([flags, encode(pattern), encode(input), matches, readable].join('\t'));
 }
 
-const target = path.join(path.dirname(fileURLToPath(import.meta.url)), 'javascript-unicode-matches.txt');
+const here = path.dirname(fileURLToPath(import.meta.url));
+const repository = path.resolve(here, '..', '..');
+const target = path.join(repository, 'test', 'DemaConsulting.TextLint.Tests', 'TextScanning', 'Data', 'javascript-unicode-matches.txt');
 fs.writeFileSync(target, lines.join('\n') + '\n');
 console.log(`${cases.length} cases written to ${target}`);

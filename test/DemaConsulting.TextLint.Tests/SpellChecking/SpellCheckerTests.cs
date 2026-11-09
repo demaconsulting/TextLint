@@ -1219,7 +1219,7 @@ public class SpellCheckerTests
         var result = await SpellChecker.CheckAsync(Select("**/*.md"), temp.FullPath, cancellationToken: TestContext.Current.CancellationToken);
 
         // Act / Assert: the list is not a mutable collection
-        var list = Assert.IsAssignableFrom<IList<SpellingIssue>>(result.Issues);
+        var list = Assert.IsType<IList<SpellingIssue>>(result.Issues, exactMatch: false);
         Assert.Throws<NotSupportedException>(() => list.Clear());
     }
 
@@ -1235,7 +1235,7 @@ public class SpellCheckerTests
         var result = await SpellChecker.CheckAsync(Select("**/*.bin"), temp.FullPath, cancellationToken: TestContext.Current.CancellationToken);
 
         // Act / Assert: the list is not a mutable collection
-        var list = Assert.IsAssignableFrom<IList<FileDiagnostic>>(result.FileDiagnostics);
+        var list = Assert.IsType<IList<FileDiagnostic>>(result.FileDiagnostics, exactMatch: false);
         Assert.Throws<NotSupportedException>(() => list.Clear());
     }
 

@@ -688,7 +688,7 @@ public class CommandLinePathResolverTests
 
         // Act: change the caller's list and try to change the selection through a mutable interface
         arguments[0] = "changed.md";
-        var patterns = Assert.IsAssignableFrom<IList<string>>(selection.Patterns);
+        var patterns = Assert.IsType<IList<string>>(selection.Patterns, exactMatch: false);
 
         // Assert: the selection kept its own copy and refuses changes
         Assert.Multiple(

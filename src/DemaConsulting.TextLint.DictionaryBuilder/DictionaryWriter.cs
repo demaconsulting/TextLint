@@ -119,9 +119,9 @@ internal static class DictionaryWriter
             }
 
             offsets[i] = (int)blobStream.Length;
-            blobStream.Write(key[..keyLength]);
+            blobStream.Write(key.AsSpan(..keyLength));
             blobStream.WriteByte(DictionaryFormat.WordTerminator);
-            hashes[i] = DictionaryFormat.Hash(key[..keyLength]);
+            hashes[i] = DictionaryFormat.Hash(key.AsSpan(..keyLength));
 
             // Stop as soon as the blob outgrows what a slot can address
             if (blobStream.Length > maxBlobLength)

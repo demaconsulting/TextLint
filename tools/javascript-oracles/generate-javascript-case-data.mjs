@@ -8,7 +8,9 @@
 //   differs between runtime versions and platforms. The script is NOT run by the build or by CI; run it with Node.js
 //   whenever the table should be refreshed, for example for a newer Unicode version:
 //
-//       node src/DemaConsulting.TextLint/TextScanning/Data/generate-javascript-case-data.mjs
+//   It finds the repository root from its own location, so it can be run from any directory:
+//
+//       node tools/javascript-oracles/generate-javascript-case-data.mjs
 //
 //   It writes two files that must be committed together:
 //     * src/DemaConsulting.TextLint/TextScanning/JavaScriptCaseData.cs - the table the library embeds, with the Node.js
@@ -27,12 +29,12 @@
 //   code units only (JavaScript reads a character outside the basic plane as two code units without that flag), and the
 //   mode with the flag has code points.
 
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const repository = path.resolve(here, '..', '..', '..', '..');
+const repository = path.resolve(here, '..', '..');
 const generatedSource = path.join(repository, 'src', 'DemaConsulting.TextLint', 'TextScanning', 'JavaScriptCaseData.cs');
 const referenceFile = path.join(repository, 'test', 'DemaConsulting.TextLint.Tests', 'TextScanning', 'Data', 'javascript-case-groups.txt');
 
@@ -55,7 +57,7 @@ function groups(unicode) {
         const rb = find(b);
         if (ra !== rb) parent.set(ra, rb);
     };
-    const escape = (cp) => (unicode ? `\\u{${cp.toString(16)}}` : `\\u${cp.toString(16).padStart(4, '0')}`);
+    const escape = (cp) => (unicode ? String.raw`\u{${cp.toString(16)}}` : String.raw`\u${cp.toString(16).padStart(4, '0')}`);
     const flags = unicode ? 'iu' : 'i';
     const limit = unicode ? 0x110000 : 0x10000;
 

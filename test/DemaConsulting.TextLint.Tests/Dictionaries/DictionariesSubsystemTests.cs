@@ -47,6 +47,11 @@ public class DictionariesSubsystemTests
     private const int ParallelLookups = 20_000;
 
     /// <summary>
+    ///     The language selections that the tests are repeated over: American, British, and both.
+    /// </summary>
+    private static readonly string[] LanguageSelections = ["en-US", "en-GB", "en-US,en-GB"];
+
+    /// <summary>
     ///     Test that listed and unlisted words are reported correctly.
     /// </summary>
     [Fact]
@@ -186,7 +191,7 @@ public class DictionariesSubsystemTests
     public void DictionariesSubsystem_IsKnown_TechnicalTermInEveryLanguage_IsKnown()
     {
         // Arrange: the three selections
-        var selections = new[] { "en-US", "en-GB", "en-US,en-GB" }.Select(SpellingDictionary.ForLanguages).ToArray();
+        var selections = LanguageSelections.Select(SpellingDictionary.ForLanguages).ToArray();
 
         // Act / Assert: the technical term is known everywhere
         Assert.All(selections, dictionary => Assert.True(dictionary.IsKnown("kubernetes")));
@@ -256,7 +261,7 @@ public class DictionariesSubsystemTests
     {
         // Arrange: derived forms that are common in technical writing, and the three selections
         var words = new[] { "testability", "reviewable", "precomputed", "unannotated", "untestable", "lookups", "mockable" };
-        var selections = new[] { "en-US", "en-GB", "en-US,en-GB" }.Select(SpellingDictionary.ForLanguages).ToArray();
+        var selections = LanguageSelections.Select(SpellingDictionary.ForLanguages).ToArray();
 
         // Act: look up every word in every selection
         var unknown = words.Where(word => selections.Any(selection => !selection.IsKnown(word))).ToArray();
@@ -324,7 +329,7 @@ public class DictionariesSubsystemTests
         // Arrange: words that imported lists contain but that are almost always a typo of another word, and accepted variants that are not excluded
         var excluded = new[] { "curser", "operants", "programing", "Curser" };
         var variants = new[] { "milage", "writeable" };
-        var selections = new[] { "en-US", "en-GB", "en-US,en-GB" }.Select(SpellingDictionary.ForLanguages).ToArray();
+        var selections = LanguageSelections.Select(SpellingDictionary.ForLanguages).ToArray();
 
         // Act: look the words up in every selection
         var knownExcluded = excluded.Where(word => selections.Any(selection => selection.IsKnown(word))).ToArray();
@@ -343,7 +348,7 @@ public class DictionariesSubsystemTests
     {
         // Arrange: oversized (listed by SCOWL for British English only), oversize (American only), and each selection
         var words = new[] { "oversized", "Oversized", "OVERSIZED", "oversize", "oversizes" };
-        var selections = new[] { "en-US", "en-GB", "en-US,en-GB" }.Select(SpellingDictionary.ForLanguages).ToArray();
+        var selections = LanguageSelections.Select(SpellingDictionary.ForLanguages).ToArray();
 
         // Act: look the words up in every selection
         var unknown = words.Where(word => selections.Any(selection => !selection.IsKnown(word))).ToArray();

@@ -44,7 +44,9 @@ the library never depends on the tool. Never add linting logic to the tool.
 │   ├── DemaConsulting.TextLint.Tests/
 │   ├── DemaConsulting.TextLint.DictionaryBuilder.Tests/
 │   └── DemaConsulting.TextLint.Tool.Tests/
-└── third-party/
+├── third-party/
+└── tools/
+    └── javascript-oracles/
 ```
 
 # Language and Spelling (ALL Agents)

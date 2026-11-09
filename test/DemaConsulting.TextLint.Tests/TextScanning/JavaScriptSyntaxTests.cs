@@ -33,7 +33,7 @@ namespace DemaConsulting.TextLint.Tests.TextScanning;
 ///     test doubles. The expected white space set was read from the JavaScript engine that cspell runs its
 ///     patterns in: the characters for which <c>/\s/.test(c)</c> is true.
 /// </remarks>
-public class JavaScriptSyntaxTests
+public partial class JavaScriptSyntaxTests
 {
     /// <summary>
     ///     The number of UTF-16 code units, the range over which the white space set is compared.
@@ -41,9 +41,43 @@ public class JavaScriptSyntaxTests
     private const int CodeUnitCount = 0x10000;
 
     /// <summary>
+    ///     The line terminators that JavaScript knows, plus U+0085, which it does not treat as one.
+    /// </summary>
+    private static readonly string[] LineTerminatorProbes = ["\n", "\r", "\u2028", "\u2029", "\u0085"];
+
+    /// <summary>
     ///     The code units that JavaScript treats as white space, as recorded from <c>/\s/</c>.
     /// </summary>
     private static readonly HashSet<char> RecordedSpace = BuildRecordedSpace();
+
+    /// <summary>
+    ///     Gets a pattern that matches exactly one white space character, from <see cref="JavaScriptSyntax.Space"/>.
+    /// </summary>
+    /// <returns>The compiled pattern.</returns>
+    [GeneratedRegex("^" + JavaScriptSyntax.Space + "$", RegexOptions.CultureInvariant)]
+    private static partial Regex SpacePattern();
+
+    /// <summary>
+    ///     Gets a pattern that matches exactly one non-white-space character, from <see cref="JavaScriptSyntax.NotSpace"/>.
+    /// </summary>
+    /// <returns>The compiled pattern.</returns>
+    [GeneratedRegex("^" + JavaScriptSyntax.NotSpace + "$", RegexOptions.CultureInvariant)]
+    private static partial Regex NotSpacePattern();
+
+    /// <summary>
+    ///     Gets a pattern that matches an <c>x</c> at the start of a line, from <see cref="JavaScriptSyntax.LineStart"/>.
+    /// </summary>
+    /// <returns>The compiled pattern.</returns>
+    [GeneratedRegex(JavaScriptSyntax.LineStart + "x", RegexOptions.CultureInvariant)]
+    private static partial Regex LineStartPattern();
+
+    /// <summary>
+    ///     Gets a pattern that matches exactly one non-line-terminator character, from
+    ///     <see cref="JavaScriptSyntax.NotLineTerminator"/>.
+    /// </summary>
+    /// <returns>The compiled pattern.</returns>
+    [GeneratedRegex("^" + JavaScriptSyntax.NotLineTerminator + "$", RegexOptions.CultureInvariant)]
+    private static partial Regex NotLineTerminatorPattern();
 
     /// <summary>
     ///     Verifies that <see cref="JavaScriptSyntax.IsSpace"/> agrees with JavaScript on every code unit.
@@ -67,8 +101,8 @@ public class JavaScriptSyntaxTests
     public void JavaScriptSyntax_SpaceAndNotSpace_EveryCodeUnit_ArePartitionedLikeIsSpace()
     {
         // Arrange: the two patterns
-        var space = new Regex("^" + JavaScriptSyntax.Space + "$", RegexOptions.CultureInvariant);
-        var notSpace = new Regex("^" + JavaScriptSyntax.NotSpace + "$", RegexOptions.CultureInvariant);
+        var space = SpacePattern();
+        var notSpace = NotSpacePattern();
 
         // Act: find the code units on which a pattern disagrees with the function
         var wrong = Enumerable.Range(0, CodeUnitCount)
@@ -173,12 +207,12 @@ public class JavaScriptSyntaxTests
     public void JavaScriptSyntax_LineConstants_LineTerminators_FollowJavaScript()
     {
         // Arrange: a line start and a dot that treat the four JavaScript line terminators alike
-        var start = new Regex(JavaScriptSyntax.LineStart + "x", RegexOptions.CultureInvariant);
-        var dot = new Regex("^" + JavaScriptSyntax.NotLineTerminator + "$", RegexOptions.CultureInvariant);
+        var start = LineStartPattern();
+        var dot = NotLineTerminatorPattern();
 
         // Act: test the start after each terminator and the dot on each terminator and on U+0085
-        var starts = new[] { "\n", "\r", "\u2028", "\u2029", "\u0085" }.Select(t => start.IsMatch("a" + t + "x")).ToList();
-        var dots = new[] { "\n", "\r", "\u2028", "\u2029", "\u0085" }.Select(t => dot.IsMatch(t)).ToList();
+        var starts = LineTerminatorProbes.Select(t => start.IsMatch("a" + t + "x")).ToList();
+        var dots = LineTerminatorProbes.Select(t => dot.IsMatch(t)).ToList();
 
         // Assert: the four terminators start a line and stop the dot; U+0085 does neither
         Assert.Multiple(

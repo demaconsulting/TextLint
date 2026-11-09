@@ -413,7 +413,7 @@ internal static class WordListReader
         ///     Produces the final diagnostics: the kept problems plus a summary when some were dropped.
         /// </summary>
         /// <returns>The diagnostics in the order the problems were found.</returns>
-        public IReadOnlyList<WordListDiagnostic> Finish()
+        public List<WordListDiagnostic> Finish()
         {
             // Tell the reader how many problems the cap hid, so the log is never misleadingly short
             var dropped = Count - _kept.Count;
