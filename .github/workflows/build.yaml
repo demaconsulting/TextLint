@@ -410,7 +410,7 @@ jobs:
           JOB_ID="int-${OS_SHORT}-${DOTNET_SHORT}"
           dotnet versionmark --capture --job-id "${JOB_ID}" \
             --output "artifacts/versionmark-${JOB_ID}.json" -- \
-            dotnet git versionmark textlint
+            dotnet git versionmark
           echo "✓ Tool versions captured"
 
       # === RUN INTEGRATION TESTS ===

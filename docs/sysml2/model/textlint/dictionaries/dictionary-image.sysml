@@ -6,7 +6,10 @@ package TextLint {
 
         metadata info : SoftwareInfo {
             description = "One binary dictionary held in memory: validates the file header, loads an embedded dictionary once into a managed array, and answers whether a prepared key is stored. Bounds-checked and immutable.";
-            sourceFiles = ("src/DemaConsulting.TextLint/Dictionaries/DictionaryImage.cs");
+            sourceFiles = (
+                "src/DemaConsulting.TextLint/Dictionaries/DictionaryImage.cs",
+                "src/DemaConsulting.TextLint.DictionaryBuilder/DictionaryFormat.cs"
+            );
             testFiles = ("test/DemaConsulting.TextLint.Tests/Dictionaries/DictionaryImageTests.cs");
             designFiles = ("docs/design/textlint/dictionaries/dictionary-image.md");
             verificationFiles = ("docs/verification/textlint/dictionaries/dictionary-image.md");

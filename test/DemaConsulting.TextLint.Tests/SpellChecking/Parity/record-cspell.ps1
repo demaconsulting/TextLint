@@ -3,7 +3,7 @@
 # PURPOSE:
 #   Records the output of the real cspell for every parity corpus, so the parity test can compare TextLint
 #   with it. The recorded files are checked in (expected/*.cspell); this script is NOT run by the build or
-#   by CI. Run it from anywhere, after "npm install" at the repository root, whenever a corpus or its settings
+#   by CI. Run it from anywhere, after "npm install" at the repository root (cspell is a devDependency used only by this recorder, never by lint.ps1), whenever a corpus or its settings
 #   change:
 #
 #       pwsh ./test/DemaConsulting.TextLint.Tests/SpellChecking/Parity/record-cspell.ps1
