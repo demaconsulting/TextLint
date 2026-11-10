@@ -1,11 +1,16 @@
 package TextLintTool {
+    private import SoftwareItemMetadata::*;
+
     part def PathHelpers {
         doc /* Safe path-combination utility guarding against path-traversal. */
 
-        comment sourceRef /* Source: src/DemaConsulting.TextLint.Tool/Utilities/PathHelpers.cs */
-        comment testRef /* Test: test/DemaConsulting.TextLint.Tool.Tests/Utilities/PathHelpersTests.cs */
-        comment designRef /* Design: docs/design/textlint-tool/utilities/path-helpers.md */
-        comment verificationRef /* Verification: docs/verification/textlint-tool/utilities/path-helpers.md */
-        comment reqRef /* Requirements: docs/reqstream/textlint-tool/utilities/path-helpers.yaml */
+        metadata info : SoftwareInfo {
+            description = "Safe path-combination utility guarding against path-traversal.";
+            sourceFiles = ("src/DemaConsulting.TextLint.Tool/Utilities/PathHelpers.cs");
+            testFiles = ("test/DemaConsulting.TextLint.Tool.Tests/Utilities/PathHelpersTests.cs");
+            designFiles = ("docs/design/textlint-tool/utilities/path-helpers.md");
+            verificationFiles = ("docs/verification/textlint-tool/utilities/path-helpers.md");
+            requirementFiles = ("docs/reqstream/textlint-tool/utilities/path-helpers.yaml");
+        }
     }
 }

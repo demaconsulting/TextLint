@@ -1,11 +1,16 @@
 package TextLintTool {
+    private import SoftwareItemMetadata::*;
+
     part def Validation {
         doc /* Orchestrates the self-validation test suite and reports pass/fail results. */
 
-        comment sourceRef /* Source: src/DemaConsulting.TextLint.Tool/SelfTest/Validation.cs */
-        comment testRef /* Test: test/DemaConsulting.TextLint.Tool.Tests/SelfTest/ValidationTests.cs */
-        comment designRef /* Design: docs/design/textlint-tool/self-test/validation.md */
-        comment verificationRef /* Verification: docs/verification/textlint-tool/self-test/validation.md */
-        comment reqRef /* Requirements: docs/reqstream/textlint-tool/self-test/validation.yaml */
+        metadata info : SoftwareInfo {
+            description = "Orchestrates the self-validation test suite and reports pass/fail results.";
+            sourceFiles = ("src/DemaConsulting.TextLint.Tool/SelfTest/Validation.cs");
+            testFiles = ("test/DemaConsulting.TextLint.Tool.Tests/SelfTest/ValidationTests.cs");
+            designFiles = ("docs/design/textlint-tool/self-test/validation.md");
+            verificationFiles = ("docs/verification/textlint-tool/self-test/validation.md");
+            requirementFiles = ("docs/reqstream/textlint-tool/self-test/validation.yaml");
+        }
     }
 }

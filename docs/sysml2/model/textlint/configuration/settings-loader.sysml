@@ -1,12 +1,21 @@
 package TextLint {
+    private import SoftwareItemMetadata::*;
+
     part def SettingsLoader {
         doc /* Reads a .textlint.yaml file into settings, or into positioned errors, validating glob patterns, languages, word-list entries, regular-expression patterns, and numbers while loading. */
 
-        comment sourceRef /* Source: src/DemaConsulting.TextLint/Configuration/SettingsLoader.cs (supporting types: SettingsLoadResult.cs, SettingsDiagnostic.cs) */
-        comment testRef /* Test: test/DemaConsulting.TextLint.Tests/Configuration/SettingsLoaderTests.cs */
-        comment designRef /* Design: docs/design/textlint/configuration/settings-loader.md */
-        comment verificationRef /* Verification: docs/verification/textlint/configuration/settings-loader.md */
-        comment reqRef /* Requirements: docs/reqstream/textlint/configuration/settings-loader.yaml */
+        metadata info : SoftwareInfo {
+            description = "Reads a .textlint.yaml file into settings, or into positioned errors, validating glob patterns, languages, word-list entries, regular-expression patterns, and numbers while loading.";
+            sourceFiles = (
+                "src/DemaConsulting.TextLint/Configuration/SettingsLoader.cs",
+                "src/DemaConsulting.TextLint/Configuration/SettingsLoadResult.cs",
+                "src/DemaConsulting.TextLint/Configuration/SettingsDiagnostic.cs"
+            );
+            testFiles = ("test/DemaConsulting.TextLint.Tests/Configuration/SettingsLoaderTests.cs");
+            designFiles = ("docs/design/textlint/configuration/settings-loader.md");
+            verificationFiles = ("docs/verification/textlint/configuration/settings-loader.md");
+            requirementFiles = ("docs/reqstream/textlint/configuration/settings-loader.yaml");
+        }
     }
 
     // The loader builds TextLintSettings, parses with YamlDotNet, and validates values with the
