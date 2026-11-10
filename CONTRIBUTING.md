@@ -188,19 +188,25 @@ All markdown files must follow these rules (enforced by markdownlint):
 
 ### Spell Checking
 
-All files are spell-checked using cspell. **Never** add a word to the `.cspell.yaml` word list in order to silence a
+All files are spell-checked using TextLint. **Never** add a word to the `.textlint.yaml` word list in order to silence a
 spell-checking failure. Doing so defeats the purpose of spell-checking and reduces the quality of the repository.
 
-- If cspell flags a word that is **misspelled**, fix the spelling in the source file.
-- If cspell flags a word that is a **genuine technical term** (tool name, project identifier, etc.) and is spelled
+- If TextLint flags a word that is **misspelled**, fix the spelling in the source file.
+- If TextLint flags a word that is a **genuine technical term** (tool name, project identifier, etc.) and is spelled
   correctly, raise a **proposal** (e.g. comment in a pull request) explaining why the word should be added. The
   proposal must be reviewed and approved before the word is added to the list.
 
 #### Checking This Repository with TextLint
 
-TextLint spell-checks its own repository with `.textlint.yaml`, which mirrors `.cspell.yaml` and selects the same
-files as `lint.ps1` does. Until the first release replaces cspell in `lint.ps1`, cspell remains the lint gate, so
-both tools must report nothing. Run TextLint from source after a Release build:
+TextLint spell-checks its own repository with `.textlint.yaml`, using the pinned `DemaConsulting.TextLint.Tool`
+release restored by `dotnet tool restore`, which is also how `lint.ps1` runs it. To run the released tool directly:
+
+```pwsh
+dotnet tool restore
+dotnet textlint
+```
+
+To check the repository with the tool built from source after a Release build:
 
 ```pwsh
 dotnet build --configuration Release
@@ -208,11 +214,10 @@ dotnet src/DemaConsulting.TextLint.Tool/bin/Release/net10.0/DemaConsulting.TextL
 ```
 
 The run prints every finding as `file(line,column): error: ...`, ends with a summary such as
-`Checked 351 file(s): 0 issue(s) in 0 file(s)`, and exits with 0 only when there are no findings. The same rules apply
-as for cspell: fix a misspelling or a British spelling (the repository is written in American English), and propose a
-genuine term for `words` instead of adding it. Text that is deliberate test data (a misspelling, or a directive
-written inside a test string) is hidden with a narrow `textlint:disable-line`, `textlint:disable` and
-`textlint:enable`, or `textlint:ignore` comment next to it; cspell ignores comments with the `textlint:` prefix.
+`Checked 351 file(s): 0 issue(s) in 0 file(s)`, and exits with 0 only when there are no findings. Fix a misspelling or a
+British spelling (the repository is written in American English), and propose a genuine term for `words` instead of
+adding it. Text that is deliberate test data (a misspelling, or a directive written inside a test string) is hidden with
+a narrow `textlint:disable-line`, `textlint:disable` and `textlint:enable`, or `textlint:ignore` comment next to it.
 
 ## Quality Checks
 

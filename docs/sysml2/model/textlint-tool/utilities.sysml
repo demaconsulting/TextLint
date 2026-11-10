@@ -1,11 +1,16 @@
 package TextLintTool {
+    private import SoftwareItemMetadata::*;
+
     part def UtilitiesSubsystem {
         doc /* Shared, independently testable helper functions used by other subsystems. */
 
-        comment testRef /* Test: test/DemaConsulting.TextLint.Tool.Tests/Utilities/UtilitiesSubsystemTests.cs */
-        comment designRef /* Design: docs/design/textlint-tool/utilities.md */
-        comment verificationRef /* Verification: docs/verification/textlint-tool/utilities.md */
-        comment reqRef /* Requirements: docs/reqstream/textlint-tool/utilities.yaml */
+        metadata info : SoftwareInfo {
+            description = "Shared, independently testable helper functions used by other subsystems.";
+            testFiles = ("test/DemaConsulting.TextLint.Tool.Tests/Utilities/UtilitiesSubsystemTests.cs");
+            designFiles = ("docs/design/textlint-tool/utilities.md");
+            verificationFiles = ("docs/verification/textlint-tool/utilities.md");
+            requirementFiles = ("docs/reqstream/textlint-tool/utilities.yaml");
+        }
 
         part pathHelpers : PathHelpers;
     }

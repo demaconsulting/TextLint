@@ -1,12 +1,23 @@
 package TextLint {
+    private import SoftwareItemMetadata::*;
+
     part def SpellChecker {
         doc /* Selects the files that the settings name under a root directory, reads and checks each in parallel without locks, and returns one deterministic result with the findings, the file diagnostics, and the counts. */
 
-        comment sourceRef /* Source: src/DemaConsulting.TextLint/SpellChecking/SpellChecker.cs (supporting types: SpellCheckOptions.cs, SpellCheckResult.cs, FileDiagnostic.cs, FileDiagnosticKind.cs) */
-        comment testRef /* Test: test/DemaConsulting.TextLint.Tests/SpellChecking/SpellCheckerTests.cs */
-        comment designRef /* Design: docs/design/textlint/spell-checking/spell-checker.md */
-        comment verificationRef /* Verification: docs/verification/textlint/spell-checking/spell-checker.md */
-        comment reqRef /* Requirements: docs/reqstream/textlint/spell-checking/spell-checker.yaml */
+        metadata info : SoftwareInfo {
+            description = "Selects the files that the settings name under a root directory, reads and checks each in parallel without locks, and returns one deterministic result with the findings, the file diagnostics, and the counts.";
+            sourceFiles = (
+                "src/DemaConsulting.TextLint/SpellChecking/SpellChecker.cs",
+                "src/DemaConsulting.TextLint/SpellChecking/SpellCheckOptions.cs",
+                "src/DemaConsulting.TextLint/SpellChecking/SpellCheckResult.cs",
+                "src/DemaConsulting.TextLint/SpellChecking/FileDiagnostic.cs",
+                "src/DemaConsulting.TextLint/SpellChecking/FileDiagnosticKind.cs"
+            );
+            testFiles = ("test/DemaConsulting.TextLint.Tests/SpellChecking/SpellCheckerTests.cs");
+            designFiles = ("docs/design/textlint/spell-checking/spell-checker.md");
+            verificationFiles = ("docs/verification/textlint/spell-checking/spell-checker.md");
+            requirementFiles = ("docs/reqstream/textlint/spell-checking/spell-checker.yaml");
+        }
     }
 
     // The checker takes the files, the ignore patterns, the hidden-file switch, and the spelling settings

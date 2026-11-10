@@ -2,58 +2,49 @@
 # Spell-Checking with TextLint
 #
 # PURPOSE:
-# - Spell-check this repository with its own tool (dogfooding)
-# - Mirror .cspell.yaml: the same project terms, ignored paths, and files, so that
-#   both tools report the same findings until the first release replaces cspell
-#   as the lint gate in lint.ps1
+# - Spell-check this repository with its own released tool
 # - Misspelled words should be fixed in the source
 # - NEVER add a misspelled word to the 'words' list
 # - PROPOSE only genuine technical terms/names as needed
 #
-# Run from source (until lint.ps1 runs the released tool):
-#   dotnet build -c Release
-#   dotnet src/DemaConsulting.TextLint.Tool/bin/Release/net10.0/DemaConsulting.TextLint.Tool.dll --root .
+# Run from the repository root (the pinned tool is restored by 'dotnet tool restore'):
+#   dotnet textlint
 
 version: "0.2"
 language: en
 
-# The files lint.ps1 passes to cspell
+# The files that lint.ps1 spell-checks; hidden paths such as .github/ are included
 files:
   - "**/*.{md,yaml,yml,json,cs,cpp,hpp,h,txt}"
-
-# Project-specific technical terms and tool names
+enableGlobDot: true
 words:
-  - Blockquotes
-  - Postconditions
-  - buildmark
-  - buildtransitive
-  - contentfiles
-  - dcterms
-  - DEMA
   - Dema
+  - DEMA
   - demaconsulting
-  - doctitle
   - filesystemglobbing
-  - docversion
-  - errorlevel
-  - fileassert
-  - finalizer
-  - nameof
-  - pagetitle
-  - Qube
+  - Geoff
+  - Kelk
+  - Kuenning
+  - Moby
+  - ncipollo
+  - nestings
+  - netstandard
+  - Sarif
+  - sarif
   - SARIF
-  - sarifmark
-  - setlocal
+  - Setext
+  - shopt
+  - slnx
   - snupkg
-  - sonarmark
-  - sysml
-  - sysml2tools
-  - textlint
+  - sonarscanner
+  - thirdparty
+  - Titze
   - trimmable
+  - Trimmable
+  - unidirectionality
   - venv
-  - versionmark
-  - yamlfix
   - yamldotnet
+  - yamlfix
 
 # Exclude common build artifacts, dependencies, and vendored third-party code
 ignorePaths:

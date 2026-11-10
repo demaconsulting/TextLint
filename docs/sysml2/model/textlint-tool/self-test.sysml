@@ -1,11 +1,16 @@
 package TextLintTool {
+    private import SoftwareItemMetadata::*;
+
     part def SelfTestSubsystem {
         doc /* Self-validation framework exercising the tool's own capabilities on demand. */
 
-        comment testRef /* Test: test/DemaConsulting.TextLint.Tool.Tests/SelfTest/SelfTestSubsystemTests.cs */
-        comment designRef /* Design: docs/design/textlint-tool/self-test.md */
-        comment verificationRef /* Verification: docs/verification/textlint-tool/self-test.md */
-        comment reqRef /* Requirements: docs/reqstream/textlint-tool/self-test.yaml */
+        metadata info : SoftwareInfo {
+            description = "Self-validation framework exercising the tool's own capabilities on demand.";
+            testFiles = ("test/DemaConsulting.TextLint.Tool.Tests/SelfTest/SelfTestSubsystemTests.cs");
+            designFiles = ("docs/design/textlint-tool/self-test.md");
+            verificationFiles = ("docs/verification/textlint-tool/self-test.md");
+            requirementFiles = ("docs/reqstream/textlint-tool/self-test.yaml");
+        }
 
         part validation : Validation;
     }

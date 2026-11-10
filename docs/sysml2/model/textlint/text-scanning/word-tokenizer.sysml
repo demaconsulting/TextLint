@@ -1,11 +1,20 @@
 package TextLint {
+    private import SoftwareItemMetadata::*;
+
     part def WordTokenizer {
         doc /* Decides what a word is: finds the words, tokens, and case-change pieces of a text as ranges of the original text, and interprets word-list entries so that loading a setting and checking text agree. */
 
-        comment sourceRef /* Source: src/DemaConsulting.TextLint/TextScanning/WordTokenizer.cs (supporting types: ListEntry.cs, TextRange.cs) */
-        comment testRef /* Test: test/DemaConsulting.TextLint.Tests/TextScanning/WordTokenizerTests.cs */
-        comment designRef /* Design: docs/design/textlint/text-scanning/word-tokenizer.md */
-        comment verificationRef /* Verification: docs/verification/textlint/text-scanning/word-tokenizer.md */
-        comment reqRef /* Requirements: docs/reqstream/textlint/text-scanning/word-tokenizer.yaml */
+        metadata info : SoftwareInfo {
+            description = "Decides what a word is: finds the words, tokens, and case-change pieces of a text as ranges of the original text, and interprets word-list entries so that loading a setting and checking text agree.";
+            sourceFiles = (
+                "src/DemaConsulting.TextLint/TextScanning/WordTokenizer.cs",
+                "src/DemaConsulting.TextLint/TextScanning/ListEntry.cs",
+                "src/DemaConsulting.TextLint/TextScanning/TextRange.cs"
+            );
+            testFiles = ("test/DemaConsulting.TextLint.Tests/TextScanning/WordTokenizerTests.cs");
+            designFiles = ("docs/design/textlint/text-scanning/word-tokenizer.md");
+            verificationFiles = ("docs/verification/textlint/text-scanning/word-tokenizer.md");
+            requirementFiles = ("docs/reqstream/textlint/text-scanning/word-tokenizer.yaml");
+        }
     }
 }

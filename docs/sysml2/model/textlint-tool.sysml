@@ -1,4 +1,6 @@
 package TextLintTool {
+    private import SoftwareItemMetadata::*;
+
     doc
     /*
      * TextLintTool is the .NET command-line application (command textlint) that
@@ -10,10 +12,13 @@ package TextLintTool {
     part def TextLintToolSystem {
         doc /* The TextLintTool system as a whole: the thin command-line front-end over the TextLint library. */
 
-        comment testRef /* Test: test/DemaConsulting.TextLint.Tool.Tests/IntegrationTests.cs */
-        comment designRef /* Design: docs/design/textlint-tool.md */
-        comment verificationRef /* Verification: docs/verification/textlint-tool.md */
-        comment reqRef /* Requirements: docs/reqstream/textlint-tool.yaml */
+        metadata info : SoftwareInfo {
+            description = "The TextLintTool system as a whole: the thin command-line front-end over the TextLint library.";
+            testFiles = ("test/DemaConsulting.TextLint.Tool.Tests/IntegrationTests.cs");
+            designFiles = ("docs/design/textlint-tool.md");
+            verificationFiles = ("docs/verification/textlint-tool.md");
+            requirementFiles = ("docs/reqstream/textlint-tool.yaml");
+        }
 
         part program : Program;
         part cli : CliSubsystem;

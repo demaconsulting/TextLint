@@ -1,4 +1,6 @@
 package TextLint {
+    private import SoftwareItemMetadata::*;
+
     doc
     /*
      * TextLint is the DemaConsulting.TextLint .NET library. It owns ALL linting logic -
@@ -11,10 +13,13 @@ package TextLint {
     part def TextLintSystem {
         doc /* The DemaConsulting.TextLint library system as a whole: the home of all linting logic. */
 
-        comment testRef /* Test: test/DemaConsulting.TextLint.Tests/TextLintTests.cs */
-        comment designRef /* Design: docs/design/textlint.md */
-        comment verificationRef /* Verification: docs/verification/textlint.md */
-        comment reqRef /* Requirements: docs/reqstream/textlint.yaml */
+        metadata info : SoftwareInfo {
+            description = "The DemaConsulting.TextLint library system as a whole: the home of all linting logic.";
+            testFiles = ("test/DemaConsulting.TextLint.Tests/TextLintTests.cs");
+            designFiles = ("docs/design/textlint.md");
+            verificationFiles = ("docs/verification/textlint.md");
+            requirementFiles = ("docs/reqstream/textlint.yaml");
+        }
 
         part configuration : ConfigurationSubsystem;
         part fileSelection : FileSelectionSubsystem;
