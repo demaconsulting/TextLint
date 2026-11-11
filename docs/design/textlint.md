@@ -72,8 +72,8 @@ belongs to the library (see `CommandLinePathResolver`), so every front-end reads
 - _Type_: NuGet package.
 - _Role_: Provider.
 - _Contract_: The package is named `DemaConsulting.TextLint`, carries the README, icon, MIT license
-  expression, third-party notices file, and source-link metadata, and ships a `net10.0` assembly
-  with XML documentation and a symbols package. The assembly embeds the four dictionaries.
+  expression, third-party notices file, and source-link metadata, and ships `net10.0` and `net11.0`
+  assemblies with XML documentation and a symbols package. Each assembly embeds the four dictionaries.
 - _Constraints_: The package contains no native assets and has exactly two runtime package
   dependencies, YamlDotNet and Microsoft.Extensions.FileSystemGlobbing. The notices file, named
   `THIRD-PARTY-NOTICES.txt`, is at the package root and reproduces the license notices of the
@@ -191,7 +191,7 @@ and embeds the four resulting files in the assembly; see _Design Constraints_.
 
 ## Design Constraints
 
-- Platform: targets net10.0 only; the platform requirements apply on Windows, Linux, and macOS.
+- Platform: multi-targets net10.0 and net11.0; the platform requirements apply on Windows, Linux, and macOS.
 - Trimming and Native AOT: the tool is planned to be published as a Native AOT executable, so the
   library must stay trim and AOT safe. The library enables the trim, AOT, and single-file
   analyzers (`IsAotCompatible`) with warnings treated as errors, so reflection-dependent or

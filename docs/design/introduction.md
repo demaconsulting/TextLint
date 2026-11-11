@@ -84,6 +84,14 @@ modeled as SysML2 parts.
 
 ![Software Structure](SoftwareStructureView.svg)
 
+The diagram below complements the structure view by showing how the shipped systems work together at run time:
+the `textlint` tool's Linting subsystem calls the library, whose SpellChecking subsystem uses Configuration,
+FileSelection, Dictionaries, and TextScanning to turn the settings and the selected files into the findings and
+exit status that the tool reports.
+
+![TextLint architecture: the Linting subsystem of the textlint tool calls the TextLint library, whose
+SpellChecking subsystem uses Configuration, FileSelection, Dictionaries and TextScanning to check files.](architecture.svg)
+
 ### Layering
 
 The TextLint library and the TextLintTool tool form a strict two-layer architecture, and every later

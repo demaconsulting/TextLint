@@ -8,12 +8,12 @@ configuration checks are design-constraint guards that are not linked to a requi
 
 - **Package inspection**: after packing the library, the build pipeline runs FileAssert
   (`.fileassert.yaml`, tag `packages`) against the real `DemaConsulting.TextLint.<version>.nupkg`
-  and its `.snupkg`. The checks assert the package id, the `lib/net10.0` assembly and XML
+  and its `.snupkg`. The checks assert the package id, the `lib/net10.0` and `lib/net11.0` assemblies and XML
   documentation, and the publisher, license, README, and icon metadata. This is the evidence for
   the NuGet package requirement, because it inspects the artifact that is actually published.
   A further check asserts that the package carries `THIRD-PARTY-NOTICES.txt` at its root with the
   notices of the embedded word lists; that is the evidence for the third-party notices requirement.
-  Another asserts that the packaged assembly contains the four embedded dictionaries, which together
+  Another asserts that each packaged assembly contains the four embedded dictionaries, which together
   with the assembly inspection below is the evidence for the self-contained lookup requirement.
   The library package id is a prefix of the tool package id, so the build asserts the library
   package after packing only the library and before packing the tool.
@@ -93,7 +93,7 @@ Native AOT consumer is published or run.
 
 Package and project checks run in the build job on Windows, Linux, and macOS, against the package
 produced by `dotnet pack` in that job; FileAssert is the only tool required. Assembly and
-end-to-end tests run under xUnit on .NET 10.0 on the same platforms. The test project references
+end-to-end tests run under xUnit on .NET 10.0 and .NET 11.0 on the same platforms. The test project references
 the library project, so the library assembly is present beside the test assembly. End-to-end tests
 need permission to create and delete files under the operating system's temporary directory; each
 test uses its own uniquely named directory, so tests share no state and may run in parallel. The
@@ -107,13 +107,14 @@ requires the DictionaryBuilder project, which the library project builds first; 
 ## Acceptance Criteria
 
 - All FileAssert package and project checks pass on every build.
-- The library package contains exactly one `net10.0` assembly with its XML documentation, and its
+- The library package contains exactly one `net10.0` and one `net11.0` assembly, each with its XML documentation, and its
   nuspec names the package `DemaConsulting.TextLint` with the publisher, MIT license, README, and
   icon metadata.
 - A symbols package is produced alongside the library package.
 - The library project enables `IsAotCompatible` and `TreatWarningsAsErrors` (design-constraint guard).
 - All system-level tests pass on every supported platform with zero failures.
-- The library assembly name equals the NuGet package name, targets .NET 10, carries the product and
+- The library assembly name equals the NuGet package name, targets the .NET runtime it runs on (.NET 10 and
+  .NET 11), carries the product and
   company metadata, declares itself trimmable, and does not reference the tool assembly.
 - A settings file loads into the values it states, an empty file loads defaults, and settings can be
   built in code and select files.
@@ -171,10 +172,10 @@ requires the DictionaryBuilder project, which the library project builds first; 
 
 ## Test Scenarios
 
-**TextLint_Package_Packed_ContainsNet10Library**: FileAssert inspects the produced library package
-and finds exactly one `lib/net10.0/DemaConsulting.TextLint.dll` (and no other framework folder),
-its XML documentation file, and the companion `.snupkg`. This scenario is tested by
-`TextLint_Package_Packed_ContainsNet10Library`.
+**TextLint_Package_Packed_ContainsLibraryAssemblies**: FileAssert inspects the produced library package
+and finds exactly one `lib/net10.0/DemaConsulting.TextLint.dll` and one `lib/net11.0/DemaConsulting.TextLint.dll`
+(and no other framework folder), their XML documentation files, and the companion `.snupkg`. This scenario is
+tested by `TextLint_Package_Packed_ContainsLibraryAssemblies`.
 
 **TextLint_Package_Packed_HasPackageMetadata**: FileAssert inspects the nuspec inside the produced
 library package and finds the id `DemaConsulting.TextLint`, the author, the MIT license expression,
@@ -196,9 +197,10 @@ library builds and runs on Windows, Linux, and macOS. This scenario is tested by
 `DemaConsulting.TextLint` and its company metadata is `DEMA Consulting`. This scenario is tested by
 `TextLint_Assembly_Loaded_HasPackageMetadata`.
 
-**TextLint_Assembly_Loaded_TargetsNet10**: The loaded assembly's target framework attribute names
-.NET 10, proving the library supports the .NET 10 runtime. This scenario is tested by
-`TextLint_Assembly_Loaded_TargetsNet10`.
+**TextLint_Assembly_Loaded_TargetsRunningRuntime**: The loaded assembly's target framework attribute names
+the major .NET version the test runs on. Run under each target framework of the test project, it proves the
+library supports the .NET 10 and .NET 11 runtimes. This scenario is tested by
+`TextLint_Assembly_Loaded_TargetsRunningRuntime`.
 
 **TextLint_Assembly_Loaded_IsMarkedTrimCompatible**: The loaded assembly carries the `IsTrimmable`
 assembly metadata set to `True`, guarding the Trimming and Native AOT design constraint: the marker
@@ -356,7 +358,7 @@ the permission sentence of their license verbatim, names the publisher of the te
 author of the cspell-lib rules from which the default ignore patterns are ported. This
 scenario is tested by `TextLint_Package_Packed_ContainsThirdPartyNotices`.
 
-**TextLint_Package_Packed_ContainsEmbeddedDictionaries**: FileAssert inspects the packaged library assembly and
+**TextLint_Package_Packed_ContainsEmbeddedDictionaries**: FileAssert inspects each packaged library assembly and
 finds the name of each of the four embedded dictionary resources in it, proving that the package, which is packed
 from the build output without building again, carries the data. This scenario is tested by
 `TextLint_Package_Packed_ContainsEmbeddedDictionaries`.

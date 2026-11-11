@@ -21,7 +21,14 @@ their spelling in parallel with cspell's word-splitting, ignore, directive, and 
 words up in the embedded dictionaries. Custom ignore patterns and the remaining cspell settings are not
 supported yet.
 
-![TextLint architecture: the textlint tool calls the TextLint library, which loads settings, selects files and spell-checks them][architecture]
+The workflow below shows how to use the tool: configure the files to check, the project words, and the language
+in `.textlint.yaml`, run `textlint` locally or in a CI pipeline, and use the compiler-style findings, summary, and
+exit code as a CI quality gate, in lint scripts, and in editors to fix the source.
+
+![TextLint workflow: configure .textlint.yaml with files, ignorePaths, words, flagWords, and language, run textlint
+with paths or globs and options such as --config, --root, and --language, get file(line,col) findings, skipped
+files, a summary, and an exit code, then use them as a CI quality gate, in lint scripts, and in editors to fix the
+source][workflow]
 
 ## Features
 
@@ -58,7 +65,8 @@ The project currently provides:
   (`--version`, `--help`, `--silent`, `--validate`, `--results`, `--depth`, `--log`)
 - **Self-Validation**: Built-in validation tests with TRX/JUnit output, including real spell-checking scenarios
 - **Multi-Platform Support**: Builds and runs on Windows, Linux, and macOS
-- **Modern Runtime Support**: Targets .NET 10
+- **Multi-Runtime Support**: The `textlint` tool requires .NET 10; the `DemaConsulting.TextLint` library
+  supports .NET 10 and 11
 - **Comprehensive CI/CD**: GitHub Actions workflows with quality checks, builds, and
   integration tests
 - **Linting Enforcement**: markdownlint, TextLint, and yamllint enforced on every CI run
@@ -71,14 +79,15 @@ The project currently provides:
 
 ## Installation
 
-Install the tool globally using the .NET CLI:
+Install the tool globally using the .NET CLI (installing requires the [.NET SDK][dotnet-download]; running the
+tool requires the .NET 10 runtime):
 
 ```bash
 dotnet tool install -g DemaConsulting.TextLint.Tool
 ```
 
-The reusable library is published separately as the `DemaConsulting.TextLint` NuGet package for
-applications that want to embed TextLint (it loads settings, selects files, checks spelling, and looks words
+The reusable library is published separately as the `DemaConsulting.TextLint` NuGet package (for .NET 10 and 11)
+for applications that want to embed TextLint (it loads settings, selects files, checks spelling, and looks words
 up; its API will grow as further capabilities are added):
 
 ```bash
@@ -449,6 +458,7 @@ By contributing to this project, you agree that your contributions will be licen
 [link-quality]: https://sonarcloud.io/dashboard?id=demaconsulting_TextLint
 [link-security]: https://sonarcloud.io/dashboard?id=demaconsulting_TextLint
 [link-nuget]: https://www.nuget.org/packages/DemaConsulting.TextLint.Tool
-[architecture]: https://raw.githubusercontent.com/demaconsulting/TextLint/main/docs/images/architecture.png
+[workflow]: https://raw.githubusercontent.com/demaconsulting/TextLint/main/docs/images/workflow.png
 [link-guide]: https://github.com/demaconsulting/TextLint/blob/main/docs/user_guide/introduction.md
 [link-continuous-compliance]: https://github.com/demaconsulting/ContinuousCompliance
+[dotnet-download]: https://dotnet.microsoft.com/download

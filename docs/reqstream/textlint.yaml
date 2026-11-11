@@ -28,15 +28,15 @@ sections:
         tags: [system]
         justification: |
           Consumers (including the TextLint tool) obtain the library as a NuGet package. The
-          package identity, its net10.0 assembly, and its publisher metadata must be stable so
-          that dependent projects can reference the library by a single, predictable name. The
-          primary evidence is the produced package itself: the build packs the library and
-          FileAssert inspects the resulting .nupkg (package id, lib/net10.0 assembly and XML
-          documentation, license, README, icon, and the companion symbols package). The
-          assembly-level tests additionally confirm the compiled assembly carries the same
-          identity and metadata.
+          package identity, its net10.0 and net11.0 assemblies, and its publisher metadata must be
+          stable so that dependent projects can reference the library by a single, predictable
+          name. The primary evidence is the produced package itself: the build packs the library
+          and FileAssert inspects the resulting .nupkg (package id, lib/net10.0 and lib/net11.0
+          assemblies and XML documentation, license, README, icon, and the companion symbols
+          package). The assembly-level tests additionally confirm the compiled assembly carries
+          the same identity and metadata.
         tests:
-          - TextLint_Package_Packed_ContainsNet10Library
+          - TextLint_Package_Packed_ContainsLibraryAssemblies
           - TextLint_Package_Packed_HasPackageMetadata
           - TextLint_Assembly_Loaded_HasPackageName
           - TextLint_Assembly_Loaded_HasPackageMetadata
