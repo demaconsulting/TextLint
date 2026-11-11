@@ -47,7 +47,8 @@ We follow a standard GitHub workflow for contributions:
 
 ### Prerequisites
 
-- [.NET SDK][dotnet-download] 10.0
+- [.NET SDK][dotnet-download] 10.0 and 11.0 (the library and its tests target .NET 10 and 11; the tool, the
+  DictionaryBuilder, and their tests target .NET 10)
 - Git
 - A code editor (Visual Studio, VS Code, or Rider recommended)
 

@@ -29,7 +29,9 @@ jobs:
       - name: Setup dotnet
         uses: actions/setup-dotnet@v6
         with:
-          dotnet-version: 10.x
+          dotnet-version: |
+            10.x
+            11.x
 
       - name: Restore Tools
         run: >
@@ -118,7 +120,9 @@ jobs:
       - name: Setup dotnet
         uses: actions/setup-dotnet@v6
         with:
-          dotnet-version: 10.x
+          dotnet-version: |
+            10.x
+            11.x
 
       - name: Restore Tools
         run: >
@@ -223,7 +227,7 @@ jobs:
           --output packages
           --property:PackageVersion=${{ inputs.version }}
 
-      # Asserts the shape of the library package just produced (net10.0 assembly, package
+      # Asserts the shape of the library package just produced (net10.0 and net11.0 assemblies, package
       # id and metadata, third-party notices, embedded dictionaries). These run here, against the
       # real artifact, rather than inside the test suite - packing is a build activity. The
       # results are linked as evidence for the TextLint-System-Package,
@@ -306,7 +310,9 @@ jobs:
       - name: Setup dotnet
         uses: actions/setup-dotnet@v6
         with:
-          dotnet-version: 10.x
+          dotnet-version: |
+            10.x
+            11.x
 
       - name: Restore Tools
         run: >

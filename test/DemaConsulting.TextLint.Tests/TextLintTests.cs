@@ -209,10 +209,11 @@ public partial class TextLintTests
     }
 
     /// <summary>
-    ///     Test that the library assembly targets .NET 10.
+    ///     Test that the library assembly loaded by the test run targets the runtime the test runs on,
+    ///     so each target framework run proves the library build for that runtime.
     /// </summary>
     [Fact]
-    public void TextLint_Assembly_Loaded_TargetsNet10()
+    public void TextLint_Assembly_Loaded_TargetsRunningRuntime()
     {
         // Arrange: load the library assembly
         var assembly = LoadLibrary();
@@ -220,8 +221,8 @@ public partial class TextLintTests
         // Act: read the target framework the assembly was compiled for
         var framework = assembly.GetCustomAttribute<TargetFrameworkAttribute>()?.FrameworkName;
 
-        // Assert: the assembly targets .NET 10
-        Assert.Equal(".NETCoreApp,Version=v10.0", framework);
+        // Assert: the assembly targets the major .NET version the test is running on
+        Assert.Equal($".NETCoreApp,Version=v{Environment.Version.Major}.0", framework);
     }
 
     /// <summary>

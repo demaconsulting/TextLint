@@ -13,7 +13,18 @@ dictionaries, and to check files in parallel across all processor cores. Both th
 Usage_ below) can already do this: they load a `.textlint.yaml` settings file, select the files to check,
 check their spelling in parallel, and look words up in the embedded dictionaries.
 
-The following diagram shows how the `textlint` tool and the library check your files:
+The workflow below shows how to use the `textlint` tool: configure the files to check, the project words, and the
+language in `.textlint.yaml`, run `textlint` locally or in a CI pipeline, and use the compiler-style findings,
+summary, and exit code as a CI quality gate, in lint scripts, and in editors to fix the source.
+
+![TextLint workflow: configure .textlint.yaml with files, ignorePaths, words, flagWords, and language, run textlint
+with paths or globs and options such as --config, --root, and --language, get file(line,col) findings, skipped
+files, a summary, and an exit code, then use them as a CI quality gate, in lint scripts, and in editors to fix the
+source](workflow.svg)
+
+For library consumers, the architecture diagram below shows how the `textlint` tool and the library check your
+files: the tool's Linting subsystem calls the library, whose SpellChecking subsystem uses Configuration,
+FileSelection, Dictionaries, and TextScanning.
 
 ![TextLint architecture: the Linting subsystem of the textlint tool calls the TextLint library, whose
 SpellChecking subsystem uses Configuration, FileSelection, Dictionaries and TextScanning to check files.](architecture.svg)
@@ -44,15 +55,17 @@ compliance evidence is generated automatically on every CI run.
 
 # Installation
 
-Install the tool globally using the .NET CLI:
+Install the tool globally using the .NET CLI. Installing requires the .NET SDK, and running the tool requires the
+.NET 10 runtime:
 
 ```bash
 dotnet tool install -g DemaConsulting.TextLint.Tool
 ```
 
 The reusable library is published separately as the `DemaConsulting.TextLint` NuGet package, for
-applications that want to embed TextLint rather than run the command-line tool. It loads settings, selects
-files, checks spelling, and looks words up; its API will grow as further capabilities are added.
+applications that want to embed TextLint rather than run the command-line tool; it supports .NET 10 and 11. It
+loads settings, selects files, checks spelling, and looks words up; its API will grow as further capabilities are
+added.
 
 ```bash
 dotnet add package DemaConsulting.TextLint

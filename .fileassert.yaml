@@ -387,8 +387,8 @@ tests:
   # 'count: 1' makes a violation loud: if the tool package were already present the pattern
   # would match two files and the test would fail rather than pass vacuously.
 
-  - name: TextLint_Package_Packed_ContainsNet10Library
-    description: "The library package ships the net10.0 assembly with its XML documentation"
+  - name: TextLint_Package_Packed_ContainsLibraryAssemblies
+    description: "The library package ships the net10.0 and net11.0 assemblies with their XML documentation"
     tags: [packages]
     files:
       - pattern: "packages/DemaConsulting.TextLint.*.nupkg"
@@ -401,11 +401,17 @@ tests:
             - pattern: "lib/net10.0/DemaConsulting.TextLint.xml"
               min: 1
               max: 1
-            # The library targets net10.0 only: the whole lib/ tree must hold exactly the two
-            # files above, so any other assembly or target-framework folder fails the test.
+            - pattern: "lib/net11.0/DemaConsulting.TextLint.dll"
+              min: 1
+              max: 1
+            - pattern: "lib/net11.0/DemaConsulting.TextLint.xml"
+              min: 1
+              max: 1
+            # The library targets net10.0 and net11.0 only: the whole lib/ tree must hold exactly the
+            # four files above, so any other assembly or target-framework folder fails the test.
             - pattern: "lib/**"
-              min: 2
-              max: 2
+              min: 4
+              max: 4
       # The symbols package is published alongside the library package.
       - pattern: "packages/DemaConsulting.TextLint.*.snupkg"
         count: 1
@@ -467,19 +473,19 @@ tests:
                 - contains: "Benjamin Titze"
 
   # The dictionaries are embedded in the library assembly, and the package is packed from the
-  # build output without building again, so the packed assembly itself is inspected: the
+  # build output without building again, so the packed assemblies themselves are inspected: the
   # manifest of an assembly lists each resource name as text.
   - name: TextLint_Package_Packed_ContainsEmbeddedDictionaries
-    description: "The packed library assembly contains the four embedded dictionaries"
+    description: "Each packed library assembly contains the four embedded dictionaries"
     tags: [packages]
     files:
       - pattern: "packages/DemaConsulting.TextLint.*.nupkg"
         count: 1
         zip:
           files:
-            - pattern: "lib/net10.0/DemaConsulting.TextLint.dll"
-              min: 1
-              max: 1
+            - pattern: "lib/*/DemaConsulting.TextLint.dll"
+              min: 2
+              max: 2
               text:
                 - contains: "DemaConsulting.TextLint.Dictionaries.en-common.tld"
                 - contains: "DemaConsulting.TextLint.Dictionaries.en-US.tld"
