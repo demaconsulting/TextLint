@@ -1,6 +1,7 @@
 ---
 resource-path:
   - docs/design
+  - docs/design/generated
   - docs/design/textlint
   - docs/design/textlint/configuration
   - docs/design/textlint/file-selection
