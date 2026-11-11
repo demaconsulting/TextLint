@@ -5,7 +5,6 @@ package DictionaryBuilder {
         doc /* Reads and validates the plain-text word lists of one dictionary and merges them into one set of distinct, case-folded words. */
 
         metadata info : SoftwareInfo {
-            description = "Reads and validates the plain-text word lists of one dictionary and merges them into one set of distinct, case-folded words.";
             sourceFiles = (
                 "src/DemaConsulting.TextLint.DictionaryBuilder/WordListReader.cs",
                 "src/DemaConsulting.TextLint.DictionaryBuilder/WordListReadResult.cs",

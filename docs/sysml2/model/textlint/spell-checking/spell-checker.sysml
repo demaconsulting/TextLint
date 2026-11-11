@@ -5,7 +5,6 @@ package TextLint {
         doc /* Selects the files that the settings name under a root directory, reads and checks each in parallel without locks, and returns one deterministic result with the findings, the file diagnostics, and the counts. */
 
         metadata info : SoftwareInfo {
-            description = "Selects the files that the settings name under a root directory, reads and checks each in parallel without locks, and returns one deterministic result with the findings, the file diagnostics, and the counts.";
             sourceFiles = (
                 "src/DemaConsulting.TextLint/SpellChecking/SpellChecker.cs",
                 "src/DemaConsulting.TextLint/SpellChecking/SpellCheckOptions.cs",

@@ -5,7 +5,6 @@ package TextLint {
         doc /* Turns one pattern entry of the settings, written between slashes with flags or as a bare expression in the syntax of JavaScript, into a .NET regular expression with the same meaning, rejecting what it cannot translate with the reason, and bounds the matching with a time limit. Includes the translator that does the work, the exception that reports an unusable entry, and the shared definitions of the JavaScript white space and letter case that the other patterns of the subsystem use. */
 
         metadata info : SoftwareInfo {
-            description = "Turns one pattern entry of the settings, written between slashes with flags or as a bare expression in the syntax of JavaScript, into a .NET regular expression with the same meaning, rejecting what it cannot translate with the reason, and bounds the matching with a time limit. Includes the translator that does the work, the exception that reports an unusable entry, and the shared definitions of the JavaScript white space and letter case that the other patterns of the subsystem use.";
             sourceFiles = (
                 "src/DemaConsulting.TextLint/TextScanning/PatternParser.cs",
                 "src/DemaConsulting.TextLint/TextScanning/JavaScriptRegexTranslator.cs",

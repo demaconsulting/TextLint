@@ -5,7 +5,6 @@ package TextLint {
         doc /* Recognizes a token that looks like random data, such as a key or a token, and the hexadecimal sequences inside a token, ported from the random-string rule of cspell, so that their fragments are not reported as unknown words. */
 
         metadata info : SoftwareInfo {
-            description = "Recognizes a token that looks like random data, such as a key or a token, and the hexadecimal sequences inside a token, ported from the random-string rule of cspell, so that their fragments are not reported as unknown words.";
             sourceFiles = ("src/DemaConsulting.TextLint/TextScanning/RandomStringDetector.cs");
             testFiles = ("test/DemaConsulting.TextLint.Tests/TextScanning/RandomStringDetectorTests.cs");
             designFiles = ("docs/design/textlint/text-scanning/random-string-detector.md");

@@ -5,7 +5,6 @@ package DictionaryBuilder {
         doc /* Applies the spelling-variant rule when the technical word lists are combined: a US-only or GB-only variant stays known only when a programming-language list or the reviewed list has it. */
 
         metadata info : SoftwareInfo {
-            description = "Applies the spelling-variant rule when the technical word lists are combined: a US-only or GB-only variant stays known only when a programming-language list or the reviewed list has it.";
             sourceFiles = (
                 "src/DemaConsulting.TextLint.DictionaryBuilder/VariantFilter.cs",
                 "src/DemaConsulting.TextLint.DictionaryBuilder/VariantFilterResult.cs"

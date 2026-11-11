@@ -5,7 +5,6 @@ package TextLint {
         doc /* Validates a user-written glob pattern and rewrites it into matcher patterns: brace alternatives expanded, bare names matching at any depth. */
 
         metadata info : SoftwareInfo {
-            description = "Validates a user-written glob pattern and rewrites it into matcher patterns: brace alternatives expanded, bare names matching at any depth.";
             sourceFiles = (
                 "src/DemaConsulting.TextLint/FileSelection/GlobPatternExpander.cs",
                 "src/DemaConsulting.TextLint/FileSelection/InvalidGlobPatternException.cs"

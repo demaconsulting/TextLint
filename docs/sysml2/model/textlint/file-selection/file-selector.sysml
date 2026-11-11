@@ -5,7 +5,6 @@ package TextLint {
         doc /* Applies include and ignore glob patterns to a root directory and returns the ordered, case-sensitively matched files, skipping excluded and hidden directories without reading them. */
 
         metadata info : SoftwareInfo {
-            description = "Applies include and ignore glob patterns to a root directory and returns the ordered, case-sensitively matched files, skipping excluded and hidden directories without reading them.";
             sourceFiles = (
                 "src/DemaConsulting.TextLint/FileSelection/FileSelector.cs",
                 "src/DemaConsulting.TextLint/FileSelection/SelectedFile.cs",

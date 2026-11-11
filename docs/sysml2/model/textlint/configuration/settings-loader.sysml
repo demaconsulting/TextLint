@@ -5,7 +5,6 @@ package TextLint {
         doc /* Reads a .textlint.yaml file into settings, or into positioned errors, validating glob patterns, languages, word-list entries, regular-expression patterns, and numbers while loading. */
 
         metadata info : SoftwareInfo {
-            description = "Reads a .textlint.yaml file into settings, or into positioned errors, validating glob patterns, languages, word-list entries, regular-expression patterns, and numbers while loading.";
             sourceFiles = (
                 "src/DemaConsulting.TextLint/Configuration/SettingsLoader.cs",
                 "src/DemaConsulting.TextLint/Configuration/SettingsLoadResult.cs",
