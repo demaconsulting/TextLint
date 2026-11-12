@@ -4,10 +4,13 @@
 // inside a named 'view' usage (not a 'view def' definition), and it - not
 // 'render' - is what scopes the rendered diagram content.
 package TextLintTool {
-    view SoftwareStructureView {
-        expose TextLint::*;
-        expose TextLintTool::*;
-        expose DictionaryBuilder::*;
+    private import StandardViewDefinitions::*;
+
+    view SoftwareStructureView : GeneralView {
+        expose TextLint::**;
+        expose TextLintTool::**;
+        expose DictionaryBuilder::**;
+        filter not @SysML::Documentation;
     }
 
     view TextLintToolView {
