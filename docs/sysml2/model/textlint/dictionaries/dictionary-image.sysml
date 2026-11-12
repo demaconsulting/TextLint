@@ -5,7 +5,6 @@ package TextLint {
         doc /* One binary dictionary held in memory: validates the file header, loads an embedded dictionary once into a managed array, and answers whether a prepared key is stored. Bounds-checked and immutable. */
 
         metadata info : SoftwareInfo {
-            description = "One binary dictionary held in memory: validates the file header, loads an embedded dictionary once into a managed array, and answers whether a prepared key is stored. Bounds-checked and immutable.";
             sourceFiles = (
                 "src/DemaConsulting.TextLint/Dictionaries/DictionaryImage.cs",
                 "src/DemaConsulting.TextLint.DictionaryBuilder/DictionaryFormat.cs"

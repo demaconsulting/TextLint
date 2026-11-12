@@ -5,7 +5,6 @@ package TextLint {
         doc /* The public word lookup: selects the embedded dictionaries for a language and reports whether a word is known, ignoring letter case. Immutable, shared per selection, and thread-safe. */
 
         metadata info : SoftwareInfo {
-            description = "The public word lookup: selects the embedded dictionaries for a language and reports whether a word is known, ignoring letter case. Immutable, shared per selection, and thread-safe.";
             sourceFiles = ("src/DemaConsulting.TextLint/Dictionaries/SpellingDictionary.cs");
             testFiles = ("test/DemaConsulting.TextLint.Tests/Dictionaries/SpellingDictionaryTests.cs");
             designFiles = ("docs/design/textlint/dictionaries/spelling-dictionary.md");

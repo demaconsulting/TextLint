@@ -5,7 +5,6 @@ package TextLint {
         doc /* Decides what a word is: finds the words, tokens, and case-change pieces of a text as ranges of the original text, and interprets word-list entries so that loading a setting and checking text agree. */
 
         metadata info : SoftwareInfo {
-            description = "Decides what a word is: finds the words, tokens, and case-change pieces of a text as ranges of the original text, and interprets word-list entries so that loading a setting and checking text agree.";
             sourceFiles = (
                 "src/DemaConsulting.TextLint/TextScanning/WordTokenizer.cs",
                 "src/DemaConsulting.TextLint/TextScanning/ListEntry.cs",

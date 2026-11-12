@@ -5,7 +5,6 @@ package TextLintTool {
         doc /* Command-line argument parsing, output-channel management, and exit-code tracking. */
 
         metadata info : SoftwareInfo {
-            description = "Command-line argument parsing, output-channel management, and exit-code tracking.";
             testFiles = ("test/DemaConsulting.TextLint.Tool.Tests/Cli/CliSubsystemTests.cs");
             designFiles = ("docs/design/textlint-tool/cli.md");
             verificationFiles = ("docs/verification/textlint-tool/cli.md");

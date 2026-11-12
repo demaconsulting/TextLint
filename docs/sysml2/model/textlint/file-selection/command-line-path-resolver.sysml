@@ -5,7 +5,6 @@ package TextLint {
         doc /* Turns the path and pattern arguments typed on a command line (backslash paths on Windows, absolute paths) into a search directory and validated portable patterns, and defines the result that names the files found. */
 
         metadata info : SoftwareInfo {
-            description = "Turns the path and pattern arguments typed on a command line (backslash paths on Windows, absolute paths) into a search directory and validated portable patterns, and defines the result that names the files found.";
             sourceFiles = (
                 "src/DemaConsulting.TextLint/FileSelection/CommandLinePathResolver.cs",
                 "src/DemaConsulting.TextLint/FileSelection/CommandLineSelection.cs"
