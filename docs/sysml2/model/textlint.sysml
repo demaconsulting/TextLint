@@ -14,7 +14,6 @@ package TextLint {
         doc /* The DemaConsulting.TextLint library system as a whole: the home of all linting logic. */
 
         metadata info : SoftwareInfo {
-            description = "The DemaConsulting.TextLint library system as a whole: the home of all linting logic.";
             testFiles = ("test/DemaConsulting.TextLint.Tests/TextLintTests.cs");
             designFiles = ("docs/design/textlint.md");
             verificationFiles = ("docs/verification/textlint.md");

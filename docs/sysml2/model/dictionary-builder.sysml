@@ -13,7 +13,6 @@ package DictionaryBuilder {
         doc /* The dictionary builder system as a whole: converts word-list folders into binary dictionary files. */
 
         metadata info : SoftwareInfo {
-            description = "The dictionary builder system as a whole: converts word-list folders into binary dictionary files.";
             testFiles = ("test/DemaConsulting.TextLint.DictionaryBuilder.Tests/DictionaryBuilderTests.cs");
             designFiles = ("docs/design/dictionary-builder.md");
             verificationFiles = ("docs/verification/dictionary-builder.md");

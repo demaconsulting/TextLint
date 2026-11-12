@@ -5,7 +5,6 @@ package TextLint {
         doc /* The immutable settings value (version, include and ignore patterns, hidden-file switch, language, word lists, minimum word length, maximum file size, ignore patterns and named patterns, and the random-string switch and length) shared by the file and code routes. */
 
         metadata info : SoftwareInfo {
-            description = "The immutable settings value (version, include and ignore patterns, hidden-file switch, language, word lists, minimum word length, maximum file size, ignore patterns and named patterns, and the random-string switch and length) shared by the file and code routes.";
             sourceFiles = ("src/DemaConsulting.TextLint/Configuration/TextLintSettings.cs");
             testFiles = ("test/DemaConsulting.TextLint.Tests/Configuration/TextLintSettingsTests.cs");
             designFiles = ("docs/design/textlint/configuration/text-lint-settings.md");

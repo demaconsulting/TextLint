@@ -13,7 +13,6 @@ package TextLintTool {
         doc /* The TextLintTool system as a whole: the thin command-line front-end over the TextLint library. */
 
         metadata info : SoftwareInfo {
-            description = "The TextLintTool system as a whole: the thin command-line front-end over the TextLint library.";
             testFiles = ("test/DemaConsulting.TextLint.Tool.Tests/IntegrationTests.cs");
             designFiles = ("docs/design/textlint-tool.md");
             verificationFiles = ("docs/verification/textlint-tool.md");

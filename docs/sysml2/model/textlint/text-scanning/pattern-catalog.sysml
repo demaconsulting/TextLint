@@ -5,7 +5,6 @@ package TextLint {
         doc /* Resolves the ignoreRegExpList and patterns settings into regular expressions: it knows the names of the predefined cspell patterns that are supported, checks the names that the settings define and refer to, and finds the ranges of a text that the expressions match. Includes the named pattern value that the settings hold. */
 
         metadata info : SoftwareInfo {
-            description = "Resolves the ignoreRegExpList and patterns settings into regular expressions: it knows the names of the predefined cspell patterns that are supported, checks the names that the settings define and refer to, and finds the ranges of a text that the expressions match. Includes the named pattern value that the settings hold.";
             sourceFiles = (
                 "src/DemaConsulting.TextLint/TextScanning/PatternCatalog.cs",
                 "src/DemaConsulting.TextLint/TextScanning/NamedPattern.cs"

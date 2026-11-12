@@ -5,7 +5,6 @@ package TextLint {
         doc /* Reads a file into text for checking: chooses the encoding, removes the byte order mark, and recognizes files that are binary, too large, or unreadable, returning the reason as data. */
 
         metadata info : SoftwareInfo {
-            description = "Reads a file into text for checking: chooses the encoding, removes the byte order mark, and recognizes files that are binary, too large, or unreadable, returning the reason as data.";
             sourceFiles = (
                 "src/DemaConsulting.TextLint/SpellChecking/FileTextReader.cs",
                 "src/DemaConsulting.TextLint/SpellChecking/FileTextContent.cs"

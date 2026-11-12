@@ -5,7 +5,6 @@ package TextLintTool {
         doc /* Writes the result of one check: each finding, each file that was skipped or could not be checked, and a one-line summary. */
 
         metadata info : SoftwareInfo {
-            description = "Writes the result of one check: each finding, each file that was skipped or could not be checked, and a one-line summary.";
             sourceFiles = ("src/DemaConsulting.TextLint.Tool/Linting/LintReporter.cs");
             testFiles = ("test/DemaConsulting.TextLint.Tool.Tests/Linting/LintReporterTests.cs");
             designFiles = ("docs/design/textlint-tool/linting/lint-reporter.md");

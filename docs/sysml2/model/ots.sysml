@@ -8,7 +8,6 @@ package TextLint {
         doc /* YAML parsing library; its node model with source positions is used to read .textlint.yaml. */
 
         metadata info : SoftwareInfo {
-            description = "YAML parsing library; its node model with source positions is used to read .textlint.yaml.";
             designFiles = ("docs/design/ots/yamldotnet.md");
             verificationFiles = ("docs/verification/ots/yamldotnet.md");
             requirementFiles = ("docs/reqstream/ots/yamldotnet.yaml");
@@ -19,7 +18,6 @@ package TextLint {
         doc /* Microsoft.Extensions.FileSystemGlobbing: matches include and exclude glob patterns against a directory tree. */
 
         metadata info : SoftwareInfo {
-            description = "Microsoft.Extensions.FileSystemGlobbing: matches include and exclude glob patterns against a directory tree.";
             designFiles = ("docs/design/ots/filesystemglobbing.md");
             verificationFiles = ("docs/verification/ots/filesystemglobbing.md");
             requirementFiles = ("docs/reqstream/ots/filesystemglobbing.yaml");
