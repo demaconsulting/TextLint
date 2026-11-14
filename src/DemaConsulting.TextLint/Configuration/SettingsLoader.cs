@@ -45,12 +45,17 @@ namespace DemaConsulting.TextLint.Configuration;
 ///     column of the offending node. Only the keys <c>version</c>, <c>files</c>, <c>ignorePaths</c>,
 ///     <c>enableGlobDot</c>, <c>language</c>, <c>words</c>, <c>ignoreWords</c>, <c>flagWords</c>,
 ///     <c>minWordLength</c>, <c>maxFileSize</c>, <c>ignoreRegExpList</c>, <c>patterns</c>,
-///     <c>ignoreRandomStrings</c>, and <c>minRandomLength</c> are supported; any other key is an error until
-///     the feature that needs it exists. Patterns are parsed at load time with <see cref="PatternParser"/>,
+///     <c>ignoreRandomStrings</c>, <c>minRandomLength</c>, <c>enabled</c>, and <c>overrides</c> are supported; any
+///     other key is an error until the feature that needs it exists. The <c>files</c> list is an ordered list
+///     (see <see cref="OrderedGlobList"/>) in which <c>!</c> excludes, whereas <c>ignorePaths</c> rejects it with
+///     advice to narrow <c>files</c>. The <c>overrides</c> are read by the second part of this class, which
+///     reports every problem of an override (an unsupported or misplaced key, a missing <c>filename</c>, an
+///     override that changes nothing or that disables its files and sets more) at the position of the node that
+///     holds it. Patterns are parsed at load time with <see cref="PatternParser"/>,
 ///     so an unsupported flag or construct, an invalid regular expression, and an unknown pattern name are
 ///     reported at the entry that holds them. The class is stateless and thread-safe.
 /// </remarks>
-public static class SettingsLoader
+public static partial class SettingsLoader
 {
     /// <summary>
     ///     The key that carries the schema version text.
@@ -61,6 +66,16 @@ public static class SettingsLoader
     ///     The key that carries the include glob patterns.
     /// </summary>
     private const string FilesKey = "files";
+
+    /// <summary>
+    ///     The key that switches spell checking on or off, at the top level and in an override.
+    /// </summary>
+    private const string EnabledKey = "enabled";
+
+    /// <summary>
+    ///     The key that carries the per-file overrides.
+    /// </summary>
+    private const string OverridesKey = "overrides";
 
     /// <summary>
     ///     The key that carries the exclude glob patterns.
@@ -382,8 +397,9 @@ public static class SettingsLoader
         return keyScalar.Value switch
         {
             VersionKey => MapVersion(settings, value, sourceName, diagnostics),
-            FilesKey => settings with { Files = ReadPatterns(value, sourceName, diagnostics) },
-            IgnorePathsKey => settings with { IgnorePaths = ReadPatterns(value, sourceName, diagnostics) },
+            EnabledKey => MapEnabled(settings, value, sourceName, diagnostics),
+            FilesKey => settings with { Files = ReadOrderedPatterns(value, sourceName, diagnostics) },
+            IgnorePathsKey => settings with { IgnorePaths = ReadIgnorePaths(value, sourceName, diagnostics) },
             EnableGlobDotKey => MapEnableGlobDot(settings, value, sourceName, diagnostics),
             LanguageKey => MapLanguage(settings, value, sourceName, diagnostics),
             WordsKey => settings with { Words = ReadWords(WordsKey, false, value, sourceName, diagnostics) },
@@ -395,6 +411,7 @@ public static class SettingsLoader
             PatternsKey => settings with { Patterns = ReadNamedPatterns(value, sourceName, diagnostics) },
             IgnoreRandomStringsKey => MapIgnoreRandomStrings(settings, value, sourceName, diagnostics),
             MinRandomLengthKey => MapMinRandomLength(settings, value, sourceName, diagnostics),
+            OverridesKey => settings with { Overrides = ReadOverrides(value, patternNames, sourceName, diagnostics) },
             _ => Reject(settings, $"'{keyScalar.Value}' is not a supported setting.", key, sourceName, diagnostics),
         };
     }
@@ -454,6 +471,33 @@ public static class SettingsLoader
         return TryReadBoolean(value, out var enabled)
             ? settings with { EnableGlobDot = enabled }
             : Reject(settings, $"Expected true or false for '{EnableGlobDotKey}'.", value, sourceName, diagnostics);
+    }
+
+    /// <summary>
+    ///     Applies the <c>enabled</c> value, which must be a plain boolean.
+    /// </summary>
+    /// <remarks>
+    ///     Read exactly as <c>enableGlobDot</c> is. Side effects: appends to <paramref name="diagnostics"/>. Thread-safe.
+    /// </remarks>
+    /// <param name="settings">The settings so far. Must not be null.</param>
+    /// <param name="value">The value node. Must not be null.</param>
+    /// <param name="sourceName">The name to report in diagnostics; may be null.</param>
+    /// <param name="diagnostics">The list that receives any errors. Must not be null.</param>
+    /// <returns>The settings with the switch applied, or unchanged when the value is null or in error.</returns>
+    private static TextLintSettings MapEnabled(
+        TextLintSettings settings,
+        YamlNode value,
+        string? sourceName,
+        List<SettingsDiagnostic> diagnostics)
+    {
+        if (IsNull(value))
+        {
+            return settings;
+        }
+
+        return TryReadBoolean(value, out var enabled)
+            ? settings with { Enabled = enabled }
+            : Reject(settings, $"Expected true or false for '{EnabledKey}'.", value, sourceName, diagnostics);
     }
 
     /// <summary>
@@ -536,22 +580,50 @@ public static class SettingsLoader
             return settings;
         }
 
+        return TryReadLanguage(value, sourceName, diagnostics, out var language)
+            ? settings with { Language = language! }
+            : settings;
+    }
+
+    /// <summary>
+    ///     Reads a language value and checks that it names supported languages.
+    /// </summary>
+    /// <remarks>
+    ///     Shared by the top-level <c>language</c> setting and the one of an override, so both are validated by
+    ///     asking <see cref="SpellingDictionary.ForLanguages"/> and can never disagree. Side effects: appends to
+    ///     <paramref name="diagnostics"/> on failure. Thread-safe.
+    /// </remarks>
+    /// <param name="value">The value node, which is not null (YAML null is handled by the caller). Must not be null.</param>
+    /// <param name="sourceName">The name to report in diagnostics; may be null.</param>
+    /// <param name="diagnostics">The list that receives any error. Must not be null.</param>
+    /// <param name="language">The language text as written when the method returns true; otherwise null.</param>
+    /// <returns><see langword="true"/> when the value names supported languages.</returns>
+    private static bool TryReadLanguage(
+        YamlNode value,
+        string? sourceName,
+        List<SettingsDiagnostic> diagnostics,
+        out string? language)
+    {
+        language = null;
         if (value is not YamlScalarNode { Value: { } text })
         {
-            return Reject(settings, $"Expected a text value for '{LanguageKey}'.", value, sourceName, diagnostics);
+            diagnostics.Add(At($"Expected a text value for '{LanguageKey}'.", value.Start, sourceName));
+            return false;
         }
 
         try
         {
             _ = SpellingDictionary.ForLanguages(text);
-            return settings with { Language = text };
+            language = text;
+            return true;
         }
         catch (ArgumentException exception)
         {
             // The framework appends the parameter name to the message, which means nothing in a settings file
             var message = exception.Message;
             var cut = message.IndexOf(ParameterSuffixMarker, StringComparison.Ordinal);
-            return Reject(settings, cut >= 0 ? message[..cut] : message, value, sourceName, diagnostics);
+            diagnostics.Add(At(cut >= 0 ? message[..cut] : message, value.Start, sourceName));
+            return false;
         }
     }
 
@@ -762,20 +834,100 @@ public static class SettingsLoader
     }
 
     /// <summary>
-    ///     Reads a list of glob patterns, validating each pattern.
+    ///     Reads the <c>files</c> list, an ordered list of glob patterns in which <c>!</c> excludes.
     /// </summary>
     /// <remarks>
-    ///     Every item is validated with the same rules the file selector applies, so an invalid pattern
-    ///     is reported at load time with the position of its list item. See <see cref="ReadList"/> for the
-    ///     handling of a null value and of items that are not text. Side effects: appends to
-    ///     <paramref name="diagnostics"/>. Thread-safe.
+    ///     Every item is validated with the rules of <see cref="OrderedGlobList"/>, which the file selector
+    ///     applies too, so an invalid pattern is reported at load time with the position of its list item. A
+    ///     list that starts with a negated pattern is an error at that item, because there is nothing for it to
+    ///     remove. See <see cref="ReadList"/> for the handling of a null value and of items that are not text.
+    ///     Side effects: appends to <paramref name="diagnostics"/>. Thread-safe.
     /// </remarks>
     /// <param name="value">The value node. Must not be null.</param>
     /// <param name="sourceName">The name to report in diagnostics; may be null.</param>
     /// <param name="diagnostics">The list that receives any errors. Must not be null.</param>
     /// <returns>The valid patterns found, in order; meaningful only when no diagnostics were added.</returns>
-    private static List<string> ReadPatterns(YamlNode value, string? sourceName, List<SettingsDiagnostic> diagnostics) =>
-        ReadList(value, sourceName, diagnostics, pattern => TryValidatePattern(pattern, sourceName, diagnostics));
+    private static List<string> ReadOrderedPatterns(YamlNode value, string? sourceName, List<SettingsDiagnostic> diagnostics) =>
+        ReadList(value, sourceName, diagnostics, pattern => TryValidateOrderedPattern(pattern, IsFirstItem(value, pattern), sourceName, diagnostics));
+
+    /// <summary>
+    ///     Reads the <c>ignorePaths</c> list, a list of glob patterns that cannot be negated.
+    /// </summary>
+    /// <remarks>
+    ///     The ignore patterns are a hard fence that always wins, so a pattern that re-includes files is an
+    ///     error with advice to narrow <c>files</c> instead, which can express it. Every other item is
+    ///     validated like any other glob pattern. Side effects: appends to <paramref name="diagnostics"/>. Thread-safe.
+    /// </remarks>
+    /// <param name="value">The value node. Must not be null.</param>
+    /// <param name="sourceName">The name to report in diagnostics; may be null.</param>
+    /// <param name="diagnostics">The list that receives any errors. Must not be null.</param>
+    /// <returns>The valid patterns found, in order; meaningful only when no diagnostics were added.</returns>
+    private static List<string> ReadIgnorePaths(YamlNode value, string? sourceName, List<SettingsDiagnostic> diagnostics) =>
+        ReadList(value, sourceName, diagnostics, pattern => TryValidateIgnorePattern(pattern, sourceName, diagnostics));
+
+    /// <summary>
+    ///     Determines whether a list item is the first item of its list.
+    /// </summary>
+    /// <remarks>
+    ///     Compared by identity with the first node of the sequence, so an earlier item that is not text does
+    ///     not make a later one look first. Stateless and thread-safe.
+    /// </remarks>
+    /// <param name="list">The node holding the list; a node that is not a sequence has no first item. Must not be null.</param>
+    /// <param name="item">The item to test. Must not be null.</param>
+    /// <returns><see langword="true"/> when the item is the first of the list.</returns>
+    private static bool IsFirstItem(YamlNode list, YamlNode item) =>
+        list is YamlSequenceNode { Children.Count: > 0 } sequence && ReferenceEquals(sequence.Children[0], item);
+
+    /// <summary>
+    ///     Checks that a pattern of an ordered list is acceptable to the file selector.
+    /// </summary>
+    /// <remarks>
+    ///     Reuses <see cref="OrderedGlobList"/> so load-time and selection-time validation can never
+    ///     disagree. Side effects: appends to <paramref name="diagnostics"/> on failure. Thread-safe.
+    /// </remarks>
+    /// <param name="pattern">The scalar node holding the pattern. Must not be null.</param>
+    /// <param name="isFirst"><see langword="true"/> when the pattern is the first of its list.</param>
+    /// <param name="sourceName">The name to report in diagnostics; may be null.</param>
+    /// <param name="diagnostics">The list that receives the error. Must not be null.</param>
+    /// <returns><see langword="true"/> when the pattern is valid.</returns>
+    private static bool TryValidateOrderedPattern(
+        YamlScalarNode pattern,
+        bool isFirst,
+        string? sourceName,
+        List<SettingsDiagnostic> diagnostics)
+    {
+        try
+        {
+            OrderedGlobList.ValidateEntry(pattern.Value!, isFirst);
+            return true;
+        }
+        catch (InvalidGlobPatternException exception)
+        {
+            diagnostics.Add(At(exception.Message, pattern.Start, sourceName));
+            return false;
+        }
+    }
+
+    /// <summary>
+    ///     Checks that an <c>ignorePaths</c> pattern is not negated and is acceptable to the file selector.
+    /// </summary>
+    /// <remarks>
+    ///     Side effects: appends to <paramref name="diagnostics"/> on failure. Thread-safe.
+    /// </remarks>
+    /// <param name="pattern">The scalar node holding the pattern. Must not be null.</param>
+    /// <param name="sourceName">The name to report in diagnostics; may be null.</param>
+    /// <param name="diagnostics">The list that receives the error. Must not be null.</param>
+    /// <returns><see langword="true"/> when the pattern is valid.</returns>
+    private static bool TryValidateIgnorePattern(YamlScalarNode pattern, string? sourceName, List<SettingsDiagnostic> diagnostics)
+    {
+        if (pattern.Value!.StartsWith('!'))
+        {
+            diagnostics.Add(At($"'{IgnorePathsKey}' cannot re-include files; narrow '{FilesKey}' instead.", pattern.Start, sourceName));
+            return false;
+        }
+
+        return TryValidatePattern(pattern, sourceName, diagnostics);
+    }
 
     /// <summary>
     ///     Reads a list of text values, keeping each item that the validator accepts.

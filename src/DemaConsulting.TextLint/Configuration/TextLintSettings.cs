@@ -111,6 +111,11 @@ public sealed record TextLintSettings
     private readonly int _minRandomLength = DefaultMinRandomLength;
 
     /// <summary>
+    ///     Immutable backing store for <see cref="Overrides"/>; <c>default</c> until first assigned.
+    /// </summary>
+    private readonly ImmutableArray<SettingsOverride> _overrides;
+
+    /// <summary>
     ///     Gets the settings schema version text from the <c>version</c> key.
     /// </summary>
     /// <remarks>
@@ -122,10 +127,26 @@ public sealed record TextLintSettings
     public string? Version { get; init; }
 
     /// <summary>
+    ///     Gets a value indicating whether spell checking is switched on at all (<c>enabled</c>).
+    /// </summary>
+    /// <remarks>
+    ///     When <see langword="false"/> no file is checked, as in cspell, unless a matching override sets
+    ///     <c>enabled</c> to <see langword="true"/> again. It is applied by the spell checker together with the
+    ///     <see cref="Overrides"/>; the checker of a single text ignores it.
+    ///     Files that are disabled are still found by the directory walk, so trees that are never to be
+    ///     checked belong in <see cref="IgnorePaths"/>.
+    /// </remarks>
+    /// <value><see langword="true"/> to check files (the default); <see langword="false"/> to check none.</value>
+    public bool Enabled { get; init; } = true;
+
+    /// <summary>
     ///     Gets the include glob patterns (<c>files</c>) that select the files to check.
     /// </summary>
     /// <remarks>
-    ///     An empty list selects nothing. The assigned sequence is copied, so later changes to the
+    ///     An ordered list: a pattern with a leading <c>!</c> removes files that an earlier pattern selected, and
+    ///     the last pattern that matches a file decides, so a later pattern can include again what an earlier one
+    ///     removed. The first pattern may not be negated. A list without any <c>!</c> selects exactly the files its
+    ///     patterns match. An empty list selects nothing. The assigned sequence is copied, so later changes to the
     ///     caller's list do not affect the settings, and the exposed list cannot be mutated.
     /// </remarks>
     /// <value>An immutable list of glob patterns; never <see langword="null"/>, empty by default.</value>
@@ -343,6 +364,24 @@ public sealed record TextLintSettings
             ArgumentOutOfRangeException.ThrowIfLessThan(value, 1);
             _minRandomLength = value;
         }
+    }
+
+    /// <summary>
+    ///     Gets the per-file overrides (<c>overrides</c>), applied in the order they are listed.
+    /// </summary>
+    /// <remarks>
+    ///     Every override whose <see cref="SettingsOverride.Filename"/> patterns match a file applies to it, in the
+    ///     order written: list settings add to the top-level values and to those of earlier overrides, and
+    ///     single values replace them, so general rules belong first and specific ones last. The spell checker
+    ///     applies them; this property only carries them. Copied and immutable, exactly as for <see cref="Files"/>.
+    /// </remarks>
+    /// <value>An immutable list of overrides; never <see langword="null"/>, empty by default.</value>
+    /// <exception cref="ArgumentNullException">Thrown by the setter when the assigned value is null or holds a null entry.</exception>
+    public IReadOnlyList<SettingsOverride> Overrides
+    {
+        // Normalize default(ImmutableArray) so an unassigned property reads as an empty list
+        get => NormalizeList(_overrides);
+        init => _overrides = CopyList(value);
     }
 
     /// <summary>

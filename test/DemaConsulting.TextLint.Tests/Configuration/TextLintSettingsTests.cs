@@ -560,4 +560,167 @@ public class TextLintSettingsTests
             () => Assert.Equal(["/zorb/"], original.IgnoreRegExpList),
             () => Assert.Equal(12, original.MinRandomLength));
     }
+
+    /// <summary>
+    ///     Test that new settings are enabled and have no overrides.
+    /// </summary>
+    [Fact]
+    public void TextLintSettings_New_NoValues_IsEnabledWithNoOverrides()
+    {
+        // Act: create settings without assigning anything
+        var settings = new TextLintSettings();
+
+        // Assert: enabled by default, and an empty list of overrides that is never null
+        Assert.Multiple(
+            () => Assert.True(settings.Enabled),
+            () => Assert.Empty(settings.Overrides));
+    }
+
+    /// <summary>
+    ///     Test that enabled and overrides are stored, and that a copy keeps and changes them independently.
+    /// </summary>
+    [Fact]
+    public void TextLintSettings_Init_EnabledAndOverrides_AreStoredAndCopied()
+    {
+        // Arrange: settings that are disabled and hold one override, assigned from a mutable list
+        var overrides = new List<SettingsOverride> { new() { Filename = ["docs/**"], Enabled = false } };
+        var original = new TextLintSettings { Enabled = false, Overrides = overrides };
+
+        // Act: change the caller's list, and derive a copy that is enabled
+        overrides.Add(new SettingsOverride { Filename = ["src/**"], Words = ["alpha"] });
+        var copy = original with { Enabled = true };
+
+        // Assert: the settings kept the snapshot, and the copy keeps the overrides and changes the switch
+        Assert.Multiple(
+            () => Assert.False(original.Enabled),
+            () => Assert.Single(original.Overrides),
+            () => Assert.True(copy.Enabled),
+            () => Assert.Single(copy.Overrides));
+    }
+
+    /// <summary>
+    ///     Test that a null overrides list, or one holding a null entry, is rejected.
+    /// </summary>
+    [Fact]
+    public void TextLintSettings_Init_NullOverrides_ThrowsArgumentNullException()
+    {
+        // Act / Assert: a null list and a null entry are programming errors
+        Assert.Throws<ArgumentNullException>(() => new TextLintSettings { Overrides = null! });
+        Assert.Throws<ArgumentNullException>(() => new TextLintSettings { Overrides = [null!] });
+    }
+
+    /// <summary>
+    ///     Test that a new override has no values set.
+    /// </summary>
+    [Fact]
+    public void SettingsOverride_New_NoValues_HasEmptyListsAndUnsetValues()
+    {
+        // Act: create an override without assigning anything
+        var settingsOverride = new SettingsOverride();
+
+        // Assert: empty lists that are never null, and every single value unset
+        Assert.Multiple(
+            () => Assert.Empty(settingsOverride.Filename),
+            () => Assert.Empty(settingsOverride.Words),
+            () => Assert.Empty(settingsOverride.IgnoreWords),
+            () => Assert.Empty(settingsOverride.FlagWords),
+            () => Assert.Empty(settingsOverride.IgnoreRegExpList),
+            () => Assert.Empty(settingsOverride.Patterns),
+            () => Assert.Null(settingsOverride.Language),
+            () => Assert.Null(settingsOverride.MinWordLength),
+            () => Assert.Null(settingsOverride.IgnoreRandomStrings),
+            () => Assert.Null(settingsOverride.MinRandomLength),
+            () => Assert.Null(settingsOverride.Enabled),
+            () => Assert.Null(settingsOverride.SourceName),
+            () => Assert.Null(settingsOverride.Line),
+            () => Assert.Null(settingsOverride.Column));
+    }
+
+    /// <summary>
+    ///     Test that an override stores every value that is assigned.
+    /// </summary>
+    [Fact]
+    public void SettingsOverride_Init_AllValues_AreStored()
+    {
+        // Act: create an override that sets everything
+        var settingsOverride = new SettingsOverride
+        {
+            Filename = ["docs/**", "!docs/old/**"],
+            Words = ["zorb"],
+            IgnoreWords = ["quix"],
+            FlagWords = ["colour"],
+            IgnoreRegExpList = ["Urls"],
+            Patterns = [new NamedPattern("Mine", "/x/")],
+            Language = "en-GB",
+            MinWordLength = 3,
+            IgnoreRandomStrings = false,
+            MinRandomLength = 20,
+            Enabled = true,
+            SourceName = ".textlint.yaml",
+            Line = 14,
+            Column = 5,
+        };
+
+        // Assert: each value is as assigned
+        Assert.Multiple(
+            () => Assert.Equal(["docs/**", "!docs/old/**"], settingsOverride.Filename),
+            () => Assert.Equal(["zorb"], settingsOverride.Words),
+            () => Assert.Equal(["quix"], settingsOverride.IgnoreWords),
+            () => Assert.Equal(["colour"], settingsOverride.FlagWords),
+            () => Assert.Equal(["Urls"], settingsOverride.IgnoreRegExpList),
+            () => Assert.Equal("Mine", Assert.Single(settingsOverride.Patterns).Name),
+            () => Assert.Equal("en-GB", settingsOverride.Language),
+            () => Assert.Equal(3, settingsOverride.MinWordLength),
+            () => Assert.False(settingsOverride.IgnoreRandomStrings),
+            () => Assert.Equal(20, settingsOverride.MinRandomLength),
+            () => Assert.True(settingsOverride.Enabled),
+            () => Assert.Equal(".textlint.yaml", settingsOverride.SourceName),
+            () => Assert.Equal(14, settingsOverride.Line),
+            () => Assert.Equal(5, settingsOverride.Column));
+    }
+
+    /// <summary>
+    ///     Test that an override copies its lists, so later changes to the caller's list have no effect.
+    /// </summary>
+    [Fact]
+    public void SettingsOverride_Init_ListMutatedAfterAssignment_DoesNotAffectOverride()
+    {
+        // Arrange: a mutable list assigned to the override
+        var words = new List<string> { "zorb" };
+        var settingsOverride = new SettingsOverride { Words = words };
+
+        // Act: change the caller's list after assignment
+        words.Add("quix");
+
+        // Assert: the override still holds only the original word
+        Assert.Equal(["zorb"], settingsOverride.Words);
+    }
+
+    /// <summary>
+    ///     Test that null lists and lists with a null entry are rejected by every list property of an override.
+    /// </summary>
+    [Fact]
+    public void SettingsOverride_Init_NullListOrEntry_ThrowsArgumentNullException()
+    {
+        // Act / Assert: each list property rejects a null list and a null entry
+        Assert.Throws<ArgumentNullException>(() => new SettingsOverride { Filename = null! });
+        Assert.Throws<ArgumentNullException>(() => new SettingsOverride { Words = null! });
+        Assert.Throws<ArgumentNullException>(() => new SettingsOverride { IgnoreWords = [null!] });
+        Assert.Throws<ArgumentNullException>(() => new SettingsOverride { FlagWords = [null!] });
+        Assert.Throws<ArgumentNullException>(() => new SettingsOverride { IgnoreRegExpList = null! });
+        Assert.Throws<ArgumentNullException>(() => new SettingsOverride { Patterns = [null!] });
+    }
+
+    /// <summary>
+    ///     Test that an override rejects a length below 1 and accepts unset lengths.
+    /// </summary>
+    [Fact]
+    public void SettingsOverride_Init_LengthBelowOne_ThrowsArgumentOutOfRangeException()
+    {
+        // Act / Assert: zero is rejected for both lengths, one and null are accepted
+        Assert.Throws<ArgumentOutOfRangeException>(() => new SettingsOverride { MinWordLength = 0 });
+        Assert.Throws<ArgumentOutOfRangeException>(() => new SettingsOverride { MinRandomLength = 0 });
+        Assert.Equal(1, new SettingsOverride { MinWordLength = 1 }.MinWordLength);
+        Assert.Null(new SettingsOverride { MinRandomLength = null }.MinRandomLength);
+    }
 }

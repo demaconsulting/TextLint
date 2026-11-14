@@ -261,7 +261,7 @@ public class ConfigurationSubsystemTests
     [Fact]
     public async Task ConfigurationSubsystem_LoadAsync_InvalidPattern_ReportsErrorWithPosition()
     {
-        // Arrange: a file whose include pattern is negated
+        // Arrange: a file whose include list starts with a negated pattern
         using var temp = new TempDirectory();
 
         // Act: load it
@@ -540,5 +540,83 @@ public class ConfigurationSubsystemTests
             () => Assert.Equal([2, 3, 6, 7, 9], result.Diagnostics.Select(diagnostic => diagnostic.Line)),
             () => Assert.All(result.Diagnostics, diagnostic => Assert.EndsWith(".textlint.yaml", diagnostic.FilePath)),
             () => Assert.Null(result.Settings));
+    }
+
+    /// <summary>
+    ///     Test that overrides, enabled, and an ordered files list in a file populate the settings.
+    /// </summary>
+    [Fact]
+    public async Task ConfigurationSubsystem_LoadAsync_OverridesAndEnabled_PopulatesSettings()
+    {
+        // Arrange: a file with an ordered files list, enabled, and two overrides
+        using var temp = new TempDirectory();
+        const string yaml =
+            "enabled: false\n" +
+            "files:\n  - \"**/*.md\"\n  - \"!docs/**\"\n  - docs/keep/**\n" +
+            "overrides:\n" +
+            "  - filename: docs/**\n    words: [kubectl]\n    language: en-GB\n" +
+            "  - filename: legacy/**\n    enabled: false\n";
+
+        // Act: load it
+        var result = await LoadAsync(temp, yaml);
+
+        // Assert: the order of the files list is kept, and each override carries its values and position
+        var settings = result.Settings!;
+        Assert.Multiple(
+            () => Assert.True(result.Succeeded),
+            () => Assert.False(settings.Enabled),
+            () => Assert.Equal(["**/*.md", "!docs/**", "docs/keep/**"], settings.Files),
+            () => Assert.Equal(2, settings.Overrides.Count),
+            () => Assert.Equal(["kubectl"], settings.Overrides[0].Words),
+            () => Assert.Equal("en-GB", settings.Overrides[0].Language),
+            () => Assert.Equal(7, settings.Overrides[0].Line),
+            () => Assert.Equal(5, settings.Overrides[0].Column),
+            () => Assert.Equal(false, settings.Overrides[1].Enabled),
+            () => Assert.EndsWith(".textlint.yaml", settings.Overrides[0].SourceName));
+    }
+
+    /// <summary>
+    ///     Test that mistakes in overrides are reported with the file, line, and column of the node that holds them.
+    /// </summary>
+    [Fact]
+    public async Task ConfigurationSubsystem_LoadAsync_InvalidOverrides_ReportsErrorsWithPositions()
+    {
+        // Arrange: a file whose overrides have three different mistakes
+        using var temp = new TempDirectory();
+        const string yaml =
+            "overrides:\n" +
+            "  - filename: a\n    files: [b]\n    words: [c]\n" +
+            "  - words: [d]\n" +
+            "  - filename: e\n    enabled: false\n    words: [f]\n";
+
+        // Act: load it
+        var result = await LoadAsync(temp, yaml);
+
+        // Assert: one error per mistake, each at its own line and column, and no settings
+        Assert.Multiple(
+            () => Assert.Equal([3, 5, 7], result.Diagnostics.Select(diagnostic => diagnostic.Line)),
+            () => Assert.All(result.Diagnostics, diagnostic => Assert.Equal(5, diagnostic.Column)),
+            () => Assert.All(result.Diagnostics, diagnostic => Assert.EndsWith(".textlint.yaml", diagnostic.FilePath)),
+            () => Assert.Null(result.Settings));
+    }
+
+    /// <summary>
+    ///     Test that a negation in ignorePaths is reported with its position and advice.
+    /// </summary>
+    [Fact]
+    public async Task ConfigurationSubsystem_LoadAsync_NegatedIgnorePath_ReportsErrorWithPosition()
+    {
+        // Arrange: a file whose ignore list tries to re-include files
+        using var temp = new TempDirectory();
+
+        // Act: load it
+        var result = await LoadAsync(temp, "ignorePaths:\n  - build/**\n  - \"!build/keep/**\"\n");
+
+        // Assert: loading fails at the item with the advice
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Multiple(
+            () => Assert.Null(result.Settings),
+            () => Assert.Equal(3, diagnostic.Line),
+            () => Assert.Contains("narrow 'files' instead", diagnostic.Message));
     }
 }
