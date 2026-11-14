@@ -267,7 +267,8 @@ sections:
                   ignoreWords, flagWords, ignoreRegExpList, patterns, language, minWordLength,
                   ignoreRandomStrings, minRandomLength, and enabled keys, each read as the top-level key is,
                   shall record the file, line, and column at which each override starts, shall leave the other
-                  settings of an override unset when it does not give them, shall accept enabled set to true
+                  settings of an override unset when it does not give them, shall treat a key that has no value
+                  as absent, shall accept enabled set to true
                   together with other settings, and shall let an ignoreRegExpList entry of an override name a
                   predefined pattern, a pattern of the top-level settings, or a pattern of the override itself.
                 justification: |
@@ -283,6 +284,7 @@ sections:
                   - SettingsLoader_Parse_OverrideWithOneKey_LeavesOthersUnset
                   - SettingsLoader_Parse_OverrideFilenameScalarAndList_BothAccepted
                   - SettingsLoader_Parse_OverrideEnabledAlone_AndTrueWithOthers_AreAccepted
+                  - SettingsLoader_Parse_OverrideNullValuedKeys_AreTreatedAsAbsent
                   - SettingsLoader_Parse_OverridePatternNames_AcceptsTopLevelOwnAndPredefined
                   - SettingsLoader_Parse_OverrideRedefinesTopLevelPatternName_IsAccepted
 
@@ -304,6 +306,7 @@ sections:
                 tests:
                   - SettingsLoader_Parse_InvalidOverride_ReportsMessageAtPosition
                   - SettingsLoader_Parse_SeveralInvalidOverrides_ReportsEveryProblem
+                  - SettingsLoader_Parse_OverrideProblems_AreReportedInSourceOrder
                   - SettingsLoader_Parse_OverridePatternNameOfAnotherOverride_ReportsUnknownName
                   - SettingsLoader_Parse_OverrideBadWordEntry_ReportsErrorAtEntry
 

@@ -109,7 +109,8 @@ public static partial class SettingsLoader
     ///     Reads one override and validates it.
     /// </summary>
     /// <remarks>
-    ///     The keys are read in document order, so diagnostics come out in source order. The pattern names an
+    ///     The keys are read in document order, and the diagnostics of the override are put in source order at the
+    ///     end, so they match the order of the rest of the file. The pattern names an
     ///     <c>ignoreRegExpList</c> entry may use are the top-level ones plus the override's own, collected first
     ///     because the list may come before the definitions; a name that only another override defines is
     ///     therefore reported as unknown. After the keys, the override as a whole is checked: it needs a
@@ -177,14 +178,20 @@ public static partial class SettingsLoader
 
             if (name == EnabledKey)
             {
+                // A key with no value is absent, as at the top level, so it sets nothing
+                if (IsNull(value))
+                {
+                    continue;
+                }
+
                 hasSetting = true;
                 enabledKey = keyScalar;
-                if (!IsNull(value) && TryReadBoolean(value, out var flag))
+                if (TryReadBoolean(value, out var flag))
                 {
                     enabled = flag;
                     result = result with { Enabled = flag };
                 }
-                else if (!IsNull(value))
+                else
                 {
                     diagnostics.Add(At($"Expected true or false for '{EnabledKey}'.", value.Start, sourceName));
                 }
@@ -192,9 +199,13 @@ public static partial class SettingsLoader
                 continue;
             }
 
-            // Every other key is a setting that has an effect when the override applies
-            hasSetting = true;
-            hasOtherSetting = true;
+            // Every other key is a setting that has an effect when the override applies, unless it has no value
+            if (!IsNull(value))
+            {
+                hasSetting = true;
+                hasOtherSetting = true;
+            }
+
             result = ApplySetting(result, name, key, value, allowedNames, sourceName, diagnostics);
         }
 
@@ -215,6 +226,15 @@ public static partial class SettingsLoader
                 $"remove them, or remove '{EnabledKey}: false' to apply them.",
                 enabledKey.Start,
                 sourceName));
+        }
+
+        // The whole-override checks above ran after the keys, so put this override's diagnostics in source order;
+        // the sort is stable, so diagnostics at the same position keep the order in which they were found
+        if (diagnostics.Count - diagnosticsBefore > 1)
+        {
+            var found = diagnostics.GetRange(diagnosticsBefore, diagnostics.Count - diagnosticsBefore);
+            diagnostics.RemoveRange(diagnosticsBefore, found.Count);
+            diagnostics.AddRange(found.OrderBy(d => d.Line ?? 0).ThenBy(d => d.Column ?? 0));
         }
 
         settingsOverride = result;

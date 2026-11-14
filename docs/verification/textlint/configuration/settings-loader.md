@@ -482,6 +482,12 @@ is an ordered list with a `!` item both load, in order. This scenario is tested 
 `enabled: false` and one that sets `enabled: true` with words both load. This scenario is tested by
 `SettingsLoader_Parse_OverrideEnabledAlone_AndTrueWithOthers_AreAccepted`.
 
+**SettingsLoader_Parse_OverrideNullValuedKeys_AreTreatedAsAbsent**: An override with `enabled: false` and other keys
+that have no value (`words:` and `language: ~`) loads, stays disabled, and sets nothing else, and an override whose
+`enabled` has no value loads with `enabled` unset. A key with no value alone is the "changes nothing" error, covered
+by `SettingsLoader_Parse_InvalidOverride_ReportsMessageAtPosition`. This scenario is tested by
+`SettingsLoader_Parse_OverrideNullValuedKeys_AreTreatedAsAbsent`.
+
 **SettingsLoader_Parse_OverridePatternNames_AcceptsTopLevelOwnAndPredefined**: An override whose
 `ignoreRegExpList` names a top-level pattern, a predefined one, and its own pattern defined after the list loads.
 This scenario is tested by `SettingsLoader_Parse_OverridePatternNames_AcceptsTopLevelOwnAndPredefined`.
@@ -496,7 +502,8 @@ This scenario is tested by `SettingsLoader_Parse_OverridePatternNameOfAnotherOve
 
 **SettingsLoader_Parse_InvalidOverride_ReportsMessageAtPosition**: Each of these mistakes is the single error with
 the exact message at the position of the offending key, item, or value: `files`, `ignorePaths`, or `enableGlobDot`
-in an override; `enabled: false` with other settings; an override with only a `filename`; a missing, null, or empty
+in an override; `enabled: false` with other settings; an override with only a `filename`, or whose other keys have no
+value; a missing, null, or empty
 `filename`; a leading `!` in a `filename` list or scalar; `languageId`, `dictionaries`, `maxFileSize`, nested
 `overrides`, and `name`; `overrides` that is not a list; an item that is not a mapping; a `filename` of the wrong
 type; and a wrong `enabled`, `ignoreRandomStrings`, `minWordLength`, `minRandomLength`, or `language`. This
@@ -505,6 +512,12 @@ scenario is tested by `SettingsLoader_Parse_InvalidOverride_ReportsMessageAtPosi
 **SettingsLoader_Parse_SeveralInvalidOverrides_ReportsEveryProblem**: Of three overrides, one with two mistakes, one
 valid, and one that changes nothing, all three mistakes are reported in source order, on lines 3, 4, and 8, and no
 settings are returned. This scenario is tested by `SettingsLoader_Parse_SeveralInvalidOverrides_ReportsEveryProblem`.
+
+**SettingsLoader_Parse_OverrideProblems_AreReportedInSourceOrder**: An override whose `enabled: false` (line 3)
+conflicts with a later `words` key and has a `files` key (line 4), and an override that starts with `languageId`
+(line 6) and has no `filename` and a conflicting `enabled: false` (line 7), give five errors in the order of the
+file: 3, 4, 6, 6, 7, with the columns and messages expected. This scenario is tested by
+`SettingsLoader_Parse_OverrideProblems_AreReportedInSourceOrder`.
 
 **SettingsLoader_Parse_OverrideBadWordEntry_ReportsErrorAtEntry**: An override whose `words` list holds `two words`
 is one error on line 4 that names the `words` entry, as a top-level one would. This scenario is tested by

@@ -2362,6 +2362,9 @@ public class SettingsLoaderTests
     [InlineData("overrides:\n  - filename: a\n    enabled: false\n    words: [c]\n",
         "This override skips its files, so its other settings have no effect; remove them, or remove 'enabled: false' to apply them.", 3, 5)]
     [InlineData("overrides:\n  - filename: a\n", "This override changes nothing: add settings, or remove it.", 2, 5)]
+    [InlineData("overrides:\n  - filename: a\n    words:\n", "This override changes nothing: add settings, or remove it.", 2, 5)]
+    [InlineData("overrides:\n  - filename: a\n    enabled:\n", "This override changes nothing: add settings, or remove it.", 2, 5)]
+    [InlineData("overrides:\n  - filename: a\n    words: ~\n    language: null\n    minWordLength:\n", "This override changes nothing: add settings, or remove it.", 2, 5)]
     [InlineData("overrides:\n  - words: [a]\n", "An override needs a 'filename'.", 2, 5)]
     [InlineData("overrides:\n  - filename:\n    words: [a]\n", "An override needs a 'filename'.", 2, 5)]
     [InlineData("overrides:\n  - filename: []\n    words: [a]\n", "An override needs a 'filename'.", 2, 5)]
@@ -2422,6 +2425,68 @@ public class SettingsLoaderTests
         Assert.Multiple(
             () => Assert.Null(result.Settings),
             () => Assert.Equal([3, 4, 8], result.Diagnostics.Select(diagnostic => diagnostic.Line)));
+    }
+
+    /// <summary>
+    ///     Test that a key with no value is absent in an override, so it neither counts as a setting nor conflicts with enabled false.
+    /// </summary>
+    [Fact]
+    public void SettingsLoader_Parse_OverrideNullValuedKeys_AreTreatedAsAbsent()
+    {
+        // Arrange: a disabling override with other keys that have no value, and an override whose enabled has no value
+        const string yaml =
+            "overrides:\n" +
+            "  - filename: a\n" +
+            "    enabled: false\n" +
+            "    words:\n" +
+            "    language: ~\n" +
+            "  - filename: b\n" +
+            "    enabled:\n" +
+            "    words: [alpha]\n";
+
+        // Act: parse the text
+        var result = SettingsLoader.Parse(yaml, Source);
+
+        // Assert: both load, the first stays disabled with no other setting, and the second leaves enabled unset
+        Assert.Multiple(
+            () => Assert.True(result.Succeeded),
+            () => Assert.False(result.Settings!.Overrides[0].Enabled),
+            () => Assert.Empty(result.Settings!.Overrides[0].Words),
+            () => Assert.Null(result.Settings!.Overrides[0].Language),
+            () => Assert.Null(result.Settings!.Overrides[1].Enabled),
+            () => Assert.Equal(["alpha"], result.Settings!.Overrides[1].Words));
+    }
+
+    /// <summary>
+    ///     Test that the problems of one override are reported in source order, although the whole-override checks run last.
+    /// </summary>
+    [Fact]
+    public void SettingsLoader_Parse_OverrideProblems_AreReportedInSourceOrder()
+    {
+        // Arrange: an override whose enabled false conflicts with a later key, which also has a mistake of its own
+        const string yaml =
+            "overrides:\n" +
+            "  - filename: a\n" +
+            "    enabled: false\n" +
+            "    files: [b]\n" +
+            "    words: [c]\n" +
+            "  - languageId: x\n" +
+            "    enabled: false\n" +
+            "    words: [d]\n";
+
+        // Act: parse the text
+        var result = SettingsLoader.Parse(yaml, Source);
+
+        // Assert: the problems come in the order of the file, by line and then column
+        var positions = result.Diagnostics.Select(diagnostic => (diagnostic.Line, diagnostic.Column)).ToArray();
+        Assert.Multiple(
+            () => Assert.Null(result.Settings),
+            () => Assert.Equal([(3, 5), (4, 5), (6, 5), (6, 5), (7, 5)], positions),
+            () => Assert.Contains("skips its files", result.Diagnostics[0].Message),
+            () => Assert.Contains("'files'", result.Diagnostics[1].Message),
+            () => Assert.Contains("'languageId'", result.Diagnostics[2].Message),
+            () => Assert.Contains("needs a 'filename'", result.Diagnostics[3].Message),
+            () => Assert.Contains("skips its files", result.Diagnostics[4].Message));
     }
 
     /// <summary>

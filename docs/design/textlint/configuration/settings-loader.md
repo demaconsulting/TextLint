@@ -167,13 +167,18 @@ mistake in one override does not hide the mistakes in the others, and only compl
 - _Algorithm_: (1) collect the pattern names the override defines itself and add them to the top-level names, so that
   an `ignoreRegExpList` entry may use a top-level name or the override's own, whichever comes first in the file; a
   name that only another override defines is unknown and is reported by the existing `ignoreRegExpList` rule at the
-  entry; (2) read the keys in document order, applying the rule of each; (3) check the override as a whole.
+  entry; (2) read the keys in document order, applying the rule of each; (3) check the override as a whole; (4) put
+  the diagnostics of this override in source order (a stable sort by line and column), because the whole-override
+  checks run after the keys but may point earlier in the file. The rest of the file is already in document order,
+  so the diagnostics of all overrides are in source order.
 - _Keys_: `filename` is one glob or an ordered list of globs, with the meaning of the `files` list (a scalar is a list
   of one; a mapping is `Expected a glob or a list of globs for 'filename'.`; a first item that starts with `!` is the
   error above). `words`, `ignoreWords`, `flagWords`, `ignoreRegExpList`, `patterns`, `language`, `minWordLength`,
   `ignoreRandomStrings`, and `minRandomLength` are read by the same readers as at the top level, so an entry is
   validated identically in both places; a null value leaves the setting unset. `enabled` is a boolean, with the error
-  above. A key that is not text is the error `Setting names must be text.` at the key.
+  above, and a null `enabled` is unset too. A key with a null value (no value, `~`, or `null`) is absent in every
+  respect: it is not a setting for the whole-override checks below, exactly as at the top level. A key that is not
+  text is the error `Setting names must be text.` at the key.
 - _Rejected keys_: `files`, `ignorePaths`, and `enableGlobDot` are the error `Overrides cannot change which files are
   selected; use the top-level '<key>' setting.` at the key; `languageId` and `dictionaries` are `'<key>' is not
   supported in an override.`; `maxFileSize` is `'maxFileSize' is not supported in an override; it applies to the whole
