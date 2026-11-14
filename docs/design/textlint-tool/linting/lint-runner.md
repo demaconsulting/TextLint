@@ -41,11 +41,15 @@ It makes the root absolute, checks it through `IsRootUsable`, and stops if that 
 load the settings through `LoadSettings`, and stops if that reported a problem. With
 command-line patterns it calls `CommandLinePathResolver.Resolve`, replaces the `Files` of the settings with the
 resolved patterns, searches the resolved directory, and uses the selection's display-path function; without them
-it uses the `files` setting and shows relative paths; with neither it writes the usage error. It applies the
-language option with a `with` expression, builds the `SpellCheckOptions` (the library default unless
-`--max-parallelism` was given), calls `SpellChecker.CheckAsync(...).GetAwaiter().GetResult()` once, writes the
-empty-selection error when nothing was checked, skipped, or failed and `--allow-empty` was not given, calls
-`LintReporter.Write`, and calls `Context.MarkFailed` when the result has problems.
+it uses the `files` setting and shows relative paths; with neither it writes the usage error. It builds the
+`SpellCheckOptions` with the root directory as the settings root (not the search directory, so that an absolute
+command-line path, which moves the search, still matches the overrides against the settings root) and the language
+option, which the library applies over the settings and their overrides, and with the parallelism limit only when
+`--max-parallelism` was given (otherwise the library default applies). It calls
+`SpellChecker.CheckAsync(...).GetAwaiter().GetResult()` once, writes the
+empty-selection error when nothing was checked, skipped, failed, or disabled by the settings and `--allow-empty` was
+not given, calls `LintReporter.Write` (asking it to leave out the warnings about overrides that matched nothing when
+the command line named files), and calls `Context.MarkFailed` when the result has problems.
 
 **IsRootUsable (private)**: Checks that the root directory can be used before anything else is done with it.
 
@@ -89,9 +93,11 @@ and would silently discard the user's settings.
 
 Failures the user can cause are written with `Context.WriteError` and fail the run: an unusable settings file (one
 error per problem, with file, line, and column), a settings file that cannot be examined, a usage error (no
-files to check), an empty selection, a missing, unreadable, or non-directory root directory (reported first), an
+files to check), an empty selection (files that the settings disable do not count as an empty selection), a missing,
+unreadable, or non-directory root directory (reported first), an
 unsupported pattern (the library's
-`InvalidGlobPatternException` names the argument as typed), an unsupported language, and a combination of paths that
+`InvalidGlobPatternException` names the argument as typed), an unsupported language (also one in an override), and a
+combination of paths that
 cannot be searched from one directory. Cancellation is written and fails the run. Defects (for example
 `InvalidDataException` from a damaged embedded dictionary, or any exception type not listed) are not caught and
 reach `Program.Main`, which reports them as unexpected errors and rethrows. A null context throws
@@ -102,7 +108,7 @@ reach `Program.Main`, which reports them as unexpected errors and rethrows. A nu
 - **Context** (Cli subsystem) - the parsed command line and the output channels, and `MarkFailed`.
 - **LintReporter** - writes the result.
 - **TextLint library** - `SettingsLoader`, `TextLintSettings`, `CommandLinePathResolver`, `SpellChecker`,
-  `SpellCheckOptions`, and `SpellCheckResult`.
+  `SpellCheckOptions`, and `SpellCheckResult` (with its `FilesDisabled` count).
 
 #### Callers
 

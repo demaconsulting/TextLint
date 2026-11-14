@@ -2,10 +2,13 @@ package TextLint {
     private import SoftwareItemMetadata::*;
 
     part def TextLintSettings {
-        doc /* The immutable settings value (version, include and ignore patterns, hidden-file switch, language, word lists, minimum word length, maximum file size, ignore patterns and named patterns, and the random-string switch and length) shared by the file and code routes. */
+        doc /* The immutable settings value (version, enabled switch, ordered include patterns and ignore patterns, hidden-file switch, language, word lists, minimum word length, maximum file size, ignore patterns and named patterns, the random-string switch and length, and the per-file settings overrides) shared by the file and code routes. */
 
         metadata info : SoftwareInfo {
-            sourceFiles = ("src/DemaConsulting.TextLint/Configuration/TextLintSettings.cs");
+            sourceFiles = (
+                "src/DemaConsulting.TextLint/Configuration/TextLintSettings.cs",
+                "src/DemaConsulting.TextLint/Configuration/SettingsOverride.cs"
+            );
             testFiles = ("test/DemaConsulting.TextLint.Tests/Configuration/TextLintSettingsTests.cs");
             designFiles = ("docs/design/textlint/configuration/text-lint-settings.md");
             verificationFiles = ("docs/verification/textlint/configuration/text-lint-settings.md");

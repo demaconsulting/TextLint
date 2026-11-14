@@ -5,12 +5,13 @@
 `SettingsLoader` is verified with unit tests in `SettingsLoaderTests.cs`. Tests of file loading write real
 files into a per-test temporary directory; tests of mapping and errors call the internal `Parse` method with
 YAML text so no file is needed. YamlDotNet is a real dependency (an OTS item with its own requirements, not a
-test double), and the unit's documented dependencies are real: `TextLintSettings`, `GlobPatternExpander`,
-`SpellingDictionary`, `WordTokenizer`, and `PatternCatalog` (with `PatternParser`), which judges every pattern entry
+test double), and the unit's documented dependencies are real: `TextLintSettings`, `SettingsOverride`,
+`GlobPatternExpander`, `OrderedGlobList`, `SpellingDictionary`, `WordTokenizer`, and `PatternCatalog` (with
+`PatternParser`), which judges every pattern entry
 and definition by the rules of the spell check so that a pattern accepted at load is never rejected later.
 Nothing is mocked: the loader's behavior is defined by how it maps real YAML, so a double would prove nothing.
-Positions asserted in the tests are 1-based lines and columns. Messages of the spelling errors are asserted
-exactly, because they are the user's only explanation of what to fix.
+Positions asserted in the tests are 1-based lines and columns. Messages of the spelling errors and of the
+override and negation errors are asserted exactly, because they are the user's only explanation of what to fix.
 
 #### Test Environment
 
@@ -35,6 +36,18 @@ test environment.
 - Every unsupported key is reported by name at its position, case-sensitively, and no settings are returned.
 - Invalid patterns in `files` and `ignorePaths` are reported at the item, naming the pattern and the reason;
   valid brace and bare-name patterns are accepted.
+- A `files` list keeps its order, including `!` patterns after the first; a `files` list that starts with `!` is
+  reported at its first item, and a `!` in `ignorePaths` is reported at the item with advice to narrow `files`.
+- The `enabled` setting defaults to true, maps true and false, and a value that is not a boolean is reported at the
+  value.
+- An `overrides` list maps each override's `filename` (one glob or an ordered list), words, patterns, language,
+  lengths, random-string switch, and `enabled`, leaves unset values unset, remembers where each override was written,
+  and an absent, null, or empty list gives no overrides.
+- An override can use top-level, predefined, and its own pattern names, and may redefine a top-level name; a name
+  defined only in another override is unknown.
+- Every override mistake (selection keys, `enabled: false` with other settings, only a `filename`, a missing
+  `filename`, a leading `!`, unsupported keys, and every wrong type or value) is reported at its position with the
+  exact message, and the problems of several overrides are all reported in source order.
 - An unsupported language, every kind of unusable word-list entry, every invalid form of `minWordLength` and
   `maxFileSize` are reported at their value with the exact message, and several of them are all reported.
 - Diagnostics carry the source, line, and column, format as `file(line,column): error: message`, and cannot be
@@ -169,8 +182,9 @@ error at that item, line 3 column 5. This scenario is tested by
 segment is an error at that item. This scenario is tested by
 `SettingsLoader_Parse_InvalidIgnorePathsPattern_ReportsErrorAtItem`.
 
-**SettingsLoader_Parse_InvalidPattern_NamesPatternAndReason**: A negated pattern's error names the pattern and
-says it is negated. This scenario is tested by `SettingsLoader_Parse_InvalidPattern_NamesPatternAndReason`.
+**SettingsLoader_Parse_InvalidPattern_NamesPatternAndReason**: A `files` list that starts with a negated pattern
+reports an error that names the pattern and says that the `!` must follow a pattern it can remove files from. This
+scenario is tested by `SettingsLoader_Parse_InvalidPattern_NamesPatternAndReason`.
 
 **SettingsLoader_Parse_AbsolutePathPattern_ReportsErrorAtItem**: A drive path in `files` (line 3) and a network
 path in `ignorePaths` (line 5) are each reported at their own item as absolute paths, and no settings are
@@ -429,3 +443,69 @@ exact message, on line 1. This scenario is tested by `SettingsLoader_Parse_Inval
 **SettingsLoader_Parse_IncludeRegExpList_RemainsUnsupported**: The key `includeRegExpList`, which cspell supports and
 the loader does not, is reported as an unsupported setting. This scenario is tested by
 `SettingsLoader_Parse_IncludeRegExpList_RemainsUnsupported`.
+
+**SettingsLoader_Parse_FilesWithNegationAfterFirst_KeepsOrder**: A `files` list of `**/*.md`, `!docs/**`, and
+`docs/keep/**` loads, and the patterns keep the order written. This scenario is tested by
+`SettingsLoader_Parse_FilesWithNegationAfterFirst_KeepsOrder`.
+
+**SettingsLoader_Parse_FilesStartingWithNegation_ReportsErrorAtFirstItem**: A `files` list whose first item is
+`!docs/**` is one error at line 2, at the list item, that names the pattern and says it must follow a pattern it can
+remove files from. This scenario is tested by `SettingsLoader_Parse_FilesStartingWithNegation_ReportsErrorAtFirstItem`.
+
+**SettingsLoader_Parse_IgnorePathsWithNegation_ReportsErrorAtItem**: A `!` item in `ignorePaths` is one error at
+its item, line 3, saying that `ignorePaths` cannot re-include files and to narrow `files` instead. This scenario is
+tested by `SettingsLoader_Parse_IgnorePathsWithNegation_ReportsErrorAtItem`.
+
+**SettingsLoader_Parse_EnabledSetting_IsMapped**: An absent or null `enabled` gives true, and `true`, `false`, and
+`False` give their values. This scenario is tested by `SettingsLoader_Parse_EnabledSetting_IsMapped`.
+
+**SettingsLoader_Parse_EnabledNotBoolean_ReportsErrorAtValue**: `maybe`, a quoted `"true"`, `yes`, and a list are
+each the single error "Expected true or false for 'enabled'." at line 1 column 10. This scenario is tested by
+`SettingsLoader_Parse_EnabledNotBoolean_ReportsErrorAtValue`.
+
+**SettingsLoader_Parse_NoOverrides_GivesEmptyList**: An empty document, a null `overrides`, and an empty list each
+give no overrides. This scenario is tested by `SettingsLoader_Parse_NoOverrides_GivesEmptyList`.
+
+**SettingsLoader_Parse_OverrideWithAllSupportedKeys_LoadsEveryValue**: An override that sets every supported key
+loads with each value, and records the source name, line 2, and column 5 of its start. This scenario is tested by
+`SettingsLoader_Parse_OverrideWithAllSupportedKeys_LoadsEveryValue`.
+
+**SettingsLoader_Parse_OverrideWithOneKey_LeavesOthersUnset**: An override with one word list leaves the language,
+lengths, random-string switch, and `enabled` null and the other lists empty. This scenario is tested by
+`SettingsLoader_Parse_OverrideWithOneKey_LeavesOthersUnset`.
+
+**SettingsLoader_Parse_OverrideFilenameScalarAndList_BothAccepted**: A `filename` that is one pattern and one that
+is an ordered list with a `!` item both load, in order. This scenario is tested by
+`SettingsLoader_Parse_OverrideFilenameScalarAndList_BothAccepted`.
+
+**SettingsLoader_Parse_OverrideEnabledAlone_AndTrueWithOthers_AreAccepted**: An override that only sets
+`enabled: false` and one that sets `enabled: true` with words both load. This scenario is tested by
+`SettingsLoader_Parse_OverrideEnabledAlone_AndTrueWithOthers_AreAccepted`.
+
+**SettingsLoader_Parse_OverridePatternNames_AcceptsTopLevelOwnAndPredefined**: An override whose
+`ignoreRegExpList` names a top-level pattern, a predefined one, and its own pattern defined after the list loads.
+This scenario is tested by `SettingsLoader_Parse_OverridePatternNames_AcceptsTopLevelOwnAndPredefined`.
+
+**SettingsLoader_Parse_OverrideRedefinesTopLevelPatternName_IsAccepted**: An override that defines a name that the
+top level also defines loads. This scenario is tested by
+`SettingsLoader_Parse_OverrideRedefinesTopLevelPatternName_IsAccepted`.
+
+**SettingsLoader_Parse_OverridePatternNameOfAnotherOverride_ReportsUnknownName**: A name defined only in the first
+override and used by the second is one error at the entry, line 7 column 24, naming the `ignoreRegExpList` entry.
+This scenario is tested by `SettingsLoader_Parse_OverridePatternNameOfAnotherOverride_ReportsUnknownName`.
+
+**SettingsLoader_Parse_InvalidOverride_ReportsMessageAtPosition**: Each of these mistakes is the single error with
+the exact message at the position of the offending key, item, or value: `files`, `ignorePaths`, or `enableGlobDot`
+in an override; `enabled: false` with other settings; an override with only a `filename`; a missing, null, or empty
+`filename`; a leading `!` in a `filename` list or scalar; `languageId`, `dictionaries`, `maxFileSize`, nested
+`overrides`, and `name`; `overrides` that is not a list; an item that is not a mapping; a `filename` of the wrong
+type; and a wrong `enabled`, `ignoreRandomStrings`, `minWordLength`, `minRandomLength`, or `language`. This
+scenario is tested by `SettingsLoader_Parse_InvalidOverride_ReportsMessageAtPosition`.
+
+**SettingsLoader_Parse_SeveralInvalidOverrides_ReportsEveryProblem**: Of three overrides, one with two mistakes, one
+valid, and one that changes nothing, all three mistakes are reported in source order, on lines 3, 4, and 8, and no
+settings are returned. This scenario is tested by `SettingsLoader_Parse_SeveralInvalidOverrides_ReportsEveryProblem`.
+
+**SettingsLoader_Parse_OverrideBadWordEntry_ReportsErrorAtEntry**: An override whose `words` list holds `two words`
+is one error on line 4 that names the `words` entry, as a top-level one would. This scenario is tested by
+`SettingsLoader_Parse_OverrideBadWordEntry_ReportsErrorAtEntry`.

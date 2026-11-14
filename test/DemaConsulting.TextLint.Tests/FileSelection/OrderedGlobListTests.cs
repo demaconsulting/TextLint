@@ -70,7 +70,7 @@ public class OrderedGlobListTests
     ///     Test that a later include brings back a file an earlier negation removed.
     /// </summary>
     [Fact]
-    public void OrderedGlobList_IsMatch_IncludeAfterNegation_ReincludesFiles()
+    public void OrderedGlobList_IsMatch_IncludeAfterNegation_SelectsFilesAgain()
     {
         // Arrange: markdown files, except docs, except docs/keep which is brought back
         var list = OrderedGlobList.Parse(["**/*.md", "!docs/**", "docs/keep/**"], false);

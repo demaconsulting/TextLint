@@ -12,7 +12,9 @@ supporting result types it returns, which have no unit of their own: `SettingsLo
 
 #### Data Model
 
-`SettingsLoader` is a static class with no state.
+`SettingsLoader` is a static partial class with no state. Its implementation is split over two source files:
+`SettingsLoader.cs` reads the file and the top-level settings, and `SettingsLoader.Overrides.cs` reads the
+`overrides` setting. Both are one unit.
 
 **SettingsLoadResult** is the outcome of a load. `Settings` is non-null exactly when `Diagnostics`
 is empty (the constructor discards the settings when there are errors, which enforces the invariant
@@ -33,8 +35,9 @@ The supported keys and the rule for each are:
 | Key                   | Accepted value                                                | Absent or null  |
 | :-------------------- | :------------------------------------------------------------ | :-------------- |
 | `version`             | Any scalar, carried as text                                   | No version      |
-| `files`               | A list of text values, each a valid glob pattern              | Empty list      |
-| `ignorePaths`         | A list of text values, each a valid glob pattern              | Empty list      |
+| `enabled`             | Unquoted `true` or `false` (lower, title, or upper case)      | `true`          |
+| `files`               | An ordered list of text values, each a valid glob pattern     | Empty list      |
+| `ignorePaths`         | A list of text values, each a valid glob pattern, none `!`    | Empty list      |
 | `enableGlobDot`       | Unquoted `true` or `false` (lower, title, or upper case)      | `false`         |
 | `language`            | Text naming supported languages (`en`, `en-US`, `en-GB`)      | `en`            |
 | `words`               | A list of text values, each a usable word-list entry          | Empty list      |
@@ -46,6 +49,7 @@ The supported keys and the rule for each are:
 | `patterns`            | A list of mappings with a `name` and a `pattern`              | Empty list      |
 | `ignoreRandomStrings` | Unquoted `true` or `false` (lower, title, or upper case)      | `true`          |
 | `minRandomLength`     | An unquoted whole number of at least 1                        | 40              |
+| `overrides`           | A list of mappings, each with a `filename` and settings       | Empty list      |
 
 #### Key Methods
 
@@ -93,9 +97,17 @@ Mapping rules in detail:
 - A value is null when it is an unquoted empty value, `~`, or `null`; null is treated as absent for
   every key, which keeps a commented-out list from breaking a file.
 - A list value that is not a sequence is one error at the value. Each item that is not text is an
-  error at the item. Each text item is checked with `GlobPatternExpander`; if the expander rejects it,
-  the error carries the expander's message, which names the pattern and the reason, at the item's
-  position. Every bad item is reported, not just the first.
+  error at the item. Each text item is checked with the glob rules; if they reject it,
+  the error carries the message, which names the pattern and the reason, at the item's
+  position. Every bad item is reported, not just the first. The `files` list is an ordered list: each item is
+  checked with `OrderedGlobList.ValidateEntry`, which accepts one leading `!` (and rejects any other use of it, as
+  `GlobPatternExpander` does), so a mistake is reported as the user wrote it. A first item that starts with `!` is the
+  error `Invalid glob pattern '!x': '!' must follow a pattern it can remove files from; put it after the pattern it
+  excludes` at that item. The `ignorePaths` list is checked with `GlobPatternExpander` and cannot re-include files,
+  so an item that starts with `!` is the error `'ignorePaths' cannot re-include files; narrow 'files' instead.` at
+  the item.
+- `enabled` is read exactly as `enableGlobDot` is; anything else is the error `Expected true or false for 'enabled'.`
+  at the value.
 - `enableGlobDot` accepts only the unquoted spellings `true`/`True`/`TRUE` and `false`/`False`/`FALSE`;
   quoted values and YAML 1.1 spellings such as `yes` are errors rather than guesses.
 - `language` must be a scalar (any other shape is the error `Expected a text value for 'language'.`
@@ -145,6 +157,36 @@ Mapping rules in detail:
   is; anything else is `Expected a whole number of at least 1 for 'minRandomLength'.` at the value.
 - Errors are collected across the whole mapping. If any exist, no settings are returned.
 
+**ReadOverrides** (private, in `SettingsLoader.Overrides.cs`): Reads the `overrides` list. A null value is an empty
+list; a value that is not a list is `Expected a list of overrides, each with a 'filename'.` at the value; an item that
+is not a mapping is `Expected an override with a 'filename'.` at the item. Each mapping is read on its own, so a
+mistake in one override does not hide the mistakes in the others, and only complete, valid overrides are kept.
+
+**TryReadOverride** (private): Reads and validates one override mapping.
+
+- _Algorithm_: (1) collect the pattern names the override defines itself and add them to the top-level names, so that
+  an `ignoreRegExpList` entry may use a top-level name or the override's own, whichever comes first in the file; a
+  name that only another override defines is unknown and is reported by the existing `ignoreRegExpList` rule at the
+  entry; (2) read the keys in document order, applying the rule of each; (3) check the override as a whole.
+- _Keys_: `filename` is one glob or an ordered list of globs, with the meaning of the `files` list (a scalar is a list
+  of one; a mapping is `Expected a glob or a list of globs for 'filename'.`; a first item that starts with `!` is the
+  error above). `words`, `ignoreWords`, `flagWords`, `ignoreRegExpList`, `patterns`, `language`, `minWordLength`,
+  `ignoreRandomStrings`, and `minRandomLength` are read by the same readers as at the top level, so an entry is
+  validated identically in both places; a null value leaves the setting unset. `enabled` is a boolean, with the error
+  above. A key that is not text is the error `Setting names must be text.` at the key.
+- _Rejected keys_: `files`, `ignorePaths`, and `enableGlobDot` are the error `Overrides cannot change which files are
+  selected; use the top-level '<key>' setting.` at the key; `languageId` and `dictionaries` are `'<key>' is not
+  supported in an override.`; `maxFileSize` is `'maxFileSize' is not supported in an override; it applies to the whole
+  run.`; a nested `overrides` is `Nested 'overrides' are not supported.`; any other key, including `name`, is
+  `'<key>' is not a supported setting.`, all at the key.
+- _Whole-override checks_: a missing, null, or empty `filename` is `An override needs a 'filename'.` at the start of
+  the mapping; an override with a `filename` and no setting is `This override changes nothing: add settings, or remove
+  it.` at the start of the mapping; `enabled: false` together with any other setting is `This override skips its
+  files, so its other settings have no effect; remove them, or remove 'enabled: false' to apply them.` at the
+  `enabled` key (`enabled: true` may be combined with other settings).
+- _Postconditions_: a kept override carries `SourceName`, and the `Line` and `Column` of the start of its mapping, which
+  is the position that notes later report (for `- filename: x` at line 14, `.textlint.yaml(14,5)`).
+
 **Size grammar** (`maxFileSize`): the leading run of digits and dots is the number, which must parse as a
 plain decimal (a lone fraction such as `.5` is allowed; signs, exponents, and a second dot are not); the
 rest of the text, with no white space allowed before it, is the unit, compared ignoring letter case:
@@ -165,7 +207,8 @@ Content problems are converted to diagnostics and never thrown: YamlDotNet excep
 errors (including duplicate keys, bad indentation, and unknown aliases), input/output and access
 failures when reading the file, wrong types or shapes, unsupported keys, invalid glob patterns, an
 unsupported language, an unusable word-list entry, an invalid minimum word length or file size, an unusable
-`ignoreRegExpList` entry or `patterns` definition, and an invalid `ignoreRandomStrings` or `minRandomLength`.
+`ignoreRegExpList` entry or `patterns` definition, an invalid `ignoreRandomStrings`, `minRandomLength`, or `enabled`,
+and every mistake in an override (the catalog above).
 The `ArgumentException` that `SpellingDictionary.ForLanguages` throws is caught and converted locally,
 because it is the dictionary's way of describing a bad value, not a programming error of the loader. The
 `InvalidPatternException` that `PatternParser.Parse` throws is caught and converted in the same way, using its
@@ -181,8 +224,10 @@ performed; the caller decides how to present diagnostics. The loader is stateles
   never the reflection-based serializer, which keeps the library trim and AOT safe. No YamlDotNet type
   appears in any public signature. See _YamlDotNet Integration Design_.
 - **TextLintSettings** - the value that is built.
-- **GlobPatternExpander** (FileSelection subsystem) - validates glob patterns at load time. This is a
+- **GlobPatternExpander** (FileSelection subsystem) - validates the `ignorePaths` patterns at load time. This is a
   documented dependency of the Configuration subsystem on the FileSelection subsystem.
+- **OrderedGlobList** (FileSelection subsystem) - validates each entry of `files` and of an override's `filename`
+  through `ValidateEntry`, so the loader and the file selector agree on the ordered-list rules.
 - **SpellingDictionary** (Dictionaries subsystem) - validates the `language` value through its
   `ForLanguages` method and supplies the list of supported languages for the message. This is a
   documented dependency of the Configuration subsystem on the Dictionaries subsystem. No dictionary data

@@ -4,6 +4,8 @@
 # The SettingsLoader class reads a .textlint.yaml file and maps it onto settings, returning every
 # configuration problem as a positioned error instead of throwing. It reuses the glob rules, the
 # language selection, and the word-list entry rules of other units to validate values at load time.
+# It reads the enabled setting, the ordered files list, and the overrides, and its error rows for an
+# override name the setting to use instead. The reading of overrides is in a second source file of the class.
 
 sections:
   - title: TextLint Requirements
@@ -229,6 +231,81 @@ sections:
                   - SettingsLoader_Parse_QuestionMarkPattern_ReportsErrorSuggestingStar
                   - SettingsLoader_Parse_LeadingSlashPattern_IsAccepted
                   - SettingsLoader_Parse_ValidBraceAndBareNamePatterns_AreAccepted
+
+              - id: TextLint-Configuration-SettingsLoader-MapEnabled
+                title: >-
+                  SettingsLoader shall map the enabled key to settings as true or false, shall leave settings
+                  enabled when it is absent or null, and shall report a value that is not true or false as an
+                  error at the value.
+                justification: |
+                  Pausing every check from the settings file is a single switch, and an unrecognized value such
+                  as the word yes must not be read as either answer, because the user would believe the wrong
+                  one is in force.
+                tests:
+                  - SettingsLoader_Parse_EnabledSetting_IsMapped
+                  - SettingsLoader_Parse_EnabledNotBoolean_ReportsErrorAtValue
+
+              - id: TextLint-Configuration-SettingsLoader-OrderedPatterns
+                title: >-
+                  SettingsLoader shall keep the patterns of the files setting in the order written, including
+                  patterns that begin with !, shall report a files list whose first pattern begins with !, and
+                  a ! in the ignorePaths setting, as an error at that pattern, and shall advise narrowing the
+                  files setting when ignorePaths cannot re-include files.
+                justification: |
+                  The order is the meaning of the list, so it must reach the file selection unchanged. A
+                  negation with nothing before it, or a negation in the hard fence of ignorePaths, can only
+                  be a mistake, and naming the position and the remedy lets the user fix it at once.
+                tests:
+                  - SettingsLoader_Parse_FilesWithNegationAfterFirst_KeepsOrder
+                  - SettingsLoader_Parse_FilesStartingWithNegation_ReportsErrorAtFirstItem
+                  - SettingsLoader_Parse_IgnorePathsWithNegation_ReportsErrorAtItem
+
+              - id: TextLint-Configuration-SettingsLoader-MapOverrides
+                title: >-
+                  SettingsLoader shall map the overrides key to a list of overrides, in the order written, each
+                  with a filename that is a glob or an ordered list of globs and with any of the words,
+                  ignoreWords, flagWords, ignoreRegExpList, patterns, language, minWordLength,
+                  ignoreRandomStrings, minRandomLength, and enabled keys, each read as the top-level key is,
+                  shall record the file, line, and column at which each override starts, shall leave the other
+                  settings of an override unset when it does not give them, shall accept enabled set to true
+                  together with other settings, and shall let an ignoreRegExpList entry of an override name a
+                  predefined pattern, a pattern of the top-level settings, or a pattern of the override itself.
+                justification: |
+                  Different files need different rules, and the spelling settings keep the meaning they have
+                  everywhere else in the file. The position of an override is needed later to point at it when
+                  it matches nothing or when a language option replaces its language. Resolving pattern names
+                  against the project's own patterns as well as the override's lets an override reuse them,
+                  and a name that exists only in another override stays an error because it would silently
+                  match nothing.
+                tests:
+                  - SettingsLoader_Parse_NoOverrides_GivesEmptyList
+                  - SettingsLoader_Parse_OverrideWithAllSupportedKeys_LoadsEveryValue
+                  - SettingsLoader_Parse_OverrideWithOneKey_LeavesOthersUnset
+                  - SettingsLoader_Parse_OverrideFilenameScalarAndList_BothAccepted
+                  - SettingsLoader_Parse_OverrideEnabledAlone_AndTrueWithOthers_AreAccepted
+                  - SettingsLoader_Parse_OverridePatternNames_AcceptsTopLevelOwnAndPredefined
+                  - SettingsLoader_Parse_OverrideRedefinesTopLevelPatternName_IsAccepted
+
+              - id: TextLint-Configuration-SettingsLoader-OverrideErrors
+                title: >-
+                  SettingsLoader shall report, at the position of the node that holds the mistake, each of
+                  these mistakes of an override: a files, ignorePaths, or enableGlobDot key, an enabled key set
+                  to false together with other settings, no settings other than the filename, a missing or empty
+                  filename, a filename list that starts with !, a languageId, dictionaries, maxFileSize, or
+                  nested overrides key, any other key, a value of the wrong type, an unusable value, and a
+                  pattern name that only another override defines, shall collect every such error in the order
+                  of the file, and shall return no settings.
+                justification: |
+                  An override that is only partly understood would check the wrong files or apply the wrong
+                  rules, and the mistakes that are easy to make, such as trying to select files from an
+                  override, switching an override off while giving it rules, or leaving it with no rules at
+                  all, each need a message that says what to do instead. Showing every mistake at once, with
+                  its line and column, lets a file be fixed in one pass.
+                tests:
+                  - SettingsLoader_Parse_InvalidOverride_ReportsMessageAtPosition
+                  - SettingsLoader_Parse_SeveralInvalidOverrides_ReportsEveryProblem
+                  - SettingsLoader_Parse_OverridePatternNameOfAnotherOverride_ReportsUnknownName
+                  - SettingsLoader_Parse_OverrideBadWordEntry_ReportsErrorAtEntry
 
               - id: TextLint-Configuration-SettingsLoader-Diagnostics
                 title: >-

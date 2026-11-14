@@ -219,7 +219,7 @@ public static class FileSelector
             return [];
         }
 
-        // The matcher prefilters with every plain pattern; it ignores negation, so for an ordered list that
+        // The matcher narrows the walk with every plain pattern; it ignores negation, so for an ordered list that
         // is a superset which the exact check below narrows
         var positives = includes.PositivePatterns;
         var matcher = BuildMatcher(positives, excludes);

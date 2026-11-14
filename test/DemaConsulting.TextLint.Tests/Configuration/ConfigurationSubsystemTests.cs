@@ -619,4 +619,37 @@ public class ConfigurationSubsystemTests
             () => Assert.Equal(3, diagnostic.Line),
             () => Assert.Contains("narrow 'files' instead", diagnostic.Message));
     }
+
+    /// <summary>
+    ///     Test that overrides loaded from a file are matched and merged in the order written.
+    /// </summary>
+    [Fact]
+    public async Task ConfigurationSubsystem_Resolve_OverridesLoadedFromFile_MatchAndMergeInOrder()
+    {
+        // Arrange: a file with a top-level word and three overrides, two of which match docs files
+        using var temp = new TempDirectory();
+        const string yaml =
+            "words: [top]\n" +
+            "overrides:\n" +
+            "  - filename: \"**/*.md\"\n    words: [general]\n    minWordLength: 6\n" +
+            "  - filename: [\"docs/**\", \"!docs/private/**\"]\n    words: [specific]\n    minWordLength: 8\n" +
+            "  - filename: legacy/**\n    enabled: false\n";
+        var settings = (await LoadAsync(temp, yaml)).Settings!;
+        var resolver = new SettingsOverrideResolver(settings, null);
+
+        // Act: resolve a docs file, a private docs file, and a legacy file
+        var docs = resolver.Resolve("docs/a.md");
+        var privateDocs = resolver.Resolve("docs/private/a.md");
+        var legacy = resolver.Resolve("legacy/a.txt");
+        var merged = resolver.GetEffectiveSettings(docs);
+
+        // Assert: the general and specific overrides both apply to docs in order, the negation removes the specific
+        // one from private docs, and the legacy file is disabled
+        Assert.Multiple(
+            () => Assert.Equal([0, 1], docs.MatchedOverrides),
+            () => Assert.Equal([0], privateDocs.MatchedOverrides),
+            () => Assert.False(legacy.Enabled),
+            () => Assert.Equal(["top", "general", "specific"], merged.Words),
+            () => Assert.Equal(8, merged.MinWordLength));
+    }
 }

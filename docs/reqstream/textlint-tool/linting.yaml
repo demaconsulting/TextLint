@@ -102,17 +102,41 @@ sections:
           - id: TextLintTool-Linting-Overrides
             title: >-
               The Linting subsystem shall let the language given on the command line take precedence over the
-              language of the settings, and shall limit the number of files checked at the same time to the
-              limit given, without changing the result.
+              language of the settings and of their overrides, and shall limit the number of files checked at
+              the same time to the limit given, without changing the result.
             justification: |
-              Command-line options are the most specific request, so they win over the settings; and a limit
-              on parallelism protects shared machines but must never change what is reported.
+              Command-line options are the most specific request, so they win over the settings and over the
+              overrides in them; and a limit on parallelism protects shared machines but must never change what
+              is reported.
             children:
               - TextLintTool-Linting-LintRunner-LanguageOverride
               - TextLintTool-Linting-LintRunner-Parallelism
             tests:
               - LintingSubsystem_Run_LanguageOption_OverridesSettings
               - LintingSubsystem_Run_MaxParallelism_GivesSameResult
+              - LintingSubsystem_Run_OverridesLanguageAndNotes_AppliedAndReportedTogether
+
+          - id: TextLintTool-Linting-OverrideReporting
+            title: >-
+              The Linting subsystem shall check the files of an ordered files list with the overrides of the
+              settings, matched against the path relative to the root directory whatever way a file was named,
+              shall succeed when every selected file is disabled, saying so, and shall report, ahead of the
+              findings and without changing the exit status, the notes that the language option replaced the
+              language of an override and, when the settings chose the files, that an override matched none of
+              them.
+            justification: |
+              Overrides and the enabled setting change what is checked, so the person running the tool must be
+              able to see that an option replaced a setting, that everything was switched off, and which
+              override is stale, in a form editors understand, without a run that is otherwise correct
+              failing. A run over a subset of the files cannot say that an override is stale, so it does not.
+            children:
+              - TextLintTool-Linting-LintRunner-OverridesApplied
+              - TextLintTool-Linting-LintRunner-SettingsRoot
+              - TextLintTool-Linting-LintRunner-DisabledFiles
+              - TextLintTool-Linting-LintRunner-OverrideWarnings
+              - TextLintTool-Linting-LintReporter-Notes
+            tests:
+              - LintingSubsystem_Run_OverridesLanguageAndNotes_AppliedAndReportedTogether
 
           - id: TextLintTool-Linting-Reporting
             title: >-

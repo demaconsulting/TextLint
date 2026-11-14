@@ -4,10 +4,12 @@
 
 The `Configuration` subsystem is verified by integration tests in `ConfigurationSubsystemTests.cs`. They
 write real settings files into a per-test temporary directory and load them through `SettingsLoader`,
-then assert on the resulting `TextLintSettings` or diagnostics, so `SettingsLoader` and
+then assert on the resulting `TextLintSettings` (with its `SettingsOverride` entries) or diagnostics, so
+`SettingsLoader` and
 `TextLintSettings` are exercised together. The subsystem's documented dependencies are real:
 YamlDotNet (an OTS item) parses the file, and the units the loader uses to validate values are real:
-`GlobPatternExpander` from the `FileSelection` subsystem validates patterns, `SpellingDictionary` from the
+`GlobPatternExpander` and `OrderedGlobList` from the `FileSelection` subsystem validate patterns,
+`SpellingDictionary` from the
 `Dictionaries` subsystem validates the language, and `WordTokenizer` from the `TextScanning` subsystem
 validates word-list entries. `PatternCatalog` and `PatternParser`, also from the `TextScanning` subsystem, judge
 the entries of `ignoreRegExpList` and the pattern definitions by the same rules the spell check applies. Nothing is
@@ -38,6 +40,10 @@ test uses its own uniquely named directory, so tests share no state and may run 
 - Absent pattern keys leave no patterns, random strings ignored, and a minimum random length of 40.
 - Every unusable pattern entry, definition, and random-string value in one file is reported at its own position, in
   the order of the file, and no settings are returned.
+- The `enabled` key, an ordered `files` list, and the `overrides` list populate their settings, with the order of
+  the patterns kept and each override carrying its values and its position.
+- A `files` list that starts with `!`, a `!` in `ignorePaths`, and every mistake in an override are reported at
+  their own positions, with the file, and no settings are returned.
 
 ### Test Scenarios
 
@@ -95,9 +101,9 @@ key `caseSensitive` on line 2 is loaded; no settings are returned and the error 
 column 1. This scenario is tested by
 `ConfigurationSubsystem_LoadAsync_UnsupportedKey_ReportsErrorWithKeyAndPosition`.
 
-**ConfigurationSubsystem_LoadAsync_InvalidPattern_ReportsErrorWithPosition**: A file whose include pattern is
-negated is loaded; no settings are returned and the error is at the pattern's line and names the pattern. This
-scenario is tested by `ConfigurationSubsystem_LoadAsync_InvalidPattern_ReportsErrorWithPosition`.
+**ConfigurationSubsystem_LoadAsync_InvalidPattern_ReportsErrorWithPosition**: A file whose include list starts with a
+negated pattern is loaded; no settings are returned and the error is at the pattern's line and names the pattern.
+This scenario is tested by `ConfigurationSubsystem_LoadAsync_InvalidPattern_ReportsErrorWithPosition`.
 
 **ConfigurationSubsystem_LoadAsync_AbsolutePathPattern_ReportsErrorWithPosition**: A file whose include pattern is
 the network path `//server/share/**` is loaded; no settings are returned and the error is at line 2 column 5,
@@ -141,3 +147,24 @@ lists are empty, random strings are ignored, and the minimum random length is 40
 unknown name, a definition with an invalid expression, a definition that reuses a predefined name, and a minimum random
 length of zero is loaded; five errors are reported, on lines 2, 3, 6, 7, and 9, each naming the file, and no settings
 are returned. This scenario is tested by `ConfigurationSubsystem_LoadAsync_InvalidPatterns_ReportsEachWithPosition`.
+
+**ConfigurationSubsystem_LoadAsync_OverridesAndEnabled_PopulatesSettings**: A file with `enabled: false`, an ordered
+`files` list, and two overrides is loaded; the settings are disabled, the patterns keep their order, and the first
+override carries its words, language, source file, line 7, and column 5, while the second disables its files. This
+scenario is tested by `ConfigurationSubsystem_LoadAsync_OverridesAndEnabled_PopulatesSettings`.
+
+**ConfigurationSubsystem_LoadAsync_InvalidOverrides_ReportsErrorsWithPositions**: A file with an override that
+changes the selected files, one without a `filename`, and one that disables its files and sets words is loaded; three
+errors are reported, on lines 3, 5, and 7, each at column 5 and naming the file, and no settings are returned. This
+scenario is tested by `ConfigurationSubsystem_LoadAsync_InvalidOverrides_ReportsErrorsWithPositions`.
+
+**ConfigurationSubsystem_Resolve_OverridesLoadedFromFile_MatchAndMergeInOrder**: A file with a top-level word and
+three overrides is loaded and its settings are given to the override resolver; a `docs` file is matched by the general
+and the specific override in order, a private `docs` file is not matched by the specific one because of its
+negation, a `legacy` file is disabled, and the merged settings hold the words in order and the minimum word length of
+the last override. This scenario is tested by
+`ConfigurationSubsystem_Resolve_OverridesLoadedFromFile_MatchAndMergeInOrder`.
+
+**ConfigurationSubsystem_LoadAsync_NegatedIgnorePath_ReportsErrorWithPosition**: A file whose `ignorePaths` holds a
+negated pattern is loaded; no settings are returned and the single error is at line 3 and advises narrowing `files`.
+This scenario is tested by `ConfigurationSubsystem_LoadAsync_NegatedIgnorePath_ReportsErrorWithPosition`.

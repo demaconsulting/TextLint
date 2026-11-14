@@ -35,7 +35,10 @@ absolute path (a drive specifier or a leading `//`), contains a backslash or `?`
 (2) expand brace groups; (3) anchor and clean each alternative on its own; (4) remove duplicates. The
 absolute-path test comes before the backslash test, so a Windows path such as `C:\docs\**` is reported as
 absolute rather than as a backslash problem. The `?` message is
-`the '?' wildcard is not supported; use '*' to match any run of characters`.
+`the '?' wildcard is not supported; use '*' to match any run of characters`. `Expand` still rejects a leading
+`!`, which is what keeps the ignore patterns and command-line patterns, where negation is not supported,
+rejected; callers that support ordered lists strip one leading `!` first and expand the remainder (see
+`OrderedGlobList`).
 
 Brace expansion follows shell rules. The leftmost brace group that has a top-level comma expands
 into one alternative per comma-separated part, spliced between the surrounding text, and expansion
@@ -85,6 +88,8 @@ logged.
 
 #### Callers
 
-- **FileSelector** - expands every include and ignore pattern before selecting files.
+- **OrderedGlobList** - expands each entry of an ordered list, after stripping one leading `!`.
+- **FileSelector** - expands every ignore pattern before selecting files (the include patterns go through
+  `OrderedGlobList`).
 - **CommandLinePathResolver** - validates every pattern it builds from command-line arguments.
 - **SettingsLoader** (Configuration subsystem) - validates patterns while loading a settings file.

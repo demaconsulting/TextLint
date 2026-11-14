@@ -2,10 +2,12 @@
 
 #### Verification Approach
 
-`SpellChecker` and the option, result, and diagnostic types it defines are verified with unit tests in
-`SpellCheckerTests.cs`. Tests build real directory trees in a per-test temporary directory and call the public
-`CheckAsync`, so the documented dependencies (the settings value, the file selector, the file reader, and the text
-checker) are real. The internal `CheckFilesAsync` method is a test seam that takes the function that checks a text,
+`SpellChecker` and the option, result, note, and diagnostic types it defines are verified with unit tests in
+`SpellCheckerTests.cs`, and the handling of `overrides`, `enabled`, the language option, and the notes in
+`SpellCheckerOverridesTests.cs`. Tests build real directory trees in a per-test temporary directory and call the
+public `CheckAsync`, so the documented dependencies (the settings value with its overrides, the override resolver,
+the file selector, the file reader, and the text checker) are real. The internal `CheckFilesAsync` method is a test
+seam that takes the function that checks a text,
 and it is the only place where a test supplies its own code: a function that throws the exception that a pattern
 time-out raises, one that throws an exception that is a defect, one that cancels the run, and one that records how
 many checks overlap. These prove the handling of a time-out, a defect, a cancellation, and the degree of parallelism
@@ -42,6 +44,18 @@ ordering scenario uses an upper-case and a lower-case first letter in different 
   arguments and unusable settings throw the
   documented exceptions, the settings before any file is touched.
 - Results cannot be changed by the caller and copy the collections they are built from.
+- Each override applies only to the files its `filename` matches, relative to the settings root, in the order
+  written: list settings add to the top-level lists, single values come from the last override that sets them, and a
+  pattern name resolves to the override's own, the top-level, or a predefined pattern, never to another override's.
+- A file that the settings disable is not read, reported, or counted as checked or skipped, but is counted as
+  disabled; the last matching override that sets `enabled` wins.
+- The language option wins over every override and the top level, and is noted when it replaces the language of an
+  override that matched a checked file with a different dictionary.
+- Notes are returned beside the findings in a fixed order, information before warnings: a note that every selected
+  file is disabled, and a warning with the position of each override that matched none of the selected files; no
+  selection gives no notes, and a note never makes the run fail.
+- Unusable overrides, an unsupported language option, and an unusable `filename` are rejected before any file or
+  directory is touched.
 
 #### Test Scenarios
 
@@ -209,8 +223,9 @@ by `SpellChecker_CheckAsync_WhiteSpaceRoot_ThrowsArgumentException`.
 **SpellChecker_CheckAsync_MissingRoot_ThrowsDirectoryNotFoundException**: A root that does not exist throws. This
 scenario is tested by `SpellChecker_CheckAsync_MissingRoot_ThrowsDirectoryNotFoundException`.
 
-**SpellChecker_CheckAsync_InvalidPattern_ThrowsInvalidGlobPatternException**: A negated file pattern throws and the
-message names it. This scenario is tested by `SpellChecker_CheckAsync_InvalidPattern_ThrowsInvalidGlobPatternException`.
+**SpellChecker_CheckAsync_InvalidPattern_ThrowsInvalidGlobPatternException**: A file pattern list that starts with a
+negated pattern throws and the message names it. This scenario is tested by
+`SpellChecker_CheckAsync_InvalidPattern_ThrowsInvalidGlobPatternException`.
 
 **SpellChecker_CheckAsync_UnusableLanguage_ThrowsBeforeTouchingFiles**: A bad language is reported even when the root
 directory is also missing, which shows that the settings are checked first. This scenario is tested by
@@ -237,3 +252,117 @@ them to a mutable interface. This scenario is tested by `SpellChecker_CheckAsync
 
 **SpellChecker_Result_CallerCollections_AreCopied**: A result does not change when the lists it was created from are
 cleared. This scenario is tested by `SpellChecker_Result_CallerCollections_AreCopied`.
+
+**SpellChecker_CheckAsync_OverrideWords_ApplyOnlyToMatchingFiles**: Two files hold the same misspelling and an
+override for `docs/**` accepts it; only the file outside `docs` has a finding. This scenario is tested by
+`SpellChecker_CheckAsync_OverrideWords_ApplyOnlyToMatchingFiles`.
+
+**SpellChecker_CheckAsync_OverrideList_AddsToTopLevelList**: A top-level word and an override word for `docs` are
+both accepted in `docs`, and only the top-level word is accepted elsewhere, where the other word is reported. This
+scenario is tested by `SpellChecker_CheckAsync_OverrideList_AddsToTopLevelList`.
+
+**SpellChecker_CheckAsync_SeveralOverrides_ApplyInOrderWrittenWithLastSingleValueWinning**: A general override sets a
+minimum word length of 20 and a later override for `docs` sets 4; the word is reported in `docs` and not elsewhere.
+This scenario is tested by `SpellChecker_CheckAsync_SeveralOverrides_ApplyInOrderWrittenWithLastSingleValueWinning`.
+
+**SpellChecker_CheckAsync_OverridePatterns_ResolveTopLevelOwnAndPredefinedNames**: An override whose
+`ignoreRegExpList` names a top-level pattern, the predefined `Urls`, and its own pattern hides all three kinds of
+text in its files, while the same words in other files are reported. This scenario is tested by
+`SpellChecker_CheckAsync_OverridePatterns_ResolveTopLevelOwnAndPredefinedNames`.
+
+**SpellChecker_CheckAsync_OverridePatternWithTopLevelName_ReplacesItForMatchingFiles**: An override that defines the
+name of a top-level pattern replaces it for its files only: `docs` reports the word the top-level definition
+ignores, and the other file reports the word the override ignores. This scenario is tested by
+`SpellChecker_CheckAsync_OverridePatternWithTopLevelName_ReplacesItForMatchingFiles`.
+
+**SpellChecker_CheckAsync_DisabledOverride_FileIsNotReadReportedOrCounted**: A text file and a binary file in a
+disabled directory are not read, so there is no diagnostic and no skipped count, only the enabled file is counted as
+checked, and two files are counted as disabled without an all-disabled note. This scenario is tested by
+`SpellChecker_CheckAsync_DisabledOverride_FileIsNotReadReportedOrCounted`.
+
+**SpellChecker_CheckAsync_DisabledThenEnabledOverride_LastWins**: A directory is disabled and a subdirectory enabled
+again by a later override; only the re-enabled file is checked and one file is counted as disabled. This scenario is
+tested by `SpellChecker_CheckAsync_DisabledThenEnabledOverride_LastWins`.
+
+**SpellChecker_CheckAsync_TopLevelDisabledWithEnablingOverride_ChecksOnlyEnabledFiles**: With `enabled: false` at the
+top level and an override that enables `docs`, only `docs` is checked and one file is counted as disabled. This
+scenario is tested by `SpellChecker_CheckAsync_TopLevelDisabledWithEnablingOverride_ChecksOnlyEnabledFiles`.
+
+**SpellChecker_CheckAsync_AllFilesDisabled_ReportsNoteAndNoProblem**: With spell checking off at the top level, two
+selected files are counted as disabled and none as checked, the result has no problem, and the single note is the
+information note `info: Spell checking is disabled by the settings for all 2 selected file(s).`. This scenario is
+tested by `SpellChecker_CheckAsync_AllFilesDisabled_ReportsNoteAndNoProblem`.
+
+**SpellChecker_CheckAsync_NothingSelected_HasNoDisabledFilesOrNotes**: When no file is selected, none is counted as
+disabled and there are no notes, even with a disabled top level and an override that matches nothing. This scenario
+is tested by `SpellChecker_CheckAsync_NothingSelected_HasNoDisabledFilesOrNotes`.
+
+**SpellChecker_CheckAsync_LanguageOption_WinsOverOverrideAndIsNoted**: A British word in a file that an override
+sets to British English is accepted without the option; with the option American English it is reported, and one
+information note says that the option replaces the override's language at its position. This scenario is tested by
+`SpellChecker_CheckAsync_LanguageOption_WinsOverOverrideAndIsNoted`.
+
+**SpellChecker_CheckAsync_LanguageOption_WinsOverTopLevelLanguage**: The option American English flags a British word
+that the top-level British language accepts, and no note is made because no override was replaced. This scenario is
+tested by `SpellChecker_CheckAsync_LanguageOption_WinsOverTopLevelLanguage`.
+
+**SpellChecker_CheckAsync_LanguageOptionSameDictionaryOrUnusedOverride_HasNoLanguageNote**: No language note is made
+for an override whose language names the same dictionary as the option (`en` and `en-US`), for one that matched only
+a disabled file, or for one that matched nothing, and only the last of these is warned about as unmatched. This
+scenario is tested by `SpellChecker_CheckAsync_LanguageOptionSameDictionaryOrUnusedOverride_HasNoLanguageNote`.
+
+**SpellChecker_CheckAsync_UnsupportedLanguageOption_ThrowsBeforeTouchingFiles**: An unsupported language in the
+options throws an exception that names it even when the root directory does not exist. This scenario is tested by
+`SpellChecker_CheckAsync_UnsupportedLanguageOption_ThrowsBeforeTouchingFiles`.
+
+**SpellChecker_CheckAsync_SettingsRootDifferentFromSearchRoot_MatchesRelativeToSettingsRoot**: A run over `docs`
+applies an override written for `docs/**` when the options name the parent as the settings root, and does not apply
+it without. This scenario is tested by
+`SpellChecker_CheckAsync_SettingsRootDifferentFromSearchRoot_MatchesRelativeToSettingsRoot`.
+
+**SpellChecker_CheckAsync_FileOutsideSettingsRoot_MatchesNoOverride**: A file in a directory that is not beneath the
+settings root matches no override, so its word is reported and the override is noted as unmatched. This scenario is
+tested by `SpellChecker_CheckAsync_FileOutsideSettingsRoot_MatchesNoOverride`.
+
+**SpellChecker_CheckAsync_UnmatchedOverride_IsWarnedAboutWithPosition**: An override that matches none of the selected
+files is the single warning `.textlint.yaml(14,5): warning: The override matches none of the selected files.` with
+its source, line, and column, an override that only disables a matched file is not warned about, and the finding is
+still reported. This scenario is tested by `SpellChecker_CheckAsync_UnmatchedOverride_IsWarnedAboutWithPosition`.
+
+**SpellChecker_CheckAsync_SeveralNotes_AreOrderedInformationThenWarnings**: With every file disabled and two
+unmatched overrides, the notes are the all-disabled information first and then the two warnings in the order of the
+overrides, and no language note is made for an override that matched only a disabled file. This scenario is tested by
+`SpellChecker_CheckAsync_SeveralNotes_AreOrderedInformationThenWarnings`.
+
+**SpellChecker_CheckAsync_LanguageNoteForOverrideBuiltInCode_NamesOverrideByNumber**: A language note for an override
+without a position says `at number 1`. This scenario is tested by
+`SpellChecker_CheckAsync_LanguageNoteForOverrideBuiltInCode_NamesOverrideByNumber`.
+
+**SpellChecker_CheckAsync_UnusableOverride_ThrowsBeforeTouchingFiles**: With a root that does not exist, an override
+with a blank ignored word, an unknown pattern name, an unsupported language, a `?` glob, or no `filename` throws the
+matching exception, naming the entry, name, language, pattern, or override 1, and never the missing directory. This
+scenario is tested by `SpellChecker_CheckAsync_UnusableOverride_ThrowsBeforeTouchingFiles`.
+
+**SpellChecker_CheckAsync_PatternNameOfAnotherOverride_IsUnknown**: A pattern name that only another override defines
+throws an invalid-pattern exception that names it. This scenario is tested by
+`SpellChecker_CheckAsync_PatternNameOfAnotherOverride_IsUnknown`.
+
+**SpellChecker_CheckAsync_TwoOverridesMatchSameFile_CombineTheirLists**: Two overrides that match the same file each
+accept one of its two misspelled words, and no finding remains. This scenario is tested by
+`SpellChecker_CheckAsync_TwoOverridesMatchSameFile_CombineTheirLists`.
+
+**SpellChecker_CheckAsync_NoOverrides_HasNoDisabledFilesOrNotes**: Settings without overrides report their finding
+with no file counted as disabled and no notes. This scenario is tested by
+`SpellChecker_CheckAsync_NoOverrides_HasNoDisabledFilesOrNotes`.
+
+**SpellChecker_CheckAsync_Notes_AreImmutable**: The notes of a result cannot be changed by casting them to a mutable
+interface. This scenario is tested by `SpellChecker_CheckAsync_Notes_AreImmutable`.
+
+**SpellChecker_Result_CallerNotes_AreCopied**: A result created from a list of notes does not change when the list is
+cleared, and a result derived with new run information holds the new disabled count and notes while the original is
+unchanged. This scenario is tested by `SpellChecker_Result_CallerNotes_AreCopied`.
+
+**SpellCheckNote_Format_SeveritiesAndLocations_FollowCompilerStyle**: An information note formats as `info:` with no
+location, and a warning formats with the source, line, and column when known, with the source only, or with neither,
+and `ToString` equals `Format`. This scenario is tested by
+`SpellCheckNote_Format_SeveritiesAndLocations_FollowCompilerStyle`.

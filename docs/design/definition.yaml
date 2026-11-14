@@ -25,9 +25,11 @@ input-files:
   - docs/design/textlint/configuration.md
   - docs/design/textlint/configuration/text-lint-settings.md
   - docs/design/textlint/configuration/settings-loader.md
+  - docs/design/textlint/configuration/settings-override-resolver.md
   - docs/design/textlint/file-selection.md
   - docs/design/textlint/file-selection/glob-pattern-expander.md
   - docs/design/textlint/file-selection/hidden-path-policy.md
+  - docs/design/textlint/file-selection/ordered-glob-list.md
   - docs/design/textlint/file-selection/file-selector.md
   - docs/design/textlint/file-selection/command-line-path-resolver.md
   - docs/design/textlint/dictionaries.md

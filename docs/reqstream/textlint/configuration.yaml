@@ -32,20 +32,117 @@ sections:
               The Configuration subsystem shall map the supported cspell-named keys (version,
               files, ignorePaths, enableGlobDot, language, words, ignoreWords, flagWords,
               minWordLength, maxFileSize, ignoreRegExpList, patterns, ignoreRandomStrings, and
-              minRandomLength) onto settings, using defaults for absent keys.
+              minRandomLength) and the enabled and overrides keys onto settings, using defaults for
+              absent keys.
             justification: |
               These keys are the cspell keys needed to select files and to tune the spell check,
               and a user migrating from cspell expects them to keep their meaning. An empty file
-              must be valid so a project can start without configuration.
+              must be valid so a project can start without configuration, and a project that sets
+              neither enabled nor overrides must be checked as it was before they existed.
             children:
               - TextLint-Configuration-SettingsLoader-MapKeys
               - TextLint-Configuration-SettingsLoader-MapSpellingKeys
               - TextLint-Configuration-TextLintSettings-Defaults
               - TextLint-Configuration-TextLintSettings-SpellingDefaults
+              - TextLint-Configuration-TextLintSettings-OverrideDefaults
             tests:
               - ConfigurationSubsystem_LoadAsync_AllSupportedKeys_PopulatesSettings
               - ConfigurationSubsystem_LoadAsync_EmptyFile_ReturnsDefaults
+              - ConfigurationSubsystem_LoadAsync_OverridesAndEnabled_PopulatesSettings
 
+          - id: TextLint-Configuration-EnabledSetting
+            title: >-
+              The Configuration subsystem shall let the settings switch checking off as a whole with the
+              enabled key, shall treat settings as enabled when it is absent, and shall report a value that
+              is not true or false as an error at the value.
+            justification: |
+              A project sometimes needs to pause every check, for example during a migration, without
+              deleting its settings. The switch must be explicit and must not guess what an unrecognized
+              value means.
+            children:
+              - TextLint-Configuration-SettingsLoader-MapEnabled
+              - TextLint-Configuration-TextLintSettings-OverrideDefaults
+              - TextLint-Configuration-TextLintSettings-Overrides
+            tests:
+              - ConfigurationSubsystem_LoadAsync_OverridesAndEnabled_PopulatesSettings
+
+          - id: TextLint-Configuration-OrderedFiles
+            title: >-
+              The Configuration subsystem shall keep the patterns of the files setting in the order written,
+              including those that begin with !, and shall report a files list that begins with !, and a !
+              in ignorePaths, as an error at that pattern, with advice for the second.
+            justification: |
+              The order of the files list is its meaning, so it must reach the file selection unchanged, and
+              a negation that has nothing to remove, or that tries to re-include files from the hard fence of
+              ignorePaths, can only be a mistake that is best reported when the file is loaded, at its line
+              and column.
+            children:
+              - TextLint-Configuration-SettingsLoader-OrderedPatterns
+              - TextLint-Configuration-SettingsLoader-InvalidPatterns
+            tests:
+              - ConfigurationSubsystem_LoadAsync_OverridesAndEnabled_PopulatesSettings
+              - ConfigurationSubsystem_LoadAsync_InvalidPattern_ReportsErrorWithPosition
+              - ConfigurationSubsystem_LoadAsync_NegatedIgnorePath_ReportsErrorWithPosition
+
+          - id: TextLint-Configuration-Overrides
+            title: >-
+              The Configuration subsystem shall load the overrides of a settings file as an ordered list,
+              each with the filename patterns that choose its files and the spelling settings that apply to
+              them, recording where each override is written, and shall keep the overrides unchangeable once
+              settings are created.
+            justification: |
+              Different files need different rules, such as another language for one folder or extra words
+              for the documentation. The position of each override lets later messages point at it, and
+              overrides that could change after the settings were handed over would let one part of a run
+              alter what another part checks.
+            children:
+              - TextLint-Configuration-SettingsLoader-MapOverrides
+              - TextLint-Configuration-TextLintSettings-Overrides
+              - TextLint-Configuration-TextLintSettings-OverrideValues
+            tests:
+              - ConfigurationSubsystem_LoadAsync_OverridesAndEnabled_PopulatesSettings
+
+          - id: TextLint-Configuration-OverrideErrors
+            title: >-
+              The Configuration subsystem shall report each mistake in an override, such as selecting files
+              from it, giving rules to an override that is switched off, leaving it without any setting, or
+              using a setting that an override does not support, as an error at the node that holds it,
+              naming what to do instead, and shall not return settings.
+            justification: |
+              An override that is only partly understood would apply the wrong rules to the wrong files. The
+              mistakes that are easy to make each have a better way to say what was meant, and showing each
+              at its own line and column lets a file be fixed in one pass.
+            children:
+              - TextLint-Configuration-SettingsLoader-OverrideErrors
+            tests:
+              - ConfigurationSubsystem_LoadAsync_InvalidOverrides_ReportsErrorsWithPositions
+
+          - id: TextLint-Configuration-OverrideResolution
+            title: >-
+              The Configuration subsystem shall work out which overrides of a settings value apply to a file
+              from the file's path relative to the settings root, in the order the overrides are written, and
+              shall merge them with the top-level settings so that lists add up, named patterns of the same name
+              are replaced, the last override that sets a single value decides, a language given by the caller
+              wins, and a file switched off by the last matching override that sets enabled is reported as such.
+            justification: |
+              Which rules apply to a file is a question about the settings alone, so it is answered once, where
+              the settings are defined, and every consumer gets the same answer. Keeping the rule "general first,
+              specific last" in one place lets a project predict the effect of its overrides, and a file outside
+              the settings root must not pick up rules written for the files inside it.
+            children:
+              - TextLint-Configuration-SettingsOverrideResolver-Matching
+              - TextLint-Configuration-SettingsOverrideResolver-ListMerge
+              - TextLint-Configuration-SettingsOverrideResolver-ScalarMerge
+              - TextLint-Configuration-SettingsOverrideResolver-PatternNames
+              - TextLint-Configuration-SettingsOverrideResolver-Enabled
+              - TextLint-Configuration-SettingsOverrideResolver-LanguagePrecedence
+              - TextLint-Configuration-SettingsOverrideResolver-OutsideRoot
+              - TextLint-Configuration-SettingsOverrideResolver-Caching
+              - TextLint-Configuration-SettingsOverrideResolver-CheckerSettings
+              - TextLint-Configuration-SettingsOverrideResolver-InvalidArguments
+              - TextLint-Configuration-SettingsOverrideResolver-ConcurrentUse
+            tests:
+              - ConfigurationSubsystem_Resolve_OverridesLoadedFromFile_MatchAndMergeInOrder
           - id: TextLint-Configuration-PatternSettings
             title: >-
               The Configuration subsystem shall map the ignoreRegExpList, patterns,

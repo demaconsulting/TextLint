@@ -897,7 +897,7 @@ public class LintRunnerTests
     ///     Test that an ordered files list in the settings is applied by the runner.
     /// </summary>
     [Fact]
-    public void LintRunner_Run_OrderedFilesList_ExcludesAndReincludes()
+    public void LintRunner_Run_OrderedFilesList_ExcludesAndSelectsAgain()
     {
         // Arrange: markdown files with a negated directory and a re-included part of it
         using var temp = new TempDirectory();

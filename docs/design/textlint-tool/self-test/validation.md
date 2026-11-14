@@ -27,7 +27,7 @@ a second one that no dictionary holds, and an American and a British spelling of
 
 Calls `PrintValidationHeader`, constructs a `TestResults` object named
 `"TextLint Tool Self-Validation"`, calls `RunVersionTest` and `RunHelpTest`, then `RunLintScenario` once for each
-of the ten spell-checking scenarios, prints
+of the eleven spell-checking scenarios, prints
 totals (using `WriteError` if any tests failed), and calls `WriteResultsFile` if
 `context.ResultsFile` is set.
 
@@ -51,8 +51,10 @@ and nothing is checked), `TextLintTool_CheckGlobsReplaceFiles` (a command-line p
 setting), `TextLintTool_CheckInlineDirective` (directives of both supported prefixes suppress findings),
 `TextLintTool_CheckLanguageOption` (American and British spellings are each accepted by their own language only),
 `TextLintTool_CheckBinaryFileSkipped` (a binary file is information and does not fail the run),
-`TextLintTool_CheckNoFilesMatched` (an empty selection fails unless allowed), and `TextLintTool_CheckAbsolutePath`
-(a file named by an absolute path is reported by that path).
+`TextLintTool_CheckNoFilesMatched` (an empty selection fails unless allowed), `TextLintTool_CheckAbsolutePath`
+(a file named by an absolute path is reported by that path), and `TextLintTool_CheckOverrides` (an ordered `files`
+list with a `!` pattern, an override that adds a word for one directory, and an override with `enabled: false` all
+apply: exit code 1, and only the one file that no setting touches is reported).
 
 **LintSandbox** (nested class): A private working area for one scenario. Implements `IDisposable`. It owns a
 `TemporaryDirectory` that holds a `work` sample directory and the log files. `WriteFile` and `WriteBytes` create

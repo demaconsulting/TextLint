@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-// cspell:ignore zorb quix wrold
+// cspell:ignore zorb quix wrold ignoretop flagtop ignorefirst flagfirst
 
 using DemaConsulting.TextLint.Configuration;
 using DemaConsulting.TextLint.FileSelection;

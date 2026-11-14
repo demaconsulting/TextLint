@@ -56,10 +56,12 @@ the context. This scenario is tested by
 `Validation_Run_WithUnsupportedResultsFormat_DoesNotWriteFile`.
 
 **Validation_Run_WithSilentContext_ReportsEveryScenarioPassed**: `Validation.Run` is called with a silent context
-whose log is read afterwards; the version check, the help check, and each of the ten spell-checking scenarios are
-reported as passed by name, and the totals equal the number of scenarios with no failure. This scenario is tested
-by `Validation_Run_WithSilentContext_ReportsEveryScenarioPassed`.
+whose log is read afterwards; the version check, the help check, and each of the eleven spell-checking scenarios,
+including `TextLintTool_CheckOverrides`, which applies an ordered `files` list with a negation, an override that
+accepts a word for `docs`, and an override that disables `legacy` and expects only `a.md` to be reported with exit
+code 1, are reported as passed by name, and the totals equal the number of scenarios with no failure. This scenario
+is tested by `Validation_Run_WithSilentContext_ReportsEveryScenarioPassed`.
 
 **Validation_Run_WithTrxResultsFile_NamesEveryScenario**: `Validation.Run` is called with a TRX results path; the
-file carries the name of every scenario, so that requirements and platform requirements can link to each. This
-scenario is tested by `Validation_Run_WithTrxResultsFile_NamesEveryScenario`.
+file carries the name of every scenario, including `TextLintTool_CheckOverrides`, so that requirements and platform
+requirements can link to each. This scenario is tested by `Validation_Run_WithTrxResultsFile_NamesEveryScenario`.

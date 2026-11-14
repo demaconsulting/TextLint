@@ -11,8 +11,8 @@
 #   spell checking, results); the tool is a thin front-end that depends on it, never the reverse
 # - The library exposes settings loading, file selection, word lookup over embedded English
 #   and technical dictionaries, and spell checking of text and of files in cspell-compatible
-#   ways; custom ignore patterns and the remaining cspell features are added, top-down, with
-#   their own requirements, design, and verification
+#   ways; custom ignore patterns, ordered file lists, per-file overrides, and the remaining cspell features are
+#   added, top-down, with their own requirements, design, and verification
 # - Package requirements are validated by FileAssert checks of the produced NuGet package
 #   (.fileassert.yaml, run by build.yaml) and by assembly-level tests in TextLintTests.cs;
 #   functional requirements are validated by system-level tests in TextLintTests.cs and
@@ -98,6 +98,22 @@ sections:
           - TextLint_Settings_WrongValueType_ReportsFileLineAndColumn
           - TextLint_Settings_MissingConfigFile_ReportsFileError
 
+      - id: TextLint-System-OverrideErrors
+        title: >-
+          The library shall report each mistake in the overrides of a settings file, such as an override that
+          selects files, a disabled override that also sets rules, an override without settings or without a
+          filename, a list that begins with a negation, or a setting that overrides do not support, with the
+          file, line, and column of the node that holds it and with what to do instead.
+        tags: [system]
+        justification: |
+          An override that is only partly understood would apply the wrong rules to the wrong files, so the
+          whole file is refused. The mistakes that are easy to make each have a better way to say what was
+          meant, and a message that names the position and the remedy lets the file be fixed in one pass.
+        children:
+          - TextLint-Configuration-OverrideErrors
+        tests:
+          - TextLint_Settings_InvalidOverrides_ReportEveryMistakeWithPosition
+
       - id: TextLint-System-UnsupportedKeys
         title: >-
           The library shall reject a settings file that contains a key it does not support,
@@ -131,6 +147,85 @@ sections:
           - TextLint_Files_IncludePatterns_SelectsMatchingFiles
           - TextLint_Files_BraceAndBareNamePatterns_SelectAtAnyDepth
           - TextLint_Files_DifferentCase_IsNotSelected
+
+      - id: TextLint-System-OrderedFilePatterns
+        title: >-
+          The library shall treat the files setting as an ordered list in which a pattern that begins with
+          ! removes the files it matches from those that earlier patterns selected and a later pattern can
+          select them again, so that the last matching pattern decides, while the ignore patterns still win
+          over the whole list and cannot re-include files.
+        tags: [system]
+        justification: |
+          Projects need to say what is permanently in scope, such as every Markdown file except a vendored
+          folder with one exception, without listing files or moving the exclusion into the ignore
+          patterns, which are a hard fence. The ordered list is the form that ReviewMark and ignore files
+          already use. A list that does not use it keeps selecting what it always selected, and an excluded
+          folder is not read when that is safe, so the form costs nothing on a large tree.
+        children:
+          - TextLint-FileSelection-OrderedPatterns
+          - TextLint-FileSelection-OrderedPruning
+          - TextLint-Configuration-OrderedFiles
+        tests:
+          - TextLint_SpellCheck_SettingsFileWithOrderedFilesAndOverrides_CheckedAsDescribed
+          - TextLint_Files_NegatedPattern_ThrowsNamingPattern
+
+      - id: TextLint-System-Overrides
+        title: >-
+          The library shall let the settings give some files other rules by overrides, each choosing its files
+          with an ordered list of patterns relative to the settings root and giving words, ignored words,
+          flagged words, ignore patterns and named patterns, a language, a minimum word length, and random
+          string settings, shall apply every override that selects a file in the order written, adding lists
+          and letting the last override that gives a single value decide, and shall let a language given in
+          the spell-check options take precedence over the language of the settings and of every override.
+        tags: [system]
+        justification: |
+          A project is rarely uniform: documentation has product names that code does not, and one folder may
+          be written in British English. Overrides say so once, in the settings, as cspell users already do,
+          with the rule "general first, specific last" that a person can read. Matching against the settings
+          root keeps a file checked by the same rules however the run named it, and a language given for one
+          run must still win, or the option would fail exactly for the files that need it.
+        children:
+          - TextLint-Configuration-Overrides
+          - TextLint-Configuration-OverrideResolution
+          - TextLint-SpellChecking-FileOverrides
+        tests:
+          - TextLint_SpellCheck_SettingsFileWithOrderedFilesAndOverrides_CheckedAsDescribed
+          - TextLint_SpellCheck_LanguageOptionAndUnmatchedOverride_ProduceNotes
+
+      - id: TextLint-System-EnabledSetting
+        title: >-
+          The library shall let the settings switch checking off for all files with the enabled setting, and
+          for some files with an override, shall not read, report, or count as checked a file that is
+          switched off, and shall tell the caller that it did so when every selected file is switched off.
+        tags: [system]
+        justification: |
+          Some files are in scope for a stated reason but must not be checked for now, and a project may need
+          to pause every check without deleting its settings. A file that is switched off is a decision of
+          the project, so it is neither a finding nor a failure; the notice keeps a switch that was left on
+          by mistake from passing unnoticed.
+        children:
+          - TextLint-Configuration-EnabledSetting
+          - TextLint-SpellChecking-DisabledFiles
+        tests:
+          - TextLint_SpellCheck_EnabledFalseAtTopLevel_DisablesEveryFileWithNote
+          - TextLint_SpellCheck_SettingsFileWithOrderedFilesAndOverrides_CheckedAsDescribed
+
+      - id: TextLint-System-RunNotes
+        title: >-
+          The library shall return, with the result of a run, notes for the facts that the settings or options
+          have no effect or replace each other, namely that every selected file is switched off, that a
+          language in the options replaces the language of an override, and that an override matches none of
+          the selected files, and these notes shall not make the run fail.
+        tags: [system]
+        justification: |
+          A setting that has no effect leaves the user believing it is in force, and an option that replaces
+          a setting hides a difference from the settings file. Telling them lets a stale override be found,
+          while the results themselves stay correct and the run stays successful.
+        children:
+          - TextLint-SpellChecking-RunNotes
+        tests:
+          - TextLint_SpellCheck_LanguageOptionAndUnmatchedOverride_ProduceNotes
+          - TextLint_SpellCheck_EnabledFalseAtTopLevel_DisablesEveryFileWithNote
 
       - id: TextLint-System-IgnoredPaths
         title: The library shall exclude files that match the ignore glob patterns from the selection.
@@ -204,16 +299,18 @@ sections:
       - id: TextLint-System-PatternValidation
         title: >-
           The library shall reject unsupported or malformed glob patterns, including absolute file
-          system paths (drive-letter and network forms), negation, backslash separators, and the
+          system paths (drive-letter and network forms), a negation at the start of the files setting or
+          of an override's filename list, a negation in the ignore patterns, backslash separators, and the
           question-mark wildcard, with an error that names the pattern and the reason, and shall
           report such a pattern in a settings file at its line and column.
         tags: [system]
         justification: |
-          Some pattern forms users may expect (negation, backslash separators, the ? wildcard,
-          absolute or parent-relative paths, unbalanced braces) cannot be honored reliably. Silently
-          selecting the wrong files is worse than failing, so the pattern is rejected at the
-          earliest point, with enough detail to correct it; the message for ? points to the
-          supported * wildcard.
+          Some pattern forms users may expect (a negation with nothing to remove or in the hard fence of the
+          ignore patterns, backslash separators, the ? wildcard, absolute or parent-relative paths,
+          unbalanced braces) cannot be honored reliably. Silently selecting the wrong files is worse
+          than failing, so the pattern is rejected at the earliest point, with enough detail to correct
+          it; the message for ? points to the supported * wildcard, and the one for the ignore patterns
+          says to narrow the files setting instead.
         children:
           - TextLint-FileSelection-PatternValidation
           - TextLint-Configuration-InvalidPatterns
@@ -715,20 +812,24 @@ sections:
 
       - id: TextLint-System-LanguageSetting
         title: >-
-          The library shall use the language setting to choose the dictionary, and shall report
-          an unsupported language in a settings file as an error at its position.
+          The library shall use the language setting to choose the dictionary, shall let the language
+          given in the spell-check options take precedence over the language of the settings and of an
+          override, and shall report an unsupported language in a settings file as an error at its position.
         tags: [system]
         justification: |
           A word that is correct in American English (favorite) is a mistake in British English
-          and the reverse, so the language setting must change the result. An unsupported
+          and the reverse, so the language setting must change the result. A language given for one run is
+          the most specific request and so wins over the settings. An unsupported
           language must fail loudly rather than fall back to another dialect.
         children:
           - TextLint-Configuration-SpellingSettings
           - TextLint-Configuration-InvalidSpellingValues
           - TextLint-SpellChecking-TextChecking
+          - TextLint-SpellChecking-FileOverrides
         tests:
           - TextLint_SpellCheck_BritishLanguage_AcceptsBritishNotAmericanSpelling
           - TextLint_Settings_UnsupportedLanguage_ReportsFileLineAndColumn
+          - TextLint_SpellCheck_LanguageOptionAndUnmatchedOverride_ProduceNotes
 
       - id: TextLint-System-WordLists
         title: >-

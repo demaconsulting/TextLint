@@ -1288,4 +1288,35 @@ public class TextLintSpellCheckTests
             ],
             result.Notes.Select(note => note.Format()));
     }
+
+    /// <summary>
+    ///     Test that every kind of mistake in the overrides of a settings file is reported with its position.
+    /// </summary>
+    [Fact]
+    public async Task TextLint_Settings_InvalidOverrides_ReportEveryMistakeWithPosition()
+    {
+        // Arrange: a settings file whose overrides hold a file-selecting key, a disabled override with settings,
+        // an override that changes nothing, a missing filename, an unsupported key, a leading negation, and a
+        // negation in ignorePaths
+        using var temp = new TempDirectory();
+        const string yaml =
+            "ignorePaths:\n  - \"!keep/**\"\n" +
+            "overrides:\n" +
+            "  - filename: a\n    files: [b]\n    words: [c]\n" +
+            "  - filename: d\n    enabled: false\n    words: [e]\n" +
+            "  - filename: f\n" +
+            "  - words: [g]\n" +
+            "  - filename: h\n    languageId: x\n    words: [i]\n" +
+            "  - filename: [\"!j\"]\n    words: [k]\n";
+
+        // Act: load it
+        var result = await LoadAsync(temp, yaml);
+
+        // Assert: one error per mistake, in source order, each at the line and column of the node that holds it
+        Assert.Multiple(
+            () => Assert.Null(result.Settings),
+            () => Assert.Equal([2, 5, 8, 10, 11, 13, 15], result.Diagnostics.Select(diagnostic => diagnostic.Line)),
+            () => Assert.Equal([5, 5, 5, 5, 5, 5, 16], result.Diagnostics.Select(diagnostic => diagnostic.Column)),
+            () => Assert.All(result.Diagnostics, diagnostic => Assert.EndsWith(".textlint.yaml", diagnostic.FilePath)));
+    }
 }

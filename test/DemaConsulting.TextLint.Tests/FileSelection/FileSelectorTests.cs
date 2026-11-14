@@ -842,7 +842,7 @@ public class FileSelectorTests
     ///     Test that a later pattern includes again what a negation removed.
     /// </summary>
     [Fact]
-    public void FileSelector_Select_IncludeAfterNegation_ReincludesFiles()
+    public void FileSelector_Select_IncludeAfterNegation_SelectsFilesAgain()
     {
         // Arrange: markdown files beneath docs, one of them beneath docs/keep
         using var temp = new TempDirectory();

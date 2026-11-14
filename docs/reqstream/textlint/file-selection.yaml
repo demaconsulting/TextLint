@@ -4,7 +4,8 @@
 # PURPOSE:
 # - Define requirements for the TextLint FileSelection subsystem
 # - The FileSelection subsystem turns include and ignore glob patterns into the ordered list of
-#   files to check beneath a root directory
+#   files to check beneath a root directory; the include patterns are an ordered list in which !
+#   excludes and the last match wins, and the same list type chooses the files of a settings override
 # - Subsystem requirements decompose the system requirements for file selection; they are
 #   validated by FileSelectionSubsystemTests.cs
 
@@ -24,9 +25,44 @@ sections:
             children:
               - TextLint-FileSelection-FileSelector-Matching
               - TextLint-FileSelection-FileSelector-CaseSensitive
+              - TextLint-FileSelection-OrderedGlobList-CaseSensitive
             tests:
               - FileSelectionSubsystem_Select_IncludeAndIgnorePatterns_SelectsExpectedFiles
               - FileSelectionSubsystem_Select_DifferentCase_IsNotSelected
+
+          - id: TextLint-FileSelection-OrderedPatterns
+            title: >-
+              The FileSelection subsystem shall treat the include patterns as an ordered list in which a
+              pattern that begins with ! removes files that earlier patterns selected and a later pattern
+              can select them again, so that the last matching pattern decides, while a list without such a
+              pattern selects what it always selected and the ignore patterns still win.
+            justification: |
+              A project needs to say which files are permanently in scope, with exceptions, without listing
+              every file. The ordered form is the one ReviewMark and ignore files already use, and the same
+              rule lets an override choose its files. Lists written before the form existed must not change.
+            children:
+              - TextLint-FileSelection-OrderedGlobList-LastMatchWins
+              - TextLint-FileSelection-OrderedGlobList-HiddenRule
+              - TextLint-FileSelection-OrderedGlobList-ConcurrentUse
+              - TextLint-FileSelection-FileSelector-OrderedIncludes
+              - TextLint-FileSelection-FileSelector-ListWithoutNegation
+            tests:
+              - FileSelectionSubsystem_Select_OrderedNegation_SelectsLastMatchAndPrunes
+
+          - id: TextLint-FileSelection-OrderedPruning
+            title: >-
+              The FileSelection subsystem shall not enumerate a directory whose files are all excluded by an
+              ordered pattern that no later pattern can undo, and shall enumerate a directory that a later
+              pattern can select from.
+            justification: |
+              Excluding a vendored tree with a negation must be as cheap as ignoring it, or users would be
+              pushed to a less expressive setting for speed; but pruning a directory that a later pattern
+              brings back would silently lose files, so only the provably excluded are skipped.
+            children:
+              - TextLint-FileSelection-OrderedGlobList-SubtreePruning
+              - TextLint-FileSelection-FileSelector-OrderedPruning
+            tests:
+              - FileSelectionSubsystem_Select_OrderedNegation_SelectsLastMatchAndPrunes
 
           - id: TextLint-FileSelection-PatternForms
             title: >-
@@ -45,15 +81,20 @@ sections:
           - id: TextLint-FileSelection-PatternValidation
             title: >-
               The FileSelection subsystem shall reject unsupported or malformed patterns,
-              including absolute paths, with an error that names the pattern.
+              including absolute paths, an include list that starts with a negation, and a
+              negation in the ignore patterns, with an error that names the pattern.
             justification: |
               Patterns that cannot be honored reliably must fail visibly rather than silently
-              select the wrong files.
+              select the wrong files. A negation at the start of a list has nothing to remove, and the
+              ignore patterns are a fence that cannot re-include files, so both can only be mistakes.
             children:
               - TextLint-FileSelection-GlobPatternExpander-Validation
               - TextLint-FileSelection-FileSelector-InvalidPatterns
+              - TextLint-FileSelection-OrderedGlobList-LeadingNegationRejected
+              - TextLint-FileSelection-OrderedGlobList-InvalidEntries
             tests:
               - FileSelectionSubsystem_Select_NegatedPattern_ThrowsNamingPattern
+              - FileSelectionSubsystem_Select_LeadingNegationAndNegatedIgnore_ThrowNamingPattern
               - FileSelectionSubsystem_Select_AbsolutePathPattern_ThrowsNamingPattern
 
           - id: TextLint-FileSelection-RootAnchoredPatterns

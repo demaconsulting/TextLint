@@ -19,11 +19,14 @@ requirements; it explains how they are realized.
 Local items:
 
 - **TextLint**: system, subsystem, and unit design for the `DemaConsulting.TextLint` library:
-  - **Configuration** subsystem: **TextLintSettings** (the immutable settings value) and
-    **SettingsLoader** (reads a `.textlint.yaml` file, with its result and diagnostic types)
+  - **Configuration** subsystem: **TextLintSettings** (the immutable settings value, with its
+    `SettingsOverride` type), **SettingsLoader** (reads a `.textlint.yaml` file, with its result and diagnostic
+    types), and **SettingsOverrideResolver** (works out which overrides apply to a file and the effective
+    settings for it, with its file-resolution type)
   - **FileSelection** subsystem: **GlobPatternExpander** (pattern validation and rewriting),
-    **HiddenPathPolicy** (the hidden-name rule), **FileSelector** (selects files, with its
-    result and exception types), and **CommandLinePathResolver** (turns command-line path arguments
+    **HiddenPathPolicy** (the hidden-name rule), **OrderedGlobList** (an ordered list of patterns in which `!`
+    excludes and the last match wins), **FileSelector** (selects files, with its result and exception types and
+    its directory views), and **CommandLinePathResolver** (turns command-line path arguments
     into a search directory and patterns, with its result type)
   - **Dictionaries** subsystem: **SpellingDictionary** (the public word lookup and language
     selection) and **DictionaryImage** (loads, validates, and probes one embedded binary dictionary)
@@ -36,7 +39,8 @@ Local items:
     Markdown files), and **RandomStringDetector** (tokens that look like random data and hexadecimal sequences)
   - **SpellChecking** subsystem: **TextChecker** (checks a string against the dictionary and the word lists, with
     its finding types and word rules), **FileTextReader** (reads a file into text), and **SpellChecker** (checks the
-    files of a directory in parallel, with its options and result types)
+    files of a directory in parallel, applying the settings' overrides and `enabled`, with its options and result
+    types and the notes it reports: `SpellCheckNote`, `SpellCheckNoteKind`, and `SpellCheckNoteSeverity`)
 - **TextLintTool**: system, subsystem, and unit design for all local components of the
   command-line tool: the **Cli** subsystem (argument parsing and output), the **Linting** subsystem
   (**LintRunner**, which runs one check, and **LintReporter**, which writes the results), the **SelfTest**

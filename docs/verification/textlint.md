@@ -126,7 +126,15 @@ requires the DictionaryBuilder project, which the library project builds first; 
 - Hidden entries are skipped by wildcards unless enabled and are selected when a pattern names them
   literally.
 - Selected files are in ordinal order and use forward slashes.
-- Unsupported glob patterns are rejected naming the pattern.
+- Unsupported glob patterns are rejected naming the pattern; a files list that starts with a negated pattern is one
+  of them.
+- An ordered `files` list applies its negated patterns in order, the last matching pattern wins, and the selection
+  matches the settings file that states it.
+- Overrides apply their settings to the files they match, and files that the settings disable are neither checked nor
+  reported nor counted as checked.
+- A run in which every selected file is disabled has no problem and says so, the language option replaces an
+  override's language with a note, and an override that matches none of the selected files is warned about at its
+  position in the settings file.
 - The library package contains `THIRD-PARTY-NOTICES.txt` at its root with the notices of the embedded word
   lists, and its assembly contains the four embedded dictionaries.
 - Known words are reported as known and unknown words as not known, whatever the letter case or the
@@ -318,9 +326,9 @@ wildcard pattern selects the hidden files as well. This scenario is tested by
 returned in ordinal order with forward-slash relative paths. This scenario is tested by
 `TextLint_Files_SelectedFiles_AreOrderedWithForwardSlashes`.
 
-**TextLint_Files_NegatedPattern_ThrowsNamingPattern**: Selecting with a negated pattern throws an
-exception whose message names the pattern. This scenario is tested by
-`TextLint_Files_NegatedPattern_ThrowsNamingPattern`.
+**TextLint_Files_NegatedPattern_ThrowsNamingPattern**: Selecting with a files list whose first pattern is negated
+throws an exception whose message names the pattern, because a negation needs an earlier pattern to remove files
+from. This scenario is tested by `TextLint_Files_NegatedPattern_ThrowsNamingPattern`.
 
 **TextLint_Files_BackslashPattern_ThrowsNamingPattern**: Selecting with a pattern that uses a backslash
 throws an exception whose message names the pattern. This scenario is tested by
@@ -681,6 +689,31 @@ created. This scenario is tested by `TextLint_SpellCheck_InvalidConcurrency_Thro
 **TextLint_SpellCheck_CanceledToken_ThrowsOperationCanceled**: A run is started with a token that is already
 canceled; it throws an operation-canceled exception. This scenario is tested by
 `TextLint_SpellCheck_CanceledToken_ThrowsOperationCanceled`.
+
+**TextLint_SpellCheck_SettingsFileWithOrderedFilesAndOverrides_CheckedAsDescribed**: A settings file with a `files` list
+of `**/*.txt`, `!skipped/**`, and `skipped/keep/**`, an override that accepts a word for `docs`, and an override that
+disables `legacy` is loaded, and a file holding the same misspelling is checked in each of five places. The negated
+directory is not selected and its re-included part is, `docs` accepts the word, `legacy` is disabled and not counted,
+so only the root file and the re-included file have findings, three files are checked, one is counted as disabled, and
+there are no notes. This scenario is tested by
+`TextLint_SpellCheck_SettingsFileWithOrderedFilesAndOverrides_CheckedAsDescribed`.
+
+**TextLint_SpellCheck_EnabledFalseAtTopLevel_DisablesEveryFileWithNote**: A settings file with `enabled: false` is
+loaded and two files with misspellings are checked; nothing is reported, the run has no problem, both files are
+counted as disabled, and the only note says that every selected file is disabled. This scenario is tested by
+`TextLint_SpellCheck_EnabledFalseAtTopLevel_DisablesEveryFileWithNote`.
+
+**TextLint_SpellCheck_LanguageOptionAndUnmatchedOverride_ProduceNotes**: A settings file with an override that sets
+British English for `docs` and one that matches nothing is loaded, and `docs` is checked with the option American
+English; the notes are, in this order, the information that the option replaces `en-GB` for the override at its
+position in the file, and the warning that the other override matches none of the selected files, at its own
+position. This scenario is tested by `TextLint_SpellCheck_LanguageOptionAndUnmatchedOverride_ProduceNotes`.
+
+**TextLint_Settings_InvalidOverrides_ReportEveryMistakeWithPosition**: A settings file with a negation in
+`ignorePaths` and overrides that select files, disable themselves and set rules, change nothing, lack a `filename`,
+use `languageId`, and start a `filename` list with a negation is loaded; seven errors are reported, in source order,
+at lines 2, 5, 8, 10, 11, 13, and 15 and columns 5 (16 for the negation in the list), each naming the file, and no
+settings are returned. This scenario is tested by `TextLint_Settings_InvalidOverrides_ReportEveryMistakeWithPosition`.
 
 **TextLint_CspellParity_TokenizationCorpus_MatchesRecordedCspellOutput**: The corpus of word splitting, ignored text,
 escapes, scripts, and positions is checked with the settings stored beside it; the findings equal the output that

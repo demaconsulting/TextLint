@@ -13,8 +13,8 @@ could not be checked completely is returned as data with the reason. The subsyst
 text or into the reason it will not be checked; and `SpellChecker`, which selects the files, runs the other two over
 them in parallel, and assembles one deterministic result. The supporting types are documented with the unit that
 uses them: `SpellingIssue`, `SpellingIssueKind`, and the internal word-list types with `TextChecker`;
-`FileTextContent` with `FileTextReader`; and `SpellCheckOptions`, `SpellCheckResult`, `FileDiagnostic`, and
-`FileDiagnosticKind` with `SpellChecker`.
+`FileTextContent` with `FileTextReader`; and `SpellCheckOptions`, `SpellCheckResult`, `FileDiagnostic`,
+`FileDiagnosticKind`, `SpellCheckNote`, `SpellCheckNoteKind`, and `SpellCheckNoteSeverity` with `SpellChecker`.
 
 The subsystem reads directories and files but never writes anything and does no console output. It does not read
 settings files (that belongs to the `Configuration` subsystem) and it does not decide how findings are presented
@@ -46,11 +46,17 @@ verdict a gate should use.
 - _Type_: In-process .NET static asynchronous method.
 - _Role_: Provider.
 - _Contract_: Accepts the settings, a root directory, optional `SpellCheckOptions` (the degree of parallelism,
-  which defaults to the number of processors), and a cancellation token. It returns a `SpellCheckResult` with the
+  which defaults to the number of processors; the settings root directory that override patterns are relative to; and
+  a language that wins over the settings), and a cancellation token. It applies the `enabled` and `overrides` settings:
+  a file that the settings disable is not read, reported, or counted, and every other file is checked with the
+  settings that the overrides matching its path give it. It returns a `SpellCheckResult` with the
   findings ordered by file path (ordinal), then line, then column; the `FileDiagnostic` entries ordered by file
-  path; the number of files checked completely; the number skipped because they were binary or too large; and
-  `HasProblems`, which is true when there is a finding or an error diagnostic.
-- _Constraints_: Throws `ArgumentNullException` and `ArgumentException` for bad arguments or unusable settings
+  path; the number of files checked completely; the number skipped because they were binary or too large; the number
+  of files the settings disabled; the `SpellCheckNote` entries that describe what the settings did to the run (a
+  command-line language that replaced an override's language, every selected file disabled, an override that matched
+  no file); and `HasProblems`, which is true when there is a finding or an error diagnostic. Notes are never problems.
+- _Constraints_: Throws `ArgumentNullException` and `ArgumentException` for bad arguments or unusable settings,
+  including an unusable override or an unsupported language in the options
   (before any file is touched), `DirectoryNotFoundException` for a missing root (a root that cannot be read throws
   `UnauthorizedAccessException` or `IOException` instead), `InvalidGlobPatternException` for
   a bad pattern, and `OperationCanceledException` when canceled. Problems with a single file are never thrown.
@@ -59,7 +65,8 @@ verdict a gate should use.
 
 - `Configuration` supplies `TextLintSettings`, the immutable value that carries the file patterns, the ignore
   patterns, the hidden-file switch, the language, the three word lists, the minimum word length, the maximum
-  file size, the `ignoreRegExpList` and `patterns` settings, and the two random-string settings. The subsystem never
+  file size, the `ignoreRegExpList` and `patterns` settings, the two random-string settings, `enabled`, and the
+  overrides, and `SettingsOverrideResolver`, which merges the overrides for a file. The subsystem never
   reads or writes a settings file.
 - `Dictionaries` supplies `SpellingDictionary`, which answers whether a word is known in the chosen language.
 - `FileSelection` supplies `FileSelector`, which turns the patterns into the ordered list of files to check.
@@ -188,4 +195,24 @@ the checker validates the language, every word-list entry, and every pattern whe
 the checker before it touches the file system. An entry that could never match (blank, containing white space, using the
 forbidden-word marker, or with no letter or digit) and a pattern that cannot be used (an unsupported flag or construct,
 an invalid expression, or a name that is not defined) are errors that name the setting and the entry, because a
-setting the user believes is in force must not silently do nothing.
+setting the user believes is in force must not silently do nothing. The same holds for overrides: `SpellChecker`
+builds a checker for every override that has settings before any file is read, including an override that no file
+will match, so a bad override fails the run at once.
+
+**Overrides and `enabled` are resolved before the parallel phase.** Which overrides apply to a file depends only on
+its path, so `SpellChecker` resolves every selected file in a sequential pre-pass that only matches paths, which is
+cheap. The pre-pass drops the files that the settings disable before any is read, and records the checker for the
+file's combination of overrides, building a missing combination there. Every checker therefore exists before the
+parallel phase starts, and the workers only read a lookup that no longer changes, so determinism and the absence of
+locks are kept. Override patterns are matched against the path relative to the settings root, which the caller
+supplies and which may differ from the directory the files were searched in (an absolute path on the command line
+moves the search); a file outside the settings root matches no override. A checker that is built from the merged
+settings is an ordinary `TextChecker`, so the word-level rules are unchanged, and the differences between two
+overrides are only in the settings given to it.
+
+**Notes report what the settings did.** The result carries notes, as data, for three situations that are neither
+findings nor file problems: a language option that replaced an override's language for a checked file, when the two
+select different dictionaries; every selected file being disabled; and an override that matched none of the selected
+files, which is probably a mistake but can only be judged when something was selected. Notes never make `HasProblems`
+true, and the library does not print them; the front-end decides how to show them, with `SpellCheckNote.Format`
+giving the standard one-line form.

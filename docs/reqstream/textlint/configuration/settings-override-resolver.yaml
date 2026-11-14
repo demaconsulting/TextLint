@@ -1,0 +1,151 @@
+---
+# Software Unit Requirements for the SettingsOverrideResolver Class
+#
+# The SettingsOverrideResolver class works out, for a file path relative to the settings root, which overrides of the
+# settings apply to it, whether it is enabled, and the effective settings that result from merging them. The
+# FileResolution type belongs to this unit.
+
+sections:
+  - title: TextLint Requirements
+    sections:
+      - title: Configuration Requirements
+        sections:
+          - title: SettingsOverrideResolver Requirements
+            requirements:
+              - id: TextLint-Configuration-SettingsOverrideResolver-Matching
+                title: >-
+                  SettingsOverrideResolver shall report, for a path relative to the settings root, every
+                  override whose filename patterns select it, in the order the overrides are written, treating
+                  the filename list of an override as an ordered list in which a negated pattern removes what
+                  an earlier pattern selected, matching case-sensitively and letting wildcards reach hidden
+                  names only when hidden-file matching is enabled, and shall report no override for a path that
+                  none selects.
+                justification: |
+                  Which overrides apply to a file decides what is reported for it, so the answer must follow
+                  the same rules as the files setting: the same pattern forms, the same ordered exclusions, the
+                  same case and hidden-name rules, on every platform. Every matching override applies, so all
+                  of them are reported, in the order that decides which one wins.
+                tests:
+                  - SettingsOverrideResolver_Resolve_NoOverrideMatches_IsEnabledWithNoMatches
+                  - SettingsOverrideResolver_Resolve_SeveralOverridesMatch_ReportsAllInOrder
+                  - SettingsOverrideResolver_Resolve_OrderedFilenameWithNegation_LastMatchWins
+                  - SettingsOverrideResolver_Resolve_DifferentCase_DoesNotMatch
+                  - SettingsOverrideResolver_Resolve_HiddenFile_FollowsEnableGlobDot
+                  - SettingsOverrideResolver_GetOverride_Index_ReturnsOverride
+
+              - id: TextLint-Configuration-SettingsOverrideResolver-ListMerge
+                title: >-
+                  SettingsOverrideResolver shall build the effective word lists and ignore expressions of a
+                  file by adding the entries of each matching override, in the order the overrides are written,
+                  to those of the top-level settings, and shall keep every other top-level setting that no
+                  override changes.
+                justification: |
+                  Overrides add rules for some files; they must not take away the project's own vocabulary,
+                  and the order in which entries are added is the order in which a person reads the file, so
+                  that general rules come first and specific ones last.
+                tests:
+                  - SettingsOverrideResolver_GetEffectiveSettings_Lists_AreConcatenatedInOrder
+                  - SettingsOverrideResolver_GetEffectiveSettings_OtherSettings_AreCopied
+
+              - id: TextLint-Configuration-SettingsOverrideResolver-ScalarMerge
+                title: >-
+                  SettingsOverrideResolver shall take each single-valued setting (language, minimum word
+                  length, random-string checking, and minimum random length) from the last matching override
+                  that sets it, and from the top-level settings when none does.
+                justification: |
+                  A single value cannot be added to, so the most specific setting, written last, must replace
+                  the more general one, while an override that does not mention a setting must leave it alone.
+                tests:
+                  - SettingsOverrideResolver_GetEffectiveSettings_SingleValues_LastSettingWins
+
+              - id: TextLint-Configuration-SettingsOverrideResolver-PatternNames
+                title: >-
+                  SettingsOverrideResolver shall combine the named patterns of the top-level settings and of
+                  the matching overrides by name, ignoring letter case, so that a later definition of a name
+                  replaces an earlier one for the files it applies to.
+                justification: |
+                  An override can use the patterns of the project as well as its own, and can redefine a name
+                  for the files it covers; resolving names only after merging gives each file one meaning for
+                  every name.
+                tests:
+                  - SettingsOverrideResolver_GetEffectiveSettings_PatternWithSameName_IsReplaced
+
+              - id: TextLint-Configuration-SettingsOverrideResolver-Enabled
+                title: >-
+                  SettingsOverrideResolver shall decide whether a file is enabled from the last matching
+                  override that sets enabled, and from the top-level setting when none does.
+                justification: |
+                  Enabled is a single value, so the last matching setting wins, which lets a general override
+                  switch files off and a later, more specific one switch some of them back on.
+                tests:
+                  - SettingsOverrideResolver_Resolve_EnabledCombinations_LastSettingWins
+
+              - id: TextLint-Configuration-SettingsOverrideResolver-LanguagePrecedence
+                title: >-
+                  SettingsOverrideResolver shall use a language given by the caller in preference to the
+                  language of every matching override and of the top-level settings, and shall use the
+                  language of the last matching override that sets one otherwise.
+                justification: |
+                  A language given on the command line is the most specific request of a run, so it must win
+                  over every language in the settings, including the one of an override, which would otherwise
+                  defeat the option for exactly the files that need it most.
+                tests:
+                  - SettingsOverrideResolver_GetEffectiveSettings_LanguagePrecedence_CommandLineWins
+                  - SettingsOverrideResolver_GetEffectiveSettings_NoOverrideMatches_AppliesCommandLineLanguage
+
+              - id: TextLint-Configuration-SettingsOverrideResolver-OutsideRoot
+                title: >-
+                  SettingsOverrideResolver shall match no override for a file that lies outside the settings
+                  root, and shall decide whether such a file is enabled from the top-level setting alone.
+                justification: |
+                  Override patterns are written relative to the settings root, so a path outside it cannot be
+                  matched by them; guessing a relative form would apply the rules of one folder to files of
+                  another.
+                tests:
+                  - SettingsOverrideResolver_ResolveUnmatched_UsesTopLevelEnabled
+
+              - id: TextLint-Configuration-SettingsOverrideResolver-Caching
+                title: >-
+                  SettingsOverrideResolver shall return the same effective settings, and the same value for the
+                  same combination of matching overrides, whenever it is asked for a combination again.
+                justification: |
+                  Thousands of files usually share a handful of combinations of overrides, and every
+                  combination needs a spell checker with its own dictionaries and patterns, so each
+                  combination must be worked out once and shared.
+                tests:
+                  - SettingsOverrideResolver_GetEffectiveSettings_SameCombination_ReturnsSameInstance
+
+              - id: TextLint-Configuration-SettingsOverrideResolver-CheckerSettings
+                title: >-
+                  SettingsOverrideResolver shall tell, for each override, whether it changes how text is checked,
+                  as opposed to only whether files are enabled.
+                justification: |
+                  An override that only enables or disables files needs no checker of its own, and a caller that
+                  prepares checkers in advance must be able to leave those out.
+                tests:
+                  - SettingsOverrideResolver_HasCheckerSettings_ReportsWhetherCheckerIsAffected
+
+              - id: TextLint-Configuration-SettingsOverrideResolver-InvalidArguments
+                title: >-
+                  SettingsOverrideResolver shall reject missing arguments, an override without a filename
+                  pattern, an unusable filename pattern, and an unsupported override language, naming the
+                  problem.
+                justification: |
+                  Settings built in code bypass the settings file check, so the resolver must refuse an
+                  override it can never apply, or one that would fail in the middle of a run, when it is
+                  created.
+                tests:
+                  - SettingsOverrideResolver_New_EmptyFilename_ThrowsArgumentException
+                  - SettingsOverrideResolver_New_UnusableFilenamePattern_ThrowsInvalidGlobPattern
+                  - SettingsOverrideResolver_New_UnsupportedOverrideLanguage_ThrowsArgumentException
+                  - SettingsOverrideResolver_NullArguments_ThrowArgumentNullException
+
+              - id: TextLint-Configuration-SettingsOverrideResolver-ConcurrentUse
+                title: >-
+                  SettingsOverrideResolver shall give the same answers when many threads ask about different
+                  files at the same time.
+                justification: |
+                  Files are checked in parallel and every thread asks the same resolver, so a resolver that
+                  gave wrong answers under contention would make results depend on timing.
+                tests:
+                  - SettingsOverrideResolver_ConcurrentUse_GivesTheSameAnswers

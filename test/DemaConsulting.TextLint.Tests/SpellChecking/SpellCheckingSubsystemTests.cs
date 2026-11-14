@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-// cspell:ignore wroldprint prnt wrold speling xqzv klingon favourite Urlz qwzx qwzxabc
+// cspell:ignore wroldprint prnt wrold speling xqzv klingon favourite Urlz qwzx qwzxabc colour
 
 using System.Text;
 using DemaConsulting.TextLint.Configuration;
@@ -809,5 +809,35 @@ public class SpellCheckingSubsystemTests
         Assert.Multiple(
             () => Assert.Empty(result.Issues),
             () => Assert.Empty(result.Notes));
+    }
+
+    /// <summary>
+    ///     Test that a language in the options wins over an override and is noted, through the subsystem boundary.
+    /// </summary>
+    [Fact]
+    public async Task SpellCheckingSubsystem_CheckAsync_LanguageOptionAndOverrideLanguage_OptionWinsWithNote()
+    {
+        // Arrange: an override for British English in docs, and a British spelling there
+        using var temp = new TempDirectory();
+        temp.CreateFile("docs/a.md", "colour");
+        var settings = new TextLintSettings
+        {
+            Files = ["**/*.md"],
+            Overrides = [new SettingsOverride { Filename = ["docs/**"], Language = "en-GB", SourceName = ".textlint.yaml", Line = 4, Column = 5 }],
+        };
+
+        // Act: check with and without the language option
+        var without = await SpellChecker.CheckAsync(settings, temp.FullPath, cancellationToken: TestContext.Current.CancellationToken);
+        var with = await SpellChecker.CheckAsync(
+            settings,
+            temp.FullPath,
+            new SpellCheckOptions { Language = "en-US" },
+            TestContext.Current.CancellationToken);
+
+        // Assert: the override applies without the option, and the option wins with a note
+        Assert.Multiple(
+            () => Assert.Empty(without.Issues),
+            () => Assert.Single(with.Issues),
+            () => Assert.Equal("info: --language en-US replaces en-GB for the override at .textlint.yaml(4,5).", Assert.Single(with.Notes).Format()));
     }
 }

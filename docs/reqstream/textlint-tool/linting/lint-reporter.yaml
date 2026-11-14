@@ -1,8 +1,9 @@
 ---
 # Software Unit Requirements for the LintReporter Class
 #
-# The LintReporter class writes the result of one check: each finding, each file that was skipped or could not be
-# checked, and a one-line summary. The wording of each line belongs to the TextLint library.
+# The LintReporter class writes the result of one check: the notes about how the settings were applied, each
+# finding, each file that was skipped or could not be checked, and a one-line summary. The wording of each line
+# belongs to the TextLint library.
 
 sections:
   - title: TextLintTool Requirements
@@ -11,11 +12,26 @@ sections:
         sections:
           - title: LintReporter Requirements
             requirements:
+              - id: TextLintTool-Linting-LintReporter-Notes
+                title: >-
+                  LintReporter shall write one line for each note of the result, formatted by the library, to
+                  standard output before every other line of the result, shall leave out the warnings that an
+                  override matched none of the selected files when the caller asks it to, and shall write the
+                  other notes whatever the caller asks.
+                justification: |
+                  Notes are about the configuration and explain what follows, so they come first; they are
+                  information and warnings, never errors, so they must not use the error channel. The warning
+                  about an unmatched override is only true for a run over every file, which the caller knows and
+                  the reporter does not, while the other notes are true for every run.
+                tests:
+                  - LintReporter_Write_Notes_AreWrittenFirstAndLeaveExitCodeAlone
+                  - LintReporter_Write_UnmatchedOverrideReportingOff_OmitsOnlyThatWarning
+
               - id: TextLintTool-Linting-LintReporter-Issues
                 title: >-
                   LintReporter shall write one line for each finding in the order the result gives, formatted by
-                  the library under the name for the file that the caller chooses, before any other line of the
-                  result.
+                  the library under the name for the file that the caller chooses, after the notes and before
+                  any other line of the result.
                 justification: |
                   Findings are the product of the run: they must be complete, in a stable order, understood by
                   editors and CI, and shown under the file name the user typed.
@@ -62,3 +78,4 @@ sections:
                   owns the run; reporting must not decide it a second time.
                 tests:
                   - LintReporter_Write_ResultWithIssues_LeavesExitCodeToCaller
+                  - LintReporter_Write_Notes_AreWrittenFirstAndLeaveExitCodeAlone

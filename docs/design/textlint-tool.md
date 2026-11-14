@@ -61,7 +61,8 @@ temporary file paths.
   `--max-parallelism <n>`, and any number of file patterns as positional arguments, which replace the `files`
   setting. A pattern may be relative or absolute, and on Windows may use backslashes; the library interprets it.
   Returns exit code 0 when every selected file was checked and no issue was found, and 1 for anything else:
-  issues found, a file that could not be checked, no files selected (unless `--allow-empty`), a settings or
+  issues found, a file that could not be checked, no files selected (unless `--allow-empty`; files that the settings
+  disable are still selected, so disabling every file is a success with a note), a settings or
   usage error, or a failed self-validation.
 - _Constraints_: Unknown, missing, empty, repeated, or out-of-range arguments cause exit code 1 and an error
   message on stderr. Running with no file patterns and no `files` setting is a usage error with guidance, not a
@@ -72,9 +73,11 @@ temporary file paths.
 - _Type_: Standard I/O.
 - _Role_: Provider.
 - _Contract_: Writes version, banner, help text, validation summary, or the result of a check depending
-  on the flags provided. The result of a check is one line per finding in the compiler style
+  on the flags provided. The result of a check is one line per note about how the settings were applied
+  (`info: message` or `file(line,column): warning: message`), one line per finding in the compiler style
   `file(line,column): error: message`, one line per skipped or unchecked file in the style
   `file: info|error: message`, and a summary line; a notice precedes them when no settings file was found.
+  Notes never affect the exit code.
   Suppressed when `--silent` is active; the log file still receives all output.
 - _Constraints_: Human-readable text. The compiler-style lines are the machine-readable contract: they are
   understood by editors, build servers, and CI log parsers.
@@ -99,7 +102,8 @@ temporary file paths.
 - _Contract_: The file named by `--config` is loaded as typed; otherwise `.textlint.yaml` in the root directory
   (`--root`, by default the current directory) is loaded when it exists, and no parent directory is searched.
   When there is none, the default settings apply and an information line says so. Reading, validating, and
-  mapping the file is done by the library.
+  mapping the file is done by the library. The `enabled` and `overrides` settings are applied by the library; the
+  overrides are matched against the root directory.
 - _Constraints_: A file that exists but cannot be examined or read is an error, not an absent file.
 
 **Log File**: Optional persistent output file.
@@ -125,8 +129,8 @@ temporary file paths.
 - **DemaConsulting.TextLint** (library, same repository): the tool depends on this project for
   all linting functionality. `LintRunner` calls `SettingsLoader.LoadAsync`, `CommandLinePathResolver.Resolve`,
   `SpellChecker.CheckAsync`, and the `TextLintSettings`, `SpellCheckOptions`, `SpellCheckResult`,
-  `SpellingIssue`, and `FileDiagnostic` types; `LintReporter` formats through `SpellingIssue.Format` and
-  `FileDiagnostic.Format`. See the _TextLint_ design.
+  `SpellingIssue`, `FileDiagnostic`, and `SpellCheckNote` types; `LintReporter` formats through `SpellingIssue.Format`,
+  `FileDiagnostic.Format`, and `SpellCheckNote.Format`. See the _TextLint_ design.
 
 - **DemaConsulting.TestResults**: provides `TestResults`, `TestResult`, and `TestOutcome` for
   accumulating self-validation results.
@@ -152,7 +156,8 @@ N/A - not a safety-classified software item.
      - `--validate` flag → `Validation.Run(context)`.
      - No flags → `LintRunner.Run(context, token)`.
 4. `LintRunner.Run` resolves the root directory, finds and loads the settings, lets the library turn the
-   command-line patterns into a search directory and patterns, applies the language override, calls
+   command-line patterns into a search directory and patterns, passes the language option and the settings root to
+   the library, calls
    `SpellChecker.CheckAsync`, and calls `LintReporter.Write`. It marks the run failed when the result has
    problems. Failures caused by the user's input or environment are written to stderr as errors.
 5. `Program.Main` returns `context.ExitCode` (0 if no errors were reported and the run was not marked failed,
@@ -173,7 +178,8 @@ N/A - not a safety-classified software item.
 - Layering: the tool is a thin command-line front-end. No linting logic (configuration loading,
   file discovery, dictionaries, tokenization, spell checking, results) may be added to the tool;
   it belongs in the `DemaConsulting.TextLint` library, which the tool calls. The tool owns only policy and
-  glue: where the settings file is looked for, which command-line values override which settings, how each
+  glue: where the settings file is looked for, which command-line values override which settings (and that the
+  language option wins over the languages of overrides, which the library applies), how each
   failure is reported, and the exit codes.
 - Third-party notices: the tool package bundles the library assembly, which embeds third-party word
   lists whose licenses require their notices to accompany the data. The tool project therefore packs

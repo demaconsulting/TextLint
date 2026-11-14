@@ -4,7 +4,8 @@
 
 `FileSelector` is verified with unit tests in `FileSelectorTests.cs`. Tests build real directory trees in a
 per-test temporary directory and select from them, so the selector runs with the real matcher (an OTS item with
-its own requirements) and its documented dependencies, `GlobPatternExpander` and `HiddenPathPolicy`, real. The
+its own requirements) and its documented dependencies, `GlobPatternExpander`, `HiddenPathPolicy`, and
+`OrderedGlobList`, real. The
 patterns and the hidden-file switch are passed as plain parameters, since the unit does not depend on any
 configuration type. The
 internal `Select` overload that accepts an abstract directory is tested with a recording directory, the only
@@ -24,13 +25,19 @@ uses its own uniquely named directory, so tests share no state and may run in pa
 
 - All unit tests pass with zero failures.
 - Include patterns select, ignore patterns remove and win over includes, and no includes select nothing.
+- The include list is ordered: a `!` pattern removes the files an earlier pattern selected, a later pattern brings
+  them back, a list without `!` selects what it always did, and the walk selects exactly the files the exact
+  per-file rule selects.
 - Argument and root-directory errors throw the documented exceptions; a missing root is distinguished from an
   unreadable one.
 - Matching is case-sensitive.
-- Hidden entries follow the hidden-file rule, including literal hidden names.
-- Excluded and unreachable hidden directories are never enumerated; literally named hidden directories are.
+- Hidden entries follow the hidden-file rule, including literal hidden names, also when the list has a `!` pattern.
+- Excluded and unreachable hidden directories are never enumerated; literally named hidden directories are; a
+  directory excluded by `!` is not enumerated unless a later include can reach beneath it or the `!` pattern names
+  only particular files.
 - Results are in ordinal order with forward-slash paths and expose the full path.
-- Invalid patterns in either list are rejected naming the pattern.
+- Invalid patterns in either list, a `!` in the ignore list, and an include list that starts with `!` are rejected
+  naming the pattern, before the root directory is read.
 - A canceled token stops the selection with a cancellation before the call and during the walk, with and without
   hidden-name wildcards, and a token that is not canceled does not change the selection.
 
@@ -175,8 +182,8 @@ case, are returned in ordinal order. This scenario is tested by
 **FileSelector_Select_NestedFiles_UseForwardSlashes**: A nested file's relative path uses forward slashes on
 every platform. This scenario is tested by `FileSelector_Select_NestedFiles_UseForwardSlashes`.
 
-**FileSelector_Select_InvalidIncludePattern_ThrowsInvalidGlobPattern**: A negated include pattern throws an
-exception that exposes the pattern. This scenario is tested by
+**FileSelector_Select_InvalidIncludePattern_ThrowsInvalidGlobPattern**: An include list that starts with a negated
+pattern throws an exception that exposes the pattern. This scenario is tested by
 `FileSelector_Select_InvalidIncludePattern_ThrowsInvalidGlobPattern`.
 
 **FileSelector_Select_InvalidIgnorePattern_ThrowsInvalidGlobPattern**: A backslash ignore pattern throws even
@@ -186,3 +193,49 @@ when nothing is included. This scenario is tested by
 **FileSelector_Select_AbsolutePathPattern_ThrowsInvalidGlobPattern**: A drive path as an include pattern and a
 `//` network path as an ignore pattern each throw an exception that exposes the pattern and says absolute paths
 are not supported. This scenario is tested by `FileSelector_Select_AbsolutePathPattern_ThrowsInvalidGlobPattern`.
+
+**FileSelector_Select_NegationAfterInclude_ExcludesFiles**: With `**/*.md` followed by `!docs/**`, the markdown
+files in the root and in `src` are selected and the one in `docs` is not. This scenario is tested by
+`FileSelector_Select_NegationAfterInclude_ExcludesFiles`.
+
+**FileSelector_Select_IncludeAfterNegation_SelectsFilesAgain**: With `!docs` followed by `docs/keep/**`, the file in
+`docs/keep` and the root file are selected, and the other files beneath `docs` are not. This scenario is tested by
+`FileSelector_Select_IncludeAfterNegation_SelectsFilesAgain`.
+
+**FileSelector_Select_ListWithoutNegation_SelectsSameFilesAsBefore**: A list of `**/*.md` and a literal
+`.github/*.md` selects the root and `docs` files and the file in `.github`, and not the file in `.cache`, as plain
+includes always did. This scenario is tested by `FileSelector_Select_ListWithoutNegation_SelectsSameFilesAsBefore`.
+
+**FileSelector_Select_NegatedBareDirectory_IsNotEnumerated**: Through a recording directory, `!node_modules` leaves
+`node_modules` at the root and in `src` unread while `src` is read. This scenario is tested by
+`FileSelector_Select_NegatedBareDirectory_IsNotEnumerated`.
+
+**FileSelector_Select_NegatedDirectoryWithLaterInclude_IsEnumerated**: With `!docs` followed by `docs/keep/**`,
+`docs` and `docs/keep` are read and `docs/other` is not. This scenario is tested by
+`FileSelector_Select_NegatedDirectoryWithLaterInclude_IsEnumerated`.
+
+**FileSelector_Select_NegatedFilePattern_StillEnumeratesDirectory**: With `!docs/**/*.md`, `docs` is still read and
+only the text file in it is selected. This scenario is tested by
+`FileSelector_Select_NegatedFilePattern_StillEnumeratesDirectory`.
+
+**FileSelector_Select_NegationAndHiddenDirectory_HiddenIsNotEnumerated**: With a `!docs/skip/` negation, `.git` and
+`docs/skip` are not read and `docs` is. This scenario is tested by
+`FileSelector_Select_NegationAndHiddenDirectory_HiddenIsNotEnumerated`.
+
+**FileSelector_Select_NegationAndGlobDot_SelectsHiddenExceptNegated**: With hidden matching enabled and `!.cache`,
+the file in `.github` is selected and the file in `.cache` is not. This scenario is tested by
+`FileSelector_Select_NegationAndGlobDot_SelectsHiddenExceptNegated`.
+
+**FileSelector_Select_IgnorePatternWithOrderedInclude_IgnoreStillWins**: A file that a re-include selects is removed
+by an ignore pattern, and an ignore pattern that starts with `!` throws an exception that exposes it. This scenario
+is tested by `FileSelector_Select_IgnorePatternWithOrderedInclude_IgnoreStillWins`.
+
+**FileSelector_Select_LeadingNegationAndMissingRoot_ThrowsInvalidGlobPattern**: A list that starts with `!` is
+reported with a message saying the negation must follow a pattern, even though the root does not exist, because
+patterns are validated before any directory is read. This scenario is tested by
+`FileSelector_Select_LeadingNegationAndMissingRoot_ThrowsInvalidGlobPattern`.
+
+**FileSelector_Select_OrderedLists_MatchesExactRuleForEveryFile**: For eight ordered lists over a tree of thirteen
+files, including hidden ones, the files the walk selects equal the files that `OrderedGlobList.IsMatch` selects, so
+pruning loses and adds nothing. This scenario is tested by
+`FileSelector_Select_OrderedLists_MatchesExactRuleForEveryFile`.
