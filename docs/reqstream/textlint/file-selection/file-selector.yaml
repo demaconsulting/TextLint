@@ -91,18 +91,25 @@ sections:
                   FileSelector shall apply the include patterns as an ordered list in which a pattern that
                   begins with ! removes the files it matches from those that earlier patterns selected and a
                   later pattern can select them again, so that the last matching pattern decides, shall let a
-                  negated pattern remove hidden files when hidden-file matching is enabled, and shall let the
+                  negated pattern remove hidden files when hidden-file matching is enabled, shall let a negated
+                  pattern that names a path remove what the same pattern removes in the ignore patterns, a file
+                  of that name or a directory of that name with everything below it, and shall let the
                   ignore patterns win over the whole list.
                 justification: |
                   Settings need to say "all Markdown files except those under docs, but the docs/keep folder
                   stays in" without listing files. The ordered list is the form ReviewMark and ignore files
                   already teach, and the ignore patterns remain the hard fence that nothing can re-include.
+                  A pattern must exclude the same things in a negation as in ignorePaths, or the two would
+                  surprise anyone who moves a pattern from one to the other.
                 tests:
                   - FileSelector_Select_NegationAfterInclude_ExcludesFiles
                   - FileSelector_Select_IncludeAfterNegation_SelectsFilesAgain
                   - FileSelector_Select_NegationAndGlobDot_SelectsHiddenExceptNegated
                   - FileSelector_Select_IgnorePatternWithOrderedInclude_IgnoreStillWins
                   - FileSelector_Select_OrderedLists_MatchesExactRuleForEveryFile
+                  - FileSelector_Select_NegatedAnchoredDirectory_MatchesIgnorePattern
+                  - FileSelector_Select_NegatedAnchoredDirectoryThenInclude_SelectsFileAgain
+                  - FileSelector_Select_AnchoredDirectoryAsInclude_SelectsNothingBeneathIt
 
               - id: TextLint-FileSelection-FileSelector-ListWithoutNegation
                 title: >-

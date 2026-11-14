@@ -26,8 +26,9 @@ N/A - standard test environment.
   enabled.
 - A pattern list that starts with a negation, a double negation, a lone negation, and every unusable pattern are
   rejected with an exception that names the entry as written and, for a leading negation, says what to do.
-- A directory is reported as excluded only when it holds no selected file; a later include that can reach beneath it,
-  a negation of particular files, and an anchored negation without a trailing slash never exclude it.
+- A directory is reported as excluded only when it holds no selected file; a later include that can reach beneath it
+  and a negation of particular files never exclude it, while a negation that names the directory, with or without a
+  trailing slash or recursive wildcard, does.
 - Null arguments throw, and a compiled list gives the same answers from several threads.
 
 #### Test Scenarios
@@ -137,9 +138,24 @@ This scenario is tested by `OrderedGlobList_IsSubtreeExcluded_LaterIncludeCanRea
 directory does not veto pruning: `docs/a` is excluded while `x` and `docs` are not. This scenario is tested by
 `OrderedGlobList_IsSubtreeExcluded_UnrelatedLaterInclude_StillExcluded`.
 
-**OrderedGlobList_IsSubtreeExcluded_AnchoredNegationWithoutSlash_IsNotExcluded**: The anchored negation `!docs/a`
-names only a file, so `docs/a` is not excluded and a file beneath a directory `docs/a` stays selected. This
-scenario is tested by `OrderedGlobList_IsSubtreeExcluded_AnchoredNegationWithoutSlash_IsNotExcluded`.
+**OrderedGlobList_IsSubtreeExcluded_AnchoredNegationWithoutSlash_ExcludesDirectory**: The anchored negation
+`!docs/a` has the meaning of the ignore pattern `docs/a`, so `docs/a` and a directory beneath it are excluded, a
+sibling `docs/b` is not, and no file beneath `docs/a` is selected. This scenario is tested by
+`OrderedGlobList_IsSubtreeExcluded_AnchoredNegationWithoutSlash_ExcludesDirectory`.
+
+**OrderedGlobList_IsMatch_AnchoredDirectoryNegation_SameWithAndWithoutRecursiveWildcard**: `!docs/a`, `!docs/a/`,
+and `!docs/a/**` each remove the files beneath `docs/a` at any depth, leave `docs/b.md` and the files of a
+directory `docs/ab` selected, and exclude the directory. This scenario is tested by
+`OrderedGlobList_IsMatch_AnchoredDirectoryNegation_SameWithAndWithoutRecursiveWildcard`.
+
+**OrderedGlobList_IsMatch_AnchoredDirectoryNegationThenReinclude_SelectsFileAgain**: With `!docs/a` followed by
+`docs/a/keep.md`, the re-included file is selected and another file of `docs/a` is not, `docs/a` is not excluded,
+and `docs/a/deep` is. This scenario is tested by
+`OrderedGlobList_IsMatch_AnchoredDirectoryNegationThenReinclude_SelectsFileAgain`.
+
+**OrderedGlobList_IsMatch_AnchoredPlainPattern_SelectsOnlyTheFile**: The plain include `docs/a` selects a path named
+`docs/a` and no file beneath it, as it always has. This scenario is tested by
+`OrderedGlobList_IsMatch_AnchoredPlainPattern_SelectsOnlyTheFile`.
 
 **OrderedGlobList_IsSubtreeExcluded_LaterRecursiveInclude_IsNotExcluded**: A later include with a leading `**`
 can reach anywhere, so the negated `docs` is not excluded. This scenario is tested by

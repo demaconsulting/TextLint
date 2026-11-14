@@ -427,18 +427,74 @@ public class OrderedGlobListTests
     }
 
     /// <summary>
-    ///     Test that an anchored negation without a trailing slash names only that path and so never prunes.
+    ///     Test that an anchored negation without a trailing slash excludes the directory like an ignore pattern does.
     /// </summary>
     [Fact]
-    public void OrderedGlobList_IsSubtreeExcluded_AnchoredNegationWithoutSlash_IsNotExcluded()
+    public void OrderedGlobList_IsSubtreeExcluded_AnchoredNegationWithoutSlash_ExcludesDirectory()
     {
-        // Arrange: a negation that, as an anchored pattern, matches only a file named docs/a
+        // Arrange: a negation that, like the ignore pattern docs/a, names a file or a directory
         var list = OrderedGlobList.Parse(["**/*.md", "!docs/a"], false);
 
-        // Act / Assert: files beneath a directory docs/a stay selected and the directory is walked
+        // Act / Assert: the directory is pruned, nothing beneath it is selected, and a sibling is untouched
         Assert.Multiple(
+            () => Assert.True(list.IsSubtreeExcluded("docs/a")),
+            () => Assert.True(list.IsSubtreeExcluded("docs/a/deep")),
+            () => Assert.False(list.IsSubtreeExcluded("docs/b")),
+            () => Assert.False(list.IsMatch("docs/a/b.md")),
+            () => Assert.True(list.IsMatch("docs/b.md")));
+    }
+
+    /// <summary>
+    ///     Test that an anchored negation of a directory means the same with and without a trailing recursive wildcard.
+    /// </summary>
+    [Theory]
+    [InlineData("!docs/a")]
+    [InlineData("!docs/a/")]
+    [InlineData("!docs/a/**")]
+    public void OrderedGlobList_IsMatch_AnchoredDirectoryNegation_SameWithAndWithoutRecursiveWildcard(string negation)
+    {
+        // Arrange: markdown files except the directory docs/a, written in each of the three ways
+        var list = OrderedGlobList.Parse(["**/*.md", negation], false);
+
+        // Act / Assert: everything beneath docs/a is removed at any depth, and the rest stays selected
+        Assert.Multiple(
+            () => Assert.False(list.IsMatch("docs/a/b.md")),
+            () => Assert.False(list.IsMatch("docs/a/deep/c.md")),
+            () => Assert.True(list.IsMatch("docs/b.md")),
+            () => Assert.True(list.IsMatch("docs/ab/c.md")),
+            () => Assert.True(list.IsSubtreeExcluded("docs/a")));
+    }
+
+    /// <summary>
+    ///     Test that a later include brings back a file beneath a directory that an anchored negation removed.
+    /// </summary>
+    [Fact]
+    public void OrderedGlobList_IsMatch_AnchoredDirectoryNegationThenReinclude_SelectsFileAgain()
+    {
+        // Arrange: docs/a is removed without a recursive wildcard, then one file of it is brought back
+        var list = OrderedGlobList.Parse(["**/*.md", "!docs/a", "docs/a/keep.md"], false);
+
+        // Act / Assert: only the re-included file is selected, and the directory must still be walked
+        Assert.Multiple(
+            () => Assert.True(list.IsMatch("docs/a/keep.md")),
+            () => Assert.False(list.IsMatch("docs/a/other.md")),
             () => Assert.False(list.IsSubtreeExcluded("docs/a")),
-            () => Assert.True(list.IsMatch("docs/a/b.md")));
+            () => Assert.True(list.IsSubtreeExcluded("docs/a/deep")));
+    }
+
+    /// <summary>
+    ///     Test that a plain anchored pattern still selects only a file, as it always has.
+    /// </summary>
+    [Fact]
+    public void OrderedGlobList_IsMatch_AnchoredPlainPattern_SelectsOnlyTheFile()
+    {
+        // Arrange: a plain include with a path and no wildcard
+        var list = OrderedGlobList.Parse(["docs/a"], false);
+
+        // Act / Assert: the path itself is selected; files beneath it are not
+        Assert.Multiple(
+            () => Assert.True(list.IsMatch("docs/a")),
+            () => Assert.False(list.IsMatch("docs/a/b.md")));
     }
 
     /// <summary>

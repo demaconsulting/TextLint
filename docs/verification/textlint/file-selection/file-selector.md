@@ -235,7 +235,20 @@ reported with a message saying the negation must follow a pattern, even though t
 patterns are validated before any directory is read. This scenario is tested by
 `FileSelector_Select_LeadingNegationAndMissingRoot_ThrowsInvalidGlobPattern`.
 
-**FileSelector_Select_OrderedLists_MatchesExactRuleForEveryFile**: For eight ordered lists over a tree of thirteen
+**FileSelector_Select_NegatedAnchoredDirectory_MatchesIgnorePattern**: With `!docs/a`, `!docs/a/`, and `!docs/a/**`,
+the files of `docs/a` and below are not selected, the files of `docs/ab` and `docs` are, the selection equals the
+one that the same pattern gives as an ignore pattern, and `docs/a` is not read while `docs/ab` is. This scenario is
+tested by `FileSelector_Select_NegatedAnchoredDirectory_MatchesIgnorePattern`.
+
+**FileSelector_Select_NegatedAnchoredDirectoryThenInclude_SelectsFileAgain**: With `!docs/a` followed by
+`docs/a/keep.md`, only that file of `docs/a` is selected, besides the file in `docs`. This scenario is tested by
+`FileSelector_Select_NegatedAnchoredDirectoryThenInclude_SelectsFileAgain`.
+
+**FileSelector_Select_AnchoredDirectoryAsInclude_SelectsNothingBeneathIt**: The plain include `docs/a` selects no
+file beneath a directory `docs/a`, while `docs/a/` selects it. This scenario is tested by
+`FileSelector_Select_AnchoredDirectoryAsInclude_SelectsNothingBeneathIt`.
+
+**FileSelector_Select_OrderedLists_MatchesExactRuleForEveryFile**: For ten ordered lists over a tree of thirteen
 files, including hidden ones, the files the walk selects equal the files that `OrderedGlobList.IsMatch` selects, so
 pruning loses and adds nothing. This scenario is tested by
 `FileSelector_Select_OrderedLists_MatchesExactRuleForEveryFile`.

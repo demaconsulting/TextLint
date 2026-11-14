@@ -22,7 +22,7 @@ Each pattern is kept as an internal `Entry` that holds:
 - the expanded matcher patterns, which `GlobPatternExpander` produces from the pattern without its `!`;
 - a matcher with ordinal (case-sensitive) comparison that holds all the expanded patterns;
 - for a negated pattern, a second matcher that holds only its _subtree forms_: the expanded patterns that equal
-  `**` or end in `/**`;
+  `**` or end in `/**`, which every negated pattern has because of the extension described under `Parse`;
 - for a plain pattern, the expanded patterns split into segments, used to test whether a directory could lead to
   a match.
 
@@ -48,6 +48,13 @@ by the expander. When the expander rejects a pattern, the exception is rethrown 
 including its `!`, so a message shows what the user typed. The first pattern of a list may not be negated,
 because there is nothing yet to remove files from; it fails with the reason
 `'!' must follow a pattern it can remove files from; put it after the pattern it excludes`.
+
+A negation has the meaning that the same pattern has in `ignorePaths`, which is an exclude pattern: a pattern with a
+path, such as `docs/a`, removes a file of that name and also a directory of that name with everything below it,
+while the same pattern as a plain include selects only a file. So for a negated pattern, each expanded form that
+does not already end in `/**` (or equal `**`) is followed by the same form with `/**` added, and the matchers see
+both. A bare name (`!node_modules`) and a trailing `/` (`!build/`) already expand to a subtree form, so they are
+unchanged. A plain pattern is never extended, which keeps `files` selecting exactly what it always has.
 
 **ValidateEntry**: Validates one pattern of a list without keeping it.
 
@@ -91,12 +98,13 @@ from the last to the first:
   `**` can swallow;
 - any other pattern is ignored.
 
-When no pattern decides, the answer is `false`. The patterns that cover a subtree are those written as a bare
-name (`!node_modules`), as a directory (`!build/`), or with a trailing recursive segment (`!docs/**`). A
-pattern that names particular files, such as `!**/*.md` or an anchored path like `!docs/a` that has no trailing
-`/` or `/**`, never covers a directory, so it never prunes; the directory stays in the walk and the files are
-decided exactly after the match. The alignment table has one cell per pair of directory and pattern segments, so
-the effort is bounded by the product of the two lengths however many recursive segments a pattern has.
+When no pattern decides, the answer is `false`. Every negated pattern has a subtree form, so a negation that names
+a directory covers it whether it is written as a bare name (`!node_modules`), as a directory (`!build/`), with a
+path (`!docs/a`), or with a trailing recursive segment (`!docs/**`). A pattern that names particular files, such as
+`!**/*.md` or `!docs/**/*.md`, covers no directory that can hold a selected file, so it never prunes one; the
+directory stays in the walk and the files are decided exactly after the match. The alignment table has one cell
+per pair of directory and pattern segments, so the effort is bounded by the product of the two lengths however many
+recursive segments a pattern has.
 
 #### Error Handling
 

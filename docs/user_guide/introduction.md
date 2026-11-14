@@ -501,8 +501,10 @@ directories, a leading `/` to anchor to the root, and case-sensitive matching.
 - A `!` pattern that matches nothing is not an error.
 - Without any `!`, the list selects exactly the files it always has.
 - A bare name excludes at any depth, so `!node_modules` removes every directory of that name and the files below
-  it. A pattern with a path, such as `!docs/a`, names only the **file** `docs/a`; write `!docs/a/` or `!docs/a/**`
-  to exclude the directory and everything below it.
+  it. A pattern with a path, such as `!docs/a`, excludes what the same pattern excludes in `ignorePaths`: a file
+  `docs/a`, or a directory `docs/a` with everything below it, so `!docs/a`, `!docs/a/`, and `!docs/a/**` all exclude
+  the directory. (As an include, `docs/a` selects only a file `docs/a`; write `docs/a/` or `docs/a/**` to select the
+  directory.) A later pattern can still select a file below an excluded directory again.
 - Excluded directories are not scanned when the ordered rules allow it (a later pattern that could bring back a
   file below the directory keeps it scanned), so excluding a large tree with `!` does not cost a full walk. A
   tree that is never yours, such as vendored code, generated files, or build output, still belongs in `ignorePaths`,
@@ -557,7 +559,8 @@ overrides:
 - `--language` on the command line wins over the `language` of an override (see _Notes During a Run_).
 
 A problem in an override is a settings error: nothing is checked, and the message gives the file, line, and column.
-The position is that of the key, the item, or (when the whole entry is at fault) the start of the entry.
+The position is that of the key, the item, or (when the whole entry is at fault) the start of the entry. The
+problems are listed in the order of the file.
 
 Each mistake below is reported with the message that follows it (a bare `!x` stands for the pattern written):
 
@@ -566,7 +569,8 @@ Each mistake below is reported with the message that follows it (a bare `!x` sta
 - **`enabled: false` together with other settings**, at the `enabled` key:
   `This override skips its files, so its other settings have no effect; remove them,
   or remove 'enabled: false' to apply them.`
-- **An override with only a `filename`**, at the start of the override:
+- **An override with only a `filename`**, at the start of the override (a key with no value counts as absent, so an
+  override whose other keys have no value is this error too):
   `This override changes nothing: add settings, or remove it.`
 - **A missing, empty, or null `filename`**, at the start of the override: `An override needs a 'filename'.`
 - **A `files` or `filename` list that starts with `!`**, at that item:

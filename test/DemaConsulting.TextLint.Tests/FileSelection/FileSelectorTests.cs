@@ -944,6 +944,74 @@ public class FileSelectorTests
     }
 
     /// <summary>
+    ///     Test that negating an anchored directory selects exactly what the same ignore pattern leaves.
+    /// </summary>
+    [Theory]
+    [InlineData("docs/a")]
+    [InlineData("docs/a/")]
+    [InlineData("docs/a/**")]
+    public void FileSelector_Select_NegatedAnchoredDirectory_MatchesIgnorePattern(string pattern)
+    {
+        // Arrange: a directory, a similarly named sibling, and a directory with a deeper level
+        using var temp = new TempDirectory();
+        temp.CreateFile("docs/a/b.md");
+        temp.CreateFile("docs/a/deep/c.md");
+        temp.CreateFile("docs/ab/d.md");
+        temp.CreateFile("docs/e.md");
+
+        // Act: select once with the negation and once with the same pattern as an ignore pattern
+        var negated = SelectPaths(temp, ["**/*.md", "!" + pattern]);
+        var enumerated = SelectAndRecord(temp, ["**/*.md", "!" + pattern]);
+        var ignored = SelectPaths(temp, ["**/*.md"], [pattern]);
+
+        // Assert: both leave the same files, and the negated directory is not even read
+        Assert.Multiple(
+            () => Assert.Equal(["docs/ab/d.md", "docs/e.md"], negated),
+            () => Assert.Equal(ignored, negated),
+            () => Assert.DoesNotContain("docs/a", enumerated),
+            () => Assert.Contains("docs/ab", enumerated));
+    }
+
+    /// <summary>
+    ///     Test that a file beneath an anchored directory that a negation removed can be selected again by a later include.
+    /// </summary>
+    [Fact]
+    public void FileSelector_Select_NegatedAnchoredDirectoryThenInclude_SelectsFileAgain()
+    {
+        // Arrange: a directory with a file to keep and a file to drop
+        using var temp = new TempDirectory();
+        temp.CreateFile("docs/a/keep.md");
+        temp.CreateFile("docs/a/drop.md");
+        temp.CreateFile("docs/b.md");
+
+        // Act: select with the directory negated without a recursive wildcard, then one file included again
+        var paths = SelectPaths(temp, ["**/*.md", "!docs/a", "docs/a/keep.md"]);
+
+        // Assert: only the re-included file of the directory is selected
+        Assert.Equal(["docs/a/keep.md", "docs/b.md"], paths);
+    }
+
+    /// <summary>
+    ///     Test that an anchored directory path as a plain include still selects no file beneath the directory.
+    /// </summary>
+    [Fact]
+    public void FileSelector_Select_AnchoredDirectoryAsInclude_SelectsNothingBeneathIt()
+    {
+        // Arrange: a directory that holds a file
+        using var temp = new TempDirectory();
+        temp.CreateFile("docs/a/b.md");
+
+        // Act: select with the directory path written without a slash, and with a trailing slash
+        var withoutSlash = SelectPaths(temp, ["docs/a"]);
+        var withSlash = SelectPaths(temp, ["docs/a/"]);
+
+        // Assert: an include names a file, so only the trailing slash selects the files beneath the directory
+        Assert.Multiple(
+            () => Assert.Empty(withoutSlash),
+            () => Assert.Equal(["docs/a/b.md"], withSlash));
+    }
+
+    /// <summary>
     ///     Test that hidden directories are still skipped when the list has a negation.
     /// </summary>
     [Fact]
@@ -1045,6 +1113,8 @@ public class FileSelectorTests
             ["**/*.md", "!**/build/**", "build/keep.md"],
             ["**/*.md", "!docs/**/*.md", "docs/a/b.md"],
             ["**/*.md", "!/docs/*/", "docs/z/a.md"],
+            ["**/*.md", "!docs/a"],
+            ["**/*.md", "!docs/a", "docs/a/b.md"],
         ];
 
         foreach (var patterns in lists)

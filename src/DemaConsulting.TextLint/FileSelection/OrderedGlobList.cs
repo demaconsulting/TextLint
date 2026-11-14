@@ -235,7 +235,8 @@ internal sealed class OrderedGlobList
     ///     examined from the last to the first. A plain pattern that could reach beneath the directory
     ///     vetoes the pruning, because it might bring back a file an earlier negation removed. A negation
     ///     excludes the whole subtree when one of its expanded forms ends in a recursive segment and matches
-    ///     a probe file inside the directory; forms that name particular files never cover a directory.
+    ///     a probe file inside the directory; with the subtree forms every negation gets (see
+    ///     <see cref="ExtendToSubtree"/>), that is any negation whose pattern names the directory itself.
     ///     Pure and thread-safe.
     /// </remarks>
     /// <param name="relativeDirectoryPath">The directory path relative to the root, using forward slashes. Must not be null.</param>
@@ -282,7 +283,8 @@ internal sealed class OrderedGlobList
     ///     Compiles one pattern of a list.
     /// </summary>
     /// <remarks>
-    ///     Strips one leading negation, delegates the rest to <see cref="GlobPatternExpander"/>, and
+    ///     Strips one leading negation, delegates the rest to <see cref="GlobPatternExpander"/>, gives a negation
+    ///     the subtree meaning of an exclude pattern, and
     ///     reports any rejection against the pattern as written, so a message shows what the user typed.
     ///     Stateless and thread-safe.
     /// </remarks>
@@ -312,6 +314,12 @@ internal sealed class OrderedGlobList
             throw new InvalidGlobPatternException(pattern, exception.Reason);
         }
 
+        // A negation excludes like an ignore pattern does, so a path-like pattern names a directory as well as a file
+        if (negated)
+        {
+            expanded = ExtendToSubtree(expanded);
+        }
+
         // Build the whole-pattern matcher; case-sensitive so a selection is identical on every platform
         var matcher = new Matcher(StringComparison.Ordinal);
         matcher.AddIncludePatterns(expanded);
@@ -332,6 +340,25 @@ internal sealed class OrderedGlobList
         var segments = negated ? Array.Empty<string[]>() : expanded.Select(static form => form.Split(Separator)).ToArray();
         return new Entry(negated, expanded, matcher, subtreeMatcher, segments);
     }
+
+    /// <summary>
+    ///     Gives each expanded form of a negation the meaning an exclude pattern has in <c>ignorePaths</c>.
+    /// </summary>
+    /// <remarks>
+    ///     An exclude pattern such as <c>docs/a</c> removes a file of that name and also the directory of that
+    ///     name with everything below it, whereas the same pattern as an include selects only a file. A negation
+    ///     is an exclude, so every form that does not already cover a subtree gets a second form that does.
+    ///     Forms that already end in a recursive segment, which is what a bare name or a trailing slash expands
+    ///     to, are unchanged. Stateless and thread-safe.
+    /// </remarks>
+    /// <param name="expanded">The expanded forms of the negated pattern. Must not be null.</param>
+    /// <returns>The forms, each followed by its subtree form where it had none, without duplicates.</returns>
+    private static IReadOnlyList<string> ExtendToSubtree(IReadOnlyList<string> expanded) =>
+    [
+        .. expanded
+            .SelectMany(static form => IsSubtreeForm(form) ? [form] : new[] { form, form + SubtreeSuffix })
+            .Distinct(StringComparer.Ordinal),
+    ];
 
     /// <summary>
     ///     Determines whether an expanded pattern matches everything beneath some directory.

@@ -110,7 +110,8 @@ And a directory that the ordered rules exclude entirely, such as `node_modules` 
 may include something under it again, so a further directory view, `OrderedPruningDirectory`, hides each
 subdirectory that `OrderedGlobList.IsSubtreeExcluded` proves excluded. That test is conservative: a later pattern
 that could reach beneath the directory keeps it in the walk, and a negation that names particular files, such as
-`!docs/a`, never prunes.
+`!docs/**/*.md`, never prunes. A negation has the meaning of the same pattern in `ignorePaths`, so `!docs/a`
+excludes a directory `docs/a` and everything below it, exactly as `ignorePaths: [docs/a]` does.
 
 Case sensitivity is requested explicitly because the matcher is case-insensitive by default. Symbolic
 links and junctions are handled however the matcher's directory abstraction handles them; the

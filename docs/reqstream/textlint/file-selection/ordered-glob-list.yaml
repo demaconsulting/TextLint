@@ -17,13 +17,16 @@ sections:
                 title: >-
                   OrderedGlobList shall select a path exactly when the last pattern of the list that matches it
                   is not negated, shall let a negated pattern (one that begins with !) accept brace
-                  alternatives, bare names, a leading slash, and a trailing slash as a pattern does, shall
-                  select nothing for an empty list, and shall reject a missing path.
+                  alternatives, bare names, a leading slash, and a trailing slash as a pattern does, shall give
+                  a negated pattern that names a path the meaning that the same pattern has as an ignore
+                  pattern, so that it removes a file of that name and a directory of that name with everything
+                  below it, shall select nothing for an empty list, and shall reject a missing path.
                 justification: |
                   This is the rule of the ordered lists of the settings file, the same one that ReviewMark and
                   ignore files use: a later pattern wins, so a broad include can be narrowed by an exclusion
                   and an exception to that exclusion can follow it. A negated pattern must be written the same
-                  way as a plain one, or users would have to learn two pattern languages.
+                  way as a plain one, or users would have to learn two pattern languages, and it is an exclusion
+                  like the ones in ignorePaths, so a pattern must exclude the same things in both places.
                 tests:
                   - OrderedGlobList_IsMatch_PlainPatterns_MatchesAnyPattern
                   - OrderedGlobList_IsMatch_NegationAfterInclude_RemovesFiles
@@ -33,6 +36,9 @@ sections:
                   - OrderedGlobList_IsMatch_BareNameNegation_RemovesAtAnyDepth
                   - OrderedGlobList_IsMatch_AnchoredNegation_OnlyRemovesAtRoot
                   - OrderedGlobList_IsMatch_TrailingSlashNegation_RemovesDirectorySubtree
+                  - OrderedGlobList_IsMatch_AnchoredDirectoryNegation_SameWithAndWithoutRecursiveWildcard
+                  - OrderedGlobList_IsMatch_AnchoredDirectoryNegationThenReinclude_SelectsFileAgain
+                  - OrderedGlobList_IsMatch_AnchoredPlainPattern_SelectsOnlyTheFile
                   - OrderedGlobList_Parse_EmptyList_IsEmptyAndMatchesNothing
                   - OrderedGlobList_PositivePatterns_PlainAndNegated_ListsOnlyPlainExpansions
                   - OrderedGlobList_IsMatchAndIsSubtreeExcluded_NullArgument_ThrowArgumentNullException
@@ -66,11 +72,10 @@ sections:
               - id: TextLint-FileSelection-OrderedGlobList-SubtreePruning
                 title: >-
                   OrderedGlobList shall report that the files below a directory are all excluded only when a
-                  negated pattern that names the directory as a whole (a bare name, or a pattern that ends with
-                  a slash or with a recursive wildcard) is the last pattern that can match anything below it,
-                  and shall never report it for a pattern that names only files, for an anchored pattern that
-                  ends in a plain name, for a list without a negated pattern, or when a later pattern could
-                  select a file below the directory.
+                  negated pattern that names the directory (a bare name, a path, a pattern that ends with a
+                  slash, or one that ends with a recursive wildcard) is the last pattern that can match anything
+                  below it, and shall never report it for a pattern that names only files, for a list without a
+                  negated pattern, or when a later pattern could select a file below the directory.
                 justification: |
                   Skipping an excluded directory without reading it is what keeps a run fast on a repository
                   with large vendored trees. Skipping one that a later pattern could still select from would
@@ -82,7 +87,7 @@ sections:
                   - OrderedGlobList_IsSubtreeExcluded_LaterIncludeCanReach_IsNotExcluded
                   - OrderedGlobList_IsSubtreeExcluded_FileFormNegation_IsNotExcluded
                   - OrderedGlobList_IsSubtreeExcluded_UnrelatedLaterInclude_StillExcluded
-                  - OrderedGlobList_IsSubtreeExcluded_AnchoredNegationWithoutSlash_IsNotExcluded
+                  - OrderedGlobList_IsSubtreeExcluded_AnchoredNegationWithoutSlash_ExcludesDirectory
                   - OrderedGlobList_IsSubtreeExcluded_LaterRecursiveInclude_IsNotExcluded
                   - OrderedGlobList_IsSubtreeExcluded_NoNegation_IsNotExcluded
                   - OrderedGlobList_IsSubtreeExcluded_AgreesWithIsMatchForEveryFile
