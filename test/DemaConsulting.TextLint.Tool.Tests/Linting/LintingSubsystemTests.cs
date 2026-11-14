@@ -232,6 +232,36 @@ public class LintingSubsystemTests
     }
 
     /// <summary>
+    ///     Test that overrides, the language option, notes, and warnings work together through the subsystem.
+    /// </summary>
+    [Fact]
+    public void LintingSubsystem_Run_OverridesLanguageAndNotes_AppliedAndReportedTogether()
+    {
+        // Arrange: an override for British English, one that disables legacy files, and one that matches nothing
+        using var temp = new TempDirectory();
+        temp.CreateFile(
+            ".textlint.yaml",
+            "files:\n  - \"**/*.md\"\noverrides:\n  - filename: docs/**\n    language: en-GB\n" +
+            "  - filename: legacy/**\n    enabled: false\n  - filename: none/**\n    words: [wrold]\n");
+        temp.CreateFile("docs/a.md", "favourite\n");
+        temp.CreateFile("legacy/b.md", "Hello wrold\n");
+
+        // Act: run on the whole selection, then on one file
+        var full = Run(temp, "--language", "en-US");
+        var subset = Run(temp, "--language", "en-US", "docs/a.md");
+
+        // Assert: the option wins over the override, the disabled file is silent, the notes come first, and the
+        // warning about the unmatched override appears only on the full run
+        Assert.Multiple(
+            () => Assert.Equal(1, full.ExitCode),
+            () => Assert.StartsWith("info: --language en-US replaces en-GB for the override at ", full.Lines[0]),
+            () => Assert.EndsWith(".textlint.yaml(8,5): warning: The override matches none of the selected files.", full.Lines[1]),
+            () => Assert.Contains("docs/a.md(1,1): error: Unknown word 'favourite'", full.Lines),
+            () => Assert.DoesNotContain("legacy/b.md", full.Output),
+            () => Assert.DoesNotContain("warning:", subset.Output));
+    }
+
+    /// <summary>
     ///     Test that findings, skipped files, and the summary are all reported.
     /// </summary>
     [Fact]

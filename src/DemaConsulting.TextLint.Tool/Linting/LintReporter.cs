@@ -24,12 +24,12 @@ using DemaConsulting.TextLint.Tool.Cli;
 namespace DemaConsulting.TextLint.Tool.Linting;
 
 /// <summary>
-///     Writes the result of one check to the output: each finding, each file that was skipped or could
-///     not be checked, and a one-line summary.
+///     Writes the result of one check to the output: the notes about how the settings were applied, each
+///     finding, each file that was skipped or could not be checked, and a one-line summary.
 /// </summary>
 /// <remarks>
-///     The line format itself belongs to the library (<see cref="SpellingIssue.Format"/> and
-///     <see cref="FileDiagnostic.Format"/>), so the tool never restates message wording; this unit only
+///     The line format itself belongs to the library (<see cref="SpellingIssue.Format"/>,
+///     <see cref="FileDiagnostic.Format"/>, and <see cref="SpellCheckNote.Format"/>), so the tool never restates message wording; this unit only
 ///     decides the order, which file name to show, and the summary. Results are data about the files and go
 ///     to standard output through <see cref="Context.WriteLine"/>, so that <c>textlint &gt; report.txt</c>
 ///     captures them; failures of the tool itself are written elsewhere, as errors. The class is stateless
@@ -38,31 +38,65 @@ namespace DemaConsulting.TextLint.Tool.Linting;
 internal static class LintReporter
 {
     /// <summary>
-    ///     Writes every finding, every file diagnostic, and the summary of a check.
+    ///     Writes the notes, every finding, every file diagnostic, and the summary of a check.
     /// </summary>
     /// <remarks>
-    ///     Findings come first, in the library's order (file path, then position), then the file
-    ///     diagnostics (also in file path order), then the summary, so a log reader sees the details before
-    ///     the totals. Side effects: writes lines to <paramref name="context"/>. It does not set the exit
-    ///     code; the caller decides that from the result.
+    ///     The notes come first, because they are about the configuration and explain the rest (an
+    ///     information note that every file is disabled, a warning that an override matched nothing). Findings
+    ///     follow, in the library's order (file path, then position), then the file diagnostics (also in file
+    ///     path order), then the summary, so a log reader sees the details before the totals. Notes go to
+    ///     standard output like every other result and never to the error channel, so they cannot change the
+    ///     exit code, which the caller decides from the result. Side effects: writes lines to
+    ///     <paramref name="context"/>.
     /// </remarks>
     /// <param name="context">The context that receives the output. Must not be null.</param>
     /// <param name="result">The result of the check. Must not be null.</param>
     /// <param name="displayPath">
     ///     Maps a file path, relative to the search directory, to the name to show. Must not be null.
     /// </param>
+    /// <param name="reportUnmatchedOverrides">
+    ///     <see langword="false"/> to leave out the warnings that an override matched none of the selected files;
+    ///     they only mean something when every file was selected, so the caller turns them off when the command
+    ///     line chose the files. The other notes are always written.
+    /// </param>
     /// <exception cref="ArgumentNullException">Thrown when an argument is null.</exception>
-    public static void Write(Context context, SpellCheckResult result, Func<string, string> displayPath)
+    public static void Write(
+        Context context,
+        SpellCheckResult result,
+        Func<string, string> displayPath,
+        bool reportUnmatchedOverrides = true)
     {
         // Reject missing arguments before writing anything
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(result);
         ArgumentNullException.ThrowIfNull(displayPath);
 
-        // Details first, then the totals
+        // The notes first, then the details, then the totals
+        WriteNotes(context, result, reportUnmatchedOverrides);
         WriteIssues(context, result, displayPath);
         WriteFileDiagnostics(context, result, displayPath);
         WriteSummary(context, result);
+    }
+
+    /// <summary>
+    ///     Writes one line for each note about how the settings were applied.
+    /// </summary>
+    /// <remarks>
+    ///     A note is information or a warning about the configuration, not a finding about a file, so it goes
+    ///     to standard output and is never an error. Side effects: writes lines to <paramref name="context"/>.
+    /// </remarks>
+    /// <param name="context">The context that receives the output. Must not be null.</param>
+    /// <param name="result">The result of the check. Must not be null.</param>
+    /// <param name="reportUnmatchedOverrides">Whether to write the warnings about overrides that matched nothing.</param>
+    private static void WriteNotes(Context context, SpellCheckResult result, bool reportUnmatchedOverrides)
+    {
+        foreach (var note in result.Notes)
+        {
+            if (reportUnmatchedOverrides || note.Kind != SpellCheckNoteKind.OverrideUnmatched)
+            {
+                context.WriteLine(note.Format());
+            }
+        }
     }
 
     /// <summary>

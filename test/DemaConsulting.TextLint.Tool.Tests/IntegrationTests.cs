@@ -606,6 +606,82 @@ public class IntegrationTests
     }
 
     /// <summary>
+    ///     Test that the language option wins over the language of an override, prints a note, and does not fail the run.
+    /// </summary>
+    [Fact]
+    public void TextLintTool_Check_LanguageOptionAndOverride_OptionWinsAndNoteIsPrinted()
+    {
+        // Arrange: an override for British English and a file with the British spelling
+        using var temp = new TempDirectory();
+        temp.CreateFile(".textlint.yaml", "overrides:\n  - filename: \"*.md\"\n    language: en-GB\n");
+        temp.CreateFile("a.md", "Hello world.\n");
+        temp.CreateFile("b.md", "favourite\n");
+
+        // Act: check without and with the command-line language
+        var overrideExit = RunTool(temp.FullPath, out var overrideOutput, "b.md");
+        var optionExit = RunTool(temp.FullPath, out var optionOutput, "--language", "en-US", "a.md");
+        var optionFindingExit = RunTool(temp.FullPath, out var findingOutput, "--language", "en-US", "b.md");
+
+        // Assert: the override applies without the option, the option wins with a note, and the note is not an error
+        Assert.Equal(0, overrideExit);
+        Assert.DoesNotContain("replaces", overrideOutput);
+        Assert.Equal(0, optionExit);
+        Assert.Contains("info: --language en-US replaces en-GB for the override at ", optionOutput);
+        Assert.Equal(1, optionFindingExit);
+        Assert.Contains("Unknown word 'favourite'", findingOutput);
+    }
+
+    /// <summary>
+    ///     Test that overrides, an ordered files list, and enabled are applied by the tool.
+    /// </summary>
+    [Fact]
+    public void TextLintTool_Check_OverridesAndOrderedFiles_AreApplied()
+    {
+        // Arrange: an ordered files list, an override that accepts a word for docs, and one that disables legacy
+        using var temp = new TempDirectory();
+        temp.CreateFile(
+            ".textlint.yaml",
+            "files:\n  - \"**/*.md\"\n  - \"!skipped/**\"\noverrides:\n  - filename: docs/**\n    words: [wrold]\n" +
+            "  - filename: legacy/**\n    enabled: false\n");
+        temp.CreateFile("a.md", "Hello wrold\n");
+        temp.CreateFile("docs/b.md", "Hello wrold\n");
+        temp.CreateFile("skipped/c.md", "Hello wrold\n");
+        temp.CreateFile("legacy/d.md", "Hello wrold\n");
+
+        // Act: run with the settings only
+        var exitCode = RunTool(temp.FullPath, out var output);
+
+        // Assert: only the file that no setting touches is reported
+        Assert.Equal(1, exitCode);
+        Assert.Contains("a.md(1,7): error: Unknown word 'wrold'", output);
+        Assert.DoesNotContain("docs/b.md", output);
+        Assert.DoesNotContain("skipped/", output);
+        Assert.DoesNotContain("legacy/", output);
+    }
+
+    /// <summary>
+    ///     Test that a run whose files are all disabled exits zero with a note, and that an unmatched override is a warning only.
+    /// </summary>
+    [Fact]
+    public void TextLintTool_Check_DisabledFilesAndUnmatchedOverride_ExitZeroWithNotes()
+    {
+        // Arrange: checking switched off at the top level, and an override that matches nothing
+        using var temp = new TempDirectory();
+        temp.CreateFile(
+            ".textlint.yaml",
+            "enabled: false\nfiles:\n  - \"*.md\"\noverrides:\n  - filename: none/**\n    words: [wrold]\n");
+        temp.CreateFile("a.md", "Hello wrold\n");
+
+        // Act: run with the settings only
+        var exitCode = RunTool(temp.FullPath, out var output);
+
+        // Assert: exit code 0, the information note, and the warning at the override's position
+        Assert.Equal(0, exitCode);
+        Assert.Contains("info: Spell checking is disabled by the settings for all 1 selected file(s).", output);
+        Assert.Contains(".textlint.yaml(5,5): warning: The override matches none of the selected files.", output);
+    }
+
+    /// <summary>
     ///     Test that a selection that matches no files fails.
     /// </summary>
     [Fact]
@@ -839,7 +915,8 @@ public class IntegrationTests
             "TextLintTool_CheckLanguageOption",
             "TextLintTool_CheckBinaryFileSkipped",
             "TextLintTool_CheckNoFilesMatched",
-            "TextLintTool_CheckAbsolutePath"
+            "TextLintTool_CheckAbsolutePath",
+            "TextLintTool_CheckOverrides"
         ];
         foreach (var scenario in scenarios)
         {

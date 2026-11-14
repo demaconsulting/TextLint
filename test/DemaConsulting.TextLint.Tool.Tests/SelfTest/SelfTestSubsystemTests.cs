@@ -55,6 +55,7 @@ public class SelfTestSubsystemTests
                 () => Assert.Contains("✓ TextLintTool_CheckMisspelling - Passed", log),
                 () => Assert.Contains("✓ TextLintTool_CheckSettingsFile - Passed", log),
                 () => Assert.Contains("✓ TextLintTool_CheckAbsolutePath - Passed", log),
+            () => Assert.Contains("✓ TextLintTool_CheckOverrides - Passed", log),
                 () => Assert.Contains("TextLintTool_CheckMisspelling", trx),
                 () => Assert.DoesNotContain("✗", log));
         }

@@ -23,8 +23,8 @@
 using DemaConsulting.TextLint.Configuration;
 using DemaConsulting.TextLint.FileSelection;
 using DemaConsulting.TextLint.SpellChecking;
-using DemaConsulting.TextLint.TextScanning;
 using DemaConsulting.TextLint.Tests.TestSupport;
+using DemaConsulting.TextLint.TextScanning;
 
 namespace DemaConsulting.TextLint.Tests.SpellChecking;
 
@@ -170,7 +170,8 @@ public class SpellCheckerOverridesTests
         temp.CreateFile("b/x.md", $"{Unknown} {OtherUnknown}");
         var settings = WithOverrides(
             new SettingsOverride { Filename = ["a/**"], IgnoreRegExpList = ["Top", "Urls", "Own"], Patterns = [new NamedPattern("Own", "/speling/")] })
-            with { Patterns = [new NamedPattern("Top", "/wrold/")] };
+            with
+        { Patterns = [new NamedPattern("Top", "/wrold/")] };
 
         // Act: check
         var result = await CheckAsync(settings, temp.FullPath);
@@ -194,7 +195,8 @@ public class SpellCheckerOverridesTests
         temp.CreateFile("src/a.md", $"{Unknown} {OtherUnknown}");
         var settings = WithOverrides(
             new SettingsOverride { Filename = ["docs/**"], Patterns = [new NamedPattern("Mine", "/speling/")], Enabled = null })
-            with { Patterns = [new NamedPattern("Mine", "/wrold/")], IgnoreRegExpList = ["Mine"] };
+            with
+        { Patterns = [new NamedPattern("Mine", "/wrold/")], IgnoreRegExpList = ["Mine"] };
 
         // Act: check
         var result = await CheckAsync(settings, temp.FullPath);
@@ -509,7 +511,8 @@ public class SpellCheckerOverridesTests
         var settings = WithOverrides(
             new SettingsOverride { Filename = ["none1/**"], Words = [Unknown] },
             new SettingsOverride { Filename = ["a.md"], Language = "en-GB", SourceName = SettingsFile, Line = 5, Column = OverrideColumn },
-            new SettingsOverride { Filename = ["none2/**"], Words = [Unknown] }) with { Enabled = false };
+            new SettingsOverride { Filename = ["none2/**"], Words = [Unknown] }) with
+        { Enabled = false };
 
         // Act: check
         var result = await CheckAsync(settings, temp.FullPath, new SpellCheckOptions { Language = "en-US" });
