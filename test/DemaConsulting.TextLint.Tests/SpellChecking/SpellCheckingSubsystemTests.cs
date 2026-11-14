@@ -747,4 +747,67 @@ public class SpellCheckingSubsystemTests
         // Assert: only the contraction with an unknown part is reported, with its apostrophe
         Assert.Equal(["wrold'd"], issues.Select(issue => issue.Text));
     }
+
+    /// <summary>
+    ///     Test that overrides, disabled files, and notes work together through the subsystem boundary.
+    /// </summary>
+    [Fact]
+    public async Task SpellCheckingSubsystem_CheckAsync_OverridesEnabledAndNotes_AppliedTogether()
+    {
+        // Arrange: files in three places, an override that accepts a word for docs, one that disables legacy,
+        // and one that matches nothing
+        using var temp = new TempDirectory();
+        temp.CreateFile("docs/a.md", $"{Unknown} {OtherUnknown}");
+        temp.CreateFile("legacy/a.md", Unknown);
+        temp.CreateFile("src/a.md", Unknown);
+        var settings = new TextLintSettings
+        {
+            Files = ["**/*.md"],
+            Overrides =
+            [
+                new SettingsOverride { Filename = ["docs/**"], Words = [Unknown] },
+                new SettingsOverride { Filename = ["legacy/**"], Enabled = false },
+                new SettingsOverride { Filename = ["none/**"], Words = [Unknown], SourceName = ".textlint.yaml", Line = 9, Column = 5 },
+            ],
+        };
+
+        // Act: check
+        var result = await SpellChecker.CheckAsync(settings, temp.FullPath, cancellationToken: TestContext.Current.CancellationToken);
+
+        // Assert: docs accepts only its word, legacy is disabled, and the unmatched override is warned about
+        Assert.Multiple(
+            () => Assert.Equal(["docs/a.md:" + OtherUnknown, "src/a.md:" + Unknown], result.Issues.Select(issue => $"{issue.FilePath}:{issue.Text}")),
+            () => Assert.Equal(2, result.FilesChecked),
+            () => Assert.Equal(1, result.FilesDisabled),
+            () => Assert.Equal(".textlint.yaml(9,5): warning: The override matches none of the selected files.", Assert.Single(result.Notes).Format()),
+            () => Assert.True(result.HasProblems));
+    }
+
+    /// <summary>
+    ///     Test that overrides are matched against the settings root when the search directory is another one.
+    /// </summary>
+    [Fact]
+    public async Task SpellCheckingSubsystem_CheckAsync_SettingsRootOption_MatchesOverridesRelativeToIt()
+    {
+        // Arrange: an override for docs/**, and a file searched from the docs directory itself
+        using var temp = new TempDirectory();
+        temp.CreateFile("docs/a.md", Unknown);
+        var settings = new TextLintSettings
+        {
+            Files = ["**/*.md"],
+            Overrides = [new SettingsOverride { Filename = ["docs/**"], Words = [Unknown] }],
+        };
+
+        // Act: check from docs, naming the settings root
+        var result = await SpellChecker.CheckAsync(
+            settings,
+            Path.Combine(temp.FullPath, "docs"),
+            new SpellCheckOptions { SettingsRootDirectory = temp.FullPath },
+            TestContext.Current.CancellationToken);
+
+        // Assert: the override applied, so there is no finding and no unmatched warning
+        Assert.Multiple(
+            () => Assert.Empty(result.Issues),
+            () => Assert.Empty(result.Notes));
+    }
 }

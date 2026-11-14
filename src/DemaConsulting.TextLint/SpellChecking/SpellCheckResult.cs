@@ -24,14 +24,15 @@ namespace DemaConsulting.TextLint.SpellChecking;
 
 /// <summary>
 ///     The outcome of checking the files of a directory: every finding, every file that could not be
-///     checked completely, and the counts.
+///     checked completely, the counts, and the notes about how the settings were applied.
 /// </summary>
 /// <remarks>
 ///     The result is complete and ordered deterministically: findings are ordered by file path (ordinal),
 ///     then by position in the file, and file diagnostics by file path, whatever number of files were
-///     checked at the same time. Both lists are copied into immutable arrays when the result is created,
+///     checked at the same time. The lists are copied into immutable arrays when the result is created,
 ///     so no consumer can change them afterwards, even by casting an exposed list to a mutable collection
-///     interface. Instances are immutable and therefore thread-safe.
+///     interface. The notes (<see cref="Notes"/>) never count as a problem. Instances are immutable and
+///     therefore thread-safe.
 /// </remarks>
 public sealed class SpellCheckResult
 {
@@ -45,17 +46,58 @@ public sealed class SpellCheckResult
     /// <param name="fileDiagnostics">The per-file problems in result order. Must not be null.</param>
     /// <param name="filesChecked">The number of files that were read and checked completely.</param>
     /// <param name="filesSkipped">The number of files skipped because they were binary or too large.</param>
+    /// <param name="filesDisabled">The number of selected files that the settings disabled.</param>
+    /// <param name="notes">The notes about how the settings were applied; null means none.</param>
     internal SpellCheckResult(
         IEnumerable<SpellingIssue> issues,
         IEnumerable<FileDiagnostic> fileDiagnostics,
         int filesChecked,
-        int filesSkipped)
+        int filesSkipped,
+        int filesDisabled = 0,
+        IEnumerable<SpellCheckNote>? notes = null)
     {
         Issues = issues.ToImmutableArray();
         FileDiagnostics = fileDiagnostics.ToImmutableArray();
         FilesChecked = filesChecked;
         FilesSkipped = filesSkipped;
+        FilesDisabled = filesDisabled;
+        Notes = (notes ?? []).ToImmutableArray();
     }
+
+    /// <summary>
+    ///     Creates a copy of this result that also carries what the settings did to the run.
+    /// </summary>
+    /// <remarks>
+    ///     Internal because only the spell checker knows which files the settings disabled and which notes apply;
+    ///     the checking of the files themselves does not. The lists are copied. Thread-safe.
+    /// </remarks>
+    /// <param name="filesDisabled">The number of selected files that the settings disabled.</param>
+    /// <param name="notes">The notes of the run in the order to report them. Must not be null.</param>
+    /// <returns>A new result with the same findings and counts, and the given disabled count and notes.</returns>
+    internal SpellCheckResult WithRunInfo(int filesDisabled, IEnumerable<SpellCheckNote> notes) =>
+        new(Issues, FileDiagnostics, FilesChecked, FilesSkipped, filesDisabled, notes);
+
+    /// <summary>
+    ///     Gets the number of selected files that the settings disabled, which were therefore not read or checked.
+    /// </summary>
+    /// <remarks>
+    ///     Disabled files are not counted in <see cref="FilesChecked"/> or <see cref="FilesSkipped"/> and
+    ///     produce no findings or file diagnostics. A consumer can tell "nothing matched the file selection" from
+    ///     "everything selected is disabled" by this number.
+    /// </remarks>
+    /// <value>The count; zero when no file was disabled.</value>
+    public int FilesDisabled { get; }
+
+    /// <summary>
+    ///     Gets the notes about how the settings were applied.
+    /// </summary>
+    /// <remarks>
+    ///     In a fixed order: informational notes (in the order of the overrides they concern, then the
+    ///     all-files-disabled note), then warnings (in the order of the overrides). Notes never count as a
+    ///     problem: see <see cref="HasProblems"/>.
+    /// </remarks>
+    /// <value>An immutable list; empty when there is nothing to say.</value>
+    public IReadOnlyList<SpellCheckNote> Notes { get; }
 
     /// <summary>
     ///     Gets the findings of the run.

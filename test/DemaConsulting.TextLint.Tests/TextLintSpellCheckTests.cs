@@ -1210,4 +1210,82 @@ public class TextLintSpellCheckTests
         // Act / Assert: the run is canceled and throws
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => CheckFilesAsync(temp, cancellationToken: source.Token));
     }
+
+    /// <summary>
+    ///     Test that a settings file with an ordered files list, overrides, and enabled drives a whole run.
+    /// </summary>
+    [Fact]
+    public async Task TextLint_SpellCheck_SettingsFileWithOrderedFilesAndOverrides_CheckedAsDescribed()
+    {
+        // Arrange: a settings file with an ordered files list (a negation and a re-include), an override that
+        // accepts a word for docs, and one that disables legacy files; and a file in each place
+        using var temp = new TempDirectory();
+        var loaded = await LoadAsync(
+            temp,
+            "files:\n  - \"**/*.txt\"\n  - \"!skipped/**\"\n  - skipped/keep/**\n" +
+            "overrides:\n  - filename: docs/**\n    words: [wrold]\n  - filename: legacy/**\n    enabled: false\n");
+        foreach (var path in new[] { "a.txt", "docs/b.txt", "legacy/c.txt", "skipped/d.txt", "skipped/keep/e.txt" })
+        {
+            temp.CreateFile(path, $"Hello {Unknown}\n");
+        }
+
+        // Act: check with the loaded settings
+        var result = await CheckFilesAsync(temp, loaded.Settings, cancellationToken: TestContext.Current.CancellationToken);
+
+        // Assert: the negated directory is not selected, its re-included part is, docs accepts the word, and
+        // legacy is disabled and not counted
+        Assert.Multiple(
+            () => Assert.True(loaded.Succeeded),
+            () => Assert.Equal(["a.txt", "skipped/keep/e.txt"], result.Issues.Select(issue => issue.FilePath).Distinct()),
+            () => Assert.Equal(3, result.FilesChecked),
+            () => Assert.Equal(1, result.FilesDisabled),
+            () => Assert.Empty(result.Notes));
+    }
+
+    /// <summary>
+    ///     Test that pausing everything at the top level disables every file, which is noted and is not a failure.
+    /// </summary>
+    [Fact]
+    public async Task TextLint_SpellCheck_EnabledFalseAtTopLevel_DisablesEveryFileWithNote()
+    {
+        // Arrange: a settings file that switches checking off, and two files with misspellings
+        using var temp = new TempDirectory();
+        var loaded = await LoadAsync(temp, "enabled: false\nfiles:\n  - \"**/*.txt\"\n");
+        temp.CreateFile("a.txt", Unknown);
+        temp.CreateFile("b.txt", Unknown);
+
+        // Act: check
+        var result = await CheckFilesAsync(temp, loaded.Settings, cancellationToken: TestContext.Current.CancellationToken);
+
+        // Assert: nothing is checked or reported, and the note says all files were disabled
+        Assert.Multiple(
+            () => Assert.False(result.HasProblems),
+            () => Assert.Equal(2, result.FilesDisabled),
+            () => Assert.Equal(SpellCheckNoteKind.AllFilesDisabled, Assert.Single(result.Notes).Kind));
+    }
+
+    /// <summary>
+    ///     Test that a language in the options wins over an override, with a note, and that an unmatched override is warned about.
+    /// </summary>
+    [Fact]
+    public async Task TextLint_SpellCheck_LanguageOptionAndUnmatchedOverride_ProduceNotes()
+    {
+        // Arrange: overrides loaded from a file, one for British English and one that matches nothing
+        using var temp = new TempDirectory();
+        var loaded = await LoadAsync(
+            temp,
+            "files:\n  - \"**/*.txt\"\noverrides:\n  - filename: docs/**\n    language: en-GB\n  - filename: nothing/**\n    words: [wrold]\n");
+        temp.CreateFile("docs/a.txt", "Hello");
+
+        // Act: check with American English
+        var result = await CheckFilesAsync(temp, loaded.Settings, new SpellCheckOptions { Language = "en-US" }, TestContext.Current.CancellationToken);
+
+        // Assert: the information note comes before the warning, and the positions are those of the overrides
+        Assert.Equal(
+            [
+                "info: --language en-US replaces en-GB for the override at " + loaded.Settings!.Overrides[0].SourceName + "(4,5).",
+                loaded.Settings.Overrides[1].SourceName + "(6,5): warning: The override matches none of the selected files.",
+            ],
+            result.Notes.Select(note => note.Format()));
+    }
 }
