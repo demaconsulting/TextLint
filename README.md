@@ -113,7 +113,7 @@ if (!result.Succeeded)
         Console.Error.WriteLine(diagnostic);
     }
 
-    return;
+    return 1;
 }
 
 // Check every selected file in parallel; findings are ordered by file, line, and column
@@ -123,8 +123,19 @@ foreach (var issue in check.Issues)
     Console.WriteLine(issue); // docs/guide.md(12,5): error: Unknown word 'wrold'
 }
 
-Console.WriteLine($"{check.FilesChecked} files checked, {check.Issues.Count} findings");
+// Files that were skipped or could not be read are reported separately
+foreach (var problem in check.FileDiagnostics)
+{
+    Console.WriteLine(problem);
+}
+
+Console.WriteLine($"{check.FilesChecked} checked, {check.FilesSkipped} skipped, problems: {check.HasProblems}");
+return check.HasProblems ? 1 : 0;
 ```
+
+Skipped or unreadable files are reported in `FileDiagnostics` and never stop the run, and `HasProblems` is the
+value to base an exit code on: it is true for any finding or any file that could not be checked, but not for
+skipped binary or oversized files alone.
 
 ## More Information
 
