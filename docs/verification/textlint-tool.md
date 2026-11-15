@@ -28,8 +28,11 @@ combinations. Temporary files and directories are created and cleaned up within 
 ## Acceptance Criteria
 
 - All integration tests pass with zero failures across all supported runtimes and platforms.
-- Exit code 0 is returned only when every selected file was checked and no issue was found, and for the version,
-  help, and successful validation invocations.
+- Exit code 0 is returned only when every selected file was checked (or disabled by the settings) and no issue was
+  found, and for the version, help, and successful validation invocations; notes about the language option, disabled
+  files, and unmatched overrides never change the exit code.
+- Settings with an ordered `files` list and `overrides` are applied by the tool as the library applies them, and the
+  language option wins over an override's language with a note.
 - Exit code non-zero is returned for all invalid argument combinations, for findings, for files that could not be
   checked, for an empty selection, and for every failure a user can cause.
 - Results files are created at the specified paths when `--results` is used with `--validate`.
@@ -106,7 +109,8 @@ non-zero code and no file is created at the specified path. This scenario is tes
 `TextLintTool_ValidateWithBadExtension_ExtensionInvalid_ReturnsNonZero`.
 
 **TextLintTool_ValidateFlag_Provided_RunsLintScenarios**: The `--validate` flag is passed; the output reports each
-of the ten spell-checking scenarios as passed and the tool exits with code 0, so the self-validation proves real
+of the eleven spell-checking scenarios as passed, including the one for ordered files and overrides, and the tool
+exits with code 0, so the self-validation proves real
 spell checking and not only the version and help output. This scenario is tested by
 `TextLintTool_ValidateFlag_Provided_RunsLintScenarios`.
 
@@ -158,6 +162,22 @@ scenario is tested by `TextLintTool_Check_PlatformRelativePath_ChecksFile`.
 **TextLintTool_Check_LanguageOption_SelectsDictionary**: A file with the British spelling of a word is reported
 with `--language en-US` and accepted with `--language en-GB`. This scenario is tested by
 `TextLintTool_Check_LanguageOption_SelectsDictionary`.
+
+**TextLintTool_Check_LanguageOptionAndOverride_OptionWinsAndNoteIsPrinted**: An override sets British English for
+`*.md`; a file with the British spelling is accepted without the option and the exit code is 0 with no note. With
+`--language en-US`, a clean file gives exit code 0 and the line `info: --language en-US replaces en-GB for the
+override at` the settings file, and the file with the British spelling is reported and gives exit code 1. This
+scenario is tested by `TextLintTool_Check_LanguageOptionAndOverride_OptionWinsAndNoteIsPrinted`.
+
+**TextLintTool_Check_OverridesAndOrderedFiles_AreApplied**: Settings with a `files` list of `**/*.md` and
+`!skipped/**`, an override that accepts the misspelling for `docs`, and an override that disables `legacy` are run
+over four files that hold the same misspelling; only the file that no setting touches is reported, and the exit code
+is 1. This scenario is tested by `TextLintTool_Check_OverridesAndOrderedFiles_AreApplied`.
+
+**TextLintTool_Check_DisabledFilesAndUnmatchedOverride_ExitZeroWithNotes**: Settings with `enabled: false` and an
+override that matches nothing give exit code 0, the information that spell checking is disabled for all 1 selected
+file, and the warning at the override's line 5, column 5. This scenario is tested by
+`TextLintTool_Check_DisabledFilesAndUnmatchedOverride_ExitZeroWithNotes`.
 
 **TextLintTool_Check_NoFilesMatched_ExitsOne**: A pattern that matches nothing gives exit code 1 and an
 explanation that names `--allow-empty`. This scenario is tested by `TextLintTool_Check_NoFilesMatched_ExitsOne`.

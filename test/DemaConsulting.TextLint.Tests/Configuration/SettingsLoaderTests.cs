@@ -672,13 +672,13 @@ public class SettingsLoaderTests
     public void SettingsLoader_Parse_UnsupportedKeyWithNestedValue_ReportsSingleError()
     {
         // Arrange: an unsupported key whose value is a nested mapping
-        const string yaml = "overrides:\n  - filename: a\n    words: [b]\n";
+        const string yaml = "dictionaryDefinitions:\n  - name: a\n    path: b\n";
 
         // Act: parse the text
         var diagnostic = ParseSingleError(yaml);
 
         // Assert: only the key is reported, not its nested content
-        Assert.Contains("'overrides'", diagnostic.Message);
+        Assert.Contains("'dictionaryDefinitions'", diagnostic.Message);
     }
 
     /// <summary>
@@ -794,7 +794,7 @@ public class SettingsLoaderTests
     [Fact]
     public void SettingsLoader_Parse_InvalidPattern_NamesPatternAndReason()
     {
-        // Arrange: a negated pattern
+        // Arrange: a files list that starts with a negated pattern, which has nothing to remove files from
         const string yaml = "files:\n  - \"!**/*.md\"\n";
 
         // Act: parse the text
@@ -803,7 +803,7 @@ public class SettingsLoaderTests
         // Assert: the message names the pattern and why it is rejected
         Assert.Multiple(
             () => Assert.Contains("!**/*.md", diagnostic.Message),
-            () => Assert.Contains("negated", diagnostic.Message));
+            () => Assert.Contains("must follow a pattern it can remove files from", diagnostic.Message));
     }
 
     /// <summary>
@@ -2031,5 +2031,479 @@ public class SettingsLoaderTests
 
         // Assert: the key is reported as unsupported
         Assert.Equal("'includeRegExpList' is not a supported setting.", diagnostic.Message);
+    }
+
+    /// <summary>
+    ///     Test that a files list may negate a pattern after the first and keeps the order as written.
+    /// </summary>
+    [Fact]
+    public void SettingsLoader_Parse_FilesWithNegationAfterFirst_KeepsOrder()
+    {
+        // Arrange: an ordered list with a negation and a re-include
+        const string yaml = "files:\n  - \"**/*.md\"\n  - \"!docs/**\"\n  - docs/keep/**\n";
+
+        // Act: parse the text
+        var result = SettingsLoader.Parse(yaml, Source);
+
+        // Assert: loading succeeds and the order is kept
+        Assert.Multiple(
+            () => Assert.True(result.Succeeded),
+            () => Assert.Equal(["**/*.md", "!docs/**", "docs/keep/**"], result.Settings!.Files));
+    }
+
+    /// <summary>
+    ///     Test that a files list starting with a negation is reported at the first item.
+    /// </summary>
+    [Fact]
+    public void SettingsLoader_Parse_FilesStartingWithNegation_ReportsErrorAtFirstItem()
+    {
+        // Arrange: a list whose first pattern is negated
+        const string yaml = "files:\n  - \"!docs/**\"\n  - \"**/*.md\"\n";
+
+        // Act: parse the text
+        var diagnostic = ParseSingleError(yaml);
+
+        // Assert: the message says what to do and the error is at the item
+        Assert.Multiple(
+            () => Assert.Contains("'!docs/**'", diagnostic.Message),
+            () => Assert.Contains("must follow a pattern it can remove files from", diagnostic.Message),
+            () => Assert.Equal(2, diagnostic.Line),
+            () => Assert.Equal(ListItemColumn, diagnostic.Column));
+    }
+
+    /// <summary>
+    ///     Test that a negation in ignorePaths is reported with advice to narrow files.
+    /// </summary>
+    [Fact]
+    public void SettingsLoader_Parse_IgnorePathsWithNegation_ReportsErrorAtItem()
+    {
+        // Arrange: an ignore list that tries to re-include files
+        const string yaml = "ignorePaths:\n  - build/**\n  - \"!build/keep/**\"\n";
+
+        // Act: parse the text
+        var diagnostic = ParseSingleError(yaml);
+
+        // Assert: the message tells the user to narrow files, at the item
+        Assert.Multiple(
+            () => Assert.Equal("'ignorePaths' cannot re-include files; narrow 'files' instead.", diagnostic.Message),
+            () => Assert.Equal(3, diagnostic.Line),
+            () => Assert.Equal(ListItemColumn, diagnostic.Column));
+    }
+
+    /// <summary>
+    ///     Test that the enabled setting is true by default and can be switched off at the top level.
+    /// </summary>
+    [Theory]
+    [InlineData("", true)]
+    [InlineData("enabled: true\n", true)]
+    [InlineData("enabled: false\n", false)]
+    [InlineData("enabled: False\n", false)]
+    [InlineData("enabled:\n", true)]
+    public void SettingsLoader_Parse_EnabledSetting_IsMapped(string yaml, bool expected)
+    {
+        // Arrange: the settings text and expected value are passed in by the theory data
+        // Act: parse the text
+        var result = SettingsLoader.Parse(yaml, Source);
+
+        // Assert: loading succeeds and the value is as expected
+        Assert.Multiple(
+            () => Assert.True(result.Succeeded),
+            () => Assert.Equal(expected, result.Settings!.Enabled));
+    }
+
+    /// <summary>
+    ///     Test that a top-level enabled value that is not a boolean is reported at the value.
+    /// </summary>
+    [Theory]
+    [InlineData("enabled: maybe\n")]
+    [InlineData("enabled: \"true\"\n")]
+    [InlineData("enabled: yes\n")]
+    [InlineData("enabled: [true]\n")]
+    public void SettingsLoader_Parse_EnabledNotBoolean_ReportsErrorAtValue(string yaml)
+    {
+        // Arrange: the settings text is passed in by the theory data
+        // Act: parse the text
+        var diagnostic = ParseSingleError(yaml);
+
+        // Assert: the message is reported at the value, which follows the key and a space
+        Assert.Multiple(
+            () => Assert.Equal("Expected true or false for 'enabled'.", diagnostic.Message),
+            () => Assert.Equal(1, diagnostic.Line),
+            () => Assert.Equal(10, diagnostic.Column));
+    }
+
+    /// <summary>
+    ///     Test that an empty or missing overrides setting gives no overrides.
+    /// </summary>
+    [Theory]
+    [InlineData("")]
+    [InlineData("overrides:\n")]
+    [InlineData("overrides: []\n")]
+    public void SettingsLoader_Parse_NoOverrides_GivesEmptyList(string yaml)
+    {
+        // Arrange: the settings text is passed in by the theory data
+        // Act: parse the text
+        var result = SettingsLoader.Parse(yaml, Source);
+
+        // Assert: loading succeeds with no overrides
+        Assert.Multiple(
+            () => Assert.True(result.Succeeded),
+            () => Assert.Empty(result.Settings!.Overrides));
+    }
+
+    /// <summary>
+    ///     Test that an override with every supported key is loaded with its values and position.
+    /// </summary>
+    [Fact]
+    public void SettingsLoader_Parse_OverrideWithAllSupportedKeys_LoadsEveryValue()
+    {
+        // Arrange: an override that sets each supported key
+        const string yaml =
+            "overrides:\n" +
+            "  - filename: docs/**\n" +
+            "    words: [alpha]\n" +
+            "    ignoreWords: [beta]\n" +
+            "    flagWords: [gamma]\n" +
+            "    ignoreRegExpList: [Urls]\n" +
+            "    patterns:\n" +
+            "      - name: Mine\n" +
+            "        pattern: /x+/\n" +
+            "    language: en-GB\n" +
+            "    minWordLength: 3\n" +
+            "    ignoreRandomStrings: false\n" +
+            "    minRandomLength: 20\n" +
+            "    enabled: true\n";
+
+        // Act: parse the text
+        var result = SettingsLoader.Parse(yaml, Source);
+
+        // Assert: every value is carried, and the override remembers where it was written
+        var settingsOverride = Assert.Single(result.Settings!.Overrides);
+        Assert.Multiple(
+            () => Assert.True(result.Succeeded),
+            () => Assert.Equal(["docs/**"], settingsOverride.Filename),
+            () => Assert.Equal(["alpha"], settingsOverride.Words),
+            () => Assert.Equal(["beta"], settingsOverride.IgnoreWords),
+            () => Assert.Equal(["gamma"], settingsOverride.FlagWords),
+            () => Assert.Equal(["Urls"], settingsOverride.IgnoreRegExpList),
+            () => Assert.Equal("Mine", Assert.Single(settingsOverride.Patterns).Name),
+            () => Assert.Equal("en-GB", settingsOverride.Language),
+            () => Assert.Equal(3, settingsOverride.MinWordLength),
+            () => Assert.False(settingsOverride.IgnoreRandomStrings),
+            () => Assert.Equal(20, settingsOverride.MinRandomLength),
+            () => Assert.True(settingsOverride.Enabled),
+            () => Assert.Equal(Source, settingsOverride.SourceName),
+            () => Assert.Equal(2, settingsOverride.Line),
+            () => Assert.Equal(5, settingsOverride.Column));
+    }
+
+    /// <summary>
+    ///     Test that an override that sets only some keys leaves the others unset.
+    /// </summary>
+    [Fact]
+    public void SettingsLoader_Parse_OverrideWithOneKey_LeavesOthersUnset()
+    {
+        // Arrange: an override that sets one word list
+        const string yaml = "overrides:\n  - filename: a\n    words: [alpha]\n";
+
+        // Act: parse the text
+        var settingsOverride = Assert.Single(SettingsLoader.Parse(yaml, Source).Settings!.Overrides);
+
+        // Assert: nothing else is set
+        Assert.Multiple(
+            () => Assert.Null(settingsOverride.Language),
+            () => Assert.Null(settingsOverride.MinWordLength),
+            () => Assert.Null(settingsOverride.MinRandomLength),
+            () => Assert.Null(settingsOverride.IgnoreRandomStrings),
+            () => Assert.Null(settingsOverride.Enabled),
+            () => Assert.Empty(settingsOverride.IgnoreWords),
+            () => Assert.Empty(settingsOverride.Patterns));
+    }
+
+    /// <summary>
+    ///     Test that the filename of an override may be one pattern or an ordered list with negation.
+    /// </summary>
+    [Fact]
+    public void SettingsLoader_Parse_OverrideFilenameScalarAndList_BothAccepted()
+    {
+        // Arrange: one override with a single pattern and one with an ordered list
+        const string yaml =
+            "overrides:\n" +
+            "  - filename: \"**/*.md\"\n" +
+            "    words: [a1]\n" +
+            "  - filename:\n" +
+            "      - \"**/*.md\"\n" +
+            "      - \"!docs/**\"\n" +
+            "    words: [b1]\n";
+
+        // Act: parse the text
+        var result = SettingsLoader.Parse(yaml, Source);
+
+        // Assert: both are loaded and the order is kept
+        Assert.Multiple(
+            () => Assert.True(result.Succeeded),
+            () => Assert.Equal(["**/*.md"], result.Settings!.Overrides[0].Filename),
+            () => Assert.Equal(["**/*.md", "!docs/**"], result.Settings!.Overrides[1].Filename));
+    }
+
+    /// <summary>
+    ///     Test that enabled false can be the only setting of an override, and enabled true can accompany others.
+    /// </summary>
+    [Fact]
+    public void SettingsLoader_Parse_OverrideEnabledAlone_AndTrueWithOthers_AreAccepted()
+    {
+        // Arrange: a disabling override, and an enabling override that also adds words
+        const string yaml =
+            "overrides:\n" +
+            "  - filename: legacy/**\n" +
+            "    enabled: false\n" +
+            "  - filename: legacy/new/**\n" +
+            "    enabled: true\n" +
+            "    words: [alpha]\n";
+
+        // Act: parse the text
+        var result = SettingsLoader.Parse(yaml, Source);
+
+        // Assert: both are accepted
+        Assert.Multiple(
+            () => Assert.True(result.Succeeded),
+            () => Assert.False(result.Settings!.Overrides[0].Enabled),
+            () => Assert.True(result.Settings!.Overrides[1].Enabled));
+    }
+
+    /// <summary>
+    ///     Test that an override may use top-level patterns, its own patterns defined later, and predefined ones.
+    /// </summary>
+    [Fact]
+    public void SettingsLoader_Parse_OverridePatternNames_AcceptsTopLevelOwnAndPredefined()
+    {
+        // Arrange: an override whose list names a top-level pattern, a predefined one, and its own, defined after the list
+        const string yaml =
+            "patterns:\n" +
+            "  - name: Top\n" +
+            "    pattern: /t+/\n" +
+            "overrides:\n" +
+            "  - filename: a\n" +
+            "    ignoreRegExpList: [Top, Urls, Own]\n" +
+            "    patterns:\n" +
+            "      - name: Own\n" +
+            "        pattern: /o+/\n";
+
+        // Act: parse the text
+        var result = SettingsLoader.Parse(yaml, Source);
+
+        // Assert: loading succeeds
+        Assert.Multiple(
+            () => Assert.True(result.Succeeded),
+            () => Assert.Equal(["Top", "Urls", "Own"], result.Settings!.Overrides[0].IgnoreRegExpList));
+    }
+
+    /// <summary>
+    ///     Test that an override may redefine a name of the top-level patterns.
+    /// </summary>
+    [Fact]
+    public void SettingsLoader_Parse_OverrideRedefinesTopLevelPatternName_IsAccepted()
+    {
+        // Arrange: the same pattern name at the top level and in an override
+        const string yaml =
+            "patterns:\n" +
+            "  - name: Mine\n" +
+            "    pattern: /a+/\n" +
+            "overrides:\n" +
+            "  - filename: a\n" +
+            "    ignoreRegExpList: [Mine]\n" +
+            "    patterns:\n" +
+            "      - name: Mine\n" +
+            "        pattern: /b+/\n";
+
+        // Act: parse the text
+        var result = SettingsLoader.Parse(yaml, Source);
+
+        // Assert: loading succeeds
+        Assert.True(result.Succeeded);
+    }
+
+    /// <summary>
+    ///     Test that a pattern name defined only in another override is unknown.
+    /// </summary>
+    [Fact]
+    public void SettingsLoader_Parse_OverridePatternNameOfAnotherOverride_ReportsUnknownName()
+    {
+        // Arrange: the first override defines a name that the second one uses
+        const string yaml =
+            "overrides:\n" +
+            "  - filename: a\n" +
+            "    patterns:\n" +
+            "      - name: Mine\n" +
+            "        pattern: /x/\n" +
+            "  - filename: b\n" +
+            "    ignoreRegExpList: [Mine]\n";
+
+        // Act: parse the text
+        var diagnostic = ParseSingleError(yaml);
+
+        // Assert: the name is reported at its list entry
+        Assert.Multiple(
+            () => Assert.Contains("'ignoreRegExpList' entry 'Mine'", diagnostic.Message),
+            () => Assert.Equal(7, diagnostic.Line),
+            () => Assert.Equal(24, diagnostic.Column));
+    }
+
+    /// <summary>
+    ///     Test that each mistake in an override is reported with its message, line, and column.
+    /// </summary>
+    [Theory]
+    [InlineData("overrides:\n  - filename: a\n    files: [b]\n    words: [c]\n",
+        "Overrides cannot change which files are selected; use the top-level 'files' setting.", 3, 5)]
+    [InlineData("overrides:\n  - filename: a\n    ignorePaths: [b]\n    words: [c]\n",
+        "Overrides cannot change which files are selected; use the top-level 'ignorePaths' setting.", 3, 5)]
+    [InlineData("overrides:\n  - filename: a\n    enableGlobDot: true\n    words: [c]\n",
+        "Overrides cannot change which files are selected; use the top-level 'enableGlobDot' setting.", 3, 5)]
+    [InlineData("overrides:\n  - filename: a\n    enabled: false\n    words: [c]\n",
+        "This override skips its files, so its other settings have no effect; remove them, or remove 'enabled: false' to apply them.", 3, 5)]
+    [InlineData("overrides:\n  - filename: a\n", "This override changes nothing: add settings, or remove it.", 2, 5)]
+    [InlineData("overrides:\n  - filename: a\n    words:\n", "This override changes nothing: add settings, or remove it.", 2, 5)]
+    [InlineData("overrides:\n  - filename: a\n    enabled:\n", "This override changes nothing: add settings, or remove it.", 2, 5)]
+    [InlineData("overrides:\n  - filename: a\n    words: ~\n    language: null\n    minWordLength:\n", "This override changes nothing: add settings, or remove it.", 2, 5)]
+    [InlineData("overrides:\n  - words: [a]\n", "An override needs a 'filename'.", 2, 5)]
+    [InlineData("overrides:\n  - filename:\n    words: [a]\n", "An override needs a 'filename'.", 2, 5)]
+    [InlineData("overrides:\n  - filename: []\n    words: [a]\n", "An override needs a 'filename'.", 2, 5)]
+    [InlineData("overrides:\n  - filename:\n      - \"!a\"\n    words: [b]\n",
+        "Invalid glob pattern '!a': '!' must follow a pattern it can remove files from; put it after the pattern it excludes", 3, 9)]
+    [InlineData("overrides:\n  - filename: \"!a\"\n    words: [b]\n",
+        "Invalid glob pattern '!a': '!' must follow a pattern it can remove files from; put it after the pattern it excludes", 2, 15)]
+    [InlineData("overrides:\n  - filename: a\n    languageId: x\n    words: [c]\n", "'languageId' is not supported in an override.", 3, 5)]
+    [InlineData("overrides:\n  - filename: a\n    dictionaries: [x]\n    words: [c]\n", "'dictionaries' is not supported in an override.", 3, 5)]
+    [InlineData("overrides:\n  - filename: a\n    maxFileSize: 1K\n    words: [c]\n",
+        "'maxFileSize' is not supported in an override; it applies to the whole run.", 3, 5)]
+    [InlineData("overrides:\n  - filename: a\n    overrides: []\n    words: [c]\n", "Nested 'overrides' are not supported.", 3, 5)]
+    [InlineData("overrides:\n  - filename: a\n    name: Docs\n    words: [c]\n", "'name' is not a supported setting.", 3, 5)]
+    [InlineData("overrides: a\n", "Expected a list of overrides, each with a 'filename'.", 1, 12)]
+    [InlineData("overrides:\n  - a\n", "Expected an override with a 'filename'.", 2, 5)]
+    [InlineData("overrides:\n  - filename:\n      a: b\n    words: [c]\n", "Expected a glob or a list of globs for 'filename'.", 3, 7)]
+    [InlineData("overrides:\n  - filename: a\n    enabled: maybe\n", "Expected true or false for 'enabled'.", 3, 14)]
+    [InlineData("overrides:\n  - filename: a\n    ignoreRandomStrings: 1\n", "Expected true or false for 'ignoreRandomStrings'.", 3, 26)]
+    [InlineData("overrides:\n  - filename: a\n    minWordLength: 0\n", "Expected a whole number of at least 1 for 'minWordLength'.", 3, 20)]
+    [InlineData("overrides:\n  - filename: a\n    minRandomLength: x\n", "Expected a whole number of at least 1 for 'minRandomLength'.", 3, 22)]
+    [InlineData("overrides:\n  - filename: a\n    language: fr\n", "The language 'fr' is not supported. Supported languages: en, en-GB, en-US.", 3, 15)]
+    [InlineData("overrides:\n  - filename: a\n    language: [en]\n", "Expected a text value for 'language'.", 3, 15)]
+    public void SettingsLoader_Parse_InvalidOverride_ReportsMessageAtPosition(string yaml, string message, int line, int column)
+    {
+        // Arrange: the settings text and the expected diagnostic are passed in by the theory data
+        // Act: parse the text
+        var diagnostic = ParseSingleError(yaml);
+
+        // Assert: the message, line, and column are as expected
+        Assert.Multiple(
+            () => Assert.Equal(message, diagnostic.Message),
+            () => Assert.Equal(line, diagnostic.Line),
+            () => Assert.Equal(column, diagnostic.Column),
+            () => Assert.Equal(Source, diagnostic.FilePath));
+    }
+
+    /// <summary>
+    ///     Test that the problems of several overrides are all reported, and valid overrides are not kept.
+    /// </summary>
+    [Fact]
+    public void SettingsLoader_Parse_SeveralInvalidOverrides_ReportsEveryProblem()
+    {
+        // Arrange: three overrides, one with two mistakes, one valid, and one that changes nothing
+        const string yaml =
+            "overrides:\n" +
+            "  - filename: a\n" +
+            "    files: [b]\n" +
+            "    languageId: x\n" +
+            "    words: [c]\n" +
+            "  - filename: d\n" +
+            "    words: [e]\n" +
+            "  - filename: f\n";
+
+        // Act: parse the text
+        var result = SettingsLoader.Parse(yaml, Source);
+
+        // Assert: every mistake is reported in source order and the file fails to load
+        Assert.Multiple(
+            () => Assert.Null(result.Settings),
+            () => Assert.Equal([3, 4, 8], result.Diagnostics.Select(diagnostic => diagnostic.Line)));
+    }
+
+    /// <summary>
+    ///     Test that a key with no value is absent in an override, so it neither counts as a setting nor conflicts with enabled false.
+    /// </summary>
+    [Fact]
+    public void SettingsLoader_Parse_OverrideNullValuedKeys_AreTreatedAsAbsent()
+    {
+        // Arrange: a disabling override with other keys that have no value, and an override whose enabled has no value
+        const string yaml =
+            "overrides:\n" +
+            "  - filename: a\n" +
+            "    enabled: false\n" +
+            "    words:\n" +
+            "    language: ~\n" +
+            "  - filename: b\n" +
+            "    enabled:\n" +
+            "    words: [alpha]\n";
+
+        // Act: parse the text
+        var result = SettingsLoader.Parse(yaml, Source);
+
+        // Assert: both load, the first stays disabled with no other setting, and the second leaves enabled unset
+        Assert.Multiple(
+            () => Assert.True(result.Succeeded),
+            () => Assert.False(result.Settings!.Overrides[0].Enabled),
+            () => Assert.Empty(result.Settings!.Overrides[0].Words),
+            () => Assert.Null(result.Settings!.Overrides[0].Language),
+            () => Assert.Null(result.Settings!.Overrides[1].Enabled),
+            () => Assert.Equal(["alpha"], result.Settings!.Overrides[1].Words));
+    }
+
+    /// <summary>
+    ///     Test that the problems of one override are reported in source order, although the whole-override checks run last.
+    /// </summary>
+    [Fact]
+    public void SettingsLoader_Parse_OverrideProblems_AreReportedInSourceOrder()
+    {
+        // Arrange: an override whose enabled false conflicts with a later key, which also has a mistake of its own
+        const string yaml =
+            "overrides:\n" +
+            "  - filename: a\n" +
+            "    enabled: false\n" +
+            "    files: [b]\n" +
+            "    words: [c]\n" +
+            "  - languageId: x\n" +
+            "    enabled: false\n" +
+            "    words: [d]\n";
+
+        // Act: parse the text
+        var result = SettingsLoader.Parse(yaml, Source);
+
+        // Assert: the problems come in the order of the file, by line and then column
+        var positions = result.Diagnostics.Select(diagnostic => (diagnostic.Line, diagnostic.Column)).ToArray();
+        Assert.Multiple(
+            () => Assert.Null(result.Settings),
+            () => Assert.Equal([(3, 5), (4, 5), (6, 5), (6, 5), (7, 5)], positions),
+            () => Assert.Contains("skips its files", result.Diagnostics[0].Message),
+            () => Assert.Contains("'files'", result.Diagnostics[1].Message),
+            () => Assert.Contains("'languageId'", result.Diagnostics[2].Message),
+            () => Assert.Contains("needs a 'filename'", result.Diagnostics[3].Message),
+            () => Assert.Contains("skips its files", result.Diagnostics[4].Message));
+    }
+
+    /// <summary>
+    ///     Test that an override with a bad word list entry is reported at the entry.
+    /// </summary>
+    [Fact]
+    public void SettingsLoader_Parse_OverrideBadWordEntry_ReportsErrorAtEntry()
+    {
+        // Arrange: an override whose word list holds an entry with white space
+        const string yaml = "overrides:\n  - filename: a\n    words:\n      - two words\n";
+
+        // Act: parse the text
+        var diagnostic = ParseSingleError(yaml);
+
+        // Assert: the entry is reported like a top-level one
+        Assert.Multiple(
+            () => Assert.Contains("'words' entry 'two words'", diagnostic.Message),
+            () => Assert.Equal(4, diagnostic.Line));
     }
 }

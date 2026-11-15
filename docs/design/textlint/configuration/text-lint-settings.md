@@ -7,40 +7,48 @@
 `TextLintSettings` is the single immutable value that carries TextLint's settings, whether they
 were loaded from a `.textlint.yaml` file or built in code. Its responsibility is to hold the
 values with safe defaults and to guarantee that a settings value never changes after it is
-created, so it can be shared freely across threads.
+created, so it can be shared freely across threads. It also defines the supporting type `SettingsOverride`, which has
+no unit of its own, in the same way as `NamedPattern` belongs to `PatternCatalog`.
 
 #### Data Model
 
 `TextLintSettings` is a sealed, non-positional record with `init` properties and defaults, so keys
 added in later releases are source-compatible additions.
 
-| Property              | Type                          | Default | Meaning                                          |
-| :-------------------- | :---------------------------- | :------ | :----------------------------------------------- |
-| `Version`             | `string?`                     | `null`  | Schema version text; never validated.            |
-| `Files`               | `IReadOnlyList<string>`       | empty   | Include glob patterns; empty selects nothing.    |
-| `IgnorePaths`         | `IReadOnlyList<string>`       | empty   | Exclude glob patterns.                           |
-| `EnableGlobDot`       | `bool`                        | `false` | Whether wildcards may match hidden names.        |
-| `Language`            | `string`                      | `en`    | Language name or comma-separated names.          |
-| `Words`               | `IReadOnlyList<string>`       | empty   | Words accepted as correct.                       |
-| `IgnoreWords`         | `IReadOnlyList<string>`       | empty   | Words never reported, even when flagged.         |
-| `FlagWords`           | `IReadOnlyList<string>`       | empty   | Words always reported, even when known.          |
-| `MinWordLength`       | `int`                         | 4       | Shortest word that is checked; at least 1.       |
-| `MaxFileSize`         | `long`                        | 0       | Largest file checked, in bytes; 0 is no limit.   |
-| `IgnoreRegExpList`    | `IReadOnlyList<string>`       | empty   | Patterns or pattern names that are not checked.  |
-| `Patterns`            | `IReadOnlyList<NamedPattern>` | empty   | Named patterns that IgnoreRegExpList can use.    |
-| `IgnoreRandomStrings` | `bool`                        | `true`  | Whether random-looking tokens are skipped.       |
-| `MinRandomLength`     | `int`                         | 40      | Length from which a token is judged; at least 1. |
+| Property              | Type                              | Default | Meaning                                        |
+| :-------------------- | :-------------------------------- | :------ | :--------------------------------------------- |
+| `Version`             | `string?`                         | `null`  | Schema version text; never validated.          |
+| `Enabled`             | `bool`                            | `true`  | Whether files are checked; false checks none.  |
+| `Files`               | `IReadOnlyList<string>`           | empty   | Ordered include globs; empty selects nothing.  |
+| `IgnorePaths`         | `IReadOnlyList<string>`           | empty   | Exclude glob patterns.                         |
+| `EnableGlobDot`       | `bool`                            | `false` | Whether wildcards may match hidden names.      |
+| `Language`            | `string`                          | `en`    | Language name or comma-separated names.        |
+| `Words`               | `IReadOnlyList<string>`           | empty   | Words accepted as correct.                     |
+| `IgnoreWords`         | `IReadOnlyList<string>`           | empty   | Words never reported, even when flagged.       |
+| `FlagWords`           | `IReadOnlyList<string>`           | empty   | Words always reported, even when known.        |
+| `MinWordLength`       | `int`                             | 4       | Shortest word that is checked; at least 1.     |
+| `MaxFileSize`         | `long`                            | 0       | Largest file checked, in bytes; 0 is no limit. |
+| `IgnoreRegExpList`    | `IReadOnlyList<string>`           | empty   | Patterns or names that are not checked.        |
+| `Patterns`            | `IReadOnlyList<NamedPattern>`     | empty   | Named patterns that IgnoreRegExpList can use.  |
+| `IgnoreRandomStrings` | `bool`                            | `true`  | Whether random-looking tokens are skipped.     |
+| `MinRandomLength`     | `int`                             | 40      | Length that makes a token random; at least 1.  |
+| `Overrides`           | `IReadOnlyList<SettingsOverride>` | empty   | Per-file overrides, applied in order.          |
 
 Further notes on the meaning: `Version` is the text of the `version` key, `Files` selects nothing when it is empty, and
-`Language` `en` is American English.
+`Language` `en` is American English. `Files` is an ordered list in which a pattern with a leading `!` removes files
+that an earlier pattern selected and the last matching pattern decides; the first pattern may not be negated.
+`Enabled` set to `false` means no file is checked unless a matching override sets `enabled` to `true` again; the
+files are still found by the directory walk, so trees that are never to be checked belong in `IgnorePaths`. Both
+`Enabled` and `Overrides` are applied by the spell checker, not by the checker of a single text.
 
 The defaults for the spelling settings are cspell's, so that a project that configures none of them
 behaves as a cspell user expects. `IgnoreRegExpList` holds the patterns that are added to the default ignore list, which
 always applies and is not listed; an entry is a pattern, `/body/flags` or a bare expression, or the name of a pattern.
 `Patterns` holds `NamedPattern` values (a name and a pattern, see _PatternCatalog_), and a pattern applies only when
 `IgnoreRegExpList` names it. `IgnoreRandomStrings` and `MinRandomLength` control whether a token of at least that length
-that looks like random data, and the unknown words inside a hexadecimal sequence of a token, are skipped. The seven list
-properties are stored as immutable arrays (the five lists of strings, and `IgnoreRegExpList` and `Patterns`). A getter
+that looks like random data, and the unknown words inside a hexadecimal sequence of a token, are skipped. The eight list
+properties are stored as immutable arrays (the five lists of strings, and `IgnoreRegExpList`, `Patterns`, and
+`Overrides`). A getter
 converts the uninitialized default array (the state before the property is assigned) to an empty array,
 so an unassigned list reads as empty and the uninitialized state never leaks. Because the arrays are
 immutable, a `with` expression can share them between the original and the copy without risk. The
@@ -51,14 +59,38 @@ stored arrays by reference, not by content, so settings are not intended to be c
 Invariants: no list is null and no list entry is null; `Language` is not null; `MinWordLength` and `MinRandomLength` are
 at least 1; `MaxFileSize` is not negative. The setters enforce them, so no instance can violate them.
 
+**SettingsOverride** is a sealed record with `init` properties, like the settings, and it is immutable and thread-safe.
+It is its own type, and not a second `TextLintSettings`, because the defaults of `TextLintSettings` make "not set" and
+"set to the default" indistinguishable, and an override must change only what it sets.
+
+| Property              | Type                          | Default | Meaning                                            |
+| :-------------------- | :---------------------------- | :------ | :------------------------------------------------- |
+| `Filename`            | `IReadOnlyList<string>`       | empty   | Ordered globs that select the files it applies to. |
+| `Words`               | `IReadOnlyList<string>`       | empty   | Words added to the accepted words.                 |
+| `IgnoreWords`         | `IReadOnlyList<string>`       | empty   | Words added to the words never reported.           |
+| `FlagWords`           | `IReadOnlyList<string>`       | empty   | Words added to the words always reported.          |
+| `IgnoreRegExpList`    | `IReadOnlyList<string>`       | empty   | Patterns or names added to those not checked.      |
+| `Patterns`            | `IReadOnlyList<NamedPattern>` | empty   | Named definitions; they replace same names.        |
+| `Language`            | `string?`                     | `null`  | Replaces the language; null = unset.               |
+| `MinWordLength`       | `int?`                        | `null`  | Replacement minimum word length; at least 1.       |
+| `IgnoreRandomStrings` | `bool?`                       | `null`  | Replacement switch; null = unset.                  |
+| `MinRandomLength`     | `int?`                        | `null`  | Replacement random length; at least 1.             |
+| `Enabled`             | `bool?`                       | `null`  | Switches checking of its files on or off.          |
+| `SourceName`          | `string?`                     | `null`  | File the override was read from, for notes.        |
+| `Line`, `Column`      | `int?`                        | `null`  | 1-based position of the override in the file.      |
+
+The list properties are copied into immutable arrays with the same rules as the settings, and the two numbers are
+checked on assignment. The `SourceName`, `Line`, and `Column` only let a note point at the override; they are not
+settings. Record equality compares the arrays by reference, as for the settings.
+
 #### Key Methods
 
 The type has no methods of its own beyond the property accessors.
 
-**Files, IgnorePaths, Words, IgnoreWords, FlagWords, IgnoreRegExpList, and Patterns (init accessors)**: copy the
-assigned sequence into an immutable array.
+**Files, IgnorePaths, Words, IgnoreWords, FlagWords, IgnoreRegExpList, Patterns, and Overrides (init accessors)**: copy
+the assigned sequence into an immutable array.
 
-- _Parameters_: the sequence of patterns, words, or named patterns to store.
+- _Parameters_: the sequence of patterns, words, named patterns, or overrides to store.
 - _Returns_: nothing; the getter returns the stored list.
 - _Preconditions_: the sequence is not null and holds no null entry.
 - _Postconditions_: later changes to the caller's sequence, including an array changed in place, do not
@@ -89,7 +121,8 @@ assigned sequence into an immutable array.
 - _Preconditions_: the length is at least 1.
 - _Postconditions_: the length is stored.
 
-**IgnoreRandomStrings (init accessor)**: stores the switch; every value is meaningful, so nothing is checked.
+**IgnoreRandomStrings and Enabled (init accessors)**: store the switch; every value is meaningful, so nothing is
+checked.
 
 Patterns, words, and the language are not validated here beyond the checks above. Validation needs
 rules that belong to other subsystems (the glob rules of `FileSelection`, the language names of
@@ -115,10 +148,12 @@ No other error is detected, and nothing is logged. The type is immutable and the
 
 #### Callers
 
-- **SettingsLoader** - creates settings from a settings file.
+- **SettingsLoader** - creates settings, and the overrides in them, from a settings file.
+- **SettingsOverrideResolver** - reads `Enabled`, `Overrides`, and the rest of the settings to merge the overrides.
 - **TextChecker** (SpellChecking subsystem) - reads the spelling settings, including the patterns and the random-string
   settings, and validates the language, the word-list entries, and the patterns again when it is created, because
-  settings built in code bypass the loader.
-- **SpellChecker** (SpellChecking subsystem) - reads the spelling settings, including the maximum file size.
+  settings built in code bypass the loader. It ignores `Enabled` and `Overrides`.
+- **SpellChecker** (SpellChecking subsystem) - reads the spelling settings, including the maximum file size, and
+  applies `Enabled` and `Overrides` through the resolver.
 - **Library consumers** - construct settings in code, derive modified copies with `with`, and pass the
   pattern lists and hidden-file switch on to `FileSelector`.

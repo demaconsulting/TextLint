@@ -1,0 +1,130 @@
+---
+# Software Unit Requirements for the OrderedGlobList Class
+#
+# The OrderedGlobList class turns an ordered list of glob patterns, in which a pattern that begins with ! removes
+# files that earlier patterns selected and a later pattern can select them again, into a decision for one relative
+# path and into a safe decision about whether a whole directory can be skipped. It serves the files setting and the
+# filename list of an override.
+
+sections:
+  - title: TextLint Requirements
+    sections:
+      - title: FileSelection Requirements
+        sections:
+          - title: OrderedGlobList Requirements
+            requirements:
+              - id: TextLint-FileSelection-OrderedGlobList-LastMatchWins
+                title: >-
+                  OrderedGlobList shall select a path exactly when the last pattern of the list that matches it
+                  is not negated, shall let a negated pattern (one that begins with !) accept brace
+                  alternatives, bare names, a leading slash, and a trailing slash as a pattern does, shall give
+                  a negated pattern that names a path the meaning that the same pattern has as an ignore
+                  pattern, so that it removes a file of that name and a directory of that name with everything
+                  below it, shall select nothing for an empty list, and shall reject a missing path.
+                justification: |
+                  This is the rule of the ordered lists of the settings file, the same one that ReviewMark and
+                  ignore files use: a later pattern wins, so a broad include can be narrowed by an exclusion
+                  and an exception to that exclusion can follow it. A negated pattern must be written the same
+                  way as a plain one, or users would have to learn two pattern languages, and it is an exclusion
+                  like the ones in ignorePaths, so a pattern must exclude the same things in both places.
+                tests:
+                  - OrderedGlobList_IsMatch_PlainPatterns_MatchesAnyPattern
+                  - OrderedGlobList_IsMatch_NegationAfterInclude_RemovesFiles
+                  - OrderedGlobList_IsMatch_IncludeAfterNegation_SelectsFilesAgain
+                  - OrderedGlobList_IsMatch_NegationAfterReinclude_RemovesAgain
+                  - OrderedGlobList_IsMatch_NegationWithBraceExpansion_RemovesEveryAlternative
+                  - OrderedGlobList_IsMatch_BareNameNegation_RemovesAtAnyDepth
+                  - OrderedGlobList_IsMatch_AnchoredNegation_OnlyRemovesAtRoot
+                  - OrderedGlobList_IsMatch_TrailingSlashNegation_RemovesDirectorySubtree
+                  - OrderedGlobList_IsMatch_AnchoredDirectoryNegation_SameWithAndWithoutRecursiveWildcard
+                  - OrderedGlobList_IsMatch_AnchoredDirectoryNegationThenReinclude_SelectsFileAgain
+                  - OrderedGlobList_IsMatch_AnchoredPlainPattern_SelectsOnlyTheFile
+                  - OrderedGlobList_Parse_EmptyList_IsEmptyAndMatchesNothing
+                  - OrderedGlobList_PositivePatterns_PlainAndNegated_ListsOnlyPlainExpansions
+                  - OrderedGlobList_IsMatchAndIsSubtreeExcluded_NullArgument_ThrowArgumentNullException
+
+              - id: TextLint-FileSelection-OrderedGlobList-CaseSensitive
+                title: >-
+                  OrderedGlobList shall match patterns, negated ones included, case-sensitively on every
+                  platform.
+                justification: |
+                  A list must select the same files on Windows, Linux, and macOS, so matching must not follow
+                  the case rules of the file system.
+                tests:
+                  - OrderedGlobList_IsMatch_DifferentCase_DoesNotMatch
+
+              - id: TextLint-FileSelection-OrderedGlobList-HiddenRule
+                title: >-
+                  OrderedGlobList shall let a pattern that selects files match a hidden name only when the
+                  pattern writes that name literally or hidden-file matching is enabled, applying the rule to
+                  each pattern on its own, and shall let a negated pattern remove hidden names whatever the
+                  setting.
+                justification: |
+                  Wildcards must not reach content such as .git by default, so a later wildcard cannot select
+                  what an earlier literal pattern named only by accident. A negation, on the other hand, only
+                  removes files, so letting it match a hidden name can never add content the user did not ask
+                  for.
+                tests:
+                  - OrderedGlobList_IsMatch_HiddenName_FollowsHiddenRulePerPattern
+                  - OrderedGlobList_IsMatch_HiddenNameAndGlobDot_Matches
+                  - OrderedGlobList_IsMatch_HiddenNameNotReachedByInclude_IsNotSelected
+
+              - id: TextLint-FileSelection-OrderedGlobList-SubtreePruning
+                title: >-
+                  OrderedGlobList shall report that the files below a directory are all excluded only when a
+                  negated pattern that names the directory (a bare name, a path, a pattern that ends with a
+                  slash, or one that ends with a recursive wildcard) is the last pattern that can match anything
+                  below it, and shall never report it for a pattern that names only files, for a list without a
+                  negated pattern, or when a later pattern could select a file below the directory.
+                justification: |
+                  Skipping an excluded directory without reading it is what keeps a run fast on a repository
+                  with large vendored trees. Skipping one that a later pattern could still select from would
+                  silently lose files, so the decision is conservative, and a test compares it with the exact
+                  per-file rule for every file of a tree.
+                tests:
+                  - OrderedGlobList_IsSubtreeExcluded_NegatedBareName_ExcludesDirectoryAtAnyDepth
+                  - OrderedGlobList_IsSubtreeExcluded_DirectoryBeneathExcludedSubtree_IsExcluded
+                  - OrderedGlobList_IsSubtreeExcluded_LaterIncludeCanReach_IsNotExcluded
+                  - OrderedGlobList_IsSubtreeExcluded_FileFormNegation_IsNotExcluded
+                  - OrderedGlobList_IsSubtreeExcluded_UnrelatedLaterInclude_StillExcluded
+                  - OrderedGlobList_IsSubtreeExcluded_AnchoredNegationWithoutSlash_ExcludesDirectory
+                  - OrderedGlobList_IsSubtreeExcluded_LaterRecursiveInclude_IsNotExcluded
+                  - OrderedGlobList_IsSubtreeExcluded_NoNegation_IsNotExcluded
+                  - OrderedGlobList_IsSubtreeExcluded_AgreesWithIsMatchForEveryFile
+
+              - id: TextLint-FileSelection-OrderedGlobList-LeadingNegationRejected
+                title: >-
+                  OrderedGlobList shall reject a list whose first pattern is negated, with an error that
+                  names the pattern as written and says that a negation must follow a pattern it can remove
+                  files from.
+                justification: |
+                  A negation at the start has nothing to remove, so it is a mistake, usually a pattern written
+                  in the wrong place. Rejecting it names the problem instead of silently selecting nothing.
+                tests:
+                  - OrderedGlobList_Parse_LeadingNegation_ThrowsNamingPattern
+                  - OrderedGlobList_ValidateEntry_FirstAndLaterPositions_AppliesLeadingNegationRule
+
+              - id: TextLint-FileSelection-OrderedGlobList-InvalidEntries
+                title: >-
+                  OrderedGlobList shall reject an entry, negated or not, that the glob rules do not accept, and
+                  a missing list or entry, naming the pattern as written, including its exclamation mark.
+                justification: |
+                  A negated pattern that cannot be honored would silently exclude nothing, so it is judged by
+                  the same rules as any other pattern, and the message must show the pattern the user wrote so
+                  that it can be found in the settings file.
+                tests:
+                  - OrderedGlobList_Parse_UnusableNegatedPattern_ThrowsNamingPattern
+                  - OrderedGlobList_Parse_UnusablePlainPattern_ThrowsNamingPattern
+                  - OrderedGlobList_Parse_NullList_ThrowsArgumentNullException
+                  - OrderedGlobList_ValidateEntry_UnusableAndNullEntries_Throw
+
+              - id: TextLint-FileSelection-OrderedGlobList-ConcurrentUse
+                title: >-
+                  OrderedGlobList shall give the same answers when many threads ask about different paths at
+                  the same time.
+                justification: |
+                  Files are checked in parallel and every thread asks the same lists whether a file is
+                  selected or an override applies, so a list that gave wrong answers under contention would
+                  make results depend on timing.
+                tests:
+                  - OrderedGlobList_IsMatch_ConcurrentUse_GivesTheSameAnswers

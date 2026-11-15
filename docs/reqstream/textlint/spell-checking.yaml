@@ -127,6 +127,57 @@ sections:
               - SpellCheckingSubsystem_CheckAsync_UnreadableFile_IsReportedAndRunContinues
               - SpellCheckingSubsystem_CheckAsync_MissingRoot_ThrowsDirectoryNotFoundException
 
+          - id: TextLint-SpellChecking-FileOverrides
+            title: >-
+              The SpellChecking subsystem shall check each file with the settings that result from adding the
+              settings of every override that selects the file's path relative to the settings root to the
+              top-level settings, in the order the overrides are written, shall check a file that no override
+              selects with the top-level settings, shall check every file against the language given in its
+              options in preference to every language of the settings, and shall reject an override that
+              cannot be applied before it touches any file.
+            justification: |
+              Different files need different rules: extra words for the documentation, another language for
+              one folder, and a language given for one run must still win. The files must be matched by the
+              path the settings were written for, whatever way the run named them, and an override that can
+              never work must be found at once, not when a matching file first appears.
+            children:
+              - TextLint-SpellChecking-SpellChecker-Overrides
+              - TextLint-SpellChecking-SpellChecker-SettingsRoot
+              - TextLint-SpellChecking-SpellChecker-LanguageOption
+            tests:
+              - SpellCheckingSubsystem_CheckAsync_OverridesEnabledAndNotes_AppliedTogether
+              - SpellCheckingSubsystem_CheckAsync_SettingsRootOption_MatchesOverridesRelativeToIt
+              - SpellCheckingSubsystem_CheckAsync_LanguageOptionAndOverrideLanguage_OptionWinsWithNote
+
+          - id: TextLint-SpellChecking-DisabledFiles
+            title: >-
+              The SpellChecking subsystem shall leave out of the check the selected files that the enabled
+              setting switches off, at the top level or by the last override that sets it, without reading
+              them or reporting anything for them, and shall count them as disabled.
+            justification: |
+              A project can decide that some files, or all of them for a while, are not checked. That is not a
+              finding and not a failure to check, and the count lets a user confirm that the files they
+              expected were switched off.
+            children:
+              - TextLint-SpellChecking-SpellChecker-DisabledFiles
+            tests:
+              - SpellCheckingSubsystem_CheckAsync_OverridesEnabledAndNotes_AppliedTogether
+
+          - id: TextLint-SpellChecking-RunNotes
+            title: >-
+              The SpellChecking subsystem shall return, with the result of a run, notes that tell the caller
+              when every selected file is disabled, when a language in its options replaces the language of
+              an override, and when an override matches none of the selected files, each as information or a
+              warning that does not make the run fail and that names the override by its position.
+            justification: |
+              A setting that has no effect, or an option that replaces a setting, leaves the user believing
+              something that is not true. The notes let a stale override be found and an option's effect be
+              seen, without failing a run whose results are correct.
+            children:
+              - TextLint-SpellChecking-SpellChecker-Notes
+            tests:
+              - SpellCheckingSubsystem_CheckAsync_OverridesEnabledAndNotes_AppliedTogether
+
           - id: TextLint-SpellChecking-ReportFileNames
             title: >-
               The SpellChecking subsystem shall let a caller format each finding and each file diagnostic

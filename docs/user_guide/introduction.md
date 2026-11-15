@@ -111,8 +111,9 @@ textlint README.md docs/guide.md
 textlint
 ```
 
-The files named on the command line replace the `files` setting; the `ignorePaths` and `enableGlobDot` settings
-still apply to them. The pattern rules are those of _Glob Patterns_ below, with the additions in _Paths on the
+The files named on the command line replace the `files` setting; the `ignorePaths`, `enableGlobDot`, `overrides`, and
+`enabled` settings still apply to them (a file that the settings disable is skipped). The pattern rules are those of
+_Glob Patterns_ below, with the additions in _Paths on the
 Command Line_.
 
 ### Paths on the Command Line
@@ -157,7 +158,8 @@ read is reported as such and stops the run, whatever paths were typed (an absolu
 
 An explicit `--config` file that does not exist, a settings file that cannot be read, and a settings file with
 problems are errors: each problem is reported as `file(line,column): error: message` and nothing is checked.
-`--language` overrides the `language` setting for one run, for example `textlint --language en-GB "**/*.md"`.
+`--language` replaces the `language` setting, and the `language` of every override, for one run, for example
+`textlint --language en-GB "**/*.md"`.
 
 ### Output
 
@@ -181,6 +183,16 @@ A binary file or a file over the `maxFileSize` setting is skipped on purpose and
 could not be read or checked is reported as `error`. The banner and the information line are printed on every run
 and are removed by `--silent`.
 
+Notes about how the settings were applied are printed before the findings, as `info:` lines or as `warning:` lines
+with the position of an override, and they never change the exit code (see _Notes During a Run_):
+
+```text
+info: --language en-US replaces en-GB for the override at .textlint.yaml(14,5).
+.textlint.yaml(14,5): warning: The override matches none of the selected files.
+```
+
+Files that the settings disable with `enabled: false` are not read, not reported, and not counted in the summary.
+
 ### Exit Codes
 
 | Code | Meaning                                                                                       |
@@ -189,7 +201,8 @@ and are removed by `--silent`.
 | `1`  | Anything else: issues found, a file that could not be checked, no file selected, or an error. |
 
 As in cspell, there is a single failure code. A selection that matches no files fails (a mistyped pattern is
-almost always the reason) unless `--allow-empty` is given. `--allow-empty` applies only to patterns that were given
+almost always the reason) unless `--allow-empty` is given. When files were selected but the settings disable all of
+them, the run succeeds and says so (see _Disabling Files_). `--allow-empty` applies only to patterns that were given
 and matched nothing: a run that was given no patterns at all, on the command line or in the settings, has nothing
 to check and always fails with a usage error. A script that checks a list of changed files should therefore call the
 tool only when the list is not empty:
@@ -286,9 +299,10 @@ Example validation report:
 ✓ TextLintTool_CheckBinaryFileSkipped - Passed
 ✓ TextLintTool_CheckNoFilesMatched - Passed
 ✓ TextLintTool_CheckAbsolutePath - Passed
+✓ TextLintTool_CheckOverrides - Passed
 
-Total Tests: 12
-Passed: 12
+Total Tests: 13
+Passed: 13
 Failed: 0
 ```
 
@@ -313,6 +327,9 @@ operating system and .NET runtime that ran them:
 - **`TextLintTool_CheckBinaryFileSkipped`** - A binary file is reported as information and does not fail the run.
 - **`TextLintTool_CheckNoFilesMatched`** - A selection that matches no files fails unless `--allow-empty` is given.
 - **`TextLintTool_CheckAbsolutePath`** - A file named by an absolute path is reported by that path.
+- **`TextLintTool_CheckOverrides`** - An ordered `files` list with `!`, an override that adds words for some
+  files, and an override with `enabled: false` that skips others are applied, so only the one misspelling that
+  remains is reported.
 
 ## Silent Mode
 
@@ -365,11 +382,13 @@ language: en-GB
 files:
   - "**/*.{md,cs}"
   - .github/**/*.yml
+  - "!CHANGELOG.md"
 ignorePaths:
   - node_modules
   - bin/
   - obj/
 enableGlobDot: false
+enabled: true
 words:
   - TextLint
   - k8s
@@ -387,31 +406,43 @@ patterns:
     pattern: /\bPC-[A-Z]{3}\d+\b/
 ignoreRandomStrings: true
 minRandomLength: 40
+overrides:
+  - filename: docs/**
+    words:
+      - dotless
+    language: en-US
+  - filename:
+      - docs/legacy/**
+      - "!docs/legacy/keep.md"
+    enabled: false
 ```
 
 ## Supported Keys
 
-| Key                   | Type             | Default  | Meaning                                                    |
-| :-------------------- | :--------------- | :------- | :--------------------------------------------------------- |
-| `version`             | text             | none     | Schema version; carried but not validated.                 |
-| `files`               | list of patterns | empty    | Glob patterns that select the files; empty selects none.   |
-| `ignorePaths`         | list of patterns | empty    | Glob patterns for files and directories to exclude.        |
-| `enableGlobDot`       | `true`/`false`   | `false`  | Let wildcards match hidden (dot-prefixed) names.           |
-| `language`            | text             | `en`     | English dictionaries: `en`, `en-US`, `en-GB`, or a list.   |
-| `words`               | list of words    | empty    | Words that are accepted as correct.                        |
-| `ignoreWords`         | list of words    | empty    | Words that are never reported, even if flagged.            |
-| `flagWords`           | list of words    | empty    | Words that are always reported, even if known.             |
-| `minWordLength`       | whole number     | `4`      | Words shorter than this are not checked (at least 1).      |
-| `maxFileSize`         | size             | no limit | Files larger than this are skipped and reported.           |
-| `ignoreRegExpList`    | list of text     | empty    | Patterns, or pattern names, whose matches are not checked. |
-| `patterns`            | list of mappings | empty    | Named patterns for use in `ignoreRegExpList`.              |
-| `ignoreRandomStrings` | `true`/`false`   | `true`   | Skip long tokens that look like random data.               |
-| `minRandomLength`     | whole number     | `40`     | Length from which a token may be random (at least 1).      |
+| Key                   | Type                | Default  | Meaning                                                    |
+| :-------------------- | :------------------ | :------- | :--------------------------------------------------------- |
+| `version`             | text                | none     | Schema version; carried but not validated.                 |
+| `files`               | ordered list        | empty    | Glob patterns that select the files; empty selects none.   |
+| `ignorePaths`         | list of patterns    | empty    | Glob patterns for files and directories to exclude.        |
+| `enableGlobDot`       | `true`/`false`      | `false`  | Let wildcards match hidden (dot-prefixed) names.           |
+| `enabled`             | `true`/`false`      | `true`   | Switch spell checking on or off for the whole run.         |
+| `language`            | text                | `en`     | English dictionaries: `en`, `en-US`, `en-GB`, or a list.   |
+| `words`               | list of words       | empty    | Words that are accepted as correct.                        |
+| `ignoreWords`         | list of words       | empty    | Words that are never reported, even if flagged.            |
+| `flagWords`           | list of words       | empty    | Words that are always reported, even if known.             |
+| `minWordLength`       | whole number        | `4`      | Words shorter than this are not checked (at least 1).      |
+| `maxFileSize`         | size                | no limit | Files larger than this are skipped and reported.           |
+| `ignoreRegExpList`    | list of text        | empty    | Patterns, or pattern names, whose matches are not checked. |
+| `patterns`            | list of mappings    | empty    | Named patterns for use in `ignoreRegExpList`.              |
+| `ignoreRandomStrings` | `true`/`false`      | `true`   | Skip long tokens that look like random data.               |
+| `minRandomLength`     | whole number        | `40`     | Length from which a token may be random (at least 1).      |
+| `overrides`           | list of mappings    | empty    | Settings for the files a `filename` selects.               |
 
 An empty file, or one holding only comments, is valid and gives the defaults. A key with no value is
-treated as absent. The spelling keys and the pattern keys are described under _Spell Checking_ below.
+treated as absent. The spelling keys and the pattern keys are described under _Spell Checking_ below, `files` under
+_Ordered File Lists_, `overrides` under _Overrides_, and `enabled` under _Disabling Files_.
 
-Any other key, such as `caseSensitive` or `overrides`, is an **error**: loading fails, and the message names the
+Any other key, such as `caseSensitive` or `languageId`, is an **error**: loading fails, and the message names the
 file, the line and column, and the key, for example
 `.textlint.yaml(3,1): error: 'caseSensitive' is not a supported setting.` Keys are added only as the features that
 use them are implemented. Key names are case-sensitive, and a file must contain a single YAML document.
@@ -438,12 +469,192 @@ number of at least 1.
   double-slash network path (`//server/share/**`). Write the path relative to the root directory instead.
   (Patterns typed on the command line are more forgiving; see _Paths on the Command Line_.)
 - Matching is case-sensitive on every operating system.
-- Negation (`!`), `..` segments, and unbalanced braces are rejected, and an invalid pattern in the file is
+- A pattern in `files` or in an override's `filename` may start with `!` to exclude files; see _Ordered File Lists_.
+  Everywhere else, `!` is rejected: in `ignorePaths` (which cannot re-include files, so narrow `files` instead) and
+  on the command line. `..` segments and unbalanced braces are rejected too, and an invalid pattern in the file is
   reported at its line and column.
 - Wildcards do not match hidden names (those starting with a dot) unless `enableGlobDot` is `true`.
   A hidden name written literally in a pattern does match, so `.github/**/*.yml` selects workflow files
   without enabling hidden matching everywhere.
-- Directories excluded by `ignorePaths`, and hidden directories no pattern names, are not scanned.
+- Directories excluded by `ignorePaths`, directories that the ordered rules of `files` exclude, and hidden
+  directories no pattern names, are not scanned.
+
+## Ordered File Lists
+
+The `files` setting, and the `filename` of an override, is an ordered list. The patterns are applied in the order
+written: a pattern that starts with `!` excludes the files it matches, and **the last pattern that matches a file
+decides**, so a later pattern can bring back a file that an earlier `!` removed. This is the model of `.gitignore`.
+
+```yaml
+files:
+  - "**/*.md"
+  - "!docs/**"
+  - docs/guide/**
+```
+
+This selects every markdown file except those below `docs`, and then adds the files below `docs/guide` back. The
+other rules are those of _Glob Patterns_: brace alternatives, bare names at any depth, a trailing `/` for
+directories, a leading `/` to anchor to the root, and case-sensitive matching.
+
+- The first pattern cannot start with `!`, because there is nothing for it to remove. The error is reported at the
+  pattern: `Invalid glob pattern '!x': '!' must follow a pattern it can remove files from; put it after the pattern it excludes`.
+- A `!` pattern that matches nothing is not an error.
+- Without any `!`, the list selects exactly the files it always has.
+- A bare name excludes at any depth, so `!node_modules` removes every directory of that name and the files below
+  it. A pattern with a path, such as `!docs/a`, excludes what the same pattern excludes in `ignorePaths`: a file
+  `docs/a`, or a directory `docs/a` with everything below it, so `!docs/a`, `!docs/a/`, and `!docs/a/**` all exclude
+  the directory. (As an include, `docs/a` selects only a file `docs/a`; write `docs/a/` or `docs/a/**` to select the
+  directory.) A later pattern can still select a file below an excluded directory again.
+- Excluded directories are not scanned when the ordered rules allow it (a later pattern that could bring back a
+  file below the directory keeps it scanned), so excluding a large tree with `!` does not cost a full walk. A
+  tree that is never yours, such as vendored code, generated files, or build output, still belongs in `ignorePaths`,
+  which is a hard fence that nothing re-includes and the fastest way to skip files.
+- `!` stays an error in `ignorePaths`: `'ignorePaths' cannot re-include files; narrow 'files' instead.` The
+  ignore patterns win over everything.
+- `!` is also an error in a pattern on the command line, which replaces the `files` setting as a plain list of
+  includes.
+
+## Overrides
+
+The `overrides` setting is a list of entries. Each entry names the files it applies to with `filename` and holds the
+settings that those files use instead of, or in addition to, the top-level settings:
+
+<!-- cspell:ignore Kubernetes -->
+
+```yaml
+language: en-US
+words:
+  - TextLint
+overrides:
+  - filename: docs/**
+    words:
+      - Kubernetes
+  - filename:
+      - "**/*.cs"
+      - "!**/Generated/**"
+    minWordLength: 5
+    ignoreRegExpList:
+      - /\bticket-\d+\b/
+  - filename: docs/uk/**
+    language: en-GB
+```
+
+- `filename` is required. It is a glob or an ordered list of globs, as described under _Ordered File Lists_, and it
+  is relative to the same root as `files`.
+- The other keys an entry can have are `words`, `ignoreWords`, `flagWords`, `ignoreRegExpList`, `patterns`,
+  `language`, `minWordLength`, `ignoreRandomStrings`, `minRandomLength`, and `enabled`; they mean what they mean at
+  the top level.
+- Every entry that matches a file applies, **in the order written**, so put the general rules first and the specific
+  ones last. List settings (`words`, `ignoreWords`, `flagWords`, `ignoreRegExpList`, and `patterns`) **add** to the
+  top-level values and to those of earlier entries. Single values (`language`, `minWordLength`,
+  `ignoreRandomStrings`, `minRandomLength`, and `enabled`) **replace** them, so the last entry that sets one wins.
+- Named patterns are resolved after merging. An entry can use the patterns defined at the top level and the
+  predefined names, as well as its own. When an entry defines a pattern with the name of a top-level pattern, its
+  definition replaces the top-level one for the files it matches. A name that is defined only in another override is
+  an error, as an unknown name is anywhere else.
+- Entries are matched against the path **relative to the settings root** (the root directory of the run), even when
+  an absolute path on the command line changes the folder that the file names are shown relative to. A file outside
+  the settings root matches no override.
+- Matching is case-sensitive, like every glob in the settings.
+- `--language` on the command line wins over the `language` of an override (see _Notes During a Run_).
+
+A problem in an override is a settings error: nothing is checked, and the message gives the file, line, and column.
+The position is that of the key, the item, or (when the whole entry is at fault) the start of the entry. The
+problems are listed in the order of the file.
+
+Each mistake below is reported with the message that follows it (a bare `!x` stands for the pattern written):
+
+- **`files`, `ignorePaths`, or `enableGlobDot` in an override**, at the key:
+  `Overrides cannot change which files are selected; use the top-level 'files' setting.` (naming the key used)
+- **`enabled: false` together with other settings**, at the `enabled` key:
+  `This override skips its files, so its other settings have no effect; remove them,
+  or remove 'enabled: false' to apply them.`
+- **An override with only a `filename`**, at the start of the override (a key with no value counts as absent, so an
+  override whose other keys have no value is this error too):
+  `This override changes nothing: add settings, or remove it.`
+- **A missing, empty, or null `filename`**, at the start of the override: `An override needs a 'filename'.`
+- **A `files` or `filename` list that starts with `!`**, at that item:
+  `Invalid glob pattern '!x': '!' must follow a pattern it can remove files from; put it after the pattern it excludes`
+- **`!` in `ignorePaths`**, at that item: `'ignorePaths' cannot re-include files; narrow 'files' instead.`
+- **`languageId` or `dictionaries` in an override**, at the key: `'languageId' is not supported in an override.`
+- **`maxFileSize` in an override**, at the key:
+  `'maxFileSize' is not supported in an override; it applies to the whole run.`
+- **Nested `overrides`**, at the key: `Nested 'overrides' are not supported.`
+- **Any other unknown key, such as `name` or `description`**, at the key: `'name' is not a supported setting.`
+- **An `ignoreRegExpList` name that only another override defines**, at the entry:
+  `Cannot use the 'ignoreRegExpList' entry 'X': ...` (the usual unknown-pattern message)
+- **A wrong type**: `Expected a list of overrides, each with a 'filename'.` (`overrides` is not a list),
+  `Expected an override with a 'filename'.` (an item is not a mapping),
+  `Expected a glob or a list of globs for 'filename'.`, and `Expected true or false for 'enabled'.`
+
+Not supported in an override, because the setting applies to the whole run or to the choice of files:
+`files`, `ignorePaths`, `enableGlobDot`, `languageId`, `dictionaries`, `maxFileSize`, `version`, nested `overrides`,
+and `name` and `description` (a YAML comment does that job).
+
+## Disabling Files
+
+`enabled` is accepted at the top level and in overrides. It is `true` by default, and `enabled: false` stops the
+spell check, as in cspell:
+
+```yaml
+files:
+  - "**/*.md"
+overrides:
+  - filename:
+      - docs/legacy/**
+      - "!docs/legacy/keep.md"
+    enabled: false
+```
+
+- It is a single value, so the last matching override that sets it wins, and an override can turn checking back on
+  for files that an earlier one disabled. `enabled: false` at the top level disables every file unless an override
+  turns it on again.
+- A disabled file is **not read, not reported, and not counted**. It is treated like a file excluded by
+  `ignorePaths`, except that the directory walk still finds it, so a large tree that is never to be checked belongs
+  in `ignorePaths`.
+- A file that is named on the command line and that the settings disable is skipped.
+- An override with `enabled: false` cannot have other settings, because they would have no effect (see the errors
+  above). Comment the override out, or remove `enabled: false`, to change its rules.
+- When files were selected but the settings disable every one of them, the run exits with `0` and says why:
+  `info: Spell checking is disabled by the settings for all 37 selected file(s).`
+- When nothing was selected at all, the run still fails with the "no files" error, unless `--allow-empty` is given.
+
+## When to Use What
+
+| Need                                                                   | Use                                      |
+| :--------------------------------------------------------------------- | :--------------------------------------- |
+| Never ours (vendored, generated, build output)                         | `ignorePaths`: a hard fence, the fastest |
+| What is permanently in scope                                           | `files` with `!`                         |
+| Ours, skipped for a stated reason, can be toggled, can have exceptions | An override with `enabled: false`        |
+| Different rules for some files                                         | An override with settings                |
+| Pause everything                                                       | `enabled: false` at the top level        |
+
+## Notes During a Run
+
+Besides findings, a run can print notes about how the settings were applied. A note never changes the exit code. The
+tool prints the notes before the findings, to standard output, in one of two formats:
+
+- `info: message` for information that has no position.
+- `file(line,column): warning: message` for a warning about an override, with the position of the start of the
+  override in the settings file, so editors and CI systems link to it.
+
+The notes are:
+
+```text
+info: --language en-US replaces en-GB for the override at .textlint.yaml(14,5).
+info: Spell checking is disabled by the settings for all 37 selected file(s).
+.textlint.yaml(14,5): warning: The override matches none of the selected files.
+```
+
+- **`--language` replaced an override's language.** `--language` wins over the settings and over every override. The
+  note appears for each override that matched an enabled checked file and whose language selects different
+  dictionaries from the one requested (`en` and `en-US` are the same, so they do not differ). An override with no
+  position in a file is named by its number in the list.
+- **Every selected file is disabled.** See _Disabling Files_.
+- **An override matched none of the selected files.** It is a warning because the override is probably wrong or
+  out of date. It appears only on a **full run**, one with no patterns on the command line, so checking a subset of
+  the files never triggers it, and only when at least one file was selected. An override with `enabled: false` that
+  matches a file counts as matched.
 
 # Spell Checking
 
@@ -744,8 +955,18 @@ corpora (see the verification of TextLint). These differences are deliberate:
 - **Different dictionaries.** TextLint embeds its own English and technical word lists, so a real project shows
   words that cspell knows and TextLint does not, and the reverse. Add such words to `words`.
 - **Unsupported settings are errors,** and unsupported directives are reported; cspell has more settings (for
-  example `caseSensitive`, `allowCompoundWords`, `overrides`, `dictionaries`, and `includeRegExpList`), which are
-  not available yet.
+  example `caseSensitive`, `allowCompoundWords`, `dictionaries`, and `includeRegExpList`), which are not
+  available yet.
+- **Overrides are stricter and smaller than cspell's.** An override accepts only the settings listed under
+  _Overrides_ in the configuration chapter. `languageId`, `dictionaries`, `maxFileSize`, nested `overrides`, and
+  `name` and `description` are errors in an override (a YAML comment does the job of the last two), and so are
+  `files`, `ignorePaths`, and `enableGlobDot`, because an override cannot change which files are selected. An
+  override that has only a `filename`, or that has `enabled: false` together with other settings, is an error
+  where cspell would accept it. An override that matches none of the selected files is reported as a warning on a
+  full run.
+- **Ordered lists with `!` are stricter than cspell.** A `files` list or an override `filename` list may not start
+  with `!`, because nothing earlier can be removed. `!` is an error in `ignorePaths` and on the command line.
+- **Matching is case-sensitive** on every operating system, for `files`, `ignorePaths`, and override `filename`.
 - **Patterns are translated, and unusual ones are rejected.** `ignoreRegExpList`, `patterns`, and `ignoreRegExp`
   directives accept JavaScript regular expressions, but the flags `x`, `y`, `d`, and `v`, and constructs without a
   safe .NET equivalent, are errors where cspell would run them as the JavaScript engine decides, or, in a directive,
@@ -898,6 +1119,52 @@ var files = FileSelector.Select(
     withOtherFiles.IgnorePaths,
     withOtherFiles.EnableGlobDot);
 ```
+
+The `Files` list is ordered: a pattern with a leading `!` removes files that an earlier pattern selected, and the
+last matching pattern wins. `FileSelector.Select` applies it, so `Files = ["**/*.md", "!CHANGELOG.md"]` selects every
+markdown file but `CHANGELOG.md`. A list whose first pattern starts with `!` throws `InvalidGlobPatternException`,
+as does `!` in the ignore patterns.
+
+Overrides are `SettingsOverride` values in `TextLintSettings.Overrides`. A `SettingsOverride` has the `Filename`
+patterns (an ordered list, like `Files`), the list settings `Words`, `IgnoreWords`, `FlagWords`, `IgnoreRegExpList`,
+and `Patterns`, and the single values `Language`, `MinWordLength`, `IgnoreRandomStrings`, `MinRandomLength`, and
+`Enabled`; a single value that is `null` is not set by the override. `SourceName`, `Line`, and `Column` say where a
+loaded override was written, so that notes can point at it. `SpellChecker.CheckAsync` applies the overrides and
+`Enabled`, and it validates every override before it checks a file. Overrides are matched against the path relative
+to `SpellCheckOptions.SettingsRootDirectory`, which is the search directory when it is not set, so set it when the
+files are searched in another directory than the settings root (as for an absolute command-line path). Set
+`SpellCheckOptions.Language` to make a language win over the settings and over every override, as `--language` does:
+
+```csharp
+var settings = new TextLintSettings
+{
+    Files = ["**/*.md", "!CHANGELOG.md"],
+    Overrides =
+    [
+        new SettingsOverride { Filename = ["docs/**"], Words = ["Kubernetes"] },
+        new SettingsOverride { Filename = ["docs/legacy/**"], Enabled = false },
+    ],
+};
+var options = new SpellCheckOptions { SettingsRootDirectory = "/path/to/repo", Language = "en-GB" };
+var check = await SpellChecker.CheckAsync(settings, "/path/to/repo", options);
+
+foreach (var note in check.Notes)
+{
+    // For example: info: Spell checking is disabled by the settings for all 37 selected file(s).
+    // or: .textlint.yaml(14,5): warning: The override matches none of the selected files.
+    Console.WriteLine(note.Format());
+}
+
+Console.WriteLine($"{check.FilesChecked} checked, {check.FilesDisabled} disabled by the settings");
+```
+
+`SpellCheckResult.FilesDisabled` counts the selected files that the settings disabled; they are not read, reported,
+or counted in `FilesChecked`. `SpellCheckResult.Notes` lists the `SpellCheckNote` values of the run. Each has a
+`Kind` (`LanguageReplaced`, `AllFilesDisabled`, or `OverrideUnmatched`), a `Severity` (`Info` or `Warning`), the
+`Message`, and the `Source`, `Line`, and `Column` of the override it is about when known. `Format()` returns the line
+that the tool prints. Notes never count as problems, so `HasProblems` ignores them; the unmatched-override warning
+is produced whenever files were selected, so a caller that checks only a subset of the files should skip the
+`OverrideUnmatched` notes, as the tool does when paths are given on the command line.
 
 `FileSelector` does not depend on the settings type: it takes the root directory, the include patterns, the
 ignore patterns, and an optional hidden-file switch, so the lists can come from a settings file, from code, or
@@ -1069,7 +1336,7 @@ The following command-line options are supported:
 | `[globs...]`                          | Files to check: paths or glob patterns, replacing the `files` setting    |
 | `--config <file>`                     | Settings file (default: `.textlint.yaml` in the root directory)          |
 | `--root <dir>`                        | Directory that patterns and the default settings file are relative to    |
-| `--language <languages>`              | Dictionary language such as `en-US` or `en-GB`; overrides the settings   |
+| `--language <languages>`              | Dictionary language such as `en-US`; wins over settings and overrides    |
 | `--allow-empty`                       | Accept patterns that match no files (default: exit code 1)               |
 | `--max-parallelism <#>`               | Maximum number of files checked at the same time (default: processors)   |
 | `-v`, `--version`                     | Display version information                                              |
@@ -1081,7 +1348,8 @@ The following command-line options are supported:
 | `--log <file>`                        | Write output to log file                                                 |
 
 Each option that takes a value may be given only once. `[globs...]` may be mixed with the options in any order.
-See _Checking Files_ for the meaning of the patterns, the settings file, the output, and the exit codes.
+`--language` also wins over the `language` of an override (see _Notes During a Run_). See _Checking Files_ for the
+meaning of the patterns, the settings file, the output, and the exit codes.
 
 # Examples
 

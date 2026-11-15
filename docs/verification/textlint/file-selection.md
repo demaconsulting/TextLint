@@ -4,7 +4,8 @@
 
 The `FileSelection` subsystem is verified by integration tests in `FileSelectionSubsystemTests.cs`. They build
 real directory trees in a per-test temporary directory and call `FileSelector.Select`, so `FileSelector`,
-`GlobPatternExpander`, and `HiddenPathPolicy` are exercised together with the real matcher (an OTS item). The
+`OrderedGlobList`, `GlobPatternExpander`, and `HiddenPathPolicy` are exercised together with the real
+matcher (an OTS item). The
 command-line scenarios also call `CommandLinePathResolver.Resolve` and select with its result.
 The subsystem has no dependencies on other subsystems: its inputs are plain pattern lists and a hidden-file
 switch, so the tests need no settings object. The only
@@ -25,7 +26,9 @@ that it holds on all of them.
 - Include patterns select files and ignore patterns remove them, relative to the root.
 - A path that differs only in case is not selected.
 - Brace alternatives select every alternative, and a bare name matches at any depth.
-- A negated pattern is rejected with an error that names it.
+- An ordered include list applies its `!` patterns in order, the last matching pattern wins, and an excluded
+  directory is not enumerated.
+- A list that starts with `!` and a `!` in the ignore list are rejected with an error that names the pattern.
 - Hidden entries are skipped by wildcards unless enabled, and hidden names written literally are selected.
 - Ignored and hidden directories are not enumerated.
 - Results are in ordinal order with forward-slash paths.
@@ -49,8 +52,17 @@ extensions it names and not a third. This scenario is tested by
 **FileSelectionSubsystem_Select_BareName_MatchesAtAnyDepth**: A bare file name selects the copy at the root and
 the nested copy. This scenario is tested by `FileSelectionSubsystem_Select_BareName_MatchesAtAnyDepth`.
 
-**FileSelectionSubsystem_Select_NegatedPattern_ThrowsNamingPattern**: A negated pattern throws an exception whose
-message names the pattern. This scenario is tested by
+**FileSelectionSubsystem_Select_OrderedNegation_SelectsLastMatchAndPrunes**: With `**/*.md`, `!docs`,
+`docs/keep/**`, and `!vendor`, the root file and the file in `docs/keep` are selected, the selection through the
+recording directory equals the one through the public entry point, `vendor` is never read, and `docs/keep` is read.
+This scenario is tested by `FileSelectionSubsystem_Select_OrderedNegation_SelectsLastMatchAndPrunes`.
+
+**FileSelectionSubsystem_Select_LeadingNegationAndNegatedIgnore_ThrowNamingPattern**: An include list that starts
+with `!docs/**` and an ignore list that holds `!docs/**` each throw an exception that exposes the pattern as
+written. This scenario is tested by `FileSelectionSubsystem_Select_LeadingNegationAndNegatedIgnore_ThrowNamingPattern`.
+
+**FileSelectionSubsystem_Select_NegatedPattern_ThrowsNamingPattern**: An include list whose first pattern is
+negated throws an exception whose message names the pattern. This scenario is tested by
 `FileSelectionSubsystem_Select_NegatedPattern_ThrowsNamingPattern`.
 
 **FileSelectionSubsystem_Select_AbsolutePathPattern_ThrowsNamingPattern**: A drive path and a `//` network path

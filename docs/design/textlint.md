@@ -12,10 +12,11 @@ The library is composed of five subsystems and consumes two OTS items:
 
 - **Configuration** turns a `.textlint.yaml` file, or values built in code, into one immutable
   settings value, and reports every configuration problem as a positioned error. It contains the
-  `TextLintSettings` and `SettingsLoader` units. See _Configuration Design_.
+  `TextLintSettings` (with `SettingsOverride`), `SettingsLoader`, and `SettingsOverrideResolver` units. See
+  _Configuration Design_.
 - **FileSelection** applies include and ignore glob patterns to a root directory and returns the ordered list of files to
-  check. It contains the `GlobPatternExpander`, `HiddenPathPolicy`, `FileSelector`, and `CommandLinePathResolver`
-  units. See _FileSelection Design_.
+  check. It contains the `GlobPatternExpander`, `HiddenPathPolicy`, `OrderedGlobList`, `FileSelector`, and
+  `CommandLinePathResolver` units. See _FileSelection Design_.
 - **Dictionaries** answers whether a word is known to the selected English language (American, British, or
   both) and the technical vocabulary, from dictionaries embedded in the assembly. It contains the
   `SpellingDictionary` and `DictionaryImage` units. See _Dictionaries Design_.
@@ -26,7 +27,8 @@ The library is composed of five subsystems and consumes two OTS items:
   `PatternParser`, `PatternCatalog`, `MarkdownPatterns`, and `RandomStringDetector` units. See _TextScanning Design_.
 - **SpellChecking** puts the other subsystems together: `TextChecker` checks a string against the dictionary and
   the word lists of the settings, `FileTextReader` turns a file into text, and `SpellChecker` selects the files
-  of a directory, checks them in parallel, and returns one deterministic result. See _SpellChecking Design_.
+  of a directory, applies the settings' `enabled` and `overrides`, checks the files in parallel, and returns one
+  deterministic result. See _SpellChecking Design_.
 - **YamlDotNet** (OTS) parses the settings file and **Microsoft.Extensions.FileSystemGlobbing**
   (OTS) matches glob patterns against the file system. See _OTS Software Integration Design_.
 
@@ -34,12 +36,15 @@ The dependencies between the subsystems form a directed graph without cycles, an
 split into five subsystems. `TextScanning` and `Dictionaries` depend on nothing else in the library.
 `FileSelection` depends on nothing either: `FileSelector` takes the include patterns, the ignore patterns, and
 the hidden-file switch as plain parameters. `Configuration` depends on three of them, because a settings file is
-validated while it is loaded: `SettingsLoader` validates glob patterns with `GlobPatternExpander`
-(FileSelection), the language with `SpellingDictionary` (Dictionaries), and the word-list entries and the patterns
+validated while it is loaded: `SettingsLoader` validates glob patterns with `GlobPatternExpander` and
+`OrderedGlobList` (FileSelection), the language with `SpellingDictionary` (Dictionaries), and the word-list entries and
+the patterns
 with `WordTokenizer`, `PatternParser`, and `PatternCatalog` (TextScanning), and `TextLintSettings` holds the
 `NamedPattern` values of TextScanning, so that a bad value is reported with its line and column and so that a value
-accepted when the file is loaded is never rejected later. `SpellChecking` depends on all four others: it
-consumes `TextLintSettings` (Configuration), selects files with `FileSelector` (FileSelection), looks words up
+accepted when the file is loaded is never rejected later; `SettingsOverrideResolver` matches the `filename` patterns of
+the overrides with `OrderedGlobList`. `SpellChecking` depends on all four others: it
+consumes `TextLintSettings` and `SettingsOverrideResolver` (Configuration), selects files with `FileSelector`
+(FileSelection), looks words up
 with `SpellingDictionary` (Dictionaries), and uses the units of `TextScanning`. If `TextScanning` had
 instead been placed inside `SpellChecking`, `Configuration` would depend on `SpellChecking` while `SpellChecking`
 depends on `Configuration`, which is the cycle the separate subsystem avoids. A caller that holds
@@ -84,13 +89,15 @@ belongs to the library (see `CommandLinePathResolver`), so every front-end reads
 - _Type_: .NET assembly.
 - _Role_: Provider.
 - _Contract_: In the `DemaConsulting.TextLint.Configuration` namespace, `TextLintSettings` (an
-  immutable record), `SettingsLoader` (asynchronous loading of a settings file), `SettingsLoadResult`,
+  immutable record) with `SettingsOverride` (one entry of its `Overrides`), `SettingsLoader` (asynchronous loading of a
+  settings file), `SettingsLoadResult`,
   and `SettingsDiagnostic`. In the `DemaConsulting.TextLint.FileSelection` namespace, `FileSelector`
   (selecting files), `SelectedFile`, `InvalidGlobPatternException`, and `CommandLinePathResolver` (turning
   command-line path arguments into a search directory and patterns) with its result `CommandLineSelection`. In the
   `DemaConsulting.TextLint.Dictionaries` namespace, `SpellingDictionary` (selecting a language and asking
   whether a word is known). In the `DemaConsulting.TextLint.SpellChecking` namespace, `TextChecker` (checking a
   string), `SpellChecker` (checking the files of a directory) with `SpellCheckOptions` and `SpellCheckResult`,
+  the notes of a result (`SpellCheckNote`, `SpellCheckNoteKind`, and `SpellCheckNoteSeverity`),
   and the finding types `SpellingIssue` (which can be formatted under a caller-chosen file name),
   `SpellingIssueKind`, `FileDiagnostic` (likewise), and `FileDiagnosticKind`. In the
   `DemaConsulting.TextLint.TextScanning` namespace, `NamedPattern` (a name and a pattern of the `patterns` setting) and
@@ -113,14 +120,16 @@ belongs to the library (see `CommandLinePathResolver`), so every front-end reads
 
 - _Type_: YAML file, conventionally named `.textlint.yaml`, supplied to the loader by explicit path.
 - _Role_: Consumer.
-- _Contract_: A single YAML document of cspell-compatible keys. The supported keys are `version`,
+- _Contract_: A single YAML document of cspell-compatible keys. The supported keys are `version`, `enabled`,
   `files`, `ignorePaths`, `enableGlobDot`, `language`, `words`, `ignoreWords`, `flagWords`, `minWordLength`,
-  `maxFileSize`, `ignoreRegExpList`, `patterns`, `ignoreRandomStrings`, and `minRandomLength`; an empty file or a file
+  `maxFileSize`, `ignoreRegExpList`, `patterns`, `ignoreRandomStrings`, `minRandomLength`, and `overrides` (a list of
+  entries that each name files with `filename` and change a subset of the settings for them); `files` is an ordered
+  list in which a leading `!` excludes. An empty file or a file
   of only comments is valid and yields default settings.
 - _Constraints_: Any other key is an error that names the key. A file with more than one YAML
   document is an error. Glob patterns, the language, word-list entries, patterns and pattern names, the minimum word
-  length, the minimum random length, and the
-  maximum file size must be valid. The library never
+  length, the minimum random length, the maximum
+  file size, and every override must be valid. The library never
   searches for the file; the caller supplies its path.
 
 ## Dependencies
@@ -154,7 +163,8 @@ words up, and check text and files:
 
 1. **File route**: the caller passes the path of a `.textlint.yaml` file to `SettingsLoader`, which
    reads it, parses it with YamlDotNet, maps the supported keys onto an immutable `TextLintSettings`,
-   and validates each glob pattern, the language, each word-list entry, each pattern and pattern name, and the numbers.
+   and validates each glob pattern, the language, each word-list entry, each pattern and pattern name, the numbers,
+   and each override.
    The outcome is a
    `SettingsLoadResult` holding either the settings or the errors, each with file, line, and column.
 2. **Code route**: the caller builds a `TextLintSettings` directly, optionally deriving it from
@@ -165,7 +175,9 @@ words up, and check text and files:
    way) to `FileSelector`, which
    expands the patterns, walks the root directory with the matcher while skipping excluded and
    hidden directories, and returns the matching files ordered by ordinal relative path using
-   forward slashes. An invalid pattern passed to selection is reported there as an exception.
+   forward slashes. The include patterns are an ordered list in which `!` excludes and the last match wins; a
+   directory that the ordered rules exclude entirely is not read. An invalid pattern passed to selection is
+   reported there as an exception.
 4. **Word lookup**: the caller chooses a language with `SpellingDictionary.ForLanguages` (or takes
    `SpellingDictionary.Default`) and passes words to `IsKnown`. The first lookup loads the selection's
    embedded dictionaries once; each word is then folded to a key, hashed, and probed in each dictionary of
@@ -180,11 +192,16 @@ words up, and check text and files:
    case changes for unknown words, whose adjacent pieces may join into an accepted word), and drops the unknown words
    that lie inside a hexadecimal sequence of a token. The
    findings are returned in text order with a line and column each.
-6. **File checking**: the caller passes settings and a root directory to `SpellChecker.CheckAsync`. The checker
-   creates a `TextChecker`, selects the files as in route 3 on a thread-pool thread, and checks them in parallel:
-   each file is read by `FileTextReader` (encoding, binary and size rules) and its text is checked as in route 5.
+6. **File checking**: the caller passes settings and a root directory, and optionally the settings root and a
+   language, to `SpellChecker.CheckAsync`. The checker
+   creates a `SettingsOverrideResolver` and a `TextChecker` for the top-level settings and for each override that has
+   settings, selects the files as in route 3 on a thread-pool thread, resolves each file against the overrides by its
+   path relative to the settings root (dropping the files that the settings disable), and checks the rest in parallel:
+   each file is read by `FileTextReader` (encoding, binary and size rules) and its text is checked as in route 5 with
+   the checker of its overrides.
    Each file's outcome goes to its own slot, and the slots are assembled in file order into one
-   `SpellCheckResult` with the findings, the per-file diagnostics, and the counts.
+   `SpellCheckResult` with the findings, the per-file diagnostics, the counts, and the notes about how the settings
+   were applied.
 
 At build time a further flow produces the data: the build runs the DictionaryBuilder over the word lists
 and embeds the four resulting files in the assembly; see _Design Constraints_.

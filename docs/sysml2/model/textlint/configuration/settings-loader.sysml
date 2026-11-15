@@ -2,11 +2,12 @@ package TextLint {
     private import SoftwareItemMetadata::*;
 
     part def SettingsLoader {
-        doc /* Reads a .textlint.yaml file into settings, or into positioned errors, validating glob patterns, languages, word-list entries, regular-expression patterns, and numbers while loading. */
+        doc /* Reads a .textlint.yaml file into settings, or into positioned errors, validating ordered glob patterns, overrides, languages, word-list entries, regular-expression patterns, and numbers while loading. */
 
         metadata info : SoftwareInfo {
             sourceFiles = (
                 "src/DemaConsulting.TextLint/Configuration/SettingsLoader.cs",
+                "src/DemaConsulting.TextLint/Configuration/SettingsLoader.Overrides.cs",
                 "src/DemaConsulting.TextLint/Configuration/SettingsLoadResult.cs",
                 "src/DemaConsulting.TextLint/Configuration/SettingsDiagnostic.cs"
             );
@@ -20,10 +21,11 @@ package TextLint {
     // The loader builds TextLintSettings, parses with YamlDotNet, and validates values with the
     // glob pattern expander of the FileSelection subsystem, the language selection of the
     // Dictionaries subsystem, and the word tokenizer of the TextScanning subsystem (documented
-    // subsystem dependencies).
+    // subsystem dependencies). It checks the ordered file lists with the ordered glob list.
     dependency SettingsLoaderUsesTextLintSettings from SettingsLoader to TextLintSettings;
     dependency SettingsLoaderUsesYamlDotNet from SettingsLoader to YamlDotNet;
     dependency SettingsLoaderUsesGlobPatternExpander from SettingsLoader to GlobPatternExpander;
+    dependency SettingsLoaderUsesOrderedGlobList from SettingsLoader to OrderedGlobList;
     dependency SettingsLoaderUsesSpellingDictionary from SettingsLoader to SpellingDictionary;
     dependency SettingsLoaderUsesWordTokenizer from SettingsLoader to WordTokenizer;
     dependency SettingsLoaderUsesPatternCatalog from SettingsLoader to PatternCatalog;

@@ -3,6 +3,8 @@
 #
 # The GlobPatternExpander class validates user-written glob patterns and rewrites them into the
 # patterns the matcher understands: brace alternatives expanded, bare names matching at any depth.
+# It treats a leading ! as an unsupported form; callers that give ! a meaning, such as the ordered
+# pattern lists, remove it before calling.
 
 sections:
   - title: TextLint Requirements
@@ -61,16 +63,20 @@ sections:
 
               - id: TextLint-FileSelection-GlobPatternExpander-Validation
                 title: >-
-                  GlobPatternExpander shall reject empty, negated, backslash, question-mark,
+                  GlobPatternExpander shall reject empty, negated (beginning with an exclamation mark),
+                  backslash, question-mark,
                   absolute (drive-letter and double-slash network), empty-segment, parent-segment,
                   unbalanced-brace, and over-expanding patterns, naming the pattern and the reason,
                   and shall suggest the star in place of a question mark.
                 justification: |
-                  Each of these forms cannot be honored reliably (negation, separators and wildcards
+                  Each of these forms cannot be honored reliably (separators and wildcards
                   that differ by platform or are unsupported, paths that escape the root, or an
                   expansion that exhausts memory). Rejecting them with a clear message is safer than
                   silently selecting the wrong files, and an absolute path copied from the file
-                  system must be told apart from a root-anchored pattern.
+                  system must be told apart from a root-anchored pattern. A negation is rejected here
+                  because the expander only expands patterns that select files; a caller that supports
+                  ordered exclusion removes the exclamation mark first, and the ignore patterns and
+                  command-line patterns, which do not support exclusion, rely on this rejection.
                 tests:
                   - GlobPatternExpander_Expand_EmptyPattern_ThrowsInvalidGlobPattern
                   - GlobPatternExpander_Expand_WhitespacePattern_ThrowsInvalidGlobPattern

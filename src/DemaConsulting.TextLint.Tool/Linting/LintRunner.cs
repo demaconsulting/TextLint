@@ -157,28 +157,31 @@ internal static class LintRunner
             return;
         }
 
-        // The language option wins over the settings, as the more specific request
-        if (context.Language is not null)
+        // Run the check. The language option wins over the settings and their overrides as the more specific
+        // request, and the overrides are matched against the settings root even when an absolute path moved the
+        // search directory elsewhere; both are the library's to apply. The library default for parallelism
+        // applies unless the user chose a number
+        var options = new SpellCheckOptions { SettingsRootDirectory = root, Language = context.Language };
+        if (context.MaxParallelism is { } parallelism)
         {
-            settings = settings with { Language = context.Language };
+            options = options with { MaxDegreeOfParallelism = parallelism };
         }
 
-        // Run the check; the library default for parallelism applies unless the user chose a number
-        var options = context.MaxParallelism is { } parallelism
-            ? new SpellCheckOptions { MaxDegreeOfParallelism = parallelism }
-            : new SpellCheckOptions();
         var result = SpellChecker.CheckAsync(settings, searchRoot, options, cancellationToken).GetAwaiter().GetResult();
 
-        // An empty selection is almost always a mistyped pattern, so it fails unless it was allowed
-        if (result.FilesChecked == 0 && result.FileDiagnostics.Count == 0 && !context.AllowEmpty)
+        // An empty selection is almost always a mistyped pattern, so it fails unless it was allowed; files that
+        // were selected but disabled by the settings are not an empty selection, which the library says in a note
+        if (result.FilesChecked == 0 && result.FileDiagnostics.Count == 0 && result.FilesDisabled == 0 && !context.AllowEmpty)
         {
             context.WriteError(
                 "No files matched the file selection, so nothing was checked. Use --allow-empty to accept an empty selection.");
             return;
         }
 
-        // Report, and fail the run when anything the user should act on was found
-        LintReporter.Write(context, result, displayPath);
+        // Report, and fail the run when anything the user should act on was found. A note about an override
+        // that matched nothing is only meaningful when every file was selected, so it is left out when the
+        // command line chose the files
+        LintReporter.Write(context, result, displayPath, reportUnmatchedOverrides: context.Globs.Count == 0);
         if (result.HasProblems)
         {
             context.MarkFailed();

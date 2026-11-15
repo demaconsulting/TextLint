@@ -45,7 +45,8 @@ public class ValidationTests
         "TextLintTool_CheckLanguageOption",
         "TextLintTool_CheckBinaryFileSkipped",
         "TextLintTool_CheckNoFilesMatched",
-        "TextLintTool_CheckAbsolutePath"
+        "TextLintTool_CheckAbsolutePath",
+        "TextLintTool_CheckOverrides"
     ];
 
     /// <summary>

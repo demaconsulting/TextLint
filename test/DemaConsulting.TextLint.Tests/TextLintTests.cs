@@ -771,7 +771,7 @@ public partial class TextLintTests
     [Fact]
     public void TextLint_Files_NegatedPattern_ThrowsNamingPattern()
     {
-        // Arrange: settings built in code with a negated pattern
+        // Arrange: settings built in code whose files list starts with a negated pattern
         using var temp = new TempDirectory();
         var settings = new TextLintSettings { Files = ["!docs/**"] };
 

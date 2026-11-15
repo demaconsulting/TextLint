@@ -22,6 +22,13 @@ platform.
 - Settings are found, applied, and reported on as documented, and a file that exists but cannot be read is never
   mistaken for an absent file.
 - Command-line patterns, the language option, and the parallelism limit act as documented.
+- Settings with an ordered `files` list, `overrides`, and `enabled` are applied through the library; overrides are
+  matched against the settings root even when an absolute path moves the search directory, and a file outside the
+  settings root matches none.
+- The notes of the library are printed: the language note, the all-disabled information, and the unmatched-override
+  warning only on a run without command-line patterns; none of them changes the exit code. A run whose selected files
+  are all disabled succeeds, and a selection that matches no file still fails unless it is allowed to be empty.
+- A problem in an override is reported at its position and nothing is checked.
 - Every failure a user can cause is reported and fails the run; cancellation is reported and fails the run.
 
 #### Test Scenarios
@@ -137,3 +144,59 @@ output and the exit code are identical. This scenario is tested by `LintRunner_R
 
 **LintRunner_Run_NullContext_ThrowsArgumentNullException**: A null context throws `ArgumentNullException`. This
 scenario is tested by `LintRunner_Run_NullContext_ThrowsArgumentNullException`.
+
+**LintRunner_Run_LanguageOptionAndOverrideLanguage_OptionWinsAndNoteIsPrinted**: An override sets British English and
+a file holds an American and a British spelling; without the option the American one is reported and no note is
+printed, and with `--language en-US` the British one is reported and the line `info: --language en-US replaces en-GB
+for the override at` the settings file, line 4, and column 5 is printed. This scenario is tested by
+`LintRunner_Run_LanguageOptionAndOverrideLanguage_OptionWinsAndNoteIsPrinted`.
+
+**LintRunner_Run_LanguageNoteOnCleanRun_DoesNotFail**: The language note is printed for a clean file and the exit code
+is 0. This scenario is tested by `LintRunner_Run_LanguageNoteOnCleanRun_DoesNotFail`.
+
+**LintRunner_Run_LanguageOptionSameDictionaryAsOverride_PrintsNoNote**: An override for `en` and the option `en-US`
+select the same dictionary; the run succeeds and prints no note. This scenario is tested by
+`LintRunner_Run_LanguageOptionSameDictionaryAsOverride_PrintsNoNote`.
+
+**LintRunner_Run_UnmatchedOverrideOnFullRun_PrintsWarningAndSucceeds**: A run with no patterns and an override that
+matches nothing prints the warning in compiler style at the override's position, before the summary, and the exit code
+is 0. This scenario is tested by `LintRunner_Run_UnmatchedOverrideOnFullRun_PrintsWarningAndSucceeds`.
+
+**LintRunner_Run_UnmatchedOverrideWithCommandLinePatterns_PrintsNoWarning**: The same settings with a pattern on the
+command line print no warning. This scenario is tested by
+`LintRunner_Run_UnmatchedOverrideWithCommandLinePatterns_PrintsNoWarning`.
+
+**LintRunner_Run_UnmatchedOverrideWithExplicitConfig_NamesTheConfigFile**: With `--config`, the warning starts with
+the settings file as it was typed. This scenario is tested by
+`LintRunner_Run_UnmatchedOverrideWithExplicitConfig_NamesTheConfigFile`.
+
+**LintRunner_Run_AllFilesDisabled_SucceedsWithInformationNote**: With `enabled: false` and two misspelled files, the
+exit code is 0, the line `info: Spell checking is disabled by the settings for all 2 selected file(s).` is printed,
+and there is neither a "No files matched" error nor a finding. This scenario is tested by
+`LintRunner_Run_AllFilesDisabled_SucceedsWithInformationNote`.
+
+**LintRunner_Run_DisabledFileNamedOnCommandLine_IsSkipped**: A misspelled file that an override disables and that is
+named on the command line is not reported, the exit code is 0, and the information note says one file was disabled.
+This scenario is tested by `LintRunner_Run_DisabledFileNamedOnCommandLine_IsSkipped`.
+
+**LintRunner_Run_NothingMatchesAndSettingsDisableFiles_StillFailsWithoutAllowEmpty**: With checking switched off, a
+pattern that matches no file gives exit code 1 and "No files matched"; with `--allow-empty` it gives 0 and no note
+about disabled files. This scenario is tested by
+`LintRunner_Run_NothingMatchesAndSettingsDisableFiles_StillFailsWithoutAllowEmpty`.
+
+**LintRunner_Run_AbsolutePathChangesSearchRoot_MatchesOverridesRelativeToSettingsRoot**: An override for `docs/**`
+accepts a word; a file in `docs` named by its absolute path is clean, and a file elsewhere named the same way still
+reports the word. This scenario is tested by
+`LintRunner_Run_AbsolutePathChangesSearchRoot_MatchesOverridesRelativeToSettingsRoot`.
+
+**LintRunner_Run_AbsolutePathOutsideSettingsRoot_MatchesNoOverride**: A file in a directory beside the settings root,
+named by its absolute path, matches no override for `**`, so its word is reported and the exit code is 1. This
+scenario is tested by `LintRunner_Run_AbsolutePathOutsideSettingsRoot_MatchesNoOverride`.
+
+**LintRunner_Run_OrderedFilesList_ExcludesAndSelectsAgain**: A `files` list of `**/*.md`, `!skip/**`, and `skip/keep/**`
+leaves the file in `skip` unchecked and checks the re-included file, which is reported; two files are checked. This
+scenario is tested by `LintRunner_Run_OrderedFilesList_ExcludesAndSelectsAgain`.
+
+**LintRunner_Run_InvalidOverride_ReportsPositionedErrorAndChecksNothing**: An override with a `files` key gives the
+error with the settings file, line 3, and column 5 that overrides cannot change which files are selected, exit code
+1, and no summary. This scenario is tested by `LintRunner_Run_InvalidOverride_ReportsPositionedErrorAndChecksNothing`.

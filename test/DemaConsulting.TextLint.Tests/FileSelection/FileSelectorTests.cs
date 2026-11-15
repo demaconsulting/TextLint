@@ -756,7 +756,7 @@ public class FileSelectorTests
     [Fact]
     public void FileSelector_Select_InvalidIncludePattern_ThrowsInvalidGlobPattern()
     {
-        // Arrange: a root and a negated include pattern
+        // Arrange: a root and an include pattern list that starts with a negation
         using var temp = new TempDirectory();
 
         // Act / Assert: selection throws an exception that names the pattern
@@ -817,5 +817,315 @@ public class FileSelectorTests
         var exception = Assert.Throws<InvalidGlobPatternException>(
             () => FileSelector.Select(temp.FullPath, [], ["docs\\old"], false, TestContext.Current.CancellationToken));
         Assert.Equal("docs\\old", exception.Pattern);
+    }
+
+    /// <summary>
+    ///     Test that a negated pattern removes the files an earlier pattern selected.
+    /// </summary>
+    [Fact]
+    public void FileSelector_Select_NegationAfterInclude_ExcludesFiles()
+    {
+        // Arrange: markdown files in the root, in docs, and in src
+        using var temp = new TempDirectory();
+        temp.CreateFile("README.md");
+        temp.CreateFile("docs/guide.md");
+        temp.CreateFile("src/notes.md");
+
+        // Act: select all markdown files except those beneath docs
+        var paths = SelectPaths(temp, ["**/*.md", "!docs/**"]);
+
+        // Assert: the docs files are removed
+        Assert.Equal(["README.md", "src/notes.md"], paths);
+    }
+
+    /// <summary>
+    ///     Test that a later pattern includes again what a negation removed.
+    /// </summary>
+    [Fact]
+    public void FileSelector_Select_IncludeAfterNegation_SelectsFilesAgain()
+    {
+        // Arrange: markdown files beneath docs, one of them beneath docs/keep
+        using var temp = new TempDirectory();
+        temp.CreateFile("README.md");
+        temp.CreateFile("docs/guide.md");
+        temp.CreateFile("docs/keep/a.md");
+        temp.CreateFile("docs/other/b.md");
+
+        // Act: remove docs and bring back docs/keep
+        var paths = SelectPaths(temp, ["**/*.md", "!docs", "docs/keep/**"]);
+
+        // Assert: only the re-included files and the others outside docs are selected
+        Assert.Equal(["README.md", "docs/keep/a.md"], paths);
+    }
+
+    /// <summary>
+    ///     Test that a list without negation selects exactly what the same patterns selected as plain includes.
+    /// </summary>
+    [Fact]
+    public void FileSelector_Select_ListWithoutNegation_SelectsSameFilesAsBefore()
+    {
+        // Arrange: a tree with hidden and visible files, and a negation-free list with a literal hidden pattern
+        using var temp = new TempDirectory();
+        temp.CreateFile("README.md");
+        temp.CreateFile("docs/guide.md");
+        temp.CreateFile(".github/ci.md");
+        temp.CreateFile(".cache/x.md");
+
+        // Act: select with wildcards and one literal hidden directory
+        var paths = SelectPaths(temp, ["**/*.md", ".github/*.md"]);
+
+        // Assert: hidden content is reached only through the literal pattern
+        Assert.Equal([".github/ci.md", "README.md", "docs/guide.md"], paths);
+    }
+
+    /// <summary>
+    ///     Test that a negated directory is never enumerated.
+    /// </summary>
+    [Fact]
+    public void FileSelector_Select_NegatedBareDirectory_IsNotEnumerated()
+    {
+        // Arrange: a tree with a node_modules directory at two depths
+        using var temp = new TempDirectory();
+        temp.CreateFile("README.md");
+        temp.CreateFile("node_modules/pkg/a.md");
+        temp.CreateFile("src/node_modules/b.md");
+        temp.CreateFile("src/c.md");
+
+        // Act: select markdown files except node_modules, recording the enumerations
+        var enumerated = SelectAndRecord(temp, ["**/*.md", "!node_modules"]);
+
+        // Assert: the excluded directories were never read, and the others were
+        Assert.Multiple(
+            () => Assert.DoesNotContain("node_modules", enumerated),
+            () => Assert.DoesNotContain("src/node_modules", enumerated),
+            () => Assert.Contains("src", enumerated));
+    }
+
+    /// <summary>
+    ///     Test that a negated directory is still enumerated when a later pattern can include a file beneath it.
+    /// </summary>
+    [Fact]
+    public void FileSelector_Select_NegatedDirectoryWithLaterInclude_IsEnumerated()
+    {
+        // Arrange: docs with a re-included subdirectory and an excluded one
+        using var temp = new TempDirectory();
+        temp.CreateFile("docs/keep/a.md");
+        temp.CreateFile("docs/other/b.md");
+
+        // Act: select with a negation and a later include, recording the enumerations
+        var enumerated = SelectAndRecord(temp, ["**/*.md", "!docs", "docs/keep/**"]);
+
+        // Assert: docs and the re-included directory are read, and the excluded sibling is not
+        Assert.Multiple(
+            () => Assert.Contains("docs", enumerated),
+            () => Assert.Contains("docs/keep", enumerated),
+            () => Assert.DoesNotContain("docs/other", enumerated));
+    }
+
+    /// <summary>
+    ///     Test that a negation of particular files does not stop the directory being enumerated.
+    /// </summary>
+    [Fact]
+    public void FileSelector_Select_NegatedFilePattern_StillEnumeratesDirectory()
+    {
+        // Arrange: markdown and text files beneath docs
+        using var temp = new TempDirectory();
+        temp.CreateFile("docs/a.md");
+        temp.CreateFile("docs/b.txt");
+
+        // Act: select everything except markdown files beneath docs
+        var enumerated = SelectAndRecord(temp, ["**/*", "!docs/**/*.md"]);
+        var paths = SelectPaths(temp, ["**/*", "!docs/**/*.md"]);
+
+        // Assert: docs is read and only the text file is selected
+        Assert.Multiple(
+            () => Assert.Contains("docs", enumerated),
+            () => Assert.Equal(["docs/b.txt"], paths));
+    }
+
+    /// <summary>
+    ///     Test that negating an anchored directory selects exactly what the same ignore pattern leaves.
+    /// </summary>
+    [Theory]
+    [InlineData("docs/a")]
+    [InlineData("docs/a/")]
+    [InlineData("docs/a/**")]
+    public void FileSelector_Select_NegatedAnchoredDirectory_MatchesIgnorePattern(string pattern)
+    {
+        // Arrange: a directory, a similarly named sibling, and a directory with a deeper level
+        using var temp = new TempDirectory();
+        temp.CreateFile("docs/a/b.md");
+        temp.CreateFile("docs/a/deep/c.md");
+        temp.CreateFile("docs/ab/d.md");
+        temp.CreateFile("docs/e.md");
+
+        // Act: select once with the negation and once with the same pattern as an ignore pattern
+        var negated = SelectPaths(temp, ["**/*.md", "!" + pattern]);
+        var enumerated = SelectAndRecord(temp, ["**/*.md", "!" + pattern]);
+        var ignored = SelectPaths(temp, ["**/*.md"], [pattern]);
+
+        // Assert: both leave the same files, and the negated directory is not even read
+        Assert.Multiple(
+            () => Assert.Equal(["docs/ab/d.md", "docs/e.md"], negated),
+            () => Assert.Equal(ignored, negated),
+            () => Assert.DoesNotContain("docs/a", enumerated),
+            () => Assert.Contains("docs/ab", enumerated));
+    }
+
+    /// <summary>
+    ///     Test that a file beneath an anchored directory that a negation removed can be selected again by a later include.
+    /// </summary>
+    [Fact]
+    public void FileSelector_Select_NegatedAnchoredDirectoryThenInclude_SelectsFileAgain()
+    {
+        // Arrange: a directory with a file to keep and a file to drop
+        using var temp = new TempDirectory();
+        temp.CreateFile("docs/a/keep.md");
+        temp.CreateFile("docs/a/drop.md");
+        temp.CreateFile("docs/b.md");
+
+        // Act: select with the directory negated without a recursive wildcard, then one file included again
+        var paths = SelectPaths(temp, ["**/*.md", "!docs/a", "docs/a/keep.md"]);
+
+        // Assert: only the re-included file of the directory is selected
+        Assert.Equal(["docs/a/keep.md", "docs/b.md"], paths);
+    }
+
+    /// <summary>
+    ///     Test that an anchored directory path as a plain include still selects no file beneath the directory.
+    /// </summary>
+    [Fact]
+    public void FileSelector_Select_AnchoredDirectoryAsInclude_SelectsNothingBeneathIt()
+    {
+        // Arrange: a directory that holds a file
+        using var temp = new TempDirectory();
+        temp.CreateFile("docs/a/b.md");
+
+        // Act: select with the directory path written without a slash, and with a trailing slash
+        var withoutSlash = SelectPaths(temp, ["docs/a"]);
+        var withSlash = SelectPaths(temp, ["docs/a/"]);
+
+        // Assert: an include names a file, so only the trailing slash selects the files beneath the directory
+        Assert.Multiple(
+            () => Assert.Empty(withoutSlash),
+            () => Assert.Equal(["docs/a/b.md"], withSlash));
+    }
+
+    /// <summary>
+    ///     Test that hidden directories are still skipped when the list has a negation.
+    /// </summary>
+    [Fact]
+    public void FileSelector_Select_NegationAndHiddenDirectory_HiddenIsNotEnumerated()
+    {
+        // Arrange: a hidden directory and a visible one
+        using var temp = new TempDirectory();
+        temp.CreateFile(".git/config.md");
+        temp.CreateFile("docs/a.md");
+        temp.CreateFile("docs/skip/b.md");
+
+        // Act: select with a negation, recording the enumerations
+        var enumerated = SelectAndRecord(temp, ["**/*.md", "!docs/skip/"]);
+
+        // Assert: the hidden directory and the negated one are not read
+        Assert.Multiple(
+            () => Assert.DoesNotContain(".git", enumerated),
+            () => Assert.DoesNotContain("docs/skip", enumerated),
+            () => Assert.Contains("docs", enumerated));
+    }
+
+    /// <summary>
+    ///     Test that a negation works together with enabled hidden-name matching.
+    /// </summary>
+    [Fact]
+    public void FileSelector_Select_NegationAndGlobDot_SelectsHiddenExceptNegated()
+    {
+        // Arrange: two hidden directories
+        using var temp = new TempDirectory();
+        temp.CreateFile(".github/ci.md");
+        temp.CreateFile(".cache/x.md");
+
+        // Act: select markdown files with hidden matching enabled, except one hidden directory
+        var paths = SelectPaths(temp, ["**/*.md", "!.cache"], enableGlobDot: true);
+
+        // Assert: only the hidden directory that is not negated is selected
+        Assert.Equal([".github/ci.md"], paths);
+    }
+
+    /// <summary>
+    ///     Test that the ignore patterns still win over a later include and still reject a negation.
+    /// </summary>
+    [Fact]
+    public void FileSelector_Select_IgnorePatternWithOrderedInclude_IgnoreStillWins()
+    {
+        // Arrange: a file matched by a re-include and an ignore pattern, and a negated ignore pattern
+        using var temp = new TempDirectory();
+        temp.CreateFile("docs/keep/a.md");
+        temp.CreateFile("docs/keep/b.md");
+
+        // Act: select with a re-include that an ignore pattern overrules
+        var paths = SelectPaths(temp, ["**/*.md", "!docs", "docs/keep/**"], ["docs/keep/b.md"]);
+        var exception = Assert.Throws<InvalidGlobPatternException>(
+            () => FileSelector.Select(temp.FullPath, ["**/*.md"], ["!docs/**"], false, TestContext.Current.CancellationToken));
+
+        // Assert: the ignored file is gone and a negated ignore pattern is rejected naming the pattern
+        Assert.Multiple(
+            () => Assert.Equal(["docs/keep/a.md"], paths),
+            () => Assert.Equal("!docs/**", exception.Pattern));
+    }
+
+    /// <summary>
+    ///     Test that a list starting with a negation is rejected before the file system is touched.
+    /// </summary>
+    [Fact]
+    public void FileSelector_Select_LeadingNegationAndMissingRoot_ThrowsInvalidGlobPattern()
+    {
+        // Act / Assert: the pattern error is reported even though the root does not exist
+        var exception = Assert.Throws<InvalidGlobPatternException>(
+            () => FileSelector.Select(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N")), ["!docs/**"], [], false, TestContext.Current.CancellationToken));
+        Assert.Contains("must follow a pattern", exception.Message);
+    }
+
+    /// <summary>
+    ///     Test that the walk selects exactly the files the exact per-file rule selects, whatever is pruned.
+    /// </summary>
+    [Fact]
+    public void FileSelector_Select_OrderedLists_MatchesExactRuleForEveryFile()
+    {
+        // Arrange: a tree that touches the shapes of the lists, and the lists to try
+        using var temp = new TempDirectory();
+        string[] all =
+        [
+            "a.md", "docs/a.md", "docs/a/b.md", "docs/keep/a.md", "docs/z/a.md", "src/a.md", "src/x/a.md", "x/a.md",
+            "build/keep.md", "build/other.md", "src/build/a.md", ".git/c.md", "docs/.hidden/d.md",
+        ];
+        foreach (var file in all)
+        {
+            temp.CreateFile(file);
+        }
+
+        string[][] lists =
+        [
+            ["**/*.md", "!docs"],
+            ["**/*.md", "!docs", "docs/keep/**"],
+            ["**/*.md", "!docs/**", "docs/a/**", "!docs/a/b.md"],
+            ["**/*", "!{docs,src}/**", "src/x/**"],
+            ["docs/**", "!docs/a/**", "x/**"],
+            ["**/*.md", "!**/build/**", "build/keep.md"],
+            ["**/*.md", "!docs/**/*.md", "docs/a/b.md"],
+            ["**/*.md", "!/docs/*/", "docs/z/a.md"],
+            ["**/*.md", "!docs/a"],
+            ["**/*.md", "!docs/a", "docs/a/b.md"],
+        ];
+
+        foreach (var patterns in lists)
+        {
+            // Act: walk the tree, and ask the exact rule about every file of the tree
+            var walked = SelectPaths(temp, patterns);
+            var list = OrderedGlobList.Parse(patterns, false);
+            var exact = all.Where(list.IsMatch).Order(StringComparer.Ordinal).ToArray();
+
+            // Assert: pruning lost nothing and added nothing
+            Assert.Equal(exact, walked);
+        }
     }
 }

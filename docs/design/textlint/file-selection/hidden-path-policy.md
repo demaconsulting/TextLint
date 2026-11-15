@@ -62,6 +62,8 @@ callers never pass null.
 
 #### Callers
 
-- **FileSelector** - applies `IsPathPermitted` to the matched files.
+- **FileSelector** - applies `IsPathPermitted` to the matched files of a list without a negation.
+- **OrderedGlobList** - applies `IsPathPermitted` to decide whether a plain pattern may reach a path through a hidden
+  name.
 - **HiddenFilteringDirectory** (part of FileSelector) - applies `CanContainPermittedPaths` and
   `IsHidden` to decide which subdirectories to expose to the matcher.

@@ -16,6 +16,8 @@ the library and flows to consumers of the package.
 - `Matcher`, constructed with an explicit string comparison so matching is case-sensitive on every
   platform (the default is case-insensitive), with `AddIncludePatterns` and `AddExcludePatterns`
 - `Matcher.Execute` over a `DirectoryInfoBase`, and the result's matched file paths
+- `Matcher.Match` of a single relative path, which tells whether the path matches the patterns of one entry of an
+  ordered list without any file system access
 - `DirectoryInfoWrapper` over `DirectoryInfo` for real directories
 - `DirectoryInfoBase`, `FileSystemInfoBase`, and `FileInfoBase` as the abstraction that the library
   wraps to hide directories from the walk and that tests wrap to record enumeration
@@ -29,10 +31,15 @@ rule itself (see the _HiddenPathPolicy_ design).
 
 ### Integration Pattern
 
-FileSystemGlobbing is consumed as a package reference of the library. `FileSelector` is the only unit
-that uses the matcher: each selection creates a new `Matcher`, adds the expanded patterns, and executes it
-over the root directory, wrapped in a hidden-name filter when hidden matching is off. No state is
+FileSystemGlobbing is consumed as a package reference of the library. `FileSelector` and `OrderedGlobList` are the
+only units that use the matcher. `FileSelector`: each selection creates a new `Matcher`, adds the expanded patterns, and
+executes it
+over the root directory, wrapped in a hidden-name filter when hidden matching is off (and in a view that prunes
+directories the ordered include rules exclude, when the include list has a negation). `OrderedGlobList` creates
+one `Matcher` per pattern when the list is compiled, uses it to test paths, and never executes it over a directory;
+the library implements the order of `!` itself because the matcher has none. No state is
 shared between selections and nothing needs disposal or initialization. FileSystemGlobbing types are
-confined to `FileSelector` and its directory view and appear in no public signature, so the package
+confined to `FileSelector`, `OrderedGlobList`, and their directory views and appear in no public signature, so the
+package
 can be upgraded without changing the library's public API. Symbolic links and junctions are handled
 however the package's directory wrapper handles them.

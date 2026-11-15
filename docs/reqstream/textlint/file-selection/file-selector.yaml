@@ -2,7 +2,8 @@
 # Software Unit Requirements for the FileSelector Class
 #
 # The FileSelector class applies include and ignore glob patterns to a root directory and returns the ordered list of
-# files to check.
+# files to check. The include patterns form an ordered list in which a pattern that begins with ! excludes; the
+# ignore patterns do not accept !.
 
 sections:
   - title: TextLint Requirements
@@ -85,6 +86,58 @@ sections:
                   - FileSelector_Select_NestedIgnoredDirectory_IsNeverEnumerated
                   - FileSelector_Select_LiteralHiddenDirectory_IsEnumerated
 
+              - id: TextLint-FileSelection-FileSelector-OrderedIncludes
+                title: >-
+                  FileSelector shall apply the include patterns as an ordered list in which a pattern that
+                  begins with ! removes the files it matches from those that earlier patterns selected and a
+                  later pattern can select them again, so that the last matching pattern decides, shall let a
+                  negated pattern remove hidden files when hidden-file matching is enabled, shall let a negated
+                  pattern that names a path remove what the same pattern removes in the ignore patterns, a file
+                  of that name or a directory of that name with everything below it, and shall let the
+                  ignore patterns win over the whole list.
+                justification: |
+                  Settings need to say "all Markdown files except those under docs, but the docs/keep folder
+                  stays in" without listing files. The ordered list is the form ReviewMark and ignore files
+                  already teach, and the ignore patterns remain the hard fence that nothing can re-include.
+                  A pattern must exclude the same things in a negation as in ignorePaths, or the two would
+                  surprise anyone who moves a pattern from one to the other.
+                tests:
+                  - FileSelector_Select_NegationAfterInclude_ExcludesFiles
+                  - FileSelector_Select_IncludeAfterNegation_SelectsFilesAgain
+                  - FileSelector_Select_NegationAndGlobDot_SelectsHiddenExceptNegated
+                  - FileSelector_Select_IgnorePatternWithOrderedInclude_IgnoreStillWins
+                  - FileSelector_Select_OrderedLists_MatchesExactRuleForEveryFile
+                  - FileSelector_Select_NegatedAnchoredDirectory_MatchesIgnorePattern
+                  - FileSelector_Select_NegatedAnchoredDirectoryThenInclude_SelectsFileAgain
+                  - FileSelector_Select_AnchoredDirectoryAsInclude_SelectsNothingBeneathIt
+
+              - id: TextLint-FileSelection-FileSelector-ListWithoutNegation
+                title: >-
+                  FileSelector shall select, for a list of include patterns without a negated pattern, exactly
+                  the files that the same patterns select as plain includes.
+                justification: |
+                  Ordered matching is added to settings files that exist today. A list that does not use it
+                  must keep selecting what it always selected, so that no project changes behavior by
+                  upgrading.
+                tests:
+                  - FileSelector_Select_ListWithoutNegation_SelectsSameFilesAsBefore
+
+              - id: TextLint-FileSelection-FileSelector-OrderedPruning
+                title: >-
+                  FileSelector shall not enumerate a directory whose files are all excluded by a negated
+                  include pattern that no later pattern can undo, shall enumerate a directory that a later
+                  pattern could select from, and shall enumerate a directory that a negated pattern naming only
+                  files leaves open.
+                justification: |
+                  A negation that removes a vendored or generated tree must not cost the time of reading it,
+                  but a directory that a later pattern brings back must still be read, or files would be lost;
+                  the test double observes enumeration directly so both properties are proven without timing.
+                tests:
+                  - FileSelector_Select_NegatedBareDirectory_IsNotEnumerated
+                  - FileSelector_Select_NegatedDirectoryWithLaterInclude_IsEnumerated
+                  - FileSelector_Select_NegatedFilePattern_StillEnumeratesDirectory
+                  - FileSelector_Select_NegationAndHiddenDirectory_HiddenIsNotEnumerated
+
               - id: TextLint-FileSelection-FileSelector-Cancellation
                 title: >-
                   FileSelector shall stop and signal cancellation, without returning a partial selection,
@@ -114,11 +167,17 @@ sections:
               - id: TextLint-FileSelection-FileSelector-InvalidPatterns
                 title: >-
                   FileSelector shall reject settings whose include or ignore patterns are
-                  unsupported or malformed, with an error that names the pattern.
+                  unsupported or malformed, including an include list that starts with a negated
+                  pattern and an ignore pattern that is negated, with an error that names the
+                  pattern, and shall do so before it reads the file system.
                 justification: |
                   Settings built in code bypass the settings file check, so selection must
                   enforce the same pattern rules rather than silently select the wrong files.
+                  An ignore pattern is a hard fence that cannot re-include files, so a negation
+                  there can only be a mistake.
                 tests:
                   - FileSelector_Select_InvalidIncludePattern_ThrowsInvalidGlobPattern
                   - FileSelector_Select_InvalidIgnorePattern_ThrowsInvalidGlobPattern
                   - FileSelector_Select_AbsolutePathPattern_ThrowsInvalidGlobPattern
+                  - FileSelector_Select_IgnorePatternWithOrderedInclude_IgnoreStillWins
+                  - FileSelector_Select_LeadingNegationAndMissingRoot_ThrowsInvalidGlobPattern

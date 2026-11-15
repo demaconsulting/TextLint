@@ -32,10 +32,14 @@ namespace DemaConsulting.TextLint.FileSelection;
 ///     parameters rather than any configuration type, so the file selection subsystem does not
 ///     depend on the configuration subsystem; a caller that holds settings passes their values
 ///     (for example <c>settings.Files</c>, <c>settings.IgnorePaths</c>, and
-///     <c>settings.EnableGlobDot</c>). Patterns are matched case-sensitively on every operating
+///     <c>settings.EnableGlobDot</c>). The include patterns form an ordered list (see
+///     <see cref="OrderedGlobList"/>): <c>!</c> excludes and the last match wins, so a later pattern can
+///     include again what an earlier one removed; the ignore patterns are not ordered, cannot be negated,
+///     and always win. Patterns are matched case-sensitively on every operating
 ///     system, so a configuration selects the same files on Windows, Linux, and macOS. Directories
-///     excluded by an ignore pattern, and hidden directories no pattern names literally, are never
-///     enumerated, because scanning trees such as <c>node_modules</c> or <c>.git</c> would
+///     excluded by an ignore pattern, directories every file of which the ordered include rules exclude, and
+///     hidden directories no pattern names literally, are never enumerated, because scanning trees such as
+///     <c>node_modules</c> or <c>.git</c> would
 ///     otherwise dominate the run time on large repositories. The class is stateless and
 ///     thread-safe; each call builds its own matcher and reads the supplied lists once.
 /// </remarks>
@@ -56,8 +60,14 @@ public static class FileSelector
     ///     entry after the token is canceled, so a very large single directory delays it by at most one entry.
     /// </remarks>
     /// <param name="rootDirectory">The directory that patterns are relative to. Must name a readable directory.</param>
-    /// <param name="includePatterns">The include glob patterns. Must not be null; an empty list selects nothing.</param>
-    /// <param name="ignorePatterns">The exclude glob patterns, which win over include patterns. Must not be null.</param>
+    /// <param name="includePatterns">
+    ///     The include glob patterns, as an ordered list: a pattern with a leading <c>!</c> excludes, the last
+    ///     pattern that matches a file decides, and the first pattern may not be negated. Must not be null; an
+    ///     empty list selects nothing.
+    /// </param>
+    /// <param name="ignorePatterns">
+    ///     The exclude glob patterns, which win over include patterns and cannot be negated. Must not be null.
+    /// </param>
     /// <param name="enableGlobDot">
     ///     <see langword="true"/> to let wildcards match hidden (dot-prefixed) names; otherwise only
     ///     hidden names written literally in a pattern match.
@@ -79,7 +89,10 @@ public static class FileSelector
     /// <exception cref="IOException">
     ///     Thrown when <paramref name="rootDirectory"/> cannot be read for another reason, for example when it names a file.
     /// </exception>
-    /// <exception cref="InvalidGlobPatternException">Thrown when a pattern is unsupported or malformed.</exception>
+    /// <exception cref="InvalidGlobPatternException">
+    ///     Thrown when a pattern is unsupported or malformed, when the first include pattern is negated, or when
+    ///     an ignore pattern is negated.
+    /// </exception>
     /// <exception cref="OperationCanceledException">
     ///     Thrown when <paramref name="cancellationToken"/> is canceled before or during the call; no partial
     ///     result is returned.
@@ -96,7 +109,7 @@ public static class FileSelector
         ArgumentException.ThrowIfNullOrWhiteSpace(rootDirectory);
         ArgumentNullException.ThrowIfNull(includePatterns);
         ArgumentNullException.ThrowIfNull(ignorePatterns);
-        var includes = ExpandAll(includePatterns);
+        var includes = OrderedGlobList.Parse(includePatterns, enableGlobDot);
         var excludes = ExpandAll(ignorePatterns);
 
         // Honor a token that is already canceled before any directory is read
@@ -178,7 +191,7 @@ public static class FileSelector
         ArgumentNullException.ThrowIfNull(ignorePatterns);
 
         // Validate and expand every pattern first so a bad pattern fails even when nothing is selected
-        return SelectExpanded(root, ExpandAll(includePatterns), ExpandAll(ignorePatterns), enableGlobDot, cancellationToken);
+        return SelectExpanded(root, OrderedGlobList.Parse(includePatterns, enableGlobDot), ExpandAll(ignorePatterns), enableGlobDot, cancellationToken);
     }
 
     /// <summary>
@@ -189,34 +202,50 @@ public static class FileSelector
     ///     so pattern errors are reported before any directory is read. Stateless and thread-safe.
     /// </remarks>
     /// <param name="root">The directory that patterns are relative to. Must not be null.</param>
-    /// <param name="includes">The expanded include patterns. Must not be null.</param>
+    /// <param name="includes">The compiled, ordered include patterns. Must not be null.</param>
     /// <param name="excludes">The expanded exclude patterns. Must not be null.</param>
     /// <param name="enableGlobDot">Whether wildcards may match hidden (dot-prefixed) names.</param>
     /// <param name="cancellationToken">Token that stops the walk.</param>
     /// <returns>The selected files ordered by ordinal relative path, using forward slashes.</returns>
     private static IReadOnlyList<SelectedFile> SelectExpanded(
         DirectoryInfoBase root,
-        List<string> includes,
+        OrderedGlobList includes,
         List<string> excludes,
         bool enableGlobDot,
         CancellationToken cancellationToken)
     {
-        if (includes.Count == 0)
+        if (includes.IsEmpty)
         {
             return [];
         }
 
-        // Walk through a hidden-directory filter unless wildcards may match hidden names, and through a
-        // view that stops the walk on cancellation, because the matcher cannot be canceled itself
-        var matcher = BuildMatcher(includes, excludes);
-        DirectoryInfoBase filtered = enableGlobDot ? root : new HiddenFilteringDirectory(root, includes);
+        // The matcher narrows the walk with every plain pattern; it ignores negation, so for an ordered list that
+        // is a superset which the exact check below narrows
+        var positives = includes.PositivePatterns;
+        var matcher = BuildMatcher(positives, excludes);
+
+        // Walk through a hidden-directory filter unless wildcards may match hidden names, then through a view
+        // that prunes directories the ordered rules exclude entirely (only needed with a negation), and
+        // through a view that stops the walk on cancellation, because the matcher cannot be canceled itself
+        DirectoryInfoBase filtered = enableGlobDot ? root : new HiddenFilteringDirectory(root, positives);
+        if (includes.HasNegation)
+        {
+            filtered = new OrderedPruningDirectory(filtered, includes);
+        }
+
         var walked = new CancelableDirectory(filtered, cancellationToken);
         IEnumerable<string> paths = matcher.Execute(walked).Files.Select(match => match.Path);
 
-        // Decide hidden files exactly, now that the matcher has found every candidate
-        if (!enableGlobDot)
+        // Decide exactly, now that the matcher has found every candidate: the ordered rules (last match wins)
+        // when there is a negation, otherwise the hidden-name rule alone, which is what a plain list has
+        // always done
+        if (includes.HasNegation)
         {
-            paths = paths.Where(path => HiddenPathPolicy.IsPathPermitted(path, includes));
+            paths = paths.Where(includes.IsMatch);
+        }
+        else if (!enableGlobDot)
+        {
+            paths = paths.Where(path => HiddenPathPolicy.IsPathPermitted(path, positives));
         }
 
         // Order by ordinal relative path so the result is identical on every platform
@@ -245,7 +274,7 @@ public static class FileSelector
     /// <param name="includes">The expanded include patterns. Must not be null.</param>
     /// <param name="excludes">The expanded exclude patterns. Must not be null.</param>
     /// <returns>A new matcher configured with the patterns.</returns>
-    private static Matcher BuildMatcher(List<string> includes, List<string> excludes)
+    private static Matcher BuildMatcher(IReadOnlyList<string> includes, List<string> excludes)
     {
         var matcher = new Matcher(StringComparison.Ordinal);
         matcher.AddIncludePatterns(includes);

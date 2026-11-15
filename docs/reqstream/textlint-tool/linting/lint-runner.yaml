@@ -46,13 +46,14 @@ sections:
 
               - id: TextLintTool-Linting-LintRunner-SettingsErrors
                 title: >-
-                  LintRunner shall report each problem of a settings file with the text and position the library
-                  gives, as an error, and shall check no file.
+                  LintRunner shall report each problem of a settings file, including each mistake in an
+                  override, with the text and position the library gives, as an error, and shall check no file.
                 justification: |
                   Every problem is shown at once so that it can be corrected in one pass, and nothing is checked
                   against settings that were only partly understood.
                 tests:
                   - LintRunner_Run_InvalidSettings_ReportsEachErrorAndChecksNothing
+                  - LintRunner_Run_InvalidOverride_ReportsPositionedErrorAndChecksNothing
 
               - id: TextLintTool-Linting-LintRunner-UnreadableSettings
                 title: >-
@@ -112,6 +113,64 @@ sections:
                 tests:
                   - LintRunner_Run_NoPatterns_ReportsUsageError
 
+              - id: TextLintTool-Linting-LintRunner-OverridesApplied
+                title: >-
+                  LintRunner shall check the files that an ordered files list of the settings selects, in which a
+                  pattern that begins with ! removes files and a later pattern can select them again, and shall
+                  check each file with the overrides of the settings, leaving the interpretation of both to the
+                  library.
+                justification: |
+                  Ordered file lists and overrides are rules of the library, so the runner only passes the
+                  settings on and must not select or merge anything itself; the check shows that what the
+                  settings say reaches the library intact.
+                tests:
+                  - LintRunner_Run_OrderedFilesList_ExcludesAndSelectsAgain
+                  - LintRunner_Run_LanguageOptionAndOverrideLanguage_OptionWinsAndNoteIsPrinted
+
+              - id: TextLintTool-Linting-LintRunner-SettingsRoot
+                title: >-
+                  LintRunner shall have the overrides of the settings matched against the path of each file
+                  relative to the root directory, also when an absolute path on the command line moves the
+                  directory that results are shown relative to, and shall let a file outside the root directory
+                  match no override.
+                justification: |
+                  A file must be checked by the same rules whether it was named relatively or by an absolute
+                  path, because the settings were written relative to the root directory, so the runner tells
+                  the library which directory that is.
+                tests:
+                  - LintRunner_Run_AbsolutePathChangesSearchRoot_MatchesOverridesRelativeToSettingsRoot
+                  - LintRunner_Run_AbsolutePathOutsideSettingsRoot_MatchesNoOverride
+
+              - id: TextLintTool-Linting-LintRunner-DisabledFiles
+                title: >-
+                  LintRunner shall succeed and report the information note of the library, and not an empty
+                  selection, when every selected file is disabled by the settings, shall skip a disabled file
+                  that the command line names, and shall still fail with an explanation, unless an empty
+                  selection was allowed, when the selection is empty and the settings disable files.
+                justification: |
+                  A project that has switched its files off has made a decision, and a check that honors it is
+                  a success; but a pattern that selects no file at all is still almost always a mistake, and
+                  disabled files elsewhere must not hide it.
+                tests:
+                  - LintRunner_Run_AllFilesDisabled_SucceedsWithInformationNote
+                  - LintRunner_Run_DisabledFileNamedOnCommandLine_IsSkipped
+                  - LintRunner_Run_NothingMatchesAndSettingsDisableFiles_StillFailsWithoutAllowEmpty
+
+              - id: TextLintTool-Linting-LintRunner-OverrideWarnings
+                title: >-
+                  LintRunner shall have the warnings that an override matches none of the selected files
+                  reported when the files come from the settings, naming the settings file that was used, shall
+                  leave them out when the command line names the files, and shall not let any such note change
+                  the exit status.
+                justification: |
+                  An override that matches nothing is probably stale, but only a run over every file can say
+                  so; checking a subset of the files must not raise a warning for each override that applies
+                  elsewhere. The notes are information about the settings and the result is still right.
+                tests:
+                  - LintRunner_Run_UnmatchedOverrideOnFullRun_PrintsWarningAndSucceeds
+                  - LintRunner_Run_UnmatchedOverrideWithCommandLinePatterns_PrintsNoWarning
+                  - LintRunner_Run_UnmatchedOverrideWithExplicitConfig_NamesTheConfigFile
+
               - id: TextLintTool-Linting-LintRunner-EmptySelection
                 title: >-
                   LintRunner shall fail with an explanation that names the way to accept it when the selection
@@ -122,15 +181,22 @@ sections:
                 tests:
                   - LintRunner_Run_NoFilesMatched_FailsWithExplanation
                   - LintRunner_Run_NoFilesMatchedAllowEmpty_Succeeds
+                  - LintRunner_Run_NothingMatchesAndSettingsDisableFiles_StillFailsWithoutAllowEmpty
 
               - id: TextLintTool-Linting-LintRunner-LanguageOverride
                 title: >-
                   LintRunner shall check against the language given on the command line in preference to the
-                  language of the settings.
+                  language of the settings and of every override, and shall report the replacement of the
+                  language of an override as information that does not fail the run, but not when the
+                  dictionaries are the same.
                 justification: |
-                  A command-line option is the most specific request and so wins over the settings.
+                  A command-line option is the most specific request and so wins over the settings, but the
+                  user must be able to see that it replaced a language written in the settings file.
                 tests:
                   - LintRunner_Run_LanguageOption_OverridesSettings
+                  - LintRunner_Run_LanguageOptionAndOverrideLanguage_OptionWinsAndNoteIsPrinted
+                  - LintRunner_Run_LanguageNoteOnCleanRun_DoesNotFail
+                  - LintRunner_Run_LanguageOptionSameDictionaryAsOverride_PrintsNoNote
 
               - id: TextLintTool-Linting-LintRunner-Parallelism
                 title: >-

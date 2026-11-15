@@ -126,12 +126,61 @@ public class FileSelectionSubsystemTests
     }
 
     /// <summary>
+    ///     Test that a negation after an include removes files, a later include brings some back, and the
+    ///     excluded directory is not enumerated.
+    /// </summary>
+    [Fact]
+    public void FileSelectionSubsystem_Select_OrderedNegation_SelectsLastMatchAndPrunes()
+    {
+        // Arrange: a tree with docs, a re-included docs/keep, and an excluded vendor directory, observed by a recording view
+        using var temp = new TempDirectory();
+        temp.CreateFile("README.md");
+        temp.CreateFile("docs/guide.md");
+        temp.CreateFile("docs/keep/a.md");
+        temp.CreateFile("vendor/lib/b.md");
+        var recording = new RecordingDirectoryInfo(new DirectoryInfoWrapper(new DirectoryInfo(temp.FullPath)));
+        string[] patterns = ["**/*.md", "!docs", "docs/keep/**", "!vendor"];
+
+        // Act: select through the seam that records the walk, and through the public entry point
+        var viaSeam = FileSelector.Select(recording, patterns, [], false, TestContext.Current.CancellationToken);
+        var paths = SelectPaths(temp, patterns);
+
+        // Assert: the last matching pattern decides, and the excluded directory was never read
+        Assert.Multiple(
+            () => Assert.Equal(["README.md", "docs/keep/a.md"], paths),
+            () => Assert.Equal(paths, viaSeam.Select(file => file.RelativePath)),
+            () => Assert.DoesNotContain("vendor", recording.EnumeratedDirectories),
+            () => Assert.Contains("docs/keep", recording.EnumeratedDirectories));
+    }
+
+    /// <summary>
+    ///     Test that a list starting with a negation, and a negated ignore pattern, are rejected naming the pattern.
+    /// </summary>
+    [Fact]
+    public void FileSelectionSubsystem_Select_LeadingNegationAndNegatedIgnore_ThrowNamingPattern()
+    {
+        // Arrange: a root
+        using var temp = new TempDirectory();
+
+        // Act: select with a leading negation, and with a negated ignore pattern
+        var leading = Assert.Throws<InvalidGlobPatternException>(
+            () => FileSelector.Select(temp.FullPath, ["!docs/**", "**/*.md"], [], false, TestContext.Current.CancellationToken));
+        var ignored = Assert.Throws<InvalidGlobPatternException>(
+            () => FileSelector.Select(temp.FullPath, ["**/*.md"], ["!docs/**"], false, TestContext.Current.CancellationToken));
+
+        // Assert: both name the pattern as written
+        Assert.Multiple(
+            () => Assert.Equal("!docs/**", leading.Pattern),
+            () => Assert.Equal("!docs/**", ignored.Pattern));
+    }
+
+    /// <summary>
     ///     Test that a negated pattern is rejected naming the pattern.
     /// </summary>
     [Fact]
     public void FileSelectionSubsystem_Select_NegatedPattern_ThrowsNamingPattern()
     {
-        // Arrange: a root and a negated pattern
+        // Arrange: a root and a negated pattern as the first pattern, which has nothing to remove files from
         using var temp = new TempDirectory();
 
         // Act / Assert: selection throws an exception that names the pattern

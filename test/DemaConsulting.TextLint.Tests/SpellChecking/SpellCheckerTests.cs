@@ -1124,7 +1124,7 @@ public class SpellCheckerTests
     [Fact]
     public async Task SpellChecker_CheckAsync_InvalidPattern_ThrowsInvalidGlobPatternException()
     {
-        // Arrange: settings with a negated pattern, which is not supported
+        // Arrange: settings whose files list starts with a negated pattern, which has nothing to remove files from
         using var temp = new TempDirectory();
         var settings = new TextLintSettings { Files = ["!**/*.md"] };
 

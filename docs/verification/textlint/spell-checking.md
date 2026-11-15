@@ -31,6 +31,9 @@ Windows, Linux, and macOS.
   email addresses are not checked.
 - The language setting changes the result, and lines are counted by line feed alone.
 - Unusable settings are rejected with a message that names the problem.
+- Overrides apply to the files they match, relative to the settings root, and files that the settings disable are
+  neither checked nor reported; the notes about disabled files and unmatched overrides are returned beside the
+  findings and a warning does not make the run fail by itself.
 - Files that the settings select are checked and reported with file, line, column, and word; ignored and unselected
   files are not checked.
 - UTF-8 and UTF-16 files, with and without a byte order mark, report identical positions.
@@ -99,6 +102,23 @@ return alone does not. This scenario is tested by `SpellCheckingSubsystem_Check_
 **SpellCheckingSubsystem_Check_UnusableSettings_Throw**: An unsupported language and a word entry that holds two
 words are each rejected with a message that names the problem. This scenario is tested by
 `SpellCheckingSubsystem_Check_UnusableSettings_Throw`.
+
+**SpellCheckingSubsystem_CheckAsync_OverridesEnabledAndNotes_AppliedTogether**: Of three markdown files, an override
+accepts one word for `docs`, an override disables `legacy`, and an override matches nothing; the files outside
+`legacy` are checked (two), `docs` reports only the other word, `src` reports the word, one file is counted as
+disabled, a single warning names the unmatched override at its position, and the run has problems. This scenario is
+tested by `SpellCheckingSubsystem_CheckAsync_OverridesEnabledAndNotes_AppliedTogether`.
+
+**SpellCheckingSubsystem_CheckAsync_SettingsRootOption_MatchesOverridesRelativeToIt**: A run over the `docs`
+directory with the parent named as the settings root applies an override written for `docs/**`, so there is no
+finding and no unmatched warning. This scenario is tested by
+`SpellCheckingSubsystem_CheckAsync_SettingsRootOption_MatchesOverridesRelativeToIt`.
+
+**SpellCheckingSubsystem_CheckAsync_LanguageOptionAndOverrideLanguage_OptionWinsWithNote**: An override sets British
+English for `docs` and a British spelling is checked there; without a language option there is no finding, and with
+American English in the options the word is found and the only note says that the option replaces `en-GB` for the
+override at its position. This scenario is tested by
+`SpellCheckingSubsystem_CheckAsync_LanguageOptionAndOverrideLanguage_OptionWinsWithNote`.
 
 **SpellCheckingSubsystem_CheckAsync_FilesWithUnknownWords_ReportsFileLineColumnAndWord**: Two markdown files, one in a
 subdirectory, are checked and each finding is formatted with its relative path, line, column, and word. This scenario

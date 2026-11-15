@@ -2,8 +2,10 @@
 # Software Unit Requirements for the SpellChecker Class
 #
 # The SpellChecker class selects the files that the settings name under a root directory, checks each of them in
-# parallel, and returns one deterministic result. The SpellCheckOptions, SpellCheckResult, FileDiagnostic, and
-# FileDiagnosticKind types belong to this unit.
+# parallel, and returns one deterministic result. The SpellCheckOptions, SpellCheckResult, FileDiagnostic,
+# FileDiagnosticKind, SpellCheckNote, SpellCheckNoteKind, and SpellCheckNoteSeverity types belong to this unit.
+# The class applies the overrides and the enabled setting of the settings to each file and reports notes about
+# them.
 
 sections:
   - title: TextLint Requirements
@@ -64,6 +66,101 @@ sections:
                   - SpellChecker_FileDiagnostic_BinaryAndTooLarge_AreNotErrors
                   - SpellChecker_FileDiagnostic_ErrorToString_UsesErrorSeverity
                   - SpellChecker_FileDiagnostic_SkipToString_UsesInfoSeverity
+
+              - id: TextLint-SpellChecking-SpellChecker-Overrides
+                title: >-
+                  SpellChecker shall check each file with the settings that result from adding, to the
+                  top-level settings, the settings of every override whose filename patterns select the file's
+                  path relative to the settings root, in the order the overrides are written, so that lists
+                  add up, single values are replaced by the last override that gives them, and the named
+                  patterns an override uses are the top-level, predefined, and its own, and shall leave
+                  every other file to the top-level settings.
+                justification: |
+                  Overrides exist so that some files can be checked by other rules: extra words for the
+                  documentation, another language for one folder. Each file must be checked with the rules
+                  of exactly the overrides that apply to it, and the results must not depend on which other
+                  files are checked in the same run.
+                tests:
+                  - SpellChecker_CheckAsync_OverrideWords_ApplyOnlyToMatchingFiles
+                  - SpellChecker_CheckAsync_OverrideList_AddsToTopLevelList
+                  - SpellChecker_CheckAsync_SeveralOverrides_ApplyInOrderWrittenWithLastSingleValueWinning
+                  - SpellChecker_CheckAsync_OverridePatterns_ResolveTopLevelOwnAndPredefinedNames
+                  - SpellChecker_CheckAsync_OverridePatternWithTopLevelName_ReplacesItForMatchingFiles
+                  - SpellChecker_CheckAsync_PatternNameOfAnotherOverride_IsUnknown
+                  - SpellChecker_CheckAsync_TwoOverridesMatchSameFile_CombineTheirLists
+
+              - id: TextLint-SpellChecking-SpellChecker-SettingsRoot
+                title: >-
+                  SpellChecker shall match the filename patterns of overrides against the path of each file
+                  relative to the settings root directory given in its options, which need not be the
+                  directory it searches, and shall let a file outside the settings root match no override.
+                justification: |
+                  A user who names a file by its absolute path moves the directory that results are shown
+                  relative to, and an override written for docs/** must still apply to docs files; matching
+                  against the settings root keeps the same file checked by the same rules however it was
+                  named.
+                tests:
+                  - SpellChecker_CheckAsync_SettingsRootDifferentFromSearchRoot_MatchesRelativeToSettingsRoot
+                  - SpellChecker_CheckAsync_FileOutsideSettingsRoot_MatchesNoOverride
+
+              - id: TextLint-SpellChecking-SpellChecker-DisabledFiles
+                title: >-
+                  SpellChecker shall leave out of the check, without reading them, reporting anything for them,
+                  or counting them as checked or skipped, the selected files that the enabled setting switches
+                  off, shall count them as disabled, shall let the last override that sets enabled decide, and
+                  shall report no disabled files when no file is selected.
+                justification: |
+                  A file that the settings switch off is a decision of the project, not a finding and not a
+                  failure to check; counting it separately lets a user confirm that the files they expected
+                  were switched off, and not reading it saves the time of reading it.
+                tests:
+                  - SpellChecker_CheckAsync_DisabledOverride_FileIsNotReadReportedOrCounted
+                  - SpellChecker_CheckAsync_DisabledThenEnabledOverride_LastWins
+                  - SpellChecker_CheckAsync_TopLevelDisabledWithEnablingOverride_ChecksOnlyEnabledFiles
+                  - SpellChecker_CheckAsync_AllFilesDisabled_ReportsNoteAndNoProblem
+                  - SpellChecker_CheckAsync_NothingSelected_HasNoDisabledFilesOrNotes
+                  - SpellChecker_CheckAsync_NoOverrides_HasNoDisabledFilesOrNotes
+
+              - id: TextLint-SpellChecking-SpellChecker-LanguageOption
+                title: >-
+                  SpellChecker shall check every file against the language given in its options in preference
+                  to the language of the top-level settings and of every override, and shall reject a language
+                  it does not support before it touches any file.
+                justification: |
+                  A language given for one run is the most specific request, so it must win over every
+                  language in the settings, including an override's; and an unsupported name must fail
+                  loudly instead of falling back to another dialect.
+                tests:
+                  - SpellChecker_CheckAsync_LanguageOption_WinsOverOverrideAndIsNoted
+                  - SpellChecker_CheckAsync_LanguageOption_WinsOverTopLevelLanguage
+                  - SpellChecker_CheckAsync_UnsupportedLanguageOption_ThrowsBeforeTouchingFiles
+
+              - id: TextLint-SpellChecking-SpellChecker-Notes
+                title: >-
+                  SpellChecker shall return, with the result, a note for each of these facts: when every
+                  selected file is disabled; when a language in its options replaces the different language
+                  of an override that applies to a checked file, naming the override by its position or by its
+                  number; and, when at least one file was selected, for each override that matches none of the
+                  selected files, at the position of that override; and shall list the notes of information
+                  before the warnings, formatting an information note as "info: " and the message, and a
+                  warning as the file, line, and column, "warning:", and the message, leaving out the parts
+                  that are not known.
+                justification: |
+                  A setting that has no effect, or an option that overrides a setting, leaves the user
+                  believing something that is not true. Telling them, in a form that editors understand, lets
+                  a stale override be found, while never failing the run, because the result is still correct.
+                  An override cannot be called unused when nothing was selected at all, and a language that
+                  gives the same dictionaries is not a difference worth a note.
+                tests:
+                  - SpellChecker_CheckAsync_AllFilesDisabled_ReportsNoteAndNoProblem
+                  - SpellChecker_CheckAsync_LanguageOption_WinsOverOverrideAndIsNoted
+                  - SpellChecker_CheckAsync_LanguageOptionSameDictionaryOrUnusedOverride_HasNoLanguageNote
+                  - SpellChecker_CheckAsync_LanguageNoteForOverrideBuiltInCode_NamesOverrideByNumber
+                  - SpellChecker_CheckAsync_UnmatchedOverride_IsWarnedAboutWithPosition
+                  - SpellChecker_CheckAsync_SeveralNotes_AreOrderedInformationThenWarnings
+                  - SpellChecker_CheckAsync_NothingSelected_HasNoDisabledFilesOrNotes
+                  - SpellChecker_CheckAsync_NoOverrides_HasNoDisabledFilesOrNotes
+                  - SpellCheckNote_Format_SeveritiesAndLocations_FollowCompilerStyle
 
               - id: TextLint-SpellChecking-SpellChecker-DiagnosticFileName
                 title: >-
@@ -154,11 +251,14 @@ sections:
                 title: >-
                   SpellChecker shall reject null settings, a null, empty, or white-space root directory, a
                   root directory that does not exist, a file pattern that is not valid, and settings that
-                  cannot be used, and shall reject unusable settings before it touches any file.
+                  cannot be used, including an override that cannot be applied even when it matches no file,
+                  and shall reject unusable settings before it touches any file.
                 justification: |
                   These are caller mistakes and must be reported as such, not turned into an empty result
                   that looks like a clean run. Checking the settings first means a bad language or word
-                  entry is reported at once, whatever the directory holds.
+                  entry is reported at once, whatever the directory holds, and an override that matches
+                  nothing is checked like any other, so that its mistake is not found only when a file is
+                  added later.
                 tests:
                   - SpellChecker_CheckAsync_NullSettings_ThrowsArgumentNullException
                   - SpellChecker_CheckAsync_NullRoot_ThrowsArgumentNullException
@@ -168,14 +268,15 @@ sections:
                   - SpellChecker_CheckAsync_InvalidPattern_ThrowsInvalidGlobPatternException
                   - SpellChecker_CheckAsync_UnusableLanguage_ThrowsBeforeTouchingFiles
                   - SpellChecker_CheckAsync_UnusableWordEntry_ThrowsBeforeTouchingFiles
+                  - SpellChecker_CheckAsync_UnusableOverride_ThrowsBeforeTouchingFiles
                   - SpellChecker_CheckFilesAsync_NullFiles_ThrowsArgumentNullException
                   - SpellChecker_CheckFilesAsync_NullCheckFunction_ThrowsArgumentNullException
                   - SpellChecker_CheckFilesAsync_NullOptions_ThrowsArgumentNullException
 
               - id: TextLint-SpellChecking-SpellChecker-ImmutableResults
                 title: >-
-                  SpellChecker shall return a result whose findings and diagnostics cannot be changed by
-                  the caller, even by casting them to a mutable collection, and which does not change when
+                  SpellChecker shall return a result whose findings, diagnostics, and notes cannot be changed
+                  by the caller, even by casting them to a mutable collection, and which does not change when
                   the collections it was built from change.
                 justification: |
                   A result is a record of what was checked; if a consumer could alter it, two consumers of
@@ -184,3 +285,5 @@ sections:
                   - SpellChecker_CheckAsync_Issues_AreImmutable
                   - SpellChecker_CheckAsync_FileDiagnostics_AreImmutable
                   - SpellChecker_Result_CallerCollections_AreCopied
+                  - SpellChecker_CheckAsync_Notes_AreImmutable
+                  - SpellChecker_Result_CallerNotes_AreCopied

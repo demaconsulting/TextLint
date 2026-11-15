@@ -298,34 +298,66 @@ sections:
       - id: TextLintTool-System-Language
         title: >-
           The tool shall check against the dictionaries of the language named by the language option, in
-          preference to the language of the settings.
+          preference to the language of the settings and of the overrides in them.
         tags: [system]
         justification: |
           American and British spellings differ, and a project that mixes them, or a one-off check against
-          another language, must not need a second settings file.
+          another language, must not need a second settings file. An override that gives a folder its own
+          language must not defeat the option for exactly that folder.
         children:
           - TextLintTool-Cli-Language
           - TextLintTool-Linting-Overrides
         tests:
           - TextLintTool_Check_LanguageOption_SelectsDictionary
+          - TextLintTool_Check_LanguageOptionAndOverride_OptionWinsAndNoteIsPrinted
+
+      - id: TextLintTool-System-Overrides
+        title: >-
+          The tool shall check the files of an ordered files list of the settings with the overrides of the
+          settings, matched against the path relative to the root directory, shall skip the files that the
+          settings disable and exit with code 0 when that is every selected file, and shall print, before the
+          findings and without changing the exit code, a note that the language option replaced the language
+          of an override and, when the settings chose the files, a warning with the position of each override
+          that matches none of them.
+        tags: [system]
+        justification: |
+          Projects need other rules for some files, such as extra words for the documentation or another
+          language for one folder, and need to switch some files off for a stated reason without deleting
+          them from the settings. A person must be able to see when an option replaced a setting and which
+          override is stale, in a line an editor understands, but a run whose findings are right must not
+          fail because of it. The self-validation scenario for overrides gives the same evidence on the
+          platform that ran it.
+        children:
+          - TextLintTool-Linting-OverrideReporting
+          - TextLintTool-Linting-Overrides
+          - TextLintTool-Linting-SettingsErrors
+        tests:
+          - TextLintTool_Check_OverridesAndOrderedFiles_AreApplied
+          - TextLintTool_Check_DisabledFilesAndUnmatchedOverride_ExitZeroWithNotes
+          - TextLintTool_Check_LanguageOptionAndOverride_OptionWinsAndNoteIsPrinted
+          - TextLintTool_ValidateFlag_Provided_RunsLintScenarios
 
       - id: TextLintTool-System-NoFiles
         title: >-
           The tool shall exit with code 1 and explain itself when the patterns it was given match no files,
           unless the allow-empty option accepts that; a run given no patterns at all shall always fail with a
-          usage error.
+          usage error. Files that were selected but are all disabled by the settings are not an empty
+          selection.
         tags: [system]
         justification: |
           A pattern that matches nothing is almost always a typing mistake, and a check that examined no files
           must not pass by accident; scripts that legitimately may select nothing opt in explicitly, but a
-          script that passes an empty list of files has a bug that the option must not hide.
+          script that passes an empty list of files has a bug that the option must not hide. A project that
+          switched its files off on purpose has made a decision, which is not a mistake and is said aloud.
         children:
           - TextLintTool-Cli-AllowEmpty
           - TextLintTool-Linting-EmptySelection
+          - TextLintTool-Linting-OverrideReporting
         tests:
           - TextLintTool_Check_NoFilesMatched_ExitsOne
           - TextLintTool_Check_NoFilesMatchedAllowEmpty_ExitsZero
           - TextLintTool_Check_NoPatternsAllowEmpty_ExitsOne
+          - TextLintTool_Check_DisabledFilesAndUnmatchedOverride_ExitZeroWithNotes
 
       - id: TextLintTool-System-SkippedFiles
         title: >-

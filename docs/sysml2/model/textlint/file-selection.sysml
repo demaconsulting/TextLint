@@ -13,6 +13,7 @@ package TextLint {
 
         part globPatternExpander : GlobPatternExpander;
         part hiddenPathPolicy : HiddenPathPolicy;
+        part orderedGlobList : OrderedGlobList;
         part fileSelector : FileSelector;
         part commandLinePathResolver : CommandLinePathResolver;
     }

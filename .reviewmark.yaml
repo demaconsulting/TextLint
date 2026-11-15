@@ -138,6 +138,7 @@ reviews:
       - "docs/design/textlint/configuration/text-lint-settings.md"
       - "docs/verification/textlint/configuration/text-lint-settings.md"
       - "src/DemaConsulting.TextLint/Configuration/TextLintSettings.cs"
+      - "src/DemaConsulting.TextLint/Configuration/SettingsOverride.cs"
       - "test/**/Configuration/TextLintSettingsTests.cs"
 
   - id: TextLint-Configuration-SettingsLoader
@@ -152,9 +153,25 @@ reviews:
       - "docs/design/textlint/configuration/settings-loader.md"
       - "docs/verification/textlint/configuration/settings-loader.md"
       - "src/DemaConsulting.TextLint/Configuration/SettingsLoader.cs"
+      - "src/DemaConsulting.TextLint/Configuration/SettingsLoader.Overrides.cs"
       - "src/DemaConsulting.TextLint/Configuration/SettingsLoadResult.cs"
       - "src/DemaConsulting.TextLint/Configuration/SettingsDiagnostic.cs"
       - "test/**/Configuration/SettingsLoaderTests.cs"
+
+  - id: TextLint-Configuration-SettingsOverrideResolver
+    title: Review that TextLint Configuration SettingsOverrideResolver Implementation is Correct
+    context:
+      - docs/design/textlint.md
+      - docs/reqstream/textlint.yaml
+      - docs/design/textlint/configuration.md
+      - docs/reqstream/textlint/configuration.yaml
+    paths:
+      - "docs/reqstream/textlint/configuration/settings-override-resolver.yaml"
+      - "docs/design/textlint/configuration/settings-override-resolver.md"
+      - "docs/verification/textlint/configuration/settings-override-resolver.md"
+      - "src/DemaConsulting.TextLint/Configuration/SettingsOverrideResolver.cs"
+      - "src/DemaConsulting.TextLint/Configuration/FileResolution.cs"
+      - "test/**/Configuration/SettingsOverrideResolverTests.cs"
 
   # TextLint - FileSelection
   - id: TextLint-FileSelection
@@ -212,7 +229,22 @@ reviews:
       - "src/DemaConsulting.TextLint/FileSelection/SelectedFile.cs"
       - "src/DemaConsulting.TextLint/FileSelection/HiddenFilteringDirectory.cs"
       - "src/DemaConsulting.TextLint/FileSelection/CancelableDirectory.cs"
+      - "src/DemaConsulting.TextLint/FileSelection/OrderedPruningDirectory.cs"
       - "test/**/FileSelection/FileSelectorTests.cs"
+
+  - id: TextLint-FileSelection-OrderedGlobList
+    title: Review that TextLint FileSelection OrderedGlobList Implementation is Correct
+    context:
+      - docs/design/textlint.md
+      - docs/reqstream/textlint.yaml
+      - docs/design/textlint/file-selection.md
+      - docs/reqstream/textlint/file-selection.yaml
+    paths:
+      - "docs/reqstream/textlint/file-selection/ordered-glob-list.yaml"
+      - "docs/design/textlint/file-selection/ordered-glob-list.md"
+      - "docs/verification/textlint/file-selection/ordered-glob-list.md"
+      - "src/DemaConsulting.TextLint/FileSelection/OrderedGlobList.cs"
+      - "test/**/FileSelection/OrderedGlobListTests.cs"
 
   - id: TextLint-FileSelection-CommandLinePathResolver
     title: Review that TextLint FileSelection CommandLinePathResolver Implementation is Correct
@@ -457,7 +489,11 @@ reviews:
       - "src/DemaConsulting.TextLint/SpellChecking/SpellCheckResult.cs"
       - "src/DemaConsulting.TextLint/SpellChecking/FileDiagnostic.cs"
       - "src/DemaConsulting.TextLint/SpellChecking/FileDiagnosticKind.cs"
+      - "src/DemaConsulting.TextLint/SpellChecking/SpellCheckNote.cs"
+      - "src/DemaConsulting.TextLint/SpellChecking/SpellCheckNoteKind.cs"
+      - "src/DemaConsulting.TextLint/SpellChecking/SpellCheckNoteSeverity.cs"
       - "test/**/SpellChecking/SpellCheckerTests.cs"
+      - "test/**/SpellChecking/SpellCheckerOverridesTests.cs"
 
   # TextLint - cspell parity corpora (human-reviewed inputs and the recorded output of the real cspell)
   - id: TextLint-SpellingParityCorpus

@@ -181,6 +181,70 @@ public class LintReporterTests
     }
 
     /// <summary>
+    ///     Test that notes are written first, as lines of their own format, and leave the exit code alone.
+    /// </summary>
+    [Fact]
+    public async Task LintReporter_Write_Notes_AreWrittenFirstAndLeaveExitCodeAlone()
+    {
+        // Arrange: a result with a finding, an information note, and a warning about an unmatched override
+        using var temp = new TempDirectory();
+        temp.CreateFile("a.md", "Hello wrold\n");
+        var settings = new TextLintSettings
+        {
+            Files = ["**/*"],
+            Overrides =
+            [
+                new SettingsOverride { Filename = ["a.md"], Language = "en-GB", SourceName = ".textlint.yaml", Line = 4, Column = 5 },
+                new SettingsOverride { Filename = ["none/**"], Words = ["wrold"], SourceName = ".textlint.yaml", Line = 8, Column = 5 },
+            ],
+        };
+        var result = await SpellChecker.CheckAsync(
+            settings,
+            temp.FullPath,
+            new SpellCheckOptions { Language = "en-US" },
+            TestContext.Current.CancellationToken);
+
+        // Act: report it
+        var reported = Report(result, path => path);
+
+        // Assert: the notes, in the library's order and format, precede the finding and the summary, and the exit code is untouched
+        Assert.Multiple(
+            () => Assert.Equal("info: --language en-US replaces en-GB for the override at .textlint.yaml(4,5).", reported.Lines[0]),
+            () => Assert.Equal(".textlint.yaml(8,5): warning: The override matches none of the selected files.", reported.Lines[1]),
+            () => Assert.Equal("a.md(1,7): error: Unknown word 'wrold'", reported.Lines[2]),
+            () => Assert.StartsWith("Checked 1 file(s)", reported.Lines[3]),
+            () => Assert.Equal(0, reported.ExitCode));
+    }
+
+    /// <summary>
+    ///     Test that the warning about an unmatched override can be left out while other notes are kept.
+    /// </summary>
+    [Fact]
+    public async Task LintReporter_Write_UnmatchedOverrideReportingOff_OmitsOnlyThatWarning()
+    {
+        // Arrange: a result with an all-files-disabled note and an unmatched override warning
+        using var temp = new TempDirectory();
+        temp.CreateFile("a.md", "Hello wrold\n");
+        var settings = new TextLintSettings
+        {
+            Files = ["**/*"],
+            Enabled = false,
+            Overrides = [new SettingsOverride { Filename = ["none/**"], Words = ["wrold"], SourceName = ".textlint.yaml", Line = 8, Column = 5 }],
+        };
+        var result = await SpellChecker.CheckAsync(settings, temp.FullPath, cancellationToken: TestContext.Current.CancellationToken);
+
+        // Act: report it with and without the warnings about unmatched overrides
+        var with = ContextRun.Execute([], context => LintReporter.Write(context, result, path => path));
+        var without = ContextRun.Execute([], context => LintReporter.Write(context, result, path => path, reportUnmatchedOverrides: false));
+
+        // Assert: only the warning is left out
+        Assert.Multiple(
+            () => Assert.Contains(with.Lines, line => line.Contains("warning:", StringComparison.Ordinal)),
+            () => Assert.DoesNotContain(without.Lines, line => line.Contains("warning:", StringComparison.Ordinal)),
+            () => Assert.Contains("info: Spell checking is disabled by the settings for all 1 selected file(s).", without.Lines));
+    }
+
+    /// <summary>
     ///     Test that missing arguments are rejected.
     /// </summary>
     [Fact]

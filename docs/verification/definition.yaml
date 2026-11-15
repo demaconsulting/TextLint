@@ -23,11 +23,13 @@ input-files:
   - docs/verification/textlint/configuration.md
   - docs/verification/textlint/configuration/text-lint-settings.md
   - docs/verification/textlint/configuration/settings-loader.md
+  - docs/verification/textlint/configuration/settings-override-resolver.md
   - docs/verification/textlint/file-selection.md
   - docs/verification/textlint/file-selection/glob-pattern-expander.md
   - docs/verification/textlint/file-selection/hidden-path-policy.md
   - docs/verification/textlint/file-selection/file-selector.md
   - docs/verification/textlint/file-selection/command-line-path-resolver.md
+  - docs/verification/textlint/file-selection/ordered-glob-list.md
   - docs/verification/textlint/dictionaries.md
   - docs/verification/textlint/dictionaries/spelling-dictionary.md
   - docs/verification/textlint/dictionaries/dictionary-image.md

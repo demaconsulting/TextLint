@@ -93,6 +93,7 @@ internal static class Validation
         RunLintScenario(context, testResults, "TextLintTool_CheckBinaryFileSkipped", VerifyBinaryFileSkipped);
         RunLintScenario(context, testResults, "TextLintTool_CheckNoFilesMatched", VerifyNoFilesMatched);
         RunLintScenario(context, testResults, "TextLintTool_CheckAbsolutePath", VerifyAbsolutePath);
+        RunLintScenario(context, testResults, "TextLintTool_CheckOverrides", VerifyOverrides);
 
         // Calculate totals
         var totalTests = testResults.Results.Count;
@@ -509,6 +510,35 @@ internal static class Validation
         return outcome.ExitCode == 1 && outcome.Output.Contains($"{path}(1,7): error: Unknown word '{Misspelling}'", StringComparison.Ordinal)
             ? null
             : $"Expected the issue to be reported by absolute path (exit code {outcome.ExitCode}): {outcome.Output}";
+    }
+
+    /// <summary>
+    ///     Verifies that an ordered files list, an override with words, and an override that disables files all apply.
+    /// </summary>
+    /// <param name="sandbox">The sandbox to run in.</param>
+    /// <returns>Null when the scenario passed; otherwise what was wrong.</returns>
+    private static string? VerifyOverrides(LintSandbox sandbox)
+    {
+        // The files list removes the skipped directory with a negation, one override accepts the word for docs, and
+        // another disables the legacy files; every file holds the same misspelling, so only a.md may be reported
+        sandbox.WriteFile(
+            ".textlint.yaml",
+            "files:\n  - \"**/*.md\"\n  - \"!skipped/**\"\noverrides:\n  - filename: docs/**\n    words:\n      - " + Misspelling +
+            "\n  - filename: legacy/**\n    enabled: false\n");
+        foreach (var path in new[] { "a.md", "docs/b.md", "skipped/c.md", "legacy/d.md" })
+        {
+            sandbox.WriteFile(path, $"Hello {Misspelling}\n");
+        }
+
+        var outcome = sandbox.RunTool();
+
+        // Only the file that no setting touches is reported, and the others are silent
+        var applied = outcome.ExitCode == 1 &&
+                      outcome.Output.Contains($"a.md(1,7): error: Unknown word '{Misspelling}'", StringComparison.Ordinal) &&
+                      !outcome.Output.Contains("docs/b.md", StringComparison.Ordinal) &&
+                      !outcome.Output.Contains("skipped/", StringComparison.Ordinal) &&
+                      !outcome.Output.Contains("legacy/", StringComparison.Ordinal);
+        return applied ? null : $"Expected only a.md to be reported (exit code {outcome.ExitCode}): {outcome.Output}";
     }
 
     /// <summary>

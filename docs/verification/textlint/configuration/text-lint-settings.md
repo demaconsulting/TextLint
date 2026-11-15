@@ -7,7 +7,9 @@ base class library types, so no mocking or test doubles are needed; tests constr
 assert on the exposed values and thrown exceptions. Boundary values (a length of 0 and 1, a size of -1, 0, and
 the largest 64-bit integer, and a minimum random length of -1, 0, and 1) are tested on both sides. The `NamedPattern`
 type of the `TextScanning` subsystem is used as a plain value in the pattern list; the validity of the patterns is not
-judged by the settings, so it is not tested here.
+judged by the settings, so it is not tested here. The `SettingsOverride` record, which is part of this unit, is
+verified in the same file in the same way, with no mocks: values are assigned and read back, and the lists are
+mutated afterwards to prove they were copied.
 
 #### Test Environment
 
@@ -30,6 +32,10 @@ N/A - standard test environment.
   is rejected.
 - A minimum random length below 1 is rejected and 1 is accepted.
 - A copy made with `with` keeps the pattern settings, and changing the copy does not change the original.
+- New settings are enabled and have no overrides; `Enabled` and `Overrides` are stored, the overrides are copied on
+  assignment, a copy keeps them, and a null list or entry is rejected.
+- A new `SettingsOverride` has empty lists and every single value unset, stores every value assigned, copies its
+  lists on assignment, rejects null lists and entries, and rejects a length below 1 while accepting 1 and unset.
 
 #### Test Scenarios
 
@@ -139,3 +145,35 @@ scenario is tested by `TextLintSettings_Init_MinRandomLength_IsValidatedAtOne`.
 **TextLintSettings_With_PatternSettings_AreCopiedAndIndependent**: A copy is derived that changes the ignore list and
 the minimum random length; the copy has the new values and keeps the definitions and the random-string switch, and the
 original keeps every value. This scenario is tested by `TextLintSettings_With_PatternSettings_AreCopiedAndIndependent`.
+
+**TextLintSettings_New_NoValues_IsEnabledWithNoOverrides**: Settings are created without assigning anything; they
+are enabled and the list of overrides is empty (never null). This scenario is tested by
+`TextLintSettings_New_NoValues_IsEnabledWithNoOverrides`.
+
+**TextLintSettings_Init_EnabledAndOverrides_AreStoredAndCopied**: Disabled settings are created from a mutable list
+of one override, which is then added to; the settings keep the one override, and a copy that is enabled keeps the
+overrides and changes only the switch. This scenario is tested by
+`TextLintSettings_Init_EnabledAndOverrides_AreStoredAndCopied`.
+
+**TextLintSettings_Init_NullOverrides_ThrowsArgumentNullException**: A null overrides list and a list holding a null
+override each throw. This scenario is tested by `TextLintSettings_Init_NullOverrides_ThrowsArgumentNullException`.
+
+**SettingsOverride_New_NoValues_HasEmptyListsAndUnsetValues**: An override is created without assigning anything;
+every list is empty (never null) and the language, lengths, random-string switch, `Enabled`, source name, line, and
+column are unset. This scenario is tested by `SettingsOverride_New_NoValues_HasEmptyListsAndUnsetValues`.
+
+**SettingsOverride_Init_AllValues_AreStored**: An override that sets every value, including an ordered filename list
+with a negation and its source position, holds each value as assigned. This scenario is tested by
+`SettingsOverride_Init_AllValues_AreStored`.
+
+**SettingsOverride_Init_ListMutatedAfterAssignment_DoesNotAffectOverride**: A mutable list assigned to `Words` is
+added to afterwards; the override keeps the original contents. This scenario is tested by
+`SettingsOverride_Init_ListMutatedAfterAssignment_DoesNotAffectOverride`.
+
+**SettingsOverride_Init_NullListOrEntry_ThrowsArgumentNullException**: A null `Filename`, `Words`, or
+`IgnoreRegExpList` list and a null entry in `IgnoreWords`, `FlagWords`, or `Patterns` each throw. This scenario is
+tested by `SettingsOverride_Init_NullListOrEntry_ThrowsArgumentNullException`.
+
+**SettingsOverride_Init_LengthBelowOne_ThrowsArgumentOutOfRangeException**: A minimum word length of 0 and a minimum
+random length of 0 each throw, while 1 is stored and an unset length is accepted. This scenario is tested by
+`SettingsOverride_Init_LengthBelowOne_ThrowsArgumentOutOfRangeException`.

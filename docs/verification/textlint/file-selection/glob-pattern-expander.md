@@ -87,8 +87,9 @@ scenario is tested by `GlobPatternExpander_Expand_EmptyPattern_ThrowsInvalidGlob
 **GlobPatternExpander_Expand_WhitespacePattern_ThrowsInvalidGlobPattern**: A pattern of spaces is rejected.
 This scenario is tested by `GlobPatternExpander_Expand_WhitespacePattern_ThrowsInvalidGlobPattern`.
 
-**GlobPatternExpander_Expand_NegatedPattern_ThrowsInvalidGlobPattern**: A leading `!` is rejected. This
-scenario is tested by `GlobPatternExpander_Expand_NegatedPattern_ThrowsInvalidGlobPattern`.
+**GlobPatternExpander_Expand_NegatedPattern_ThrowsInvalidGlobPattern**: A leading `!` is rejected, because
+negation is handled by `OrderedGlobList`, which removes it before expanding. This scenario is tested by
+`GlobPatternExpander_Expand_NegatedPattern_ThrowsInvalidGlobPattern`.
 
 **GlobPatternExpander_Expand_BackslashPattern_ThrowsInvalidGlobPattern**: A backslash separator is rejected.
 This scenario is tested by `GlobPatternExpander_Expand_BackslashPattern_ThrowsInvalidGlobPattern`.

@@ -35,12 +35,16 @@ source][workflow]
 The project currently provides:
 
 - **Settings File**: The library loads a cspell-compatible `.textlint.yaml` (keys `version`, `files`,
-  `ignorePaths`, `enableGlobDot`, `language`, `words`, `ignoreWords`, `flagWords`, `minWordLength`, `maxFileSize`,
-  `ignoreRegExpList`, `patterns`, `ignoreRandomStrings`, and `minRandomLength`), reporting every problem with its
-  file, line, and column; unsupported keys are errors
+  `ignorePaths`, `enableGlobDot`, `enabled`, `language`, `words`, `ignoreWords`, `flagWords`, `minWordLength`,
+  `maxFileSize`, `ignoreRegExpList`, `patterns`, `ignoreRandomStrings`, `minRandomLength`, and `overrides`),
+  reporting every problem with its file, line, and column; unsupported keys are errors
 - **File Selection**: The library selects files from glob patterns (brace alternatives, bare names at any
   depth, case-sensitive matching, cspell-style hidden-file rules), skipping excluded directories without
-  scanning them
+  scanning them. The `files` list is ordered: a pattern that starts with `!` removes files, and the last
+  matching pattern wins
+- **Overrides**: The `overrides` setting gives some files (selected by glob) their own words, language, and other
+  spelling settings, or switches checking off for them with `enabled: false`, as in cspell; notes during a run
+  (`info:` and `warning:` lines) never change the exit code
 - **Spell Checking**: The library checks the spelling of a string or of every selected file, in parallel, and
   returns deterministic findings with file, line, column, and word. It splits camelCase and snake_case
   identifiers (case-separated parts that together form a known word, such as `WeasyPrint` in `WeasyPrintTool`,
@@ -184,12 +188,41 @@ foreach (var file in files)
 }
 ```
 
-The supported `.textlint.yaml` keys are `version`, `files`, `ignorePaths`, `enableGlobDot`, `language`,
+The `files` list is ordered, so a `!` pattern removes files that an earlier pattern selected, and `overrides`
+change the settings for some files (or skip them with `enabled: false`). Overrides are matched against the path
+relative to the settings root, so pass `SettingsRootDirectory` when the files are searched in another directory.
+`SpellCheckOptions.Language` wins over the settings and over every override, as `--language` does on the command line.
+The run reports what it did in `Notes`, which never makes a run fail:
+
+```csharp
+var settings = new TextLintSettings
+{
+    Files = ["**/*.md", "!CHANGELOG.md"],
+    Words = ["TextLint"],
+    Overrides =
+    [
+        new SettingsOverride { Filename = ["docs/**"], Words = ["Kubernetes"], Language = "en-GB" },
+        new SettingsOverride { Filename = ["docs/legacy/**"], Enabled = false },
+    ],
+};
+var options = new SpellCheckOptions { SettingsRootDirectory = "/path/to/repo", Language = "en-US" };
+var check = await SpellChecker.CheckAsync(settings, "/path/to/repo", options);
+
+foreach (var note in check.Notes)
+{
+    // For example: info: --language en-US replaces en-GB for the override at .textlint.yaml(14,5).
+    // A warning is formatted as .textlint.yaml(14,5): warning: The override matches none of the selected files.
+    Console.WriteLine(note.Format());
+}
+
+Console.WriteLine($"{check.FilesChecked} checked, {check.FilesDisabled} disabled by the settings");
+```
+
+The supported `.textlint.yaml` keys are `version`, `files`, `ignorePaths`, `enableGlobDot`, `enabled`, `language`,
 `words`, `ignoreWords`, `flagWords`, `minWordLength`, `maxFileSize`, `ignoreRegExpList`, `patterns`,
-`ignoreRandomStrings`, and `minRandomLength`; any other key is an error. See the
-[User Guide][link-guide] for the settings reference, the glob pattern rules, the pattern rules and predefined
-names, the comment directives, and the
-differences from cspell.
+`ignoreRandomStrings`, `minRandomLength`, and `overrides`; any other key is an error. See the
+[User Guide][link-guide] for the settings reference, the glob pattern rules, the overrides, the pattern rules and
+predefined names, the comment directives, and the differences from cspell.
 
 Look words up in the embedded dictionaries. The default is American English; pass a language name, or a
 comma-separated list, to choose another (`en` is the same as `en-US`, the others are `en-GB` and
@@ -279,7 +312,7 @@ textlint --silent --log output.log "**/*.md"
 | `[globs...]`                          | Files to check (paths or globs); they replace the `files` setting      |
 | `--config <file>`                     | Settings file (default: `.textlint.yaml` in the root directory)        |
 | `--root <dir>`                        | Directory that globs and the default settings file are relative to     |
-| `--language <languages>`              | Dictionary language, e.g. `en-US` or `en-GB`; overrides the settings   |
+| `--language <languages>`              | Dictionary language, e.g. `en-US`; wins over settings and overrides    |
 | `--allow-empty`                       | Accept patterns that match no files (default: exit code 1)             |
 | `--max-parallelism <#>`               | Maximum number of files checked at the same time (default: processors) |
 | `-v`, `--version`                     | Display version information                                            |
@@ -322,6 +355,16 @@ Checked 120 file(s): 2 issue(s) in 2 file(s), 1 skipped, 0 could not be checked.
 
 Paths are relative to the root directory with `/` separators, unless you typed an absolute path, in which case
 the absolute path is shown.
+
+Notes about how the settings were applied come first and never change the exit code: an `info:` line (for
+example when `--language` replaces the language of an override, or when the settings disable every selected
+file) or a `warning:` line with the position of an override that matches none of the selected files (only when
+no paths were given on the command line):
+
+```text
+info: --language en-US replaces en-GB for the override at .textlint.yaml(14,5).
+.textlint.yaml(14,5): warning: The override matches none of the selected files.
+```
 
 ## Error Handling
 
@@ -368,9 +411,10 @@ Running self-validation produces a report containing the following information:
 ✓ TextLintTool_CheckBinaryFileSkipped - Passed
 ✓ TextLintTool_CheckNoFilesMatched - Passed
 ✓ TextLintTool_CheckAbsolutePath - Passed
+✓ TextLintTool_CheckOverrides - Passed
 
-Total Tests: 12
-Passed: 12
+Total Tests: 13
+Passed: 13
 Failed: 0
 ```
 
@@ -389,6 +433,8 @@ Each test in the report proves:
 - **`TextLintTool_CheckBinaryFileSkipped`** - A binary file is reported as information and does not fail the run.
 - **`TextLintTool_CheckNoFilesMatched`** - A selection that matches no files fails unless `--allow-empty` is given.
 - **`TextLintTool_CheckAbsolutePath`** - A file named by an absolute path is reported by that path.
+- **`TextLintTool_CheckOverrides`** - An ordered `files` list with `!`, an override with its own words, and an
+  override with `enabled: false` are applied.
 
 Use `--depth <#>` to control the heading level of the validation output (default: `1`).
 This is useful when embedding validation output into a larger markdown document:

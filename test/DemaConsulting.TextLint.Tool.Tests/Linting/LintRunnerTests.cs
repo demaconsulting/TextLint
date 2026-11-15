@@ -654,6 +654,291 @@ public class LintRunnerTests
     }
 
     /// <summary>
+    ///     Test that the language option wins over the language of an override and says so, without failing the run.
+    /// </summary>
+    [Fact]
+    public void LintRunner_Run_LanguageOptionAndOverrideLanguage_OptionWinsAndNoteIsPrinted()
+    {
+        // Arrange: an override for British English and a file with the American and the British spelling
+        using var temp = new TempDirectory();
+        temp.CreateFile(".textlint.yaml", "files:\n  - \"*.md\"\noverrides:\n  - filename: \"*.md\"\n    language: en-GB\n");
+        temp.CreateFile("a.md", "favorite favourite\n");
+
+        // Act: check with the override's language, then with American English from the command line
+        var british = Run(temp, "a.md");
+        var american = Run(temp, "--language", "en-US", "a.md");
+
+        // Assert: the option wins over the override, and the note names the override and the option
+        Assert.Multiple(
+            () => Assert.Contains("Unknown word 'favorite'", british.Output),
+            () => Assert.DoesNotContain("replaces", british.Output),
+            () => Assert.Contains("Unknown word 'favourite'", american.Output),
+            () => Assert.DoesNotContain("Unknown word 'favorite'", american.Output),
+            () => Assert.Contains(
+                american.Lines,
+                line => line.StartsWith("info: --language en-US replaces en-GB for the override at ", StringComparison.Ordinal) &&
+                        line.EndsWith(".textlint.yaml(4,5).", StringComparison.Ordinal)));
+    }
+
+    /// <summary>
+    ///     Test that a note about a replaced language does not change the exit code of a clean run.
+    /// </summary>
+    [Fact]
+    public void LintRunner_Run_LanguageNoteOnCleanRun_DoesNotFail()
+    {
+        // Arrange: an override for British English and a file that is correct in both spellings
+        using var temp = new TempDirectory();
+        temp.CreateFile(".textlint.yaml", "overrides:\n  - filename: \"*.md\"\n    language: en-GB\n");
+        temp.CreateFile("a.md", "Hello world.\n");
+
+        // Act: check with American English
+        var result = Run(temp, "--language", "en-US", "a.md");
+
+        // Assert: the note is printed and the run succeeds
+        Assert.Multiple(
+            () => Assert.Equal(0, result.ExitCode),
+            () => Assert.Contains(result.Lines, line => line.StartsWith("info: --language en-US replaces en-GB", StringComparison.Ordinal)));
+    }
+
+    /// <summary>
+    ///     Test that no language note is printed when the option names the same dictionary as the override.
+    /// </summary>
+    [Fact]
+    public void LintRunner_Run_LanguageOptionSameDictionaryAsOverride_PrintsNoNote()
+    {
+        // Arrange: an override for en and a command-line language of en-US, which select the same dictionary
+        using var temp = new TempDirectory();
+        temp.CreateFile(".textlint.yaml", "overrides:\n  - filename: \"*.md\"\n    language: en\n");
+        temp.CreateFile("a.md", "Hello world.\n");
+
+        // Act: check
+        var result = Run(temp, "--language", "en-US", "a.md");
+
+        // Assert: the run succeeds and prints no note
+        Assert.Multiple(
+            () => Assert.Equal(0, result.ExitCode),
+            () => Assert.DoesNotContain("replaces", result.Output));
+    }
+
+    /// <summary>
+    ///     Test that an override that matches none of the files is a warning on a full run that does not fail it.
+    /// </summary>
+    [Fact]
+    public void LintRunner_Run_UnmatchedOverrideOnFullRun_PrintsWarningAndSucceeds()
+    {
+        // Arrange: settings with an override that matches nothing, and a clean file
+        using var temp = new TempDirectory();
+        temp.CreateFile(".textlint.yaml", "files:\n  - \"*.md\"\noverrides:\n  - filename: nothing/**\n    words: [wrold]\n");
+        temp.CreateFile("a.md", "Hello world.\n");
+
+        // Act: run with no patterns on the command line
+        var result = Run(temp);
+
+        // Assert: the warning is in compiler style at the override, comes before the summary, and the exit code is 0
+        var warning = Assert.Single(result.Lines, line => line.Contains("warning:", StringComparison.Ordinal));
+        Assert.Multiple(
+            () => Assert.Equal(0, result.ExitCode),
+            () => Assert.EndsWith(".textlint.yaml(4,5): warning: The override matches none of the selected files.", warning),
+            () => Assert.True(Array.IndexOf(result.Lines, warning) < Array.FindIndex(result.Lines, line => line.StartsWith("Checked ", StringComparison.Ordinal))));
+    }
+
+    /// <summary>
+    ///     Test that the unmatched-override warning is not printed when the command line chose the files.
+    /// </summary>
+    [Fact]
+    public void LintRunner_Run_UnmatchedOverrideWithCommandLinePatterns_PrintsNoWarning()
+    {
+        // Arrange: the same settings, and a pattern given on the command line
+        using var temp = new TempDirectory();
+        temp.CreateFile(".textlint.yaml", "files:\n  - \"*.md\"\noverrides:\n  - filename: nothing/**\n    words: [wrold]\n");
+        temp.CreateFile("a.md", "Hello world.\n");
+
+        // Act: run with a pattern
+        var result = Run(temp, "a.md");
+
+        // Assert: checking a subset never triggers the warning
+        Assert.Multiple(
+            () => Assert.Equal(0, result.ExitCode),
+            () => Assert.DoesNotContain("warning:", result.Output));
+    }
+
+    /// <summary>
+    ///     Test that the warning names an explicit settings file as it was typed.
+    /// </summary>
+    [Fact]
+    public void LintRunner_Run_UnmatchedOverrideWithExplicitConfig_NamesTheConfigFile()
+    {
+        // Arrange: an explicit settings file with an override that matches nothing
+        using var temp = new TempDirectory();
+        var config = temp.CreateFile("custom.yaml", "files:\n  - \"*.md\"\noverrides:\n  - filename: nothing/**\n    words: [wrold]\n");
+        temp.CreateFile("a.md", "Hello world.\n");
+
+        // Act: run with the explicit file
+        var result = Run(temp, "--config", config);
+
+        // Assert: the warning starts with the file as typed
+        Assert.Contains($"{config}(4,5): warning: The override matches none of the selected files.", result.Lines);
+    }
+
+    /// <summary>
+    ///     Test that a run whose selected files are all disabled succeeds and says so.
+    /// </summary>
+    [Fact]
+    public void LintRunner_Run_AllFilesDisabled_SucceedsWithInformationNote()
+    {
+        // Arrange: spell checking is switched off at the top level
+        using var temp = new TempDirectory();
+        temp.CreateFile(".textlint.yaml", "enabled: false\nfiles:\n  - \"*.md\"\n");
+        temp.CreateFile("a.md", "Hello wrold\n");
+        temp.CreateFile("b.md", "Hello wrold\n");
+
+        // Act: run with no patterns on the command line
+        var result = Run(temp);
+
+        // Assert: exit code 0, the note says how many files were disabled, and it is not an empty selection
+        Assert.Multiple(
+            () => Assert.Equal(0, result.ExitCode),
+            () => Assert.Contains("info: Spell checking is disabled by the settings for all 2 selected file(s).", result.Lines),
+            () => Assert.DoesNotContain("No files matched", result.Output),
+            () => Assert.DoesNotContain("Unknown word", result.Output));
+    }
+
+    /// <summary>
+    ///     Test that a file named on the command line that the settings disable is skipped.
+    /// </summary>
+    [Fact]
+    public void LintRunner_Run_DisabledFileNamedOnCommandLine_IsSkipped()
+    {
+        // Arrange: an override that disables legacy files, and a misspelled legacy file
+        using var temp = new TempDirectory();
+        temp.CreateFile(".textlint.yaml", "overrides:\n  - filename: legacy/**\n    enabled: false\n");
+        temp.CreateFile("legacy/a.md", "Hello wrold\n");
+
+        // Act: name the file on the command line
+        var result = Run(temp, "legacy/a.md");
+
+        // Assert: it is not checked and not reported, and the run succeeds with the note
+        Assert.Multiple(
+            () => Assert.Equal(0, result.ExitCode),
+            () => Assert.DoesNotContain("Unknown word", result.Output),
+            () => Assert.Contains("info: Spell checking is disabled by the settings for all 1 selected file(s).", result.Lines));
+    }
+
+    /// <summary>
+    ///     Test that a selection that matches no file is still an error when the settings disable checking.
+    /// </summary>
+    [Fact]
+    public void LintRunner_Run_NothingMatchesAndSettingsDisableFiles_StillFailsWithoutAllowEmpty()
+    {
+        // Arrange: switched off at the top level, but the pattern matches no file at all
+        using var temp = new TempDirectory();
+        temp.CreateFile(".textlint.yaml", "enabled: false\n");
+        temp.CreateFile("a.md", "Hello world.\n");
+
+        // Act: run with a pattern that matches nothing, then with --allow-empty
+        var failing = Run(temp, "*.nomatch");
+        var allowed = Run(temp, "--allow-empty", "*.nomatch");
+
+        // Assert: no files matched is an error unless allowed, and no note about disabled files is made
+        Assert.Multiple(
+            () => Assert.Equal(1, failing.ExitCode),
+            () => Assert.Contains("No files matched", failing.Output),
+            () => Assert.Equal(0, allowed.ExitCode),
+            () => Assert.DoesNotContain("disabled by the settings", allowed.Output));
+    }
+
+    /// <summary>
+    ///     Test that overrides are matched against the settings root when an absolute path moves the search directory.
+    /// </summary>
+    [Fact]
+    public void LintRunner_Run_AbsolutePathChangesSearchRoot_MatchesOverridesRelativeToSettingsRoot()
+    {
+        // Arrange: an override for docs/** that accepts a word, and a file in docs named by its absolute path
+        using var temp = new TempDirectory();
+        temp.CreateFile(".textlint.yaml", "overrides:\n  - filename: docs/**\n    words: [wrold]\n");
+        var docs = temp.CreateFile("docs/a.md", "Hello wrold\n");
+        var other = temp.CreateFile("src/b.md", "Hello wrold\n");
+
+        // Act: check each file by absolute path
+        var inside = Run(temp, docs);
+        var outside = Run(temp, other);
+
+        // Assert: the override applies to the file under docs, as if it had been found from the settings root, and not to the other
+        Assert.Multiple(
+            () => Assert.Equal(0, inside.ExitCode),
+            () => Assert.DoesNotContain("Unknown word", inside.Output),
+            () => Assert.Equal(1, outside.ExitCode),
+            () => Assert.Contains("Unknown word 'wrold'", outside.Output));
+    }
+
+    /// <summary>
+    ///     Test that an absolute path outside the settings root matches no override.
+    /// </summary>
+    [Fact]
+    public void LintRunner_Run_AbsolutePathOutsideSettingsRoot_MatchesNoOverride()
+    {
+        // Arrange: a settings root with an override for everything, and a file in a sibling directory
+        using var temp = new TempDirectory();
+        temp.CreateFile("root/.textlint.yaml", "overrides:\n  - filename: \"**\"\n    words: [wrold]\n");
+        var file = temp.CreateFile("elsewhere/a.md", "Hello wrold\n");
+
+        // Act: check the file by absolute path with the settings root as the root
+        var result = ContextRun.Execute(
+            ["--root", Path.Combine(temp.FullPath, "root"), file],
+            context => LintRunner.Run(context, TestContext.Current.CancellationToken));
+
+        // Assert: the override did not apply, so the word is reported
+        Assert.Multiple(
+            () => Assert.Equal(1, result.ExitCode),
+            () => Assert.Contains("Unknown word 'wrold'", result.Output));
+    }
+
+    /// <summary>
+    ///     Test that an ordered files list in the settings is applied by the runner.
+    /// </summary>
+    [Fact]
+    public void LintRunner_Run_OrderedFilesList_ExcludesAndSelectsAgain()
+    {
+        // Arrange: markdown files with a negated directory and a re-included part of it
+        using var temp = new TempDirectory();
+        temp.CreateFile(".textlint.yaml", "files:\n  - \"**/*.md\"\n  - \"!skip/**\"\n  - skip/keep/**\n");
+        temp.CreateFile("a.md", "Hello world.\n");
+        temp.CreateFile("skip/b.md", "Hello wrold\n");
+        temp.CreateFile("skip/keep/c.md", "Hello wrold\n");
+
+        // Act: run with no patterns
+        var result = Run(temp);
+
+        // Assert: the negated file is not checked and the re-included one is
+        Assert.Multiple(
+            () => Assert.Equal(1, result.ExitCode),
+            () => Assert.DoesNotContain("skip/b.md", result.Output),
+            () => Assert.Contains("skip/keep/c.md(1,7): error: Unknown word 'wrold'", result.Lines),
+            () => Assert.Contains("Checked 2 file(s)", result.Output));
+    }
+
+    /// <summary>
+    ///     Test that a problem in an override is reported with its position and nothing is checked.
+    /// </summary>
+    [Fact]
+    public void LintRunner_Run_InvalidOverride_ReportsPositionedErrorAndChecksNothing()
+    {
+        // Arrange: an override that tries to change which files are selected
+        using var temp = new TempDirectory();
+        temp.CreateFile(".textlint.yaml", "overrides:\n  - filename: a\n    files: [b]\n    words: [c]\n");
+        temp.CreateFile("a.md", "Hello wrold\n");
+
+        // Act: run
+        var result = Run(temp, "a.md");
+
+        // Assert: the error is at the key, and nothing was checked
+        Assert.Multiple(
+            () => Assert.Equal(1, result.ExitCode),
+            () => Assert.Contains(".textlint.yaml(3,5): error: Overrides cannot change which files are selected; use the top-level 'files' setting.", result.Output),
+            () => Assert.DoesNotContain("Checked", result.Output));
+    }
+
+    /// <summary>
     ///     Test that a null context is rejected.
     /// </summary>
     [Fact]

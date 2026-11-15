@@ -26,6 +26,9 @@ its own uniquely named directory, so tests share no state. They run on Windows, 
 - A run with nothing to check, and one whose selection matches nothing, fail unless the empty selection is allowed.
 - The language option beats the settings, and the parallelism limit does not change the output.
 - Findings, skipped files, and the summary are all written, in that order.
+- Overrides and `enabled` are applied through the library, the notes about the language option, disabled files, and
+  unmatched overrides are written before the findings, the unmatched-override warning only on a run without
+  command-line patterns, and no note changes the exit code.
 - Only a clean run succeeds; failures a user can cause are reported and do not escape as exceptions; a canceled
   run reports the cancellation and no result.
 
@@ -76,6 +79,13 @@ there is no line about missing settings and nothing is checked. This scenario is
 **LintingSubsystem_Run_LanguageOption_OverridesSettings**: Settings for American English and a file with the
 British spelling report the word; the language option for British English accepts it. This scenario is tested by
 `LintingSubsystem_Run_LanguageOption_OverridesSettings`.
+
+**LintingSubsystem_Run_OverridesLanguageAndNotes_AppliedAndReportedTogether**: Settings with an override for British
+English for `docs`, one that disables `legacy`, and one that matches nothing are run with `--language en-US`. On the
+whole selection the exit code is 1, the first line is the information that the option replaces `en-GB`, the second is
+the warning for the unmatched override at line 8 column 5, the British spelling in `docs` is reported, and the
+misspelling in `legacy` is not. On a run that names `docs/a.md` there is no warning. This scenario is tested by
+`LintingSubsystem_Run_OverridesLanguageAndNotes_AppliedAndReportedTogether`.
 
 **LintingSubsystem_Run_MaxParallelism_GivesSameResult**: Eight files are checked with one worker and with four;
 the output and the exit code are identical. This scenario is tested by

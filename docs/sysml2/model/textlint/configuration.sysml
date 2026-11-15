@@ -13,5 +13,6 @@ package TextLint {
 
         part textLintSettings : TextLintSettings;
         part settingsLoader : SettingsLoader;
+        part settingsOverrideResolver : SettingsOverrideResolver;
     }
 }

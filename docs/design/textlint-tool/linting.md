@@ -27,8 +27,9 @@ the result.
 
 - _Type_: In-process .NET static method.
 - _Role_: Provider.
-- _Contract_: Accepts a `Context`, a `SpellCheckResult`, and a function that maps a path relative to the search
-  directory to the name to show. Writes one line per finding, one per skipped or unchecked file, and a summary.
+- _Contract_: Accepts a `Context`, a `SpellCheckResult`, a function that maps a path relative to the search
+  directory to the name to show, and a switch that leaves out the warnings about overrides that matched no file
+  (on by default). Writes one line per note, one per finding, one per skipped or unchecked file, and a summary.
 - _Constraints_: Throws `ArgumentNullException` for a null argument. Does not set the exit status.
 
 **Dependencies on other subsystems**: The `Cli` subsystem's `Context` for the parsed command line and the
@@ -56,14 +57,19 @@ self-validation. The runner works in this order:
    the settings still apply. A command-line path that names an existing directory selects every file below it;
    the library makes that decision. When it has none, the `files` setting is used. When there are none anywhere,
    that is a usage error with an example. The resolver also says whether files are to be named by absolute path.
-4. It applies the language option over the settings, and the parallelism limit when one was given.
+4. It passes the language option, which wins over the settings and over the languages of their overrides, and the root
+   directory as the settings root, which the library matches the overrides against, in the options of the check, together
+   with the parallelism limit when one was given. The tool applies no override itself.
 5. It calls the library's spell checker and waits for the result once, at the boundary of the synchronous entry
    point.
-6. A result in which no file was checked and none was skipped or failed means the selection matched nothing,
-   which is an error unless `--allow-empty` was given.
+6. A result in which no file was checked, none was skipped or failed, and none was disabled by the settings means the
+   selection matched nothing, which is an error unless `--allow-empty` was given. A selection that the settings
+   disabled entirely is not an error: the library says so in a note.
 7. `LintReporter` writes the result, and the runner marks the context failed when the result has problems: a
    finding, or a file that was meant to be checked and could not be. A skipped binary or too large file does not
-   fail the run.
+   fail the run, and neither does a note. A warning that an override matched none of the selected files is only
+   meaningful when every file was selected, so the runner asks the reporter to leave it out when the command line
+   chose the files.
 
 Failures the user can cause (a missing or unreadable directory, an invalid path, an unsupported pattern or
 language) are caught, written as errors, and fail the run. A canceled token ends the run with a message and a

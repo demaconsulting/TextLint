@@ -2,8 +2,9 @@
 # Software Unit Requirements for the TextLintSettings Class
 #
 # The TextLintSettings class is the immutable settings value that carries the version, include
-# patterns, ignore patterns, hidden-file switch, and the spelling settings (language, word lists,
-# minimum word length, and maximum file size), whether loaded from a file or built in code.
+# patterns, ignore patterns, hidden-file switch, the enabled switch, the spelling settings (language, word lists,
+# minimum word length, and maximum file size), and the overrides, whether loaded from a file or built in code.
+# The SettingsOverride type, one entry of the overrides, belongs to this unit.
 
 sections:
   - title: TextLint Requirements
@@ -103,3 +104,44 @@ sections:
                   - TextLintSettings_Init_PatternLists_AreCopied
                   - TextLintSettings_Init_NullPatternListOrEntry_ThrowsArgumentNullException
                   - TextLintSettings_With_PatternSettings_AreCopiedAndIndependent
+
+              - id: TextLint-Configuration-TextLintSettings-OverrideDefaults
+                title: >-
+                  TextLintSettings shall default to enabled and to no overrides.
+                justification: |
+                  A project that configures neither must get the behavior it had before these settings
+                  existed: every selected file is checked, with the same rules.
+                tests:
+                  - TextLintSettings_New_NoValues_IsEnabledWithNoOverrides
+
+              - id: TextLint-Configuration-TextLintSettings-Overrides
+                title: >-
+                  TextLintSettings shall carry the enabled switch and the list of overrides, shall hold a copy
+                  of the list so that a later change to a supplied list does not alter the settings, and shall
+                  reject a missing list.
+                justification: |
+                  Settings are shared across the whole run, including concurrent work, so no holder may be
+                  able to change which files an override applies to after the settings were handed over. A null
+                  list is a programming error that must surface where it is made.
+                tests:
+                  - TextLintSettings_Init_EnabledAndOverrides_AreStoredAndCopied
+                  - TextLintSettings_Init_NullOverrides_ThrowsArgumentNullException
+
+              - id: TextLint-Configuration-TextLintSettings-OverrideValues
+                title: >-
+                  A settings override shall carry the filename patterns, the word lists, the ignore expressions
+                  and named patterns, and the single values of the settings it may change, each unset until
+                  given, shall hold copies of its lists so that a later change to a supplied list does not
+                  alter it, shall reject a missing list or entry, and shall reject a minimum length below 1
+                  when it is assigned.
+                justification: |
+                  An override is part of the settings and is shared like them, and an unset value must be told
+                  apart from a value that was given, because only a given value replaces the top-level one. A
+                  length below one can never be meaningful, and refusing it where it is assigned names the cause
+                  at once.
+                tests:
+                  - SettingsOverride_New_NoValues_HasEmptyListsAndUnsetValues
+                  - SettingsOverride_Init_AllValues_AreStored
+                  - SettingsOverride_Init_ListMutatedAfterAssignment_DoesNotAffectOverride
+                  - SettingsOverride_Init_NullListOrEntry_ThrowsArgumentNullException
+                  - SettingsOverride_Init_LengthBelowOne_ThrowsArgumentOutOfRangeException

@@ -22,10 +22,12 @@ This document covers the verification design for the following software items:
   - **Configuration** subsystem
     - **TextLintSettings** — immutable settings value
     - **SettingsLoader** — settings-file loader
+    - **SettingsOverrideResolver** — per-file override matching, the enabled value, and merged settings
   - **FileSelection** subsystem
     - **GlobPatternExpander** — glob pattern validation and rewriting
     - **HiddenPathPolicy** — hidden-name rule
     - **FileSelector** — file selection
+    - **OrderedGlobList** — ordered glob list with negation, last match wins, and pruning decisions
   - **Dictionaries** subsystem
     - **SpellingDictionary** — language selection and word lookup
     - **DictionaryImage** — loading, validation, and probing of one embedded dictionary

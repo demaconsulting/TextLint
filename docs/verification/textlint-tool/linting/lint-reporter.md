@@ -17,9 +17,11 @@ platform.
 
 - All unit tests pass with zero failures.
 - Findings come first, then file diagnostics, then one summary line, in the library's order.
+- Notes come before everything else, as the lines of their own format on standard output, and the warning about
+  unmatched overrides can be left out without losing the other notes.
 - The names shown are the ones the mapping gives.
 - The summary counts are right, including the files that findings are in.
-- The reporter does not set the exit status, and rejects missing arguments.
+- The reporter does not set the exit status, also not for notes, and rejects missing arguments.
 
 #### Test Scenarios
 
@@ -48,3 +50,13 @@ code at 0, so the decision stays with the caller. This scenario is tested by
 **LintReporter_Write_NullArguments_ThrowsArgumentNullException**: A null context, result, or name mapping each
 throws `ArgumentNullException`. This scenario is tested by
 `LintReporter_Write_NullArguments_ThrowsArgumentNullException`.
+
+**LintReporter_Write_Notes_AreWrittenFirstAndLeaveExitCodeAlone**: A result with a language note, an unmatched
+override warning, and a finding is written as the information line, the warning line, the finding, and the summary, in
+that order and in the library's note format, and the exit code stays 0. This scenario is tested by
+`LintReporter_Write_Notes_AreWrittenFirstAndLeaveExitCodeAlone`.
+
+**LintReporter_Write_UnmatchedOverrideReportingOff_OmitsOnlyThatWarning**: A result with the all-files-disabled note
+and an unmatched override warning is written with and without the warnings about unmatched overrides; only the
+warning is left out and the information note is kept. This scenario is tested by
+`LintReporter_Write_UnmatchedOverrideReportingOff_OmitsOnlyThatWarning`.
