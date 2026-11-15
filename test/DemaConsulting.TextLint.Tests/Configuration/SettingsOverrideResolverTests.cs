@@ -481,6 +481,41 @@ public class SettingsOverrideResolverTests
     }
 
     /// <summary>
+    ///     Test that threads asking for the same combination at the same time cause one merge, not one each.
+    /// </summary>
+    [Fact]
+    public void SettingsOverrideResolver_GetEffectiveSettings_ConcurrentSameCombination_MergesOnce()
+    {
+        // Arrange: a resolver, one resolution, and threads that all start together
+        const int threadCount = 8;
+        var resolver = For(new SettingsOverride { Filename = ["**/*.md"], Words = ["zorb"] });
+        var resolution = resolver.Resolve("a.md");
+        var results = new TextLintSettings[threadCount];
+        using var start = new Barrier(threadCount);
+        var threads = Enumerable.Range(0, threadCount).Select(index => new Thread(() =>
+        {
+            start.SignalAndWait();
+            results[index] = resolver.GetEffectiveSettings(resolution);
+        })).ToArray();
+
+        // Act: request the same combination from every thread at once
+        foreach (var thread in threads)
+        {
+            thread.Start();
+        }
+
+        foreach (var thread in threads)
+        {
+            thread.Join();
+        }
+
+        // Assert: one merge ran and every thread got its result
+        Assert.Multiple(
+            () => Assert.Equal(1, resolver.MergeCount),
+            () => Assert.All(results, result => Assert.Same(results[0], result)));
+    }
+
+    /// <summary>
     ///     Test that a resolver can be used from several threads at once.
     /// </summary>
     [Fact]

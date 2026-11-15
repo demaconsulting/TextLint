@@ -43,7 +43,8 @@ namespace DemaConsulting.TextLint.Configuration;
 ///     definitions. A language given on the command line wins over every override and over the top-level
 ///     language. The merged result is an ordinary <see cref="TextLintSettings"/>, so the text checker needs to
 ///     know nothing about overrides. The resolver does no file system access. It is thread-safe once created;
-///     the merged settings of each combination of overrides are cached so that a combination is only built once.
+///     the merged settings of each combination of overrides are cached so that a combination is built exactly once,
+///     even when several threads ask for it at the same time.
 /// </remarks>
 internal sealed class SettingsOverrideResolver
 {
@@ -70,7 +71,19 @@ internal sealed class SettingsOverrideResolver
     /// <summary>
     ///     The merged settings of each combination of overrides, by the key of the combination.
     /// </summary>
-    private readonly ConcurrentDictionary<string, TextLintSettings> _effective = new(StringComparer.Ordinal);
+    /// <remarks>
+    ///     Each value is a <see cref="Lazy{T}"/> that is created with
+    ///     <see cref="LazyThreadSafetyMode.ExecutionAndPublication"/>. <see cref="ConcurrentDictionary{TKey,TValue}.GetOrAdd(TKey, Func{TKey, TValue})"/>
+    ///     may run its factory more than once when threads ask for the same key together, but it only ever
+    ///     publishes one value, and creating a <see cref="Lazy{T}"/> does no merging. The merge runs when the
+    ///     value is first read, and the lazy lets exactly one thread run it while the others wait.
+    /// </remarks>
+    private readonly ConcurrentDictionary<string, Lazy<TextLintSettings>> _effective = new(StringComparer.Ordinal);
+
+    /// <summary>
+    ///     The number of merges that have run.
+    /// </summary>
+    private int _mergeCount;
 
     /// <summary>
     ///     Initializes a new instance of the <see cref="SettingsOverrideResolver"/> class.
@@ -122,6 +135,12 @@ internal sealed class SettingsOverrideResolver
     /// </summary>
     /// <value>The count; zero when the settings have no overrides.</value>
     internal int OverrideCount => _filenames.Length;
+
+    /// <summary>
+    ///     Gets the number of merges that have run, which tests use to check that a combination is merged once.
+    /// </summary>
+    /// <value>The count; at most one per distinct combination that has been requested.</value>
+    internal int MergeCount => Volatile.Read(ref _mergeCount);
 
     /// <summary>
     ///     Gets the override at an index.
@@ -188,7 +207,10 @@ internal sealed class SettingsOverrideResolver
     /// <remarks>
     ///     Only overrides that carry settings for the checker take part, so a file matched only by overrides that
     ///     merely enable or disable it shares the checker of the top-level settings. The merged settings of
-    ///     each combination are built once. Thread-safe.
+    ///     each combination are built exactly once, even when several threads ask for the same combination at the
+    ///     same time: the other threads wait for the first to finish and share its result. Thread-safe.
+    ///     Merging reads only validated settings and is not expected to throw; were it to, the lazy would keep
+    ///     the exception and every later request for that combination would throw it again.
     /// </remarks>
     /// <param name="resolution">The resolution of the file. Must not be null.</param>
     /// <returns>The effective settings; never null.</returns>
@@ -196,7 +218,13 @@ internal sealed class SettingsOverrideResolver
     internal TextLintSettings GetEffectiveSettings(FileResolution resolution)
     {
         ArgumentNullException.ThrowIfNull(resolution);
-        return _effective.GetOrAdd(resolution.SettingsKey, _ => Merge(resolution.SettingsOverrides));
+
+        // GetOrAdd may create more than one Lazy for a key but publishes one; only the published one is ever read,
+        // so the merge inside it runs once
+        var overrides = resolution.SettingsOverrides;
+        return _effective.GetOrAdd(
+            resolution.SettingsKey,
+            _ => new Lazy<TextLintSettings>(() => Merge(overrides), LazyThreadSafetyMode.ExecutionAndPublication)).Value;
     }
 
     /// <summary>
@@ -268,12 +296,13 @@ internal sealed class SettingsOverrideResolver
     ///     one, and each single value is taken from the last override that sets it. The command-line language is
     ///     applied last and wins. The result carries no overrides, because they have been applied; the settings
     ///     that select files and apply to the whole run are copied unchanged. Stateless apart from reading the
-    ///     settings; thread-safe.
+    ///     settings; thread-safe. Side effects: counts the merge in <see cref="MergeCount"/>.
     /// </remarks>
     /// <param name="overrideIndexes">The indices of the overrides to apply, ascending. Must not be default.</param>
     /// <returns>The merged settings.</returns>
     private TextLintSettings Merge(ImmutableArray<int> overrideIndexes)
     {
+        _ = Interlocked.Increment(ref _mergeCount);
         var applied = overrideIndexes.Select(index => _settings.Overrides[index]).ToList();
 
         // Lists add up: the top-level values first, then each override's, so specific rules come last

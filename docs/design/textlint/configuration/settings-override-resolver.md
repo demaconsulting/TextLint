@@ -14,7 +14,8 @@ It also defines the supporting type `FileResolution`, which has no unit of its o
 
 `SettingsOverrideResolver` is an internal sealed class. It holds the settings it refines, the language given by the
 caller (the command line) or `null`, one compiled `OrderedGlobList` per override (the `filename` list, compiled with
-the settings' `EnableGlobDot`), and a concurrent dictionary of merged settings keyed by the combination of overrides.
+the settings' `EnableGlobDot`), and a concurrent dictionary of lazily merged settings keyed by the combination of
+overrides.
 Apart from that cache, it is immutable, performs no file system access, and is thread-safe once created.
 
 **FileResolution** is an internal sealed record produced by the resolver:
@@ -101,9 +102,13 @@ specific ones last. The merge starts from the top-level settings:
 Most files match no override that has checker settings, so they share the effective settings of the top level, and a
 combination of overrides is merged only once however many files match it. The cache is keyed by `SettingsKey`, the
 index set (for example `1,3`), and not by the settings value, because the settings hold their lists as immutable arrays
-that are compared by reference. The dictionary is concurrent, so the first request for a key builds the value and every
-later request reuses it; the spell checker nevertheless builds every combination during its sequential pre-pass, before
-the parallel phase.
+that are compared by reference. The dictionary is concurrent and holds a `Lazy<TextLintSettings>` for each key, created
+with `LazyThreadSafetyMode.ExecutionAndPublication`. When several threads ask for the same new key together, the
+dictionary publishes one `Lazy`, and exactly one thread runs the merge inside it while the others wait and share the
+result, so a combination is merged once and never more. Should a merge throw, the `Lazy` keeps the exception and
+every later request for that combination throws it again; merging reads only validated settings and is not expected to
+throw. The spell checker nevertheless builds every combination during its sequential pre-pass, before the parallel
+phase.
 
 #### Error Handling
 
