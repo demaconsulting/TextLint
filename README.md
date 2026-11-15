@@ -9,17 +9,12 @@
 [![Security][badge-security]][link-security]
 [![NuGet][badge-nuget]][link-nuget]
 
-TextLint is a fast text linter for source code and documentation, delivered as the
-`DemaConsulting.TextLint` .NET library and the `DemaConsulting.TextLint.Tool` .NET tool
-(command `textlint`), which is a thin command-line front-end over the library.
+TextLint is a fast, cspell-compatible text linter for source code and documentation. It is delivered as the
+`DemaConsulting.TextLint` .NET library and the `DemaConsulting.TextLint.Tool` .NET tool (command `textlint`), which is
+a thin command-line front-end over the library.
 
-**Status**: under active development. TextLint is being developed to provide cspell-compatible
-spell-checking, configured by a `.textlint.yaml` file, using embedded English and technical-term
-dictionaries, and to check files in parallel across all processor cores. Both the library and the `textlint`
-tool can already do this: they load a `.textlint.yaml` settings file, select the files to check, check
-their spelling in parallel with cspell's word-splitting, ignore, directive, and word-list rules, and look
-words up in the embedded dictionaries. Custom ignore patterns and the remaining cspell settings are not
-supported yet.
+**Status**: under active development. Both the library and the tool can already select files from a `.textlint.yaml`
+settings file, check their spelling in parallel with cspell's rules, and look words up in embedded dictionaries.
 
 The workflow below shows how to use the tool: configure the files to check, the project words, and the language
 in `.textlint.yaml`, run `textlint` locally or in a CI pipeline, and use the compiler-style findings, summary, and
@@ -32,54 +27,24 @@ source][workflow]
 
 ## Features
 
-The project currently provides:
+TextLint provides:
 
-- **Settings File**: The library loads a cspell-compatible `.textlint.yaml` (keys `version`, `files`,
-  `ignorePaths`, `enableGlobDot`, `enabled`, `language`, `words`, `ignoreWords`, `flagWords`, `minWordLength`,
-  `maxFileSize`, `ignoreRegExpList`, `patterns`, `ignoreRandomStrings`, `minRandomLength`, and `overrides`),
-  reporting every problem with its file, line, and column; unsupported keys are errors
-- **File Selection**: The library selects files from glob patterns (brace alternatives, bare names at any
-  depth, case-sensitive matching, cspell-style hidden-file rules), skipping excluded directories without
-  scanning them. The `files` list is ordered: a pattern that starts with `!` removes files, and the last
-  matching pattern wins
-- **Overrides**: The `overrides` setting gives some files (selected by glob) their own words, language, and other
-  spelling settings, or switches checking off for them with `enabled: false`, as in cspell; notes during a run
-  (`info:` and `warning:` lines) never change the exit code
-- **Spell Checking**: The library checks the spelling of a string or of every selected file, in parallel, and
-  returns deterministic findings with file, line, column, and word. It splits camelCase and snake_case
-  identifiers (case-separated parts that together form a known word, such as `WeasyPrint` in `WeasyPrintTool`,
-  are accepted), ignores URLs, email addresses, hashes, and encoded data, skips text that matches the
-  `ignoreRegExpList` patterns of the settings (JavaScript regular expressions, translated and validated when the
-  settings are loaded) and of `ignoreRegExp` comments, Markdown link targets, and random-looking tokens, honors
-  the `disable`-style comments (with the prefixes `cspell:` and `textlint:`), and reads UTF-8 and UTF-16 files. A
-  parity test compares it with the real
-  cspell, and the differences are documented
-- **Word Lookup**: The library reports whether a word is known to American English (the default), British
-  English, or both (including derived forms such as `testability`, with the regional spellings kept apart),
-  plus a dictionary of technical terms (programming languages, tools, companies, file
-  types, and licenses, and a reviewed list of general technical and scientific terms such as `metafile` and
-  `bigram`, known in every language selection). The dictionaries are embedded in the assembly, so no data files are
-  needed, and lookups are safe from many threads at once. Project-specific words belong in the `words` setting;
-  general terms that other projects would need are proposed as an issue or pull request (see the user guide)
-- **Command-Line Spell Checker**: The `textlint` tool checks the files you name (or those of the settings file)
-  and reports each issue as `file(line,column): error: message`, a format that editors and CI systems link to,
-  followed by a summary. It accepts relative and absolute paths and globs, backslash paths on Windows, and exits
-  with 0 only when everything was checked and no issue was found
-- **Standardized Command-Line Interface**: Context class handling common arguments
-  (`--version`, `--help`, `--silent`, `--validate`, `--results`, `--depth`, `--log`)
-- **Self-Validation**: Built-in validation tests with TRX/JUnit output, including real spell-checking scenarios
-- **Multi-Platform Support**: Builds and runs on Windows, Linux, and macOS
-- **Multi-Runtime Support**: The `textlint` tool requires .NET 10; the `DemaConsulting.TextLint` library
-  supports .NET 10 and 11
-- **Comprehensive CI/CD**: GitHub Actions workflows with quality checks, builds, and
-  integration tests
-- **Linting Enforcement**: markdownlint, TextLint, and yamllint enforced on every CI run
-- **Continuous Compliance**: Compliance evidence generated automatically on every CI run, following
-  the [Continuous Compliance][link-continuous-compliance] methodology
-- **SonarCloud Integration**: Quality gate and security analysis on every build
-- **Documentation Generation**: Automated build notes, user guide, code quality reports,
-  requirements, justifications, and trace matrix
-- **Requirements Traceability**: Requirements linked to passing tests with auto-generated trace matrix
+- 🧾 **cspell-Compatible Settings**: Configures checks with a familiar `.textlint.yaml` file
+- 🗂️ **Glob File Selection**: Selects files with globs and ordered `!` exclusions
+- 🎛️ **Per-File Overrides**: Gives some files their own settings, or switches them off with `enabled`
+- ⚡ **Parallel Spell Checking**: Checks files on all processor cores with deterministic results
+- 🐪 **Identifier Splitting**: Splits camelCase and snake_case words before checking them
+- 🙈 **Ignore Patterns**: Skips URLs, hashes, random strings, and text matching your own patterns
+- 💬 **Inline Directives**: Adjusts or disables checks from comments in the checked files
+- 📖 **Embedded Dictionaries**: Ships US and UK English plus technical terms; no data files needed
+- 🚦 **Compiler-Style Output**: Reports `file(line,col): error:` lines, a summary, and exit codes
+- 📦 **Reusable Library**: Embeds the same checker in your own .NET applications
+- ✅ **Self-Validation**: Built-in validation tests with TRX and JUnit output
+- 🖥️ **Multi-Platform Support**: Builds and runs on Windows, Linux, and macOS
+- ⚙️ **Multi-Runtime Support**: The tool needs .NET 10; the library supports .NET 10 and 11
+- 🔁 **Comprehensive CI/CD**: GitHub Actions workflows for quality checks, builds, and tests
+- 🛡️ **Continuous Compliance**: CI generates evidence using [Continuous Compliance][link-continuous-compliance]
+- 📚 **Documentation Tooling**: Automates build notes, user guide, and compliance reports
 
 ## Installation
 
@@ -90,43 +55,72 @@ tool requires the .NET 10 runtime):
 dotnet tool install -g DemaConsulting.TextLint.Tool
 ```
 
-The reusable library is published separately as the `DemaConsulting.TextLint` NuGet package (for .NET 10 and 11)
-for applications that want to embed TextLint (it loads settings, selects files, checks spelling, and looks words
-up; its API will grow as further capabilities are added):
+Add the reusable library to a project with:
 
 ```bash
 dotnet add package DemaConsulting.TextLint
 ```
 
-## Library Usage
+## Tool Quick Start
 
-Load a `.textlint.yaml` settings file, check the spelling of the files it selects, and print every finding:
+```bash
+# Check the files that match the globs (quote them so that your shell does not expand them)
+textlint "**/*.md"
 
-<!-- cspell:ignore wrold bigram -->
+# Check the files selected by the 'files' setting of ./.textlint.yaml
+textlint
+
+# Use another settings file, another project folder, or another language
+textlint --config ci/textlint.yaml "**/*.md"
+textlint --root ../other-project "docs/**/*.md"
+textlint --language en-GB "**/*.md"
+
+# Run self-validation and save the results
+textlint --validate --results results.trx
+```
+
+A minimal `.textlint.yaml`:
+
+```yaml
+files:
+  - "**/*.md"
+  - "!CHANGELOG.md"
+ignorePaths:
+  - node_modules
+words:
+  - TextLint
+overrides:
+  - filename: docs/uk/**
+    language: en-GB
+```
+
+## Library Quick Start
+
+Load a `.textlint.yaml` settings file, check the files it selects, and print every finding:
+
+<!-- cspell:ignore wrold -->
 
 ```csharp
 using DemaConsulting.TextLint.Configuration;
 using DemaConsulting.TextLint.SpellChecking;
 
-// Problems in the file are returned, not thrown
+// Problems in the settings file are returned, not thrown
 var result = await SettingsLoader.LoadAsync(".textlint.yaml");
 if (!result.Succeeded)
 {
     foreach (var diagnostic in result.Diagnostics)
     {
-        // For example: .textlint.yaml(3,1): error: 'caseSensitive' is not a supported setting.
         Console.Error.WriteLine(diagnostic);
     }
 
-    return;
+    return 1;
 }
 
-// Check every selected file under the current directory on all processor cores
+// Check every selected file in parallel; findings are ordered by file, line, and column
 var check = await SpellChecker.CheckAsync(result.Settings!, Directory.GetCurrentDirectory());
 foreach (var issue in check.Issues)
 {
-    // For example: docs/guide.md(12,5): error: Unknown word 'wrold'
-    Console.WriteLine(issue);
+    Console.WriteLine(issue); // docs/guide.md(12,5): error: Unknown word 'wrold'
 }
 
 // Files that were skipped or could not be read are reported separately
@@ -135,349 +129,32 @@ foreach (var problem in check.FileDiagnostics)
     Console.WriteLine(problem);
 }
 
-Console.WriteLine($"{check.FilesChecked} files checked, {check.Issues.Count} findings");
+Console.WriteLine($"{check.FilesChecked} checked, {check.FilesSkipped} skipped, problems: {check.HasProblems}");
+return check.HasProblems ? 1 : 0;
 ```
 
-The findings are ordered by file path, then line, then column, whatever the number of files checked at the same
-time (`SpellCheckOptions.MaxDegreeOfParallelism` limits it). A file that is locked, binary, or too large is a
-`FileDiagnostic` in the result and never stops the run; `check.HasProblems` is the value to base an exit code on.
+Skipped or unreadable files are reported in `FileDiagnostics` and never stop the run, and `HasProblems` is the
+value to base an exit code on: it is true for any finding or any file that could not be checked, but not for
+skipped binary or oversized files alone.
 
-Check a string of text without any file, with settings built in code:
+## More Information
 
-```csharp
-var settings = new TextLintSettings
-{
-    Language = "en-GB",
-    Words = ["TextLint"],
-    MinWordLength = 4,
-};
-var checker = new TextChecker(settings);
+The [User Guide][link-guide] covers everything else:
 
-foreach (var issue in checker.Check("The wrold of TextLint", "greeting.txt"))
-{
-    Console.WriteLine(issue); // greeting.txt(1,5): error: Unknown word 'wrold'
-}
-```
+- [Command-Line Options][link-guide-options], [Output][link-guide-output], and [Exit Codes][link-guide-exit-codes]
+- [Settings File][link-guide-config], [Glob Patterns][link-guide-globs], and [Overrides][link-guide-overrides]
+- [Comment Directives][link-guide-directives] and [Differences from cspell][link-guide-differences]
+- [Library Usage][link-guide-library] and [Self-Validation][link-guide-validation]
 
-File selection is also available on its own. It takes the patterns directly, so pass the values you want:
-
-```csharp
-using DemaConsulting.TextLint.FileSelection;
-
-var settings = new TextLintSettings
-{
-    Files = ["**/*.{md,cs}"],
-    IgnorePaths = ["node_modules"],
-};
-var files = FileSelector.Select("/path/to/repo", settings.Files, settings.IgnorePaths, settings.EnableGlobDot);
-```
-
-Patterns typed on a command line are more forgiving than patterns in a settings file: they may be absolute,
-and on Windows may use backslashes. `CommandLinePathResolver` turns them into a search directory and
-validated patterns, and tells you how to name the files it finds:
-
-```csharp
-// For example: textlint C:\work\project\docs\*.md   (or ./docs/*.md, or .\docs\*.md on Windows)
-var selection = CommandLinePathResolver.Resolve(Directory.GetCurrentDirectory(), args);
-var files = FileSelector.Select(selection.RootDirectory, selection.Patterns, settings.IgnorePaths);
-
-foreach (var file in files)
-{
-    // The absolute path when the user typed an absolute path, otherwise the relative path
-    Console.WriteLine(selection.GetDisplayPath(file.RelativePath));
-}
-```
-
-The `files` list is ordered, so a `!` pattern removes files that an earlier pattern selected, and `overrides`
-change the settings for some files (or skip them with `enabled: false`). Overrides are matched against the path
-relative to the settings root, so pass `SettingsRootDirectory` when the files are searched in another directory.
-`SpellCheckOptions.Language` wins over the settings and over every override, as `--language` does on the command line.
-The run reports what it did in `Notes`, which never makes a run fail:
-
-```csharp
-var settings = new TextLintSettings
-{
-    Files = ["**/*.md", "!CHANGELOG.md"],
-    Words = ["TextLint"],
-    Overrides =
-    [
-        new SettingsOverride { Filename = ["docs/**"], Words = ["Kubernetes"], Language = "en-GB" },
-        new SettingsOverride { Filename = ["docs/legacy/**"], Enabled = false },
-    ],
-};
-var options = new SpellCheckOptions { SettingsRootDirectory = "/path/to/repo", Language = "en-US" };
-var check = await SpellChecker.CheckAsync(settings, "/path/to/repo", options);
-
-foreach (var note in check.Notes)
-{
-    // For example: info: --language en-US replaces en-GB for the override at .textlint.yaml(14,5).
-    // A warning is formatted as .textlint.yaml(14,5): warning: The override matches none of the selected files.
-    Console.WriteLine(note.Format());
-}
-
-Console.WriteLine($"{check.FilesChecked} checked, {check.FilesDisabled} disabled by the settings");
-```
-
-The supported `.textlint.yaml` keys are `version`, `files`, `ignorePaths`, `enableGlobDot`, `enabled`, `language`,
-`words`, `ignoreWords`, `flagWords`, `minWordLength`, `maxFileSize`, `ignoreRegExpList`, `patterns`,
-`ignoreRandomStrings`, `minRandomLength`, and `overrides`; any other key is an error. See the
-[User Guide][link-guide] for the settings reference, the glob pattern rules, the overrides, the pattern rules and
-predefined names, the comment directives, and the differences from cspell.
-
-Look words up in the embedded dictionaries. The default is American English; pass a language name, or a
-comma-separated list, to choose another (`en` is the same as `en-US`, the others are `en-GB` and
-combinations such as `en-US,en-GB`):
-
-<!-- cspell:ignore favourite tabel cafè -->
-
-```csharp
-using DemaConsulting.TextLint.Dictionaries;
-
-var american = SpellingDictionary.Default;                  // American English plus technical terms
-var british = SpellingDictionary.ForLanguages("en-GB");     // British English plus technical terms
-var both = SpellingDictionary.ForLanguages("en-US, en-GB"); // either spelling
-
-american.IsKnown("favorite");   // true
-american.IsKnown("favourite");  // false: a British spelling
-british.IsKnown("favourite");   // true
-both.IsKnown("favourite");      // true
-american.IsKnown("Kubernetes"); // true: technical terms are known in every language
-american.IsKnown("don\u2019t"); // true: the typographic apostrophe matches the straight one
-american.IsKnown("TABLE");      // true: letter case is ignored
-american.IsKnown("tabel");      // false: a misspelling
-```
-
-`IsKnown` takes a `ReadOnlySpan<char>`, so a word can be checked inside larger text without copying, and
-it neither allocates nor throws for any text; empty text, text longer than 64 characters, and text outside
-Latin-1 are simply not known. Accents matter (`café` is known, `cafè` is not). An unsupported language such
-as `en-AU` throws an `ArgumentException` that names it. The dictionaries load on first use and are shared by
-the whole process, so one `SpellingDictionary` can be used from many threads at once.
-
-## Usage
-
-Check files by naming them. Quote glob patterns so that your shell does not expand them first; `**` matches
-any number of directories:
-
-```bash
-# Check the markdown files below the current directory, with the settings in ./.textlint.yaml if there is one
-textlint "**/*.md"
-
-# Check specific files; relative paths, absolute paths, and (on Windows) backslash paths are all accepted
-textlint README.md docs/guide.md
-textlint C:\work\project\README.md
-textlint C:\work\project\docs     # an absolute path naming a directory checks every file below it
-
-# With no patterns, the 'files' setting of ./.textlint.yaml selects the files
-textlint
-
-# Use another settings file, another project folder, and another language
-textlint --config ci/textlint.yaml "**/*.md"
-textlint --root ../other-project "docs/**/*.md"
-textlint --language en-GB "**/*.md"
-
-# Accept patterns that match no files (for example a folder that may not exist yet)
-textlint --allow-empty "generated/**/*.md"
-
-# Check the changed files, but only when there are any: with no patterns at all the tool has nothing to check,
-# and that is a usage error that --allow-empty does not excuse
-changed=$(git diff --name-only -- '*.md'); [ -z "$changed" ] || textlint --allow-empty $changed
-
-# Limit the number of files checked at the same time
-textlint --max-parallelism 2 "**/*.md"
-
-# Display version
-textlint --version
-
-# Display help
-textlint --help
-
-# Run self-validation
-textlint --validate
-
-# Save validation results (--result is an accepted alias for --results)
-textlint --validate --results results.trx
-textlint --validate --result results.xml
-
-# Set heading depth for embedded validation output
-textlint --validate --depth 2
-
-# Silent mode with logging
-textlint --silent --log output.log "**/*.md"
-```
-
-## Command-Line Options
-
-| Option                                | Description                                                            |
-| ------------------------------------- | ---------------------------------------------------------------------- |
-| `[globs...]`                          | Files to check (paths or globs); they replace the `files` setting      |
-| `--config <file>`                     | Settings file (default: `.textlint.yaml` in the root directory)        |
-| `--root <dir>`                        | Directory that globs and the default settings file are relative to     |
-| `--language <languages>`              | Dictionary language, e.g. `en-US`; wins over settings and overrides    |
-| `--allow-empty`                       | Accept patterns that match no files (default: exit code 1)             |
-| `--max-parallelism <#>`               | Maximum number of files checked at the same time (default: processors) |
-| `-v`, `--version`                     | Display version information                                            |
-| `-?`, `-h`, `--help`                  | Display help message                                                   |
-| `--silent`                            | Suppress console output (usage errors still go to stderr)              |
-| `--validate`                          | Run self-validation                                                    |
-| `--results <file>`, `--result <file>` | Write results to `.trx` (TRX) or `.xml` (JUnit XML) file.              |
-| `--depth <#>`                         | Set heading depth for markdown output (default: 1)                     |
-| `--log <file>`                        | Write output to log file                                               |
-
-The settings file is `.textlint.yaml` in the root directory (the current directory unless `--root` is given),
-or the file named by `--config`. No parent directory is searched. Without a settings file the default settings
-apply and the tool says so.
-
-## Exit Codes
-
-| Code | Meaning                                                                                                   |
-| ---- | --------------------------------------------------------------------------------------------------------- |
-| `0`  | Every selected file was checked and no issue was found (skipped binary files do not count)                |
-| `1`  | Anything else: issues, an unreadable file, no files matched, no files named, or a settings or usage error |
-
-## Output
-
-Results are written to standard output; errors of the tool itself (a bad argument, a settings error, a missing
-directory) are written to standard error. Each issue is one line in the compiler style that editors and CI
-systems understand, followed by files that were skipped, and a summary:
-
-<!-- cspell:ignore wrold bigram -->
-
-```text
-TextLint Tool version <version>
-Copyright (c) DEMA Consulting
-
-info: No settings file found in '/work/project'; using the default settings.
-docs/guide.md(12,5): error: Unknown word 'wrold'
-src/Program.cs(40,9): error: Flagged word 'utilize'; suggestions: use
-assets/logo.dat: info: The file looks like binary data: it contains a NUL character in its first 1,024 characters.
-Checked 120 file(s): 2 issue(s) in 2 file(s), 1 skipped, 0 could not be checked.
-```
-
-Paths are relative to the root directory with `/` separators, unless you typed an absolute path, in which case
-the absolute path is shown.
-
-Notes about how the settings were applied come first and never change the exit code: an `info:` line (for
-example when `--language` replaces the language of an override, or when the settings disable every selected
-file) or a `warning:` line with the position of an override that matches none of the selected files (only when
-no paths were given on the command line):
-
-```text
-info: --language en-US replaces en-GB for the override at .textlint.yaml(14,5).
-.textlint.yaml(14,5): warning: The override matches none of the selected files.
-```
-
-## Error Handling
-
-Unrecognized, missing, empty, or repeated arguments cause the tool to print an error message to standard error
-and exit with a non-zero exit code. For example:
-
-```text
-Error: Unsupported argument '--unknown'
-```
-
-A settings file that cannot be used is reported with its file, line, and column, and nothing is checked:
-
-```text
-/work/project/.textlint.yaml(3,1): error: 'caseSensitive' is not a supported setting.
-```
-
-This behavior enables CI/CD pipelines to detect and surface misconfiguration failures
-automatically.
-
-## Self Validation
-
-Running self-validation produces a report containing the following information:
-
-```text
-# DEMA Consulting TextLint Tool
-
-| Information         | Value                                              |
-| :------------------ | :------------------------------------------------- |
-| Tool Version        | <version>                                          |
-| Machine Name        | <machine-name>                                     |
-| OS Version          | <os-version>                                       |
-| DotNet Runtime      | <dotnet-runtime-version>                           |
-| Time Stamp          | <timestamp> UTC                                    |
-
-✓ TextLintTool_VersionDisplay - Passed
-✓ TextLintTool_HelpDisplay - Passed
-✓ TextLintTool_CheckCleanFile - Passed
-✓ TextLintTool_CheckMisspelling - Passed
-✓ TextLintTool_CheckSettingsFile - Passed
-✓ TextLintTool_CheckSettingsError - Passed
-✓ TextLintTool_CheckGlobsReplaceFiles - Passed
-✓ TextLintTool_CheckInlineDirective - Passed
-✓ TextLintTool_CheckLanguageOption - Passed
-✓ TextLintTool_CheckBinaryFileSkipped - Passed
-✓ TextLintTool_CheckNoFilesMatched - Passed
-✓ TextLintTool_CheckAbsolutePath - Passed
-✓ TextLintTool_CheckOverrides - Passed
-
-Total Tests: 13
-Passed: 13
-Failed: 0
-```
-
-Each test in the report proves:
-
-- **`TextLintTool_VersionDisplay`** - `--version` outputs a valid version string.
-- **`TextLintTool_HelpDisplay`** - `--help` outputs usage and options information.
-- **`TextLintTool_CheckCleanFile`** - A correctly spelled file is accepted with exit code 0.
-- **`TextLintTool_CheckMisspelling`** - A misspelling is reported at its line and column with exit code 1.
-- **`TextLintTool_CheckSettingsFile`** - The settings file in the root is found and applied.
-- **`TextLintTool_CheckSettingsError`** - An invalid settings file is reported with its position, and nothing is
-  checked.
-- **`TextLintTool_CheckGlobsReplaceFiles`** - Patterns on the command line replace the `files` setting.
-- **`TextLintTool_CheckInlineDirective`** - In-document directives suppress findings.
-- **`TextLintTool_CheckLanguageOption`** - `--language` selects the American or the British dictionary.
-- **`TextLintTool_CheckBinaryFileSkipped`** - A binary file is reported as information and does not fail the run.
-- **`TextLintTool_CheckNoFilesMatched`** - A selection that matches no files fails unless `--allow-empty` is given.
-- **`TextLintTool_CheckAbsolutePath`** - A file named by an absolute path is reported by that path.
-- **`TextLintTool_CheckOverrides`** - An ordered `files` list with `!`, an override with its own words, and an
-  override with `enabled: false` are applied.
-
-Use `--depth <#>` to control the heading level of the validation output (default: `1`).
-This is useful when embedding validation output into a larger markdown document:
-
-```bash
-# Embed validation at heading level 2
-textlint --validate --depth 2
-```
-
-See the [User Guide][link-guide] for more details on the self-validation tests.
-
-On validation failure the tool will exit with a non-zero exit code.
-
-## Documentation
-
-Generated documentation includes:
-
-- **Build Notes**: Release information and changes
-- **User Guide**: Comprehensive usage documentation
-- **Code Quality Report**: CodeQL and SonarCloud analysis results
-- **Requirements**: Functional and non-functional requirements
-- **Requirements Justifications**: Detailed requirement rationale
-- **Trace Matrix**: Requirements to test traceability
-
-## Contributing
-
-See [CONTRIBUTING.md](https://github.com/demaconsulting/TextLint/blob/main/CONTRIBUTING.md) for
-guidelines on reporting bugs, suggesting features, and submitting pull requests, and for how to run TextLint on this
-repository from source.
+See also [CONTRIBUTING.md][link-contributing] for how to report bugs, suggest features, and submit pull requests, and
+the [releases][link-releases] and the [NuGet package][link-nuget] for downloads.
 
 ## Third-Party Data
 
-The library embeds English and technical-term dictionaries built from third-party data: SCOWL (a
-permissive license by Kevin Atkinson, with the notices of the Hunspell affix rules and of the SCOWL data they
-were generated from) and the English word lists of cspell-dicts for English, and the MIT-licensed cspell-dicts
-packages by Street Side Software for technical terms. The default list of text that is never spell-checked, and
-the patterns that recognize comment directives, are ported from cspell-lib (MIT license). A table of the letters
-that JavaScript treats as the same when a pattern ignores case is derived from the Unicode Character Database
-(Unicode License v3). The required license
-notices are in
-[THIRD-PARTY-NOTICES.txt](https://github.com/demaconsulting/TextLint/blob/main/third-party/THIRD-PARTY-NOTICES.txt),
-which is also included at the root of both NuGet packages, and the provenance of every list is described in
-the [dictionaries README](https://github.com/demaconsulting/TextLint/blob/main/dictionaries/README.md).
+The library embeds English and technical-term dictionaries built from third-party data (SCOWL, and the MIT-licensed
+cspell-dicts packages), and ports default ignore patterns from cspell-lib (MIT license). The required license notices
+are in [THIRD-PARTY-NOTICES.txt][link-third-party-notices], which is also included at the root of both NuGet
+packages, and the provenance of every list is described in the [dictionaries README][link-dictionaries].
 
 ## License
 
@@ -496,15 +173,29 @@ By contributing to this project, you agree that your contributions will be licen
 [badge-nuget]: https://img.shields.io/nuget/v/DemaConsulting.TextLint.Tool?style=plastic
 
 <!-- Link References -->
+[workflow]: https://raw.githubusercontent.com/demaconsulting/TextLint/main/docs/images/workflow.png
 [link-forks]: https://github.com/demaconsulting/TextLint/network/members
 [link-stars]: https://github.com/demaconsulting/TextLint/stargazers
 [link-contributors]: https://github.com/demaconsulting/TextLint/graphs/contributors
 [link-license]: https://github.com/demaconsulting/TextLint/blob/main/LICENSE
+[link-contributing]: https://github.com/demaconsulting/TextLint/blob/main/CONTRIBUTING.md
+[link-third-party-notices]: https://github.com/demaconsulting/TextLint/blob/main/third-party/THIRD-PARTY-NOTICES.txt
+[link-dictionaries]: https://github.com/demaconsulting/TextLint/blob/main/dictionaries/README.md
 [link-build]: https://github.com/demaconsulting/TextLint/actions/workflows/build_on_push.yaml
 [link-quality]: https://sonarcloud.io/dashboard?id=demaconsulting_TextLint
 [link-security]: https://sonarcloud.io/dashboard?id=demaconsulting_TextLint
 [link-nuget]: https://www.nuget.org/packages/DemaConsulting.TextLint.Tool
-[workflow]: https://raw.githubusercontent.com/demaconsulting/TextLint/main/docs/images/workflow.png
-[link-guide]: https://github.com/demaconsulting/TextLint/blob/main/docs/user_guide/introduction.md
+[link-releases]: https://github.com/demaconsulting/TextLint/releases
 [link-continuous-compliance]: https://github.com/demaconsulting/ContinuousCompliance
 [dotnet-download]: https://dotnet.microsoft.com/download
+[link-guide]: https://github.com/demaconsulting/TextLint/blob/main/docs/user_guide/introduction.md
+[link-guide-options]: https://github.com/demaconsulting/TextLint/blob/main/docs/user_guide/introduction.md#command-line-options
+[link-guide-output]: https://github.com/demaconsulting/TextLint/blob/main/docs/user_guide/introduction.md#output
+[link-guide-exit-codes]: https://github.com/demaconsulting/TextLint/blob/main/docs/user_guide/introduction.md#exit-codes
+[link-guide-config]: https://github.com/demaconsulting/TextLint/blob/main/docs/user_guide/introduction.md#configuration-file
+[link-guide-globs]: https://github.com/demaconsulting/TextLint/blob/main/docs/user_guide/introduction.md#glob-patterns
+[link-guide-overrides]: https://github.com/demaconsulting/TextLint/blob/main/docs/user_guide/introduction.md#overrides
+[link-guide-directives]: https://github.com/demaconsulting/TextLint/blob/main/docs/user_guide/introduction.md#directives-in-comments
+[link-guide-differences]: https://github.com/demaconsulting/TextLint/blob/main/docs/user_guide/introduction.md#differences-from-cspell
+[link-guide-library]: https://github.com/demaconsulting/TextLint/blob/main/docs/user_guide/introduction.md#library-usage
+[link-guide-validation]: https://github.com/demaconsulting/TextLint/blob/main/docs/user_guide/introduction.md#self-validation

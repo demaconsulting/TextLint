@@ -51,6 +51,10 @@ compliance evidence is generated automatically on every CI run.
 - **Linting Enforcement**: markdownlint, TextLint, and yamllint are enforced before any build proceeds
 - **Automated Audit Documentation**: Each release ships with generated requirements, justifications,
   trace matrix, and quality reports
+- **Documentation Generation**: Build notes, this user guide, code quality reports, requirements, justifications,
+  and the trace matrix are generated automatically
+- **Continuous Integration**: GitHub Actions workflows run quality checks, builds, and integration tests on Windows,
+  Linux, and macOS
 - **CodeQL and SonarCloud**: Security and quality analysis runs on every build
 
 # Installation
@@ -361,6 +365,12 @@ Error: --max-parallelism requires an integer between 1 and 2147483647 for a maxi
 
 A value that is missing, empty, or looks like the next option is reported as missing, so a forgotten value does
 not swallow the option after it. A file pattern that starts with a dash can be written with a leading `./`.
+
+A settings file that cannot be used is reported with its file, line, and column, and nothing is checked:
+
+```text
+/work/project/.textlint.yaml(3,1): error: 'caseSensitive' is not a supported setting.
+```
 
 This behavior enables automated scripts and CI/CD pipelines to detect and surface
 misconfiguration failures automatically.
@@ -1276,7 +1286,8 @@ The dictionaries are generated from these sources, with their versions and licen
 `dictionaries/README.md` and `THIRD-PARTY-NOTICES.txt`:
 
 - **English**: SCOWL (the Spell Checker Oriented Word Lists) word lists and Hunspell dictionaries, the English
-  word lists and Hunspell-expanded word forms of the cspell dictionaries, and a hand-added list of developer terms.
+  word lists and Hunspell-expanded word forms of the cspell dictionaries (so derived forms such as `testability` are
+  known, with the regional spellings kept apart), and a hand-added list of developer terms.
   Each word is routed to the common, the American, or the British list by one documented rule, so a spelling that
   belongs to one dialect never lands in the common list.
 - **Technical terms**: the cspell dictionaries for software terms, companies, file types, licenses, font names, and the
