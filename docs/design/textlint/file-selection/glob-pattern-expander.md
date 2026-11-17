@@ -25,10 +25,10 @@ internal property, so that `CommandLinePathResolver` can report the same reason 
 
 **Expand**: Validates and rewrites a pattern.
 
-- _Parameters_: `string pattern` - the user pattern.
-- _Returns_: the matcher patterns, without duplicates, in a stable order.
-- _Preconditions_: `pattern` is not null.
-- _Postconditions_: every returned pattern is safe to give to the matcher.
+- *Parameters*: `string pattern` - the user pattern.
+- *Returns*: the matcher patterns, without duplicates, in a stable order.
+- *Preconditions*: `pattern` is not null.
+- *Postconditions*: every returned pattern is safe to give to the matcher.
 
 Steps: (1) validate the raw pattern and reject it if it is empty or white space, starts with `!`, is an
 absolute path (a drive specifier or a leading `//`), contains a backslash or `?`, or has unbalanced braces;
@@ -58,16 +58,16 @@ anchored at the root; a trailing `/` marks it as directory-only; the text is spl
 or no remaining segment is an error. Because this runs after brace expansion, a `..` that only
 appears through an alternative is also rejected. Then:
 
-| Input           | Output                                  | Why                                             |
-| :-------------- | :-------------------------------------- | :---------------------------------------------- |
-| `node_modules`  | `**/node_modules`, `**/node_modules/**` | A bare name is a file or directory at any depth |
-| `build/`        | `**/build/**`                           | Directory only, at any depth                    |
-| `/README.md`    | `README.md`                             | Anchored at the root                            |
-| `/docs/**`      | `docs/**`                               | Anchored at the root, not an absolute path      |
-| `./README.md`   | `README.md`                             | Anchored at the root                            |
-| `docs/build/`   | `docs/build/**`                         | Anchored directory subtree                      |
-| `src/*.{md,cs}` | `src/*.md`, `src/*.cs`                  | Brace alternatives                              |
-| `**/*.md`       | `**/*.md`                               | Already anchored by its separator               |
+| Input | Output | Why |
+| :--- | :--- | :--- |
+| `node_modules` | `**/node_modules`, `**/node_modules/**` | A bare name is a file or directory at any depth |
+| `build/` | `**/build/**` | Directory only, at any depth |
+| `/README.md` | `README.md` | Anchored at the root |
+| `/docs/**` | `docs/**` | Anchored at the root, not an absolute path |
+| `./README.md` | `README.md` | Anchored at the root |
+| `docs/build/` | `docs/build/**` | Anchored directory subtree |
+| `src/*.{md,cs}` | `src/*.md`, `src/*.cs` | Brace alternatives |
+| `**/*.md` | `**/*.md` | Already anchored by its separator |
 
 The second output for a bare name makes the name select, or exclude, the whole subtree, which is what
 ignore-style patterns are expected to do, and it lets the matcher skip an excluded directory without

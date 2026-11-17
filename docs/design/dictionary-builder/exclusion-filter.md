@@ -30,10 +30,10 @@ cast either.
 
 **Apply**: applies the exclusions.
 
-- _Parameters_: the words of each dictionary and the excluded words.
-- _Returns_: an `ExclusionFilterResult`.
-- _Preconditions_: neither parameter is null; all words are in folded form.
-- _Postconditions_: the inputs are not changed; each dictionary of the result holds exactly the words of the
+- *Parameters*: the words of each dictionary and the excluded words.
+- *Returns*: an `ExclusionFilterResult`.
+- *Preconditions*: neither parameter is null; all words are in folded form.
+- *Postconditions*: the inputs are not changed; each dictionary of the result holds exactly the words of the
   matching input dictionary that are not excluded, with their flags unchanged; the removal counts and the unused
   words are consistent with that.
 

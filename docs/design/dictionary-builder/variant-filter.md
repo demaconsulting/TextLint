@@ -30,10 +30,10 @@ cannot alter it, and it cannot be modified through a cast either.
 
 **Apply**: applies the rule.
 
-- _Parameters_: the general words, the language words, the keep-list words, and the variant words.
-- _Returns_: a `VariantFilterResult`.
-- _Preconditions_: none of the parameters is null; all words are in folded form.
-- _Postconditions_: the inputs are not changed; the remaining words contain every language word, every keep-list
+- *Parameters*: the general words, the language words, the keep-list words, and the variant words.
+- *Returns*: a `VariantFilterResult`.
+- *Preconditions*: none of the parameters is null; all words are in folded form.
+- *Postconditions*: the inputs are not changed; the remaining words contain every language word, every keep-list
   word, and every general word except those stripped.
 
 Every language word is kept, whether or not it is a variant. Every keep-list word is kept; one that is not a

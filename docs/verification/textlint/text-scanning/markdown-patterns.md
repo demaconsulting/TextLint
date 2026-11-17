@@ -42,9 +42,9 @@ digit, unterminated entities, or an empty one.
 **MarkdownPatterns_All_EveryPattern_HasDocumentedMatchTimeout**: There are five patterns, the test lists five names, and
 every pattern carries the documented five-second limit.
 
-**MarkdownPatterns_AppliesTo_MarkdownExtension_IsTrue**: Each of the extensions `.md`, `.markdown`, `.markdn`,
-`.mdown`, `.mdtext`, `.mdtxt`, `.mdwn`, `.mkd`, `.workbook`, and `.mdx`, upper-case and mixed-case names, a Windows path,
-a nested path, a directory named like a Markdown file that holds a Markdown file, and a name with several dots apply.
+**MarkdownPatterns_AppliesTo_MarkdownExtension_IsTrue**: Each of the extensions `.md`, `.markdown`, `.markdn`, `.mdown`,
+`.mdtext`, `.mdtxt`, `.mdwn`, `.mkd`, `.workbook`, and `.mdx`, upper-case and mixed-case names, a Windows path, a nested
+path, a directory named like a Markdown file that holds a Markdown file, and a name with several dots apply.
 
 **MarkdownPatterns_AppliesTo_OtherNames_IsFalse**: No name, an empty name, a text file, an extension followed by
 another extension, the bare word `md`, a leading dot with a backup extension, a name without an extension, a directory

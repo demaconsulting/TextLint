@@ -22,7 +22,7 @@ expression. Its constants are:
   was joined with its combining marks.
 - The highest code point of the basic multilingual plane, which decides whether a symbol takes one UTF-16 code unit or
   two.
-- The match time limit, the constant of `PatternParser`, for the hexadecimal pattern (see _PatternParser_).
+- The match time limit, the constant of `PatternParser`, for the hexadecimal pattern (see *PatternParser*).
 
 **The score.** A token looks random when the structure of the token, reduced to one symbol per part, is at least half as
 long as the token. The reduction follows cspell's `categorizeString`, in the same order, because each step sees the
@@ -51,48 +51,47 @@ the caller applies it.
 **Hexadecimal sequences.** A sequence is a run of ASCII hexadecimal digits and hyphens that starts and ends with a
 hexadecimal digit, starts at the start of the token or after a character that is not an ASCII letter or digit, and ends
 at the end of the token or before one. A sequence is data, and is reported, only when it has at least eight characters,
-neither follows a letter nor is followed by one, is written in one letter case (it does not hold both `A` to `F` and
-`a` to `f`), and contains a digit or a hyphen. The last rule keeps a word made only of the letters `a` to `f`, such as
+neither follows a letter nor is followed by one, is written in one letter case (it does not hold both `A` to `F` and `a`
+to `f`), and contains a digit or a hyphen. The last rule keeps a word made only of the letters `a` to `f`, such as
 `deadbeef`, from being taken for data, and a partial UUID such as `3f2a9c10-7b` passes. The sequences are judged inside
-the
-token only: the text outside the token is not looked at, and the ranges are reported as offsets into the whole text.
-A letter that precedes the sequence is judged by the single UTF-16 code unit before it, as cspell does, and a letter that
-follows it by the whole character, so a letter outside the basic plane counts.
+the token only: the text outside the token is not looked at, and the ranges are reported as offsets into the whole text.
+A letter that precedes the sequence is judged by the single UTF-16 code unit before it, as cspell does, and a letter
+that follows it by the whole character, so a letter outside the basic plane counts.
 
 #### Key Methods
 
 **IsRandom**: Determines whether a token looks like random data.
 
-- _Parameters_: the token as a span of characters.
-- _Returns_: `true` when twice the categorized length is at least the length of the token; `false` for an empty token.
-- _Preconditions_: none; the caller decides whether the token is long enough to be judged.
-- _Algorithm_: split the token into code points, keeping an unpaired surrogate as it is, apply the six steps above in
+- *Parameters*: the token as a span of characters.
+- *Returns*: `true` when twice the categorized length is at least the length of the token; `false` for an empty token.
+- *Preconditions*: none; the caller decides whether the token is long enough to be judged.
+- *Algorithm*: split the token into code points, keeping an unpaired surrogate as it is, apply the six steps above in
   order, and count the code units of the result. The categorization is hand-written over code points with no regular
   expression, each step is one pass, and the cost is linear in the length of the token even for a token of a million
   characters.
-- _Postconditions_: nothing is changed; the working storage, proportional to the token, is not kept.
+- *Postconditions*: nothing is changed; the working storage, proportional to the token, is not kept.
 
 **FindHexSequences**: Appends the ranges of the hexadecimal sequences of a token to a list.
 
-- _Parameters_: the text, the range of the token inside it, and the list that receives the ranges.
-- _Preconditions_: the text and list are not null and the token lies inside the text.
-- _Algorithm_: enumerate the matches, on the span of the token, of the generated pattern for a run of hexadecimal digits
+- *Parameters*: the text, the range of the token inside it, and the list that receives the ranges.
+- *Preconditions*: the text and list are not null and the token lies inside the text.
+- *Algorithm*: enumerate the matches, on the span of the token, of the generated pattern for a run of hexadecimal digits
   and hyphens that starts and ends with a hexadecimal digit and is delimited by anything that is not an ASCII letter or
   digit; keep a match that satisfies the rules above; add its range, moved to the offsets of the text.
-- _Postconditions_: the list holds its earlier items followed by the ranges, in text order; it is never cleared.
+- *Postconditions*: the list holds its earlier items followed by the ranges, in text order; it is never cleared.
 
-The pattern is the only regular expression of the unit. It is built case-sensitive with the invariant culture and uses an
-explicit ASCII word boundary and ASCII classes instead of `\b` and `\w`, the translation rules of `DefaultPatterns` (see
-_DefaultPatterns_).
+The pattern is the only regular expression of the unit. It is built case-sensitive with the invariant culture and uses
+an explicit ASCII word boundary and ASCII classes instead of `\b` and `\w`, the translation rules of `DefaultPatterns`
+(see *DefaultPatterns*).
 
 **Where the checker uses it.** `TextChecker` uses the unit at two points of its word-level algorithm, both only when the
-`ignoreRandomStrings` setting is on (see _TextChecker_):
+`ignoreRandomStrings` setting is on (see *TextChecker*):
 
-- _The token skip._ At the start of the check of each token, before any list or word is looked at, a token that is at
+- *The token skip.* At the start of the check of each token, before any list or word is looked at, a token that is at
   least `minRandomLength` characters long (UTF-16 code units) and for which `IsRandom` is true is skipped as a whole.
   Because this comes first, even a flagged word inside such a token is not reported, as in cspell, and a long token is
   never looked up word by word.
-- _The hexadecimal filter._ After a token that was not skipped has been checked word by word, the findings of that token
+- *The hexadecimal filter.* After a token that was not skipped has been checked word by word, the findings of that token
   are filtered: `FindHexSequences` is run on the token, and each unknown-word finding that starts inside a sequence is
   removed. A flagged-word finding is always kept. The filter does not run for a token that was ignored, accepted, or
   flagged as a whole by an entry with digits or punctuation, because that ends the check of the token earlier. It
@@ -127,7 +126,7 @@ list passed in is changed, which must not be shared between threads.
 
 - **PatternParser** (same subsystem) - the constant `MatchTimeoutMilliseconds`, so that the hexadecimal pattern shares
   the time limit of every other pattern.
-- **TextRange** (see _WordTokenizer_) - the type of the token and of the reported ranges.
+- **TextRange** (see *WordTokenizer*) - the type of the token and of the reported ranges.
 - **.NET base class library** - `System.Text.RegularExpressions` (including the source generator), Unicode category
   and rune information, and collections. No other unit, subsystem, or OTS item is used.
 

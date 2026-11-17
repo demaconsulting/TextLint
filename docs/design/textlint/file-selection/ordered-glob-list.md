@@ -21,7 +21,7 @@ Each pattern is kept as an internal `Entry` that holds:
 - whether the pattern is negated (it was written with a leading `!`);
 - the expanded matcher patterns, which `GlobPatternExpander` produces from the pattern without its `!`;
 - a matcher with ordinal (case-sensitive) comparison that holds all the expanded patterns;
-- for a negated pattern, a second matcher that holds only its _subtree forms_: the expanded patterns that equal
+- for a negated pattern, a second matcher that holds only its *subtree forms*: the expanded patterns that equal
   `**` or end in `/**`, which every negated pattern has because of the extension described under `Parse`;
 - for a plain pattern, the expanded patterns split into segments, used to test whether a directory could lead to
   a match.
@@ -35,11 +35,11 @@ selector uses it to prefilter the directory walk and to decide which hidden dire
 
 **Parse**: Compiles a list of patterns.
 
-- _Parameters_: `IReadOnlyList<string> patterns`, in order, each optionally prefixed with `!`; `bool
+- *Parameters*: `IReadOnlyList<string> patterns`, in order, each optionally prefixed with `!`; `bool
   enableGlobDot`.
-- _Returns_: the compiled list; an empty list when there are no patterns.
-- _Preconditions_: `patterns` is not null.
-- _Postconditions_: every pattern is valid; nothing has touched the file system.
+- *Returns*: the compiled list; an empty list when there are no patterns.
+- *Preconditions*: `patterns` is not null.
+- *Postconditions*: every pattern is valid; nothing has touched the file system.
 
 Each pattern is compiled in order. A pattern that starts with `!` is negated, and the remainder is expanded with
 `GlobPatternExpander`, so every pattern keeps the rules of that unit: brace alternatives, bare names at any depth,
@@ -58,8 +58,8 @@ unchanged. A plain pattern is never extended, which keeps `files` selecting exac
 
 **ValidateEntry**: Validates one pattern of a list without keeping it.
 
-- _Parameters_: `string pattern`, as written; `bool isFirst`, whether it is the first of its list.
-- _Postconditions_: returns normally when the pattern is valid in that position; otherwise throws the same
+- *Parameters*: `string pattern`, as written; `bool isFirst`, whether it is the first of its list.
+- *Postconditions*: returns normally when the pattern is valid in that position; otherwise throws the same
   exception `Parse` would throw.
 
 This lets the settings loader report each bad pattern at its own position instead of only the first bad pattern
@@ -67,9 +67,9 @@ of the list.
 
 **IsMatch**: Decides whether the list selects a file path.
 
-- _Parameters_: the root-relative path, using forward slashes.
-- _Returns_: `true` when the last pattern that matches the path is a plain pattern.
-- _Postconditions_: none; the method is pure.
+- *Parameters*: the root-relative path, using forward slashes.
+- *Returns*: `true` when the last pattern that matches the path is a plain pattern.
+- *Postconditions*: none; the method is pure.
 
 The patterns are examined from the last to the first, and the first one that matches decides. A negated pattern
 that matches rejects the path, even when the path contains a hidden name, because a pattern that excludes
@@ -81,9 +81,9 @@ continues with the earlier patterns. When no pattern decides, the path is not se
 **IsSubtreeExcluded**: Decides whether no file beneath a directory can be selected, so the directory need not be
 read.
 
-- _Parameters_: the root-relative directory path, using forward slashes.
-- _Returns_: `true` only when every file beneath the directory is certainly excluded.
-- _Postconditions_: none; the method is pure.
+- *Parameters*: the root-relative directory path, using forward slashes.
+- *Returns*: `true` only when every file beneath the directory is certainly excluded.
+- *Postconditions*: none; the method is pure.
 
 The decision is deliberately conservative: answering `false` only costs time, while answering `true` wrongly
 would silently drop files. Without a negation the answer is always `false`. Otherwise the patterns are examined
@@ -117,7 +117,7 @@ negations are not errors. Nothing is logged.
 
 - **GlobPatternExpander** - validates and expands the body of each pattern.
 - **HiddenPathPolicy** - decides whether a plain pattern may reach a hidden name.
-- **Microsoft.Extensions.FileSystemGlobbing** - the matcher. See _FileSystemGlobbing Integration Design_. No type
+- **Microsoft.Extensions.FileSystemGlobbing** - the matcher. See *FileSystemGlobbing Integration Design*. No type
   from it appears in a signature of this unit.
 - **.NET BCL** - strings, collections, and paths.
 

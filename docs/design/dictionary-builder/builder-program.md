@@ -50,11 +50,11 @@ instance, which calls the file system directly; tests pass a subclass that throw
 
 **Run**: performs a complete build.
 
-- _Parameters_: the argument array, a writer for standard output, and a writer for standard error. Taking
+- *Parameters*: the argument array, a writer for standard output, and a writer for standard error. Taking
   the writers as parameters lets tests run the builder in-process without redirecting the console.
-- _Returns_: the exit code.
-- _Preconditions_: none of the parameters is null.
-- _Postconditions_: with exit code 0 one file exists in the output folder per declared name and every
+- *Returns*: the exit code.
+- *Preconditions*: none of the parameters is null.
+- *Postconditions*: with exit code 0 one file exists in the output folder per declared name and every
   file holds the current content of its lists; with exit code 1 or 2 no dictionary file was created or
   changed and no temporary file remains; with exit code 3 the error stream names every file that may be
   inconsistent or was left behind.

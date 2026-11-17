@@ -24,9 +24,9 @@ does not read settings files; that belongs to the `Configuration` subsystem.
 
 **FileSelector.Select**: Selects files.
 
-- _Type_: In-process .NET static method.
-- _Role_: Provider.
-- _Contract_: Accepts a root directory path, a list of include patterns, a list of ignore patterns, a
+- *Type*: In-process .NET static method.
+- *Role*: Provider.
+- *Contract*: Accepts a root directory path, a list of include patterns, a list of ignore patterns, a
   hidden-file switch (`enableGlobDot`, default `false`), and an optional cancellation token (default none), and
   returns the selected files as a
   read-only list of `SelectedFile`, each with a root-relative path using forward slashes and the full
@@ -35,7 +35,7 @@ does not read settings files; that belongs to the `Configuration` subsystem.
   matches a file decides, so a later pattern can include again what an earlier one removed, and a list without any
   `!` selects exactly what its patterns match as plain includes. The ignore patterns cannot be negated and always
   win.
-- _Constraints_: Throws `ArgumentNullException` or `ArgumentException` for a null or empty argument,
+- *Constraints*: Throws `ArgumentNullException` or `ArgumentException` for a null or empty argument,
   `DirectoryNotFoundException` when the root does not exist (an unreadable root throws its own
   `UnauthorizedAccessException` or `IOException`), and `InvalidGlobPatternException` when
   a pattern is unsupported or malformed, when the first include pattern is negated, or when an ignore pattern is
@@ -46,15 +46,15 @@ does not read settings files; that belongs to the `Configuration` subsystem.
 
 **CommandLinePathResolver.Resolve**: Turns command-line path arguments into a search directory and patterns.
 
-- _Type_: In-process .NET static method returning a `CommandLineSelection`.
-- _Role_: Provider.
-- _Contract_: Accepts a root directory path and a non-empty list of arguments as typed, and returns the absolute
+- *Type*: In-process .NET static method returning a `CommandLineSelection`.
+- *Role*: Provider.
+- *Contract*: Accepts a root directory path and a non-empty list of arguments as typed, and returns the absolute
   search directory, the validated patterns relative to it, whether files are to be named by absolute path, and
   `GetDisplayPath`, which gives the name under which a selected file is reported. Relative arguments are patterns
   relative to the root; on Windows a backslash is a separator. Absolute arguments are split at their first wildcard
   into a literal directory and a pattern, and one inside the root means the same as its relative form. An absolute
   argument that names an existing directory selects everything beneath it.
-- _Constraints_: Throws `ArgumentNullException` or `ArgumentException` for null, empty, or invalid input, and
+- *Constraints*: Throws `ArgumentNullException` or `ArgumentException` for null, empty, or invalid input, and
   `InvalidGlobPatternException`, naming the argument as typed, for anything the pattern rules or the absolute-path
   rules reject. Throws `ArgumentException` for a relative argument combined with an absolute one outside the root
   and for absolute arguments on different drives. Throws `UnauthorizedAccessException` or `IOException` when the
@@ -90,7 +90,7 @@ Selection is a pipeline. `FileSelector` first parses the include patterns into a
 ignore pattern with
 `GlobPatternExpander`, which also validates them, so a bad pattern fails before any directory is read
 and even when no files would be selected. It then builds a matcher from Microsoft.Extensions.FileSystemGlobbing
-(see _FileSystemGlobbing Integration Design_) configured for ordinal, case-sensitive comparison,
+(see *FileSystemGlobbing Integration Design*) configured for ordinal, case-sensitive comparison,
 adds the expanded patterns, and walks the root directory.
 
 Ignored directories are never read: the ignore patterns become exclude patterns that the matcher

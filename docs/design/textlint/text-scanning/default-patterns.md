@@ -14,7 +14,7 @@ cspell, ported so that a project migrated from cspell stays quiet where it was q
 `DefaultPatterns` is an `internal static partial` class. Its state is fixed for the life of the process: an array of
 generated `Regex` objects in the order cspell lists them, exposed read-only as `All`, and the constant
 `MatchTimeoutMilliseconds` (5000), the longest time one pattern may spend on one text. A match is reported as a
-`TextRange` (see _WordTokenizer_). The fourteen patterns are, with the letter case they use in brackets:
+`TextRange` (see *WordTokenizer*). The fourteen patterns are, with the letter case they use in brackets:
 
 - **URLs** (insensitive): `http`, `https`, or `ftp`, then `://`, then everything up to white space or a double quote.
   `www.` alone is not matched.
@@ -44,10 +44,10 @@ generated `Regex` objects in the order cspell lists them, exposed read-only as `
 
 **FindExcludedRanges**: Appends the ranges of a text that match any default pattern to a list.
 
-- _Parameters_: the text and the list that receives the ranges.
-- _Algorithm_: run every pattern over the whole text with the allocation-free match enumeration, and append the
+- *Parameters*: the text and the list that receives the ranges.
+- *Algorithm*: run every pattern over the whole text with the allocation-free match enumeration, and append the
   index and length of each match. A pattern cannot match the empty string, so every match has a length.
-- _Postconditions_: the list holds its earlier items followed by the ranges, pattern by pattern. They are neither
+- *Postconditions*: the list holds its earlier items followed by the ranges, pattern by pattern. They are neither
   sorted nor free of overlaps; the caller merges them, because only the caller knows what else is excluded.
 
 **All**: The generated patterns, so that the time limit that bounds every one of them can be verified in one place.

@@ -26,8 +26,8 @@ Behaviors the library relies on: comparison is controlled by the caller, and an 
 covers a whole directory prevents that directory from being enumerated (both proven by tests); and
 the matcher is not aware of hidden names. The matcher has no brace alternatives, no negation, and no
 `?` wildcard, and it does not treat a bare name as matching at any depth; the library therefore expands
-and validates patterns itself (see the _GlobPatternExpander_ design) and implements the hidden-name
-rule itself (see the _HiddenPathPolicy_ design).
+and validates patterns itself (see the *GlobPatternExpander* design) and implements the hidden-name
+rule itself (see the *HiddenPathPolicy* design).
 
 ### Integration Pattern
 

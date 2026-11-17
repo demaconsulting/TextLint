@@ -6,7 +6,7 @@
 instantiates `Context` from real arguments and calls `Validation.Run` and `LintRunner.Run` when needed, no mocking
 is required. Tests pass controlled argument arrays and assert on captured console output, the log of a silent
 context, and exit codes. Tests that reach the check use `--root` with a private temporary directory, so nothing
-depends on the current directory; the behavior of the check itself is verified in the _Linting_ verification.
+depends on the current directory; the behavior of the check itself is verified in the *Linting* verification.
 
 ### Test Environment
 

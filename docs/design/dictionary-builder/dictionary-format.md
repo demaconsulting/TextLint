@@ -69,9 +69,9 @@ later case-sensitive check.
 
 **TryFold**: converts a word to key bytes.
 
-- _Parameters_: the word, the destination buffer (at least 128 bytes), and the number of bytes written.
-- _Returns_: `true` when the word is representable; `false` otherwise, with the length zero.
-- _Postconditions_: no allocation; the buffer holds the key when `true` is returned.
+- *Parameters*: the word, the destination buffer (at least 128 bytes), and the number of bytes written.
+- *Returns*: `true` when the word is representable; `false` otherwise, with the length zero.
+- *Postconditions*: no allocation; the buffer holds the key when `true` is returned.
 
 **Fold**: folds one character as described above. **IsUpperLetter**, **IsLowerLetter**, and **IsLetter**
 classify characters of the supported alphabet (the ASCII letters and the Latin-1 letters, without the

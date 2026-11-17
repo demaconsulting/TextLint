@@ -4,21 +4,20 @@
 
 `SpellChecker` and the option, result, note, and diagnostic types it defines are verified with unit tests in
 `SpellCheckerTests.cs`, and the handling of `overrides`, `enabled`, the language option, and the notes in
-`SpellCheckerOverridesTests.cs`. Tests build real directory trees in a per-test temporary directory and call the
-public `CheckAsync`, so the documented dependencies (the settings value with its overrides, the override resolver,
-the file selector, the file reader, and the text checker) are real. The internal `CheckFilesAsync` method is a test
-seam that takes the function that checks a text,
-and it is the only place where a test supplies its own code: a function that throws the exception that a pattern
-time-out raises, one that throws an exception that is a defect, one that cancels the run, and one that records how
-many checks overlap. These prove the handling of a time-out, a defect, a cancellation, and the degree of parallelism
-without hostile input and without a timing assumption: the overlap test asserts only an upper bound, which holds
-however the threads are scheduled. The selection that the seam receives is made by the real file selector, and a
-selected file is deleted afterwards to prove the unreadable outcome of a vanished file. The locked-file scenario holds
-a file open with an exclusive share mode. The internal `CheckWithSelectionAsync` method also takes an optional match time
-limit that it hands to the text checker, so that a test can prove the time-out of a real pattern in milliseconds; only
-the system test of a catastrophic pattern uses it, and these unit tests leave it at the production limit of five
-seconds. Result types are created directly through their internal constructors to
-prove that they copy their inputs.
+`SpellCheckerOverridesTests.cs`. Tests build real directory trees in a per-test temporary directory and call the public
+`CheckAsync`, so the documented dependencies (the settings value with its overrides, the override resolver, the file
+selector, the file reader, and the text checker) are real. The internal `CheckFilesAsync` method is a test seam that
+takes the function that checks a text, and it is the only place where a test supplies its own code: a function that
+throws the exception that a pattern time-out raises, one that throws an exception that is a defect, one that cancels the
+run, and one that records how many checks overlap. These prove the handling of a time-out, a defect, a cancellation, and
+the degree of parallelism without hostile input and without a timing assumption: the overlap test asserts only an upper
+bound, which holds however the threads are scheduled. The selection that the seam receives is made by the real file
+selector, and a selected file is deleted afterwards to prove the unreadable outcome of a vanished file. The locked-file
+scenario holds a file open with an exclusive share mode. The internal `CheckWithSelectionAsync` method also takes an
+optional match time limit that it hands to the text checker, so that a test can prove the time-out of a real pattern in
+milliseconds; only the system test of a catastrophic pattern uses it, and these unit tests leave it at the production
+limit of five seconds. Result types are created directly through their internal constructors to prove that they copy
+their inputs.
 
 #### Test Environment
 

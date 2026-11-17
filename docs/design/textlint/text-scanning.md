@@ -37,51 +37,51 @@ All members are in-process .NET static methods, so every unit is stateless and e
 
 **WordTokenizer.FindTokens, FindWords, SplitCase, TrimToken**: Find ranges in a text.
 
-- _Role_: Provider. Each method takes the text and the part of it to scan, and an out-buffer, a `List<TextRange>`,
+- *Role*: Provider. Each method takes the text and the part of it to scan, and an out-buffer, a `List<TextRange>`,
   that receives the result.
-- _Contract_: Results are `TextRange` values (UTF-16 offset and length into the original text), appended to the
+- *Contract*: Results are `TextRange` values (UTF-16 offset and length into the original text), appended to the
   buffer, which is never cleared. `FindTokens` reports maximal runs of letters, digits, and the punctuation of tokens;
   `FindWords` reports runs of letters; `SplitCase` splits one word at case changes; `TrimToken` removes edge punctuation
   from one token and returns a range.
-- _Constraints_: Throw `ArgumentNullException` for a null text or buffer and `ArgumentOutOfRangeException` for a part
+- *Constraints*: Throw `ArgumentNullException` for a null text or buffer and `ArgumentOutOfRangeException` for a part
   outside the text. Nothing else can fail, whatever the text holds.
 
 **WordTokenizer.TryParseListEntry**: Interprets one entry of a word list.
 
-- _Contract_: Returns `true` and a `ListEntry` (the normalized word, whether it is a single word, and its suggestions),
+- *Contract*: Returns `true` and a `ListEntry` (the normalized word, whether it is a single word, and its suggestions),
   or returns `false` and a reason in words. Suggestions are accepted only when the caller allows them.
-- _Constraints_: Never throws; a null entry is reported as blank.
+- *Constraints*: Never throws; a null entry is reported as blank.
 
 **WordTokenizer.IsWordLetter, CountCharacters**: Classify a code point and measure a text in characters.
 
 **DefaultPatterns.FindExcludedRanges**: Finds the text that is not prose.
 
-- _Contract_: Appends the ranges of every match of every default pattern to a buffer. The ranges are reported pattern
+- *Contract*: Appends the ranges of every match of every default pattern to a buffer. The ranges are reported pattern
   by pattern, so they are neither sorted nor free of overlaps; the caller merges them.
-- _Constraints_: Throws `ArgumentNullException` for a null argument and `RegexMatchTimeoutException` when a pattern
+- *Constraints*: Throws `ArgumentNullException` for a null argument and `RegexMatchTimeoutException` when a pattern
   exceeds its time limit on the text. `DefaultPatterns.All` and `MatchTimeoutMilliseconds` expose the patterns and their
   time limit so that the limit can be verified in one place.
 
 **DocumentDirectives.Scan**: Interprets the directives of a text.
 
-- _Contract_: Returns a `DirectiveScan` with the excluded ranges (not sorted, possibly overlapping), the words added by
+- *Contract*: Returns a `DirectiveScan` with the excluded ranges (not sorted, possibly overlapping), the words added by
   `ignore` and by `words` directives, the patterns written by `ignoreRegExp` directives (`PatternDirectives`: the range
   and text of each pattern as written, read from the line the way cspell reads it, and whether an unusable pattern
   there is to be reported), and the ranges of the names of directives that are recognized but not supported, which
   include an `ignoreRegExp` directive with nothing after its name on its line. A text without directives returns the
   shared `DirectiveScan.Empty`.
-- _Constraints_: Throws `ArgumentNullException` for a null text and `RegexMatchTimeoutException` when a pattern
+- *Constraints*: Throws `ArgumentNullException` for a null text and `RegexMatchTimeoutException` when a pattern
   exceeds its time limit.
 
 **PatternParser.Parse**: Reads one pattern entry.
 
-- _Contract_: Accepts an entry, `/body/flags` or a bare expression, and returns a .NET regular expression that has the
+- *Contract*: Accepts an entry, `/body/flags` or a bare expression, and returns a .NET regular expression that has the
   JavaScript meaning of the pattern (white space, word characters, line terminators, and the letter case of the `i`
   flag included), built with the invariant culture and a five-second match time limit. The flags
   `g`, `i`, `m`, `s` (the dot also matches line terminators), and `u` are accepted and every other flag (`x`, `y`, `d`,
   `v`) is rejected by name. An internal overload takes the time limit, so that tests can prove the time-out behavior
   in milliseconds; production code never passes one.
-- _Constraints_: Throws `ArgumentNullException` for a null entry, `ArgumentOutOfRangeException` for a limit that is not
+- *Constraints*: Throws `ArgumentNullException` for a null entry, `ArgumentOutOfRangeException` for a limit that is not
   positive, and `InvalidPatternException`, naming the entry and the
   reason, for a blank entry, an unsupported flag, a body that is too long (more than 4096 characters), nested too deep
   (more than 100 levels), or untranslatable. `JavaScriptRegexTranslator.TryTranslate` does the translation and returns
@@ -89,57 +89,57 @@ All members are in-process .NET static methods, so every unit is stateless and e
 
 **PatternCatalog.Resolve, ParseDefinitions, ResolveEntries**: Turn the pattern settings into regular expressions.
 
-- _Contract_: `ParseDefinitions` parses the definitions of `patterns` (`NamedPattern` values) into a dictionary by
+- *Contract*: `ParseDefinitions` parses the definitions of `patterns` (`NamedPattern` values) into a dictionary by
   name, ignoring letter case. `ResolveEntries` accepts the entries of `ignoreRegExpList` and the parsed definitions, and
   returns an immutable array with one regular expression for each pattern that excludes text, in list order. `Resolve`
   does both with the production time limit. An entry that has the shape of a name is a defined name, one of the nine
   predefined patterns that apply only when listed, or one of the nineteen predefined names of patterns that always
   apply, which add nothing; any other entry is a pattern. The two newer methods take the match time limit, an internal
   seam for tests.
-- _Constraints_: Throw `ArgumentNullException` for a null argument and `InvalidPatternException` for the first
+- *Constraints*: Throw `ArgumentNullException` for a null argument and `InvalidPatternException` for the first
   definition or entry that cannot be used: an invalid, predefined, or repeated definition name, a name that is not
   defined, or a pattern that cannot be parsed. Every definition is checked, used or not.
 
 **PatternCatalog.TryResolveEntry**: Resolves one entry to a regular expression, with the failure as data.
 
-- _Contract_: Accepts one entry, written in `ignoreRegExpList` or in an in-document directive, and the parsed
+- *Contract*: Accepts one entry, written in `ignoreRegExpList` or in an in-document directive, and the parsed
   definitions, and returns `true` with the regular expression (null for a predefined name that always applies), or
   `false` with the reason as a sentence. It resolves in the same way as `ResolveEntries`: a pattern is parsed, and a
   name is looked up among the definitions, then the predefined patterns.
-- _Constraints_: Throws `ArgumentNullException` for a null argument; an unusable entry is never thrown, so that the
+- *Constraints*: Throws `ArgumentNullException` for a null argument; an unusable entry is never thrown, so that the
   caller can report it where it was written.
 
 **PatternCatalog.IsNameShaped, IsPredefined, CheckDefinitionName, CheckReference**: Classify and check names.
 
-- _Contract_: Report whether an entry has the shape of a name, whether a name is predefined (ignoring letter case), and,
+- *Contract*: Report whether an entry has the shape of a name, whether a name is predefined (ignoring letter case), and,
   as a sentence or null, whether a name may be given to a definition or refers to a pattern. They let the settings
   loader report the same problems as `Resolve`, with a position. The sentence for a name that refers to no pattern is
   built in one place, which `TryResolveEntry` shares.
-- _Constraints_: Throw `ArgumentNullException` for a null argument; nothing else can fail.
+- *Constraints*: Throw `ArgumentNullException` for a null argument; nothing else can fail.
 
 **PatternCatalog.FindExcludedRanges**: Finds the text that a set of patterns matches.
 
-- _Contract_: Appends the ranges of every match of every given regular expression, skipping matches with no characters,
+- *Contract*: Appends the ranges of every match of every given regular expression, skipping matches with no characters,
   to a buffer. The ranges are reported pattern by pattern, so they are neither sorted nor free of overlaps; the caller
   merges them. The same method runs the patterns of the settings and those of `MarkdownPatterns`.
-- _Constraints_: Throws `ArgumentNullException` for a null argument and `RegexMatchTimeoutException` when a pattern
+- *Constraints*: Throws `ArgumentNullException` for a null argument and `RegexMatchTimeoutException` when a pattern
   exceeds its time limit on the text. `PredefinedNames` and `OptionalRegexes` expose the names and the nine optional
   patterns so that the list and the time limit can be verified in one place.
 
 **MarkdownPatterns.AppliesTo, All**: Finds the parts of a Markdown document that are not prose.
 
-- _Contract_: `AppliesTo` says from a source name alone whether it ends in one of the ten Markdown extensions, ignoring
+- *Contract*: `AppliesTo` says from a source name alone whether it ends in one of the ten Markdown extensions, ignoring
   letter case, and is false for a null name. `All` holds the five regular expressions (link reference label, reference
   definition, link target, anchor id, and lower-case HTML entity), which `PatternCatalog.FindExcludedRanges` runs.
-- _Constraints_: `AppliesTo` never throws. Every expression has the five-second time limit.
+- *Constraints*: `AppliesTo` never throws. Every expression has the five-second time limit.
 
 **RandomStringDetector.IsRandom, FindHexSequences**: Recognize random data.
 
-- _Contract_: `IsRandom` says whether a token, reduced to one symbol per run of digits, word, run of capitals, and run of
-  separators, is at least half as long as the token. `FindHexSequences` appends to a buffer the ranges, as offsets into
-  the whole text, of the hexadecimal sequences of a token that have at least eight characters, one letter case, and a
-  digit or a hyphen, and are not next to a letter.
-- _Constraints_: `IsRandom` cannot fail and takes time linear in the token. `FindHexSequences` throws
+- *Contract*: `IsRandom` says whether a token, reduced to one symbol per run of digits, word, run of capitals, and run
+  of separators, is at least half as long as the token. `FindHexSequences` appends to a buffer the ranges, as offsets
+  into the whole text, of the hexadecimal sequences of a token that have at least eight characters, one letter case, and
+  a digit or a hyphen, and are not next to a letter.
+- *Constraints*: `IsRandom` cannot fail and takes time linear in the token. `FindHexSequences` throws
   `ArgumentNullException` for a null text or buffer, `ArgumentOutOfRangeException` for a token outside the text, and
   `RegexMatchTimeoutException` when its pattern exceeds the time limit.
 
@@ -151,13 +151,13 @@ settings and `PatternParser` and `PatternCatalog` to validate the pattern settin
 
 ### Design
 
-The units are independent of each other except for the dependencies of the pattern units. A caller that checks a text asks
-`DocumentDirectives`, `DefaultPatterns`, the patterns of the settings (resolved once by `PatternCatalog` from
+The units are independent of each other except for the dependencies of the pattern units. A caller that checks a text
+asks `DocumentDirectives`, `DefaultPatterns`, the patterns of the settings (resolved once by `PatternCatalog` from
 `ignoreRegExpList` and `patterns`), and, for a Markdown source, `MarkdownPatterns` for ranges that are not to be
 checked, merges them, and asks `WordTokenizer` for the words in what remains. `RandomStringDetector` is then asked about
-each token: whether it looks random and is to be skipped, and where its hexadecimal sequences are. The pattern units form
-a small chain: `PatternCatalog` parses with `PatternParser`, which uses `JavaScriptRegexTranslator` and reads the match
-time limit from `DefaultPatterns`, and `MarkdownPatterns` and `RandomStringDetector` read the same limit from
+each token: whether it looks random and is to be skipped, and where its hexadecimal sequences are. The pattern units
+form a small chain: `PatternCatalog` parses with `PatternParser`, which uses `JavaScriptRegexTranslator` and reads the
+match time limit from `DefaultPatterns`, and `MarkdownPatterns` and `RandomStringDetector` read the same limit from
 `PatternParser`, so one constant bounds every regular expression of the subsystem. Nothing in the subsystem merges the
 ranges or removes the excluded words, because the owner of that decision, the word rules in `SpellChecking`, also owns
 the order of precedence between ignored text, flagged words, and accepted words.
@@ -197,12 +197,12 @@ has none.
 
 The time limit is a safety net with stated limits. It stops one match operation of one pattern on one text after five
 seconds with a `RegexMatchTimeoutException`, so a pattern that backtracks catastrophically on a hostile file cannot hang
-a run, but it does not stop the processor being busy for those five seconds, so a file built to trigger every pattern can
-cost up to five seconds for each of them. The first time-out aborts the file, and the number of patterns that can apply
-to a file is bounded (the patterns of the settings, and at most 32 different patterns written by the directives of the
-file, which `TextChecker` enforces), so the worst case for one file is (settings patterns + 32) x 5 seconds. The length
-and nesting limits of `PatternParser` bound the work of reading a pattern, which the time limit does not cover. The
-limit is 5 seconds in production; internal overloads let the tests use a short one, and the generated patterns keep
+a run, but it does not stop the processor being busy for those five seconds, so a file built to trigger every pattern
+can cost up to five seconds for each of them. The first time-out aborts the file, and the number of patterns that can
+apply to a file is bounded (the patterns of the settings, and at most 32 different patterns written by the directives of
+the file, which `TextChecker` enforces), so the worst case for one file is (settings patterns + 32) x 5 seconds. The
+length and nesting limits of `PatternParser` bound the work of reading a pattern, which the time limit does not cover.
+The limit is 5 seconds in production; internal overloads let the tests use a short one, and the generated patterns keep
 their fixed limit.
 
 Every unit is thread-safe because every unit is stateless. The generated and constructed regular expressions are

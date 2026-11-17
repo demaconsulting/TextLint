@@ -438,7 +438,8 @@ This scenario is tested by `SettingsLoader_Parse_RandomStringKeys_AreMapped`.
 
 **SettingsLoader_Parse_InvalidRandomStringValue_ReportsErrorAtValue**: A switch written as `yes`, as quoted text, or as
 a number, and a length that is zero, negative, fractional, quoted, or too large, are each the single error with the
-exact message, on line 1. This scenario is tested by `SettingsLoader_Parse_InvalidRandomStringValue_ReportsErrorAtValue`.
+exact message, on line 1. This scenario is tested by
+`SettingsLoader_Parse_InvalidRandomStringValue_ReportsErrorAtValue`.
 
 **SettingsLoader_Parse_IncludeRegExpList_RemainsUnsupported**: The key `includeRegExpList`, which cspell supports and
 the loader does not, is reported as an unsupported setting. This scenario is tested by

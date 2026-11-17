@@ -45,7 +45,7 @@ is the same instance as the `en-US` selection. This scenario is tested by
 tested by `SpellingDictionary_ForLanguages_En_SameAsEnUs`.
 
 **SpellingDictionary_ForLanguages_LowerCaseAndSpaces_Accepted**: `EN-us` is the default selection and
-` en-gb , EN-US ` is the combined selection. This scenario is tested by
+`" en-gb , EN-US "` is the combined selection. This scenario is tested by
 `SpellingDictionary_ForLanguages_LowerCaseAndSpaces_Accepted`.
 
 **SpellingDictionary_ForLanguages_UnsupportedLanguage_ThrowsNamingLanguage**: `en-AU`, `fr`, a list whose second

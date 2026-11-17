@@ -94,7 +94,8 @@ FileSelection, Dictionaries, and TextScanning to turn the settings and the selec
 exit status that the tool reports.
 
 ![TextLint architecture: the Linting subsystem of the textlint tool calls the TextLint library, whose
-SpellChecking subsystem uses Configuration, FileSelection, Dictionaries and TextScanning to check files.](architecture.svg)
+SpellChecking subsystem uses Configuration, FileSelection, Dictionaries and TextScanning to check
+files.](architecture.svg)
 
 ### Layering
 
@@ -129,8 +130,8 @@ on nothing but the .NET base class library.
   packed into both NuGet packages
 - **tools/** - developer scripts that are not part of the build, CI, or any package
   - **javascript-oracles/** - Node.js scripts that record what the JavaScript regular expression engine does (letter
-    case groups and matches in the mode of the `u` flag), because cspell patterns are JavaScript regular expressions; the
-    recorded data is checked in under `src/` and `test/`
+    case groups and matches in the mode of the `u` flag), because cspell patterns are JavaScript regular expressions;
+    the recorded data is checked in under `src/` and `test/`
 - **src/** - source files and projects
   - **DemaConsulting.TextLint/** - library source
     - **Configuration/** - settings and settings-file loading subsystem

@@ -3,25 +3,24 @@
 #### Verification Approach
 
 `TextChecker` and the `SpellingIssue` findings it returns are verified with unit tests in `TextCheckerTests.cs`. The
-tests use the unit's documented dependencies for real: the settings value, the embedded dictionaries behind the
-spelling dictionary, and the text scanning units (tokenizer, default patterns, and directives); there is no test
-double and no mocking library. Words are chosen to be unambiguous: `wrold` and `speling` are misspellings that no
-dictionary holds, `xqzv` and `xqz` are non-words of four and three letters, and `hello` and `world` are ordinary
-words. Each rule is proved with a success case, an error case, and a boundary case, and the hostile inputs are a
-word of fifty thousand characters, a lone surrogate, a carriage return alone, a byte order mark character inside
-text, and several threads that use one checker at once. The rules for patterns, Markdown files, random strings, and
-contractions use the real pattern catalog, parser, Markdown patterns, and random-string detector, whose own behavior is
-proved by their unit tests; here the tests prove how the checker combines them with the word rules. The unusable
-patterns are written in settings built in code, which bypass the checks of the settings file loader. The production
-time limit of five seconds cannot be waited for in a test, so the checker has an internal constructor that takes the
-limit, and the time-out is proved with a catastrophic pattern, from the settings and from a directive, that makes a limit
-of 100 milliseconds throw the time-out exception of the regular expression engine; one test checks that the public
-constructor gives the five seconds and that a limit that is not positive is rejected. The checker does not catch the
-exception, so that the caller can report the file as not checked. The patterns of ignoreRegExp directives are written in
-the text under test, and the unusable ones are reported as findings of their own kind with the reason.
-Directive texts of the other tests use the `textlint` prefix, or assemble the
-`cspell` prefix from parts, so that the repository's own spell check does not read them as directives; the
-ignoreRegExp tests write the `cspell` prefix in full in their texts.
+tests use the unit's documented dependencies for real: the settings value, the embedded dictionaries behind the spelling
+dictionary, and the text scanning units (tokenizer, default patterns, and directives); there is no test double and no
+mocking library. Words are chosen to be unambiguous: `wrold` and `speling` are misspellings that no dictionary holds,
+`xqzv` and `xqz` are non-words of four and three letters, and `hello` and `world` are ordinary words. Each rule is
+proved with a success case, an error case, and a boundary case, and the hostile inputs are a word of fifty thousand
+characters, a lone surrogate, a carriage return alone, a byte order mark character inside text, and several threads that
+use one checker at once. The rules for patterns, Markdown files, random strings, and contractions use the real pattern
+catalog, parser, Markdown patterns, and random-string detector, whose own behavior is proved by their unit tests; here
+the tests prove how the checker combines them with the word rules. The unusable patterns are written in settings built
+in code, which bypass the checks of the settings file loader. The production time limit of five seconds cannot be waited
+for in a test, so the checker has an internal constructor that takes the limit, and the time-out is proved with a
+catastrophic pattern, from the settings and from a directive, that makes a limit of 100 milliseconds throw the time-out
+exception of the regular expression engine; one test checks that the public constructor gives the five seconds and that
+a limit that is not positive is rejected. The checker does not catch the exception, so that the caller can report the
+file as not checked. The patterns of ignoreRegExp directives are written in the text under test, and the unusable ones
+are reported as findings of their own kind with the reason. Directive texts of the other tests use the `textlint`
+prefix, or assemble the `cspell` prefix from parts, so that the repository's own spell check does not read them as
+directives; the ignoreRegExp tests write the `cspell` prefix in full in their texts.
 
 #### Test Environment
 

@@ -27,10 +27,10 @@ names.
 
 **ForLanguages**: Selects the shared instance for a list of language names.
 
-- _Parameters_: `string languages` - one name or several separated by commas.
-- _Returns_: the shared selection.
-- _Preconditions_: `languages` is not null.
-- _Postconditions_: equal selections return the same instance; nothing is loaded.
+- *Parameters*: `string languages` - one name or several separated by commas.
+- *Returns*: the shared selection.
+- *Preconditions*: `languages` is not null.
+- *Postconditions*: equal selections return the same instance; nothing is loaded.
 
 Steps: (1) split the text at commas; (2) trim each part, and reject an empty part (which also rejects an empty
 or blank text, because it splits to one empty part); (3) compare the part with the supported names ignoring
@@ -40,10 +40,10 @@ least one flag is always set when no error was raised.
 
 **IsKnown**: Answers whether a word is known.
 
-- _Parameters_: `ReadOnlySpan<char> word`.
-- _Returns_: `true` when any dictionary of the selection holds the folded word.
-- _Preconditions_: none; any text is allowed.
-- _Postconditions_: nothing is allocated once the dictionaries are loaded, and no state changes.
+- *Parameters*: `ReadOnlySpan<char> word`.
+- *Returns*: `true` when any dictionary of the selection holds the folded word.
+- *Preconditions*: none; any text is allowed.
+- *Postconditions*: nothing is allocated once the dictionaries are loaded, and no state changes.
 
 Steps: (1) fold the word into a stack buffer with `DictionaryFormat.TryFold`, which also lowers the capitals
 of ASCII and Latin-1, straightens the typographic apostrophe, and refuses text that cannot be a key; (2) hash

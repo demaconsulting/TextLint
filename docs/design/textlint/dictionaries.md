@@ -27,49 +27,49 @@ only what the build produced from them.
 
 **SpellingDictionary.Default**: The default selection.
 
-- _Type_: In-process .NET static property.
-- _Role_: Provider.
-- _Contract_: Returns the shared selection of American English plus the technical terms.
-- _Constraints_: Never null; loads nothing until the first lookup.
+- *Type*: In-process .NET static property.
+- *Role*: Provider.
+- *Contract*: Returns the shared selection of American English plus the technical terms.
+- *Constraints*: Never null; loads nothing until the first lookup.
 
 **SpellingDictionary.SupportedLanguages**: The accepted language names.
 
-- _Type_: In-process .NET static property.
-- _Role_: Provider.
-- _Contract_: A read-only list of the names `en`, `en-GB`, and `en-US`.
-- _Constraints_: Fixed for the life of the process.
+- *Type*: In-process .NET static property.
+- *Role*: Provider.
+- *Contract*: A read-only list of the names `en`, `en-GB`, and `en-US`.
+- *Constraints*: Fixed for the life of the process.
 
 **SpellingDictionary.ForLanguages**: Selects dictionaries by language name.
 
-- _Type_: In-process .NET static method.
-- _Role_: Provider.
-- _Contract_: Accepts one language name or several separated by commas, ignoring letter case and spaces around
+- *Type*: In-process .NET static method.
+- *Role*: Provider.
+- *Contract*: Accepts one language name or several separated by commas, ignoring letter case and spaces around
   names, and returns the shared selection. `en` and `en-US` mean the same, repeated names change nothing, and
   equal selections return the same instance.
-- _Constraints_: A null argument throws `ArgumentNullException`. An empty list, an empty name in a list, or a
+- *Constraints*: A null argument throws `ArgumentNullException`. An empty list, an empty name in a list, or a
   name that is not supported throws `ArgumentException` whose message names the offending value and lists the
   supported names.
 
 **SpellingDictionary.IsKnown**: Looks a word up.
 
-- _Type_: In-process .NET instance method taking a `ReadOnlySpan<char>`; a `string` converts implicitly.
-- _Role_: Provider.
-- _Contract_: Returns whether the word is known to the selection, ignoring letter case, treating the typographic
+- *Type*: In-process .NET instance method taking a `ReadOnlySpan<char>`; a `string` converts implicitly.
+- *Role*: Provider.
+- *Contract*: Returns whether the word is known to the selection, ignoring letter case, treating the typographic
   apostrophe as the straight one, keeping accents significant, and looking other punctuation up as written.
   Empty text, text longer than 64 characters, and text with a character above Latin-1 are not known.
-- _Constraints_: Does not allocate once the selection's dictionaries are loaded, and never throws for any text; the
+- *Constraints*: Does not allocate once the selection's dictionaries are loaded, and never throws for any text; the
   only exception is `InvalidDataException`
   for a missing or damaged embedded dictionary, which signals a defective build. Safe to call from any number
   of threads at once.
 
 **Embedded dictionaries**: The data the subsystem consumes.
 
-- _Type_: Four manifest resources of the library assembly, named `DemaConsulting.TextLint.Dictionaries.` followed
+- *Type*: Four manifest resources of the library assembly, named `DemaConsulting.TextLint.Dictionaries.` followed
   by `en-common`, `en-US`, `en-GB`, or `technical` and the extension `.tld`.
-- _Role_: Consumer.
-- _Contract_: Each resource is a dictionary file in the layout defined by `DictionaryFormat` and produced by the
+- *Role*: Consumer.
+- *Contract*: Each resource is a dictionary file in the layout defined by `DictionaryFormat` and produced by the
   `DictionaryBuilder` during the library build.
-- _Constraints_: Each resource is read once, on first use, and then kept in memory.
+- *Constraints*: Each resource is read once, on first use, and then kept in memory.
 
 ### Design
 
@@ -197,4 +197,4 @@ special handling for single-file or Native AOT hosts, and an unloaded assembly c
 runs it incrementally (it runs again only when a word list or the builder changes), embeds the four files under the
 stable resource names above, and compiles the builder's `DictionaryFormat` source file into the library. A
 builder failure fails the library build with the builder's diagnostics. The mechanism is described in the
-_TextLint_ design.
+*TextLint* design.
