@@ -48,7 +48,7 @@ compliance evidence is generated automatically on every CI run.
 
 - **Requirements Traceability**: Every requirement is linked to passing tests, and a trace matrix is
   auto-generated on each release
-- **Linting Enforcement**: markdownlint, TextLint, and yamllint are enforced before any build proceeds
+- **Linting Enforcement**: LintMark, TextLint, and yamllint are enforced before any build proceeds
 - **Automated Audit Documentation**: Each release ships with generated requirements, justifications,
   trace matrix, and quality reports
 - **Documentation Generation**: Build notes, this user guide, code quality reports, requirements, justifications,
