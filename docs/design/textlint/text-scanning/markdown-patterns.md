@@ -22,9 +22,9 @@ Markdown.
   and `.mdx`.
 - **All**: the five generated regular expressions, in the order cspell lists them, exposed read-only so that the time
   limit that bounds every one of them can be verified in one place and so that the checker runs them with the code that
-  runs the other excluded-text patterns (see _PatternCatalog_). Every one is built case-sensitive with the invariant
-  culture and has the match time limit of `PatternParser` (see _PatternParser_). A match is reported by the caller as a
-  `TextRange` (see _WordTokenizer_). The five patterns are:
+  runs the other excluded-text patterns (see *PatternCatalog*). Every one is built case-sensitive with the invariant
+  culture and has the match time limit of `PatternParser` (see *PatternParser*). A match is reported by the caller as a
+  `TextRange` (see *WordTokenizer*). The five patterns are:
   - **Link reference**: the label of a reference link, the second pair of brackets of `[text][label]`, brackets
     included. The label may hold letters, digits, space, hyphen, underscore, period, backtick, apostrophe, double
     quote, asterisk, ampersand, semicolon, number sign, and at sign. The pattern needs a closing bracket directly
@@ -42,7 +42,7 @@ this pattern case-insensitively, but the default settings of cspell redefine it 
 definition is the one in force, so cspell does not exclude `&Zorb;`. The unit follows what cspell does, not what its
 package declares, so the entity is case-sensitive.
 
-The patterns follow the translation rules of `DefaultPatterns` (see _DefaultPatterns_): word characters are explicit
+The patterns follow the translation rules of `DefaultPatterns` (see *DefaultPatterns*): word characters are explicit
 ASCII classes, and the case-sensitivity is that of the original. White space is the JavaScript set
 (`JavaScriptSyntax.Space`), not `\s`, so U+FEFF ends a target and U+0085 does not, as in cspell.
 
@@ -50,15 +50,15 @@ ASCII classes, and the case-sensitivity is that of the original. White space is 
 
 **AppliesTo**: Determines whether the Markdown patterns apply to a source.
 
-- _Parameters_: the name or path of the source, normally the path of the file; may be null.
-- _Returns_: `true` when the name ends in one of the extensions, ignoring letter case; `false` for null, for an empty
+- *Parameters*: the name or path of the source, normally the path of the file; may be null.
+- *Returns*: `true` when the name ends in one of the extensions, ignoring letter case; `false` for null, for an empty
   name, for any other name, and for a name where a path separator follows the last dot, such as a directory that looks
   like a Markdown file (`notes.md/readme`).
-- _Algorithm_: find the last dot, require that no `/` or `\` follows it, and look the rest of the name up in the table
+- *Algorithm*: find the last dot, require that no `/` or `\` follows it, and look the rest of the name up in the table
   of extensions. The decision is made from the name only, so it is the same on every platform and needs no file, and
   both kinds of separator are recognized by the unit itself, because a path from another platform may use separators
   that this one does not.
-- _Postconditions_: nothing is changed.
+- *Postconditions*: nothing is changed.
 
 **All**: The five generated patterns, in the order cspell lists them: link reference, link footer, link, anchor, and
 symbol entity.
@@ -72,7 +72,7 @@ Design choices and their reasons:
   own, a port that keeps their shape can be reviewed against the originals, they run once per file rather than once per
   word, and the source generator keeps the library safe for trimming and ahead-of-time compilation.
 - **A match time limit on every pattern.** A file can be built to make a pattern backtrack, and a run that never
-  finishes is worse than a file reported as not checked; see _PatternParser_ for the limits of such a time limit.
+  finishes is worse than a file reported as not checked; see *PatternParser* for the limits of such a time limit.
 - **Ranges for the caller to merge.** The unit only supplies the expressions; `PatternCatalog.FindExcludedRanges` runs
   them and the caller merges the ranges with the others, in the same way as for the other sources of excluded text.
 

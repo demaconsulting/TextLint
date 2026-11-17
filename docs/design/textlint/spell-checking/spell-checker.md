@@ -69,11 +69,11 @@ completely; it is the content of one slot of the result array.
 
 **CheckAsync (public)**: Checks the files that the settings select.
 
-- _Parameters_: `TextLintSettings settings`; `string rootDirectory`; `SpellCheckOptions? options` (null means the
+- *Parameters*: `TextLintSettings settings`; `string rootDirectory`; `SpellCheckOptions? options` (null means the
   defaults); `CancellationToken cancellationToken`.
-- _Returns_: a `SpellCheckResult`.
-- _Preconditions_: the settings are not null, the root is not null, empty, or white space, and it exists.
-- _Postconditions_: nothing was written; every selected, enabled file was read once.
+- *Returns*: a `SpellCheckResult`.
+- *Preconditions*: the settings are not null, the root is not null, empty, or white space, and it exists.
+- *Postconditions*: nothing was written; every selected, enabled file was read once.
 
 Steps: (1) validate the arguments; (2) call `CheckWithSelectionAsync`, passing a selection that calls the file
 selector with the settings' patterns and the caller's token, and the root directory as the search root; that method
@@ -158,21 +158,21 @@ exception propagates.
 
 The handling of each condition is:
 
-- _Null settings or root, empty or white-space root_: `ArgumentNullException` or `ArgumentException` from
+- *Null settings or root, empty or white-space root*: `ArgumentNullException` or `ArgumentException` from
   `CheckAsync`.
-- _Unsupported language or unusable word-list entry_: `ArgumentException` from the checker's constructor, before any
+- *Unsupported language or unusable word-list entry*: `ArgumentException` from the checker's constructor, before any
   file is touched.
-- _Unusable override (no `filename`, an unsupported language, an unusable word or pattern), or an unsupported language in
-  the options_: `ArgumentException` (an invalid glob is `InvalidGlobPatternException`) from the resolver or a checker's
-  constructor, before any file is touched, also for an override that no file matches.
-- _Root directory missing or unreadable_: `DirectoryNotFoundException` for a missing root; `UnauthorizedAccessException`
+- *Unusable override (no `filename`, an unsupported language, an unusable word or pattern), or an unsupported language
+  in the options*: `ArgumentException` (an invalid glob is `InvalidGlobPatternException`) from the resolver or a
+  checker's constructor, before any file is touched, also for an override that no file matches.
+- *Root directory missing or unreadable*: `DirectoryNotFoundException` for a missing root; `UnauthorizedAccessException`
   or another `IOException` for a root that cannot be read, each from the file selector and unchanged.
-- _Invalid file or ignore pattern_: `InvalidGlobPatternException` from the file selector.
-- _File unreadable, binary, or too large_: a diagnostic in the result; the run continues.
-- _Pattern time-out while checking a file_: a timed-out diagnostic in the result; the run continues.
-- _Any other exception while checking, such as a damaged dictionary_: propagates to the caller and is never reported
+- *Invalid file or ignore pattern*: `InvalidGlobPatternException` from the file selector.
+- *File unreadable, binary, or too large*: a diagnostic in the result; the run continues.
+- *Pattern time-out while checking a file*: a timed-out diagnostic in the result; the run continues.
+- *Any other exception while checking, such as a damaged dictionary*: propagates to the caller and is never reported
   as a clean file.
-- _Cancellation, before or during the run_: `OperationCanceledException`; no result is returned.
+- *Cancellation, before or during the run*: `OperationCanceledException`; no result is returned.
 
 When one worker throws, the parallel loop stops starting new files and the exception reaches the caller, after the
 workers that are already running have finished, so no work continues in the background. Nothing is logged.

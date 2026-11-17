@@ -45,15 +45,15 @@ its own, so the only place the walk can be interrupted is inside the directory a
 
 **Select (public)**: Selects files beneath a directory path.
 
-- _Parameters_: `string rootDirectory`; `IReadOnlyList<string> includePatterns`, an ordered list in which a leading `!`
+- *Parameters*: `string rootDirectory`; `IReadOnlyList<string> includePatterns`, an ordered list in which a leading `!`
   excludes, the last matching pattern decides, and the first pattern may not be negated; `IReadOnlyList<string>
   ignorePatterns`, which cannot be negated and always win; `bool enableGlobDot` (default `false`); `CancellationToken
   cancellationToken` (default none).
-- _Returns_: a read-only list of `SelectedFile`, ordered by ordinal relative path.
-- _Preconditions_: no argument is null, the directory name is not empty, and the directory exists and can be
+- *Returns*: a read-only list of `SelectedFile`, ordered by ordinal relative path.
+- *Preconditions*: no argument is null, the directory name is not empty, and the directory exists and can be
   read. The
   pattern lists are read once during the call and are not retained, so the caller may change them afterwards.
-- _Postconditions_: the list is a snapshot; no file has been opened. When the token is canceled the call throws
+- *Postconditions*: the list is a snapshot; no file has been opened. When the token is canceled the call throws
   and returns no list.
 
 **Select (internal)**: The same selection over an abstract directory. It is a test seam: tests pass a
@@ -64,10 +64,10 @@ cancellation stops the walk. The public method validates the path and calls it.
 **ProbeRoot (internal)**: Reads the first entry of the root directory, after the patterns have been validated
 and before the walk, so a root that is missing or unreadable is reported instead of selecting nothing.
 
-- _Parameters_: `string rootDirectory` (for the message); `Func<IEnumerable<FileSystemInfo>> enumerateRoot`, the
+- *Parameters*: `string rootDirectory` (for the message); `Func<IEnumerable<FileSystemInfo>> enumerateRoot`, the
   listing of the real root directory. Passing the listing in is the test seam, so tests supply each failure on
   every platform.
-- _Postconditions_: returns normally when the first entry can be read or the directory is empty; a
+- *Postconditions*: returns normally when the first entry can be read or the directory is empty; a
   directory-not-found failure becomes `DirectoryNotFoundException` naming the root; every other failure
   propagates unchanged.
 
@@ -118,7 +118,7 @@ no partial selection is returned. Nothing is logged.
 - **OrderedGlobList** - parses the include patterns and makes the ordered decision; **GlobPatternExpander** expands
   the ignore patterns; **HiddenPathPolicy** - the hidden-name rule.
 - **Microsoft.Extensions.FileSystemGlobbing** - the matcher and the directory abstraction. See
-  _FileSystemGlobbing Integration Design_. No type from it appears in a public signature.
+  *FileSystemGlobbing Integration Design*. No type from it appears in a public signature.
 - **.NET BCL** - paths and directory information.
 
 No unit in the Configuration subsystem is used.

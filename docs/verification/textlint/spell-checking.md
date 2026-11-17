@@ -179,7 +179,8 @@ is tested by `SpellCheckingSubsystem_CheckText_CustomPatternsFromSettings_SkipMa
 
 **SpellCheckingSubsystem_Constructor_UnusablePattern_ThrowsInvalidPatternException**: Settings with an invalid
 expression and settings with a name that nothing defines each fail when the checker is created, with the documented
-exception. This scenario is tested by `SpellCheckingSubsystem_Constructor_UnusablePattern_ThrowsInvalidPatternException`.
+exception. This scenario is tested by
+`SpellCheckingSubsystem_Constructor_UnusablePattern_ThrowsInvalidPatternException`.
 
 **SpellCheckingSubsystem_CheckText_IgnoreRegExpDirective_HidesMatchesAndReportsUnusablePatterns**: Settings define a
 pattern, and a text holds a directive that names it, a directive with an expression, a word each of them matches, one

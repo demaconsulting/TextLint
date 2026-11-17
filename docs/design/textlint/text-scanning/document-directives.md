@@ -52,7 +52,7 @@ underscore, so a prefix glued to the end of another word is not a directive. The
 - **ignoreRegExp** (also written `ignore_Reg_Exp`, with or without separators and in any letter case) adds one
   pattern, written like an `ignoreRegExpList` entry, for the whole document, wherever the directive is: before it,
   after it, and also when the directive lies inside a disabled block. The text of the directive is not itself checked.
-  How the pattern is read from the line is described under _FindPattern_ below. When nothing follows the name on its
+  How the pattern is read from the line is described under *FindPattern* below. When nothing follows the name on its
   line, the directive has no pattern and is reported like an unsupported directive; the next line is never read.
 - Directives that cspell supports and this library does not are recognized and reported: `flag` and `forbid` (and
   their word forms), `locale` (also written `local`) and `language`, `dictionary` and `dictionaries`,
@@ -82,34 +82,34 @@ reported, so the two cannot disagree:
 
 **Scan**: Scans a text for directives.
 
-- _Parameters_: the text.
-- _Algorithm_: (1) rule out a text that cannot hold a directive with a cheap search for the words `spell` and
+- *Parameters*: the text.
+- *Algorithm*: (1) rule out a text that cannot hold a directive with a cheap search for the words `spell` and
   `textlint`; (2) find every prefix and classify the name after it with one pattern, which yields the kind of each
   directive; (3) derive the disabled regions from the kinds: a block from each disable to the next enable with the
   same prefix, the covered lines of each next-line directive, and the line of each disable-line directive;
   (4) add the text of the `ignore`, `words`, and `ignoreRegExp` directives to the excluded ranges; (5) read the first
   readable prefix of each line, splitting the listed words into the ignored or document word list, finding the pattern
-  of an `ignoreRegExp` directive with _FindPattern_ (recording it with its range and whether it is reportable, or, when
+  of an `ignoreRegExp` directive with *FindPattern* (recording it with its range and whether it is reportable, or, when
   the line holds nothing after the name, recording the range of the name as an unsupported directive unless that
   position lies inside a disabled region), and, for an unsupported directive or a name that begins like a directive,
   recording the range of its name unless that position lies inside a disabled region; (6) return `Empty` when nothing
   was found.
-- _Postconditions_: the whole text is scanned, including disabled regions, because a words directive adds its words to
+- *Postconditions*: the whole text is scanned, including disabled regions, because a words directive adds its words to
   the document wherever it is, and an `ignoreRegExp` directive adds its pattern to the whole document wherever it is,
   while an unsupported directive inside a disabled region is not reported, because text there is not read; the pattern
   of an `ignoreRegExp` directive there is returned with `IsReportable` false.
 
 **FindPattern**: Reads the pattern of an `ignoreRegExp` directive from its line, exactly the way cspell does.
 
-- _Parameters_: the text, the offset just past the directive name, and the offset of the end of the line.
-- _Algorithm_: (1) trim white space from both ends of the rest of the line after the name; (2) when nothing is left,
+- *Parameters*: the text, the offset just past the directive name, and the offset of the end of the line.
+- *Algorithm*: (1) trim white space from both ends of the rest of the line after the name; (2) when nothing is left,
   return an empty range; (3) take the longest stretch that starts at the first `/` that has another `/` after it and
   ends at the last `/` of the rest of the line, together with the flag letters from `g`, `i`, `m`, `u`, and `y` that
   directly follow that last slash (so two literals on one line are read as one stretch, and `/x/s` is read as `/x/`,
   because `s` is not one of cspell's flag letters, which is why a pattern that needs the `s` flag can be written in the
   settings but not in a directive); (4) otherwise take the first word, which ends at white space, so an escaped space
   does not help: `a\ b` is read as `a\`. Anything after the pattern is ignored.
-- _Postconditions_: the returned range lies inside the line and holds the pattern text as written; it is empty only
+- *Postconditions*: the returned range lies inside the line and holds the pattern text as written; it is empty only
   when the line has nothing after the name.
 
 The patterns, and why each is shaped as it is:

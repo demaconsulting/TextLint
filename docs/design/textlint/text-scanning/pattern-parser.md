@@ -27,13 +27,13 @@ used only together.
 - `SupportedFlags` (`gimsu`): the flags that are accepted.
 - `MatchTimeoutMilliseconds` (5000): the production limit, the longest time a pattern may spend on one text. It is the
   constant of `DefaultPatterns`, so every regular expression the library runs has the same limit. An internal overload
-  of `Parse` takes another limit (see _Key Methods_), which only tests use.
+  of `Parse` takes another limit (see *Key Methods*), which only tests use.
 
 `JavaScriptRegexTranslator` is an `internal static` class whose state is fixed for the life of the process: the limits,
 the text of the fixed translations, and the tables of character ranges.
 
 - `MaxPatternLength` (4096): the longest pattern body, in UTF-16 code units, that is accepted.
-- `MaxTranslatedLength` (262144): the longest translation, in characters, that is accepted (see _Limits_).
+- `MaxTranslatedLength` (262144): the longest translation, in characters, that is accepted (see *Limits*).
 - A private nesting limit of 100: the deepest nesting of groups that is accepted.
 - The translation of the line terminators, `.`, `^`, `$`, `\b`, and `\B` (see the rules below), written once as
   constants.
@@ -45,10 +45,10 @@ the text of the fixed translations, and the tables of character ranges.
   `Cc`, `Cf`, `Cs`, `Co`, and `Cn`), which .NET spells as JavaScript does.
 
 Each call to the translator creates a private `Reader`, a sealed class that holds the pattern, the three flags it needs
-(multiline, Unicode, and dot-all), the translation written so far, the groups that have been closed, the names of the named
-groups with their numbers, the position, the number of capturing groups opened so far and in the whole pattern, whether
-the pattern has a named group, the current depth, and the first problem found. A reader is never shared, which is what
-makes the translator thread-safe.
+(multiline, Unicode, and dot-all), the translation written so far, the groups that have been closed, the names of the
+named groups with their numbers, the position, the number of capturing groups opened so far and in the whole pattern,
+whether the pattern has a named group, the current depth, and the first problem found. A reader is never shared, which
+is what makes the translator thread-safe.
 
 `JavaScriptSyntax` is an `internal static` class of constants and two functions, shared by every unit that writes a
 pattern by hand: `SpaceBody`, `Space`, and `NotSpace` (the JavaScript white space set as the body of a class, as a
@@ -67,12 +67,12 @@ The table is produced by `tools/javascript-oracles/generate-javascript-case-data
 repository and is not run by the build.
 
 `InvalidPatternException` is a `public sealed` class derived from `ArgumentException`, because an unusable pattern is an
-invalid argument supplied by the caller. It has `Pattern` (public: the entry exactly as supplied) and `Reason` (internal:
-why the entry is rejected, as a sentence, without the entry text, so that the settings loader can build a message that
-names the setting and the position). Its constructor is internal, because only this subsystem rejects patterns. The
-message is always `Invalid pattern '<entry>': <reason>`, so a bare exception text is enough for a user to find the
-entry. The exception of the regular expression engine, when it caused the rejection, is the inner exception. Instances
-are immutable.
+invalid argument supplied by the caller. It has `Pattern` (public: the entry exactly as supplied) and `Reason`
+(internal: why the entry is rejected, as a sentence, without the entry text, so that the settings loader can build a
+message that names the setting and the position). Its constructor is internal, because only this subsystem rejects
+patterns. The message is always `Invalid pattern '<entry>': <reason>`, so a bare exception text is enough for a user to
+find the entry. The exception of the regular expression engine, when it caused the rejection, is the inner exception.
+Instances are immutable.
 
 **Entry forms.** An entry is, after JavaScript white space around it is removed, one of two forms:
 
@@ -85,31 +85,31 @@ are immutable.
   at every line, as cspell reads it.
 
 **Flags.** The flags `g`, `i`, `m`, `s`, and `u` are accepted in any combination. `g` changes nothing, because every
-match is wanted. `i`, `m`, `s`, and `u` are passed to the translator. The .NET case-insensitive option is **never** used:
-it follows the culture tables of .NET, which differ from JavaScript (for example, .NET matches the Kelvin sign U+212A with
-`k` in every mode, and does not match `µ` with `μ`), so the translator writes the case behavior of `i` itself (see _Letter
-case_ below) and the options are only the invariant culture. `s` makes `.` match every UTF-16 code unit, line terminators
-included. The flags `x`, `y`, `d`, and `v` are
-rejected by name, with the reason `the flag 'x' is not supported; use only g, i, m, s, and u.`, because they have no
-safe equivalent and cspell drops some of them silently, so a pattern that depends on one would not mean what its author
-wrote. The `s` flag has an exact equivalent, so it is accepted. A pattern written in an in-document directive cannot
-carry `s`, because there only the flag letters that cspell reads (`g`, `i`, `m`, `u`, and `y`) are taken as flags (see
-_DocumentDirectives_); this is a deliberate parity decision, and the flag works in the entries of the settings.
+match is wanted. `i`, `m`, `s`, and `u` are passed to the translator. The .NET case-insensitive option is **never**
+used: it follows the culture tables of .NET, which differ from JavaScript (for example, .NET matches the Kelvin sign
+U+212A with `k` in every mode, and does not match `µ` with `μ`), so the translator writes the case behavior of `i`
+itself (see *Letter case* below) and the options are only the invariant culture. `s` makes `.` match every UTF-16 code
+unit, line terminators included. The flags `x`, `y`, `d`, and `v` are rejected by name, with the reason
+`the flag 'x' is not supported; use only g, i, m, s, and u.`, because they have no safe equivalent and cspell drops some
+of them silently, so a pattern that depends on one would not mean what its author wrote. The `s` flag has an exact
+equivalent, so it is accepted. A pattern written in an in-document directive cannot carry `s`, because there only the
+flag letters that cspell reads (`g`, `i`, `m`, `u`, and `y`) are taken as flags (see *DocumentDirectives*); this is a
+deliberate parity decision, and the flag works in the entries of the settings.
 
 **Translation rules.** The translator is a strict recursive-descent reader of the JavaScript syntax. For each construct
 it understands it writes the .NET form, and it rejects everything else with a reason, instead of passing text through
 that .NET might read differently. Each rule is covered by a unit test.
 
-- _Word characters, digits, and boundaries._ In JavaScript, `\w`, `\d`, and `\b` are ASCII-only, while in .NET they
+- *Word characters, digits, and boundaries.* In JavaScript, `\w`, `\d`, and `\b` are ASCII-only, while in .NET they
   are Unicode-aware. `\d` and `\w` are written as classes of the ASCII ranges and `\D` and `\W` as their negations;
   `\b` and `\B` are written as look-around assertions on the ASCII word characters, the same text that
   `DefaultPatterns` uses. Inside a class, `\b` is the backspace character, as in JavaScript.
-- _White space._ `\s` is the JavaScript set listed above (the shared `JavaScriptSyntax.SpaceBody`, which the
+- *White space.* `\s` is the JavaScript set listed above (the shared `JavaScriptSyntax.SpaceBody`, which the
   hand-written patterns of the other units use too), and `\S` its negation. It is not the .NET set: U+FEFF is in the
   JavaScript set and U+0085 is not. Inside a class, the negated
   shorthands `\D`, `\W`, and `\S` have no .NET spelling with the JavaScript meaning, so they are written out as the
   complementary ranges over the UTF-16 code units.
-- _Letter case._ With the `i` flag the translator expands the characters so that the .NET engine, run without its case
+- *Letter case.* With the `i` flag the translator expands the characters so that the .NET engine, run without its case
   option, matches what JavaScript matches. A literal letter becomes a class of its equivalents, a class is closed
   under the equivalence (a negated class is the complement of the closed set, so `[^a]` excludes `A`), the shorthands
   `\w` and `\W` are closed too, and a `\p{..}` or `\P{..}` is written as the explicit ranges of the category, closed.
@@ -119,46 +119,46 @@ that .NET might read differently. Each rule is covered by a unit test.
   it is simple case folding. A literal outside the basic plane is expanded only with the `u` flag, into an alternation
   of its forms; with `\b` under `iu` the word class includes U+017F and U+212A, as in JavaScript. A back-reference
   is rejected under `i` (see below).
-- _Line terminators._ `.` is the class of every character except `\n`, `\r`, U+2028, and U+2029; with the `s` flag it
+- *Line terminators.* `.` is the class of every character except `\n`, `\r`, U+2028, and U+2029; with the `s` flag it
   is the class `[\u0000-\uFFFF]` of every UTF-16 code unit, line terminators included, and with the `u` flag it is one
   character in the sense of the next rule. In multiline mode `^`
   is the look-behind that is true at the start of the text or after one of those four characters, and `$` the
   look-ahead that is true at the end of the text or before one. Without the multiline flag, `^` is `\A` and `$` is
   `\z`, so `$` does not match before a final line feed, as in JavaScript (where .NET's `$` would). The translated
   pattern is therefore always built without the .NET multiline option. An anchor or a word boundary cannot be repeated.
-- _Groups._ Every capturing group, named or not, is written as a plain group, so .NET numbers the groups by the order of
+- *Groups.* Every capturing group, named or not, is written as a plain group, so .NET numbers the groups by the order of
   their opening parentheses, exactly as JavaScript does; .NET would otherwise number named groups after the plain ones.
   Non-capturing groups and the four look-around assertions are written as they are. A look-ahead may be repeated only
   without the `u` flag, and a look-behind never. A group name may hold only ASCII letters, digits, `_`, and `$`, may
   not start with a digit, and may not be used twice.
-- _Back-references._ `\N` and `\k<name>` are written as `(?:\k<N>)` with the number of the group, in a group so that a
+- *Back-references.* `\N` and `\k<name>` are written as `(?:\k<N>)` with the number of the group, in a group so that a
   digit that follows cannot become part of the number. The referenced group must be complete at that point; a reference
   to a group that does not exist (where JavaScript would read an octal escape), to a group that has not been closed, or
   to a name that is not defined before it is rejected. `\k` in a pattern without a named group is rejected. With the
   `i` flag every back-reference is rejected, with the reason that it cannot be used with the flag `i`: .NET could only
   compare the text with its own case rules, which follow the runtime and differ from JavaScript, and an answer that
   depends on the platform is worse than a refusal. A pattern that needs both uses a literal without the flag.
-- _Classes._ The members of a bracketed class are written as `\uXXXX` escapes, ranges as a pair of escapes, and
+- *Classes.* The members of a bracketed class are written as `\uXXXX` escapes, ranges as a pair of escapes, and
   shorthand classes as their ranges, so no character can be read as class syntax. With the `i` or the `u` flag a class
   is built as a set of characters (with the case flag closed under letter case, and with the Unicode flag by code
   points, see above) and written from the set. An empty class `[]` matches nothing
   (`(?!)`) and `[^]` matches every code unit (every character with the `u` flag), as in JavaScript. A range that is out
   of order is rejected. Without the
   `u` flag a shorthand next to a hyphen makes the hyphen a plain character, as in JavaScript; with it, that is rejected.
-- _Unicode properties._ `\p{..}` and `\P{..}` are accepted only with the `u` flag, which is when JavaScript gives them
+- *Unicode properties.* `\p{..}` and `\P{..}` are accepted only with the `u` flag, which is when JavaScript gives them
   their meaning, and only for the general categories. They are written out as the set of the code points of the
-  category, so they read characters outside the basic plane. Scripts and binary properties have no .NET equivalent and are
-  rejected, as is the bare `\p` of a pattern without the flag, which JavaScript would read as the letter `p`.
-- _Character escapes._ `\t`, `\n`, `\r`, `\f`, `\v`, `\0` (not followed by a digit), `\cX`, `\xHH`, `\uHHHH`, and, with
+  category, so they read characters outside the basic plane. Scripts and binary properties have no .NET equivalent and
+  are rejected, as is the bare `\p` of a pattern without the flag, which JavaScript would read as the letter `p`.
+- *Character escapes.* `\t`, `\n`, `\r`, `\f`, `\v`, `\0` (not followed by a digit), `\cX`, `\xHH`, `\uHHHH`, and, with
   the `u` flag, `\u{H..}` are translated. The braced form takes any number of hexadecimal digits, leading zeros
   included (`\u{00000041}` is `A`, as in Node.js v22.18.0), and is rejected only when the value is above 10FFFF, when it
   is empty, or when it holds anything but hexadecimal digits (no sign, no space). An escaped punctuation character
   stands for itself. An escaped letter or digit
   that is not one of the escapes above is rejected, because JavaScript reads it as the plain letter but .NET gives many
   of them a meaning, such as `\z`, `\A`, and `\e`. Octal escapes are rejected.
-- _Literal characters._ ASCII letters, digits, and a short list of harmless punctuation are written as they are. Every
+- *Literal characters.* ASCII letters, digits, and a short list of harmless punctuation are written as they are. Every
   other character is written as a `\uXXXX` escape, so .NET can read it only as itself.
-- _Characters outside the basic plane, and the Unicode flag._ Without the `u` flag JavaScript reads the text by UTF-16
+- *Characters outside the basic plane, and the Unicode flag.* Without the `u` flag JavaScript reads the text by UTF-16
   code units, as .NET does, so a literal surrogate pair is two code units and the quantifier applies to the second
   unit only; `.`, a negated class, and the negated shorthands match one code unit, and a class may hold the two units of
   a pair as two members. With the `u` flag JavaScript reads the text by characters: a surrogate pair is one character,
@@ -184,10 +184,10 @@ that .NET might read differently. Each rule is covered by a unit test.
     basic plane by the groups of the table).
   Look-behind needs nothing more: .NET reads the same alternation backwards, and the look-around of the lone surrogate
   forms look at the characters on the right and left of the unit, which is what they must do in either direction.
-- _Quantifiers._ `*`, `+`, `?`, `{n}`, `{n,}`, and `{n,m}`, each with an optional lazy `?`. A brace that does not form a
-  quantifier is a literal character without the `u` flag (a lone `{`, `}`, or `]` is rejected with it). A quantifier with
-  nothing before it, one that follows another, one on an assertion that cannot be repeated, one whose numbers are out of
-  order, and one with a number that does not fit a 32-bit integer are rejected.
+- *Quantifiers.* `*`, `+`, `?`, `{n}`, `{n,}`, and `{n,m}`, each with an optional lazy `?`. A brace that does not form a
+  quantifier is a literal character without the `u` flag (a lone `{`, `}`, or `]` is rejected with it). A quantifier
+  with nothing before it, one that follows another, one on an assertion that cannot be repeated, one whose numbers are
+  out of order, and one with a number that does not fit a 32-bit integer are rejected.
 
 **Rejected constructs.** Besides the cases above, the translator rejects, each with a reason: group syntax other than
 the supported groups (inline options, atomic groups, conditionals, and every other `(?...)` form), a back-reference to
@@ -211,17 +211,17 @@ The nesting limit exists because the reader recurses once per level, so a hostil
 the stack. Repetition counts that fit a 32-bit integer are accepted, because .NET does not unroll them and the
 translation does not grow with them, so the time limit, not the count, bounds the work of matching.
 
-**The cost of every construct** was checked against the source length. Literals, groups, quantifiers, anchors,
-escapes, and look-around assertions give a constant amount of output per source character (at most 29 characters for
-a letter outside the basic plane with the `i` and `u` flags, and about 40 for a lone surrogate with the `u` flag). The
-constructs that expand with the `i` or `u` flag (a property, a shorthand, a negated class, a dot with the `u` flag, a
-class that collects sets) are the ones that the translation limit bounds, and their work is bounded too: the set of a
-category (a pass over the 1,114,112 code points) and the set of a shorthand are computed once per process and kept in
-caches of fixed size (37 names, with and without negation and with and without the case flag, and six shorthands in
-three modes), and the closure of a set under letter case (`Close`, `CloseCodePoints`) works on the ranges and on the few
-thousand letters that have a case, not on all code points, so 1,300 classes of three characters cost milliseconds. The
-caches hold immutable values and are filled with a thread-safe dictionary; two threads that fill an entry at once compute
-the same value.
+**The cost of every construct** was checked against the source length. Literals, groups, quantifiers, anchors, escapes,
+and look-around assertions give a constant amount of output per source character (at most 29 characters for a letter
+outside the basic plane with the `i` and `u` flags, and about 40 for a lone surrogate with the `u` flag). The constructs
+that expand with the `i` or `u` flag (a property, a shorthand, a negated class, a dot with the `u` flag, a class that
+collects sets) are the ones that the translation limit bounds, and their work is bounded too: the set of a category (a
+pass over the 1,114,112 code points) and the set of a shorthand are computed once per process and kept in caches of
+fixed size (37 names, with and without negation and with and without the case flag, and six shorthands in three modes),
+and the closure of a set under letter case (`Close`, `CloseCodePoints`) works on the ranges and on the few thousand
+letters that have a case, not on all code points, so 1,300 classes of three characters cost milliseconds. The caches
+hold immutable values and are filled with a thread-safe dictionary; two threads that fill an entry at once compute the
+same value.
 
 **Known differences from JavaScript** that the translation cannot remove, and that are stated rather than hidden:
 
@@ -249,15 +249,15 @@ production, builds the expression with the limit of 5 seconds (`MatchTimeoutMill
 prove the time-out behavior in milliseconds. Generated (source-generated) regular expressions of other units keep
 their own fixed limit of 5 seconds; the seam reaches only the expressions that `PatternParser` builds.
 
-- _Parameters_: `string entry`, the entry as written; and, in the second form, `TimeSpan matchTimeout`, the longest
+- *Parameters*: `string entry`, the entry as written; and, in the second form, `TimeSpan matchTimeout`, the longest
   time one match operation may take.
-- _Returns_: a `Regex`, never null.
-- _Preconditions_: the entry is not null; the limit is positive and not infinite, otherwise
+- *Returns*: a `Regex`, never null.
+- *Preconditions*: the entry is not null; the limit is positive and not infinite, otherwise
   `ArgumentOutOfRangeException` is thrown.
-- _Postconditions_: the regular expression is built with the invariant culture, no case option (the case behavior is in
+- *Postconditions*: the regular expression is built with the invariant culture, no case option (the case behavior is in
   the translated pattern), and the match time limit. The multiline and dot-all behavior is in the translated pattern,
   not in the options.
-- _Algorithm_: (1) trim the entry of JavaScript white space (`JavaScriptSyntax.Trim`, not the .NET trim, which treats
+- *Algorithm*: (1) trim the entry of JavaScript white space (`JavaScriptSyntax.Trim`, not the .NET trim, which treats
   U+0085 and U+FEFF the other way round); (2) when it starts with a slash, find the last slash, and when that slash is
   not the first character and what follows consists only of flag letters, take the text between the slashes as the body
   and the letters as the flags, otherwise take the whole text as a bare expression with `im`; (3) reject a blank entry;
@@ -267,13 +267,13 @@ their own fixed limit of 5 seconds; the seam reaches only the expressions that `
 
 **JavaScriptRegexTranslator.TryTranslate**: Translates a body to a .NET pattern.
 
-- _Parameters_: the body, whether the multiline flag is set, whether the Unicode flag is set, whether the dot-all flag
+- *Parameters*: the body, whether the multiline flag is set, whether the Unicode flag is set, whether the dot-all flag
   (`s`) is set, whether the ignore-case flag (`i`) is set, and the out parameters for the translation and for the
   problem.
-- _Returns_: `true` and the .NET pattern, or `false` and the reason as a sentence. Failure is data: nothing is thrown
+- *Returns*: `true` and the .NET pattern, or `false` and the reason as a sentence. Failure is data: nothing is thrown
   for a bad pattern.
-- _Preconditions_: the body is not null; a null body throws `ArgumentNullException`.
-- _Algorithm_: (1) reject an empty body and one longer than the limit before reading any of it; (2) create a reader;
+- *Preconditions*: the body is not null; a null body throws `ArgumentNullException`.
+- *Algorithm*: (1) reject an empty body and one longer than the limit before reading any of it; (2) create a reader;
   (3) count the capturing groups of the whole pattern, because the meaning of a decimal escape depends on how many
   exist; (4) read alternatives separated by `|`, each a sequence of terms, each term an assertion or an atom with its
   quantifier, writing the .NET form as it goes and checking after every term, and after every member of a class, that
@@ -302,13 +302,13 @@ The design choices and their reasons:
 - **Runtime-constructed, interpreted expressions.** The patterns are known only at run time, so the source generator
   that the default patterns use cannot be applied. The regular expressions are constructed without the compiled option,
   so no code is generated at run time.
-- **Case behavior in the translation, not in an option, and from data, not from the runtime.** The .NET
-  case-insensitive option is culture-table driven and differs from JavaScript on about 80 pairs of characters (the
-  Kelvin sign, the long s, the micro sign, the sigma forms, and others), in both directions. Writing the equivalent
-  characters out gives the JavaScript behavior whatever the culture of the computer, at the price of longer patterns for
-  letters and classes. The equivalences themselves are not computed from the casing functions of .NET either, because
-  those follow the Unicode data of the runtime and of the platform's ICU library, and a CI run on Linux and macOS proved
-  that a table derived from them differs from one derived on another runtime (the letters U+A7CE to U+A7D5, for example).
+- **Case behavior in the translation, not in an option, and from data, not from the runtime.** The .NET case-insensitive
+  option is culture-table driven and differs from JavaScript on about 80 pairs of characters (the Kelvin sign, the long
+  s, the micro sign, the sigma forms, and others), in both directions. Writing the equivalent characters out gives the
+  JavaScript behavior whatever the culture of the computer, at the price of longer patterns for letters and classes. The
+  equivalences themselves are not computed from the casing functions of .NET either, because those follow the Unicode
+  data of the runtime and of the platform's ICU library, and a CI run on Linux and macOS proved that a table derived
+  from them differs from one derived on another runtime (the letters U+A7CE to U+A7D5, for example).
   `JavaScriptCaseData` is a table recorded from the pinned Node.js, so a pattern means the same on every operating
   system and every .NET version, and only a deliberate regeneration changes it. The recording script checks the groups
   against the JavaScript engine for every pair of characters that can have a case relation (which found the simple case
@@ -326,7 +326,7 @@ The design choices and their reasons:
   seconds for each pattern before it is reported, and a run can lose that time for each file that is built to trigger
   it. The first time-out aborts the check of that file, so the worst case is bounded by the number of patterns that
   apply to the file: the patterns of the settings, plus at most 32 different patterns that the in-document
-  `ignoreRegExp` directives of the file add (see _TextChecker_), that is at most (settings patterns + 32) x 5 seconds
+  `ignoreRegExp` directives of the file add (see *TextChecker*), that is at most (settings patterns + 32) x 5 seconds
   for one file, and only for a file built to trigger it. The time limit does not apply to reading a pattern; the length
   and nesting limits bound that work, and a pattern of the settings file is read when the settings are loaded and again
   when a checker is created, not per file.
@@ -344,7 +344,7 @@ that is empty, too long, nested too deep, untranslatable, or not accepted by the
 and returns the reason. The translation is built to be valid .NET, so the engine rejects it only for a construct that
 only the engine can judge, and that exception is kept as the inner exception. Matching can throw
 `RegexMatchTimeoutException` after the time limit; this is not handled here but by the caller of the match, which treats
-the text as not checked (see _PatternCatalog_ and _TextChecker_). The classes are stateless and thread-safe; the
+the text as not checked (see *PatternCatalog* and *TextChecker*). The classes are stateless and thread-safe; the
 regular expressions they create are immutable and safe for concurrent matching.
 
 #### Dependencies

@@ -35,10 +35,10 @@ file), whereas only those with checker settings need a differently configured ch
 
 **Constructor**: Compiles the overrides.
 
-- _Parameters_: `TextLintSettings settings`; `string? languageOverride`, the language that wins over every override
+- *Parameters*: `TextLintSettings settings`; `string? languageOverride`, the language that wins over every override
   and over the top-level language (the command-line language), or `null`.
-- _Preconditions_: `settings` is not null.
-- _Postconditions_: every override's `filename` list is compiled, so an unusable override fails here, before any file
+- *Preconditions*: `settings` is not null.
+- *Postconditions*: every override's `filename` list is compiled, so an unusable override fails here, before any file
   is considered.
 
 Each override is checked in order: an empty `filename` list throws `ArgumentException`; a `Language` is passed to
@@ -48,9 +48,9 @@ which throws `InvalidGlobPatternException` for an invalid pattern.
 
 **Resolve**: Finds the overrides that match a file and whether the file is checked.
 
-- _Parameters_: `string settingsRelativePath`, the path relative to the settings root, using forward slashes.
-- _Returns_: a `FileResolution`.
-- _Postconditions_: none; the method is pure.
+- *Parameters*: `string settingsRelativePath`, the path relative to the settings root, using forward slashes.
+- *Returns*: a `FileResolution`.
+- *Postconditions*: none; the method is pure.
 
 Every override is tested in the order written with `OrderedGlobList.IsMatch`, so `!` and last-match-wins work as in
 `files`, and matching is case-sensitive. `Enabled` starts as the top-level `Enabled`, and each matching override that
@@ -62,9 +62,9 @@ Only the top-level `Enabled` decides.
 
 **GetEffectiveSettings**: Returns the merged `TextLintSettings` for a resolution.
 
-- _Parameters_: a `FileResolution`.
-- _Returns_: the effective settings, which carry no overrides.
-- _Postconditions_: the merged settings of each `SettingsKey` are built once and shared; the call is thread-safe.
+- *Parameters*: a `FileResolution`.
+- *Returns*: the effective settings, which carry no overrides.
+- *Postconditions*: the merged settings of each `SettingsKey` are built once and shared; the call is thread-safe.
 
 **GetEffectiveSettingsForOverride**: Returns the effective settings for a file that only one override matches. The
 spell checker uses it to build a checker for every override before any file is read, which validates the override's
@@ -80,19 +80,19 @@ changes no checker and needs none.
 The matching overrides that carry checker settings apply in the order written, so general rules come first and
 specific ones last. The merge starts from the top-level settings:
 
-- _Lists_ (`Words`, `IgnoreWords`, `FlagWords`, `IgnoreRegExpList`): the top-level list followed by each override's
+- *Lists* (`Words`, `IgnoreWords`, `FlagWords`, `IgnoreRegExpList`): the top-level list followed by each override's
   list, so an override adds to the values and does not replace them.
-- _Patterns_: the top-level definitions, then for each override in order, any existing definition whose name equals,
+- *Patterns*: the top-level definitions, then for each override in order, any existing definition whose name equals,
   ignoring letter case, a name that the override defines is removed and the override's definitions are appended. A
   definition of a name replaces an earlier one for the files the override matches, so the result has no duplicate
   names. The names that an `ignoreRegExpList` entry uses are resolved afterwards by the checker, from the merged
   definitions, so the order of the lists does not matter.
-- _Single values_ (`MinWordLength`, `IgnoreRandomStrings`, `MinRandomLength`): the value of the last override that sets
+- *Single values* (`MinWordLength`, `IgnoreRandomStrings`, `MinRandomLength`): the value of the last override that sets
   it, otherwise the top-level value.
-- _Language_ (precedence): the language given by the caller wins over everything; otherwise the language of the last
+- *Language* (precedence): the language given by the caller wins over everything; otherwise the language of the last
   override that sets one; otherwise the top-level language. So the command-line language replaces the languages of
   overrides as well as the top-level one.
-- _Enabled_: decided by `Resolve`, not by the merge, as described above.
+- *Enabled*: decided by `Resolve`, not by the merge, as described above.
 - Everything else (`Files`, `IgnorePaths`, `EnableGlobDot`, `MaxFileSize`, `Version`) is copied from the top level, and
   `Overrides` is cleared in the result, because the overrides have been applied. With no matching override and a
   language given by the caller, the effective settings are the top-level settings with that language.

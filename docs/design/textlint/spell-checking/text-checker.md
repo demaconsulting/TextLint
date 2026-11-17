@@ -57,9 +57,10 @@ span of the checked text, so the lookup does not allocate.
 case matches in any letter case; an entry with a capital letter matches only that exact spelling, as in cspell. When
 an entry is repeated, the first is kept.
 
-**CheckRun** is a private class created for each call to `Check`. It holds the text, the rules in force, the random-string
-settings, the findings so far, and four scratch lists (tokens, words, pieces, and the hexadecimal sequences of a token)
-that are reused across the call to avoid allocating for each word. It never leaves the call that created it.
+**CheckRun** is a private class created for each call to `Check`. It holds the text, the rules in force, the
+random-string settings, the findings so far, and four scratch lists (tokens, words, pieces, and the hexadecimal
+sequences of a token) that are reused across the call to avoid allocating for each word. It never leaves the call that
+created it.
 
 **Finding** is a private record struct of an offset, a length, a kind, suggestions, and the optional detail of an
 invalid directive; it is converted to a
@@ -69,10 +70,10 @@ invalid directive; it is converted to a
 
 **Constructor (public)**: Builds a checker from settings.
 
-- _Parameters_: `TextLintSettings settings`.
-- _Preconditions_: the settings are not null, the language is supported, every entry of `words`,
+- *Parameters*: `TextLintSettings settings`.
+- *Preconditions*: the settings are not null, the language is supported, every entry of `words`,
   `ignoreWords`, and `flagWords` can match something, and every entry of `ignoreRegExpList` and `patterns` can be used.
-- _Postconditions_: the checker is immutable. The dictionaries of the language are loaded lazily, when the first word
+- *Postconditions*: the checker is immutable. The dictionaries of the language are loaded lazily, when the first word
   is looked up, not here. The match time limit is 5 seconds.
 
 **Constructor (internal, with a match time limit)**: Builds a checker with a given time limit. The public constructor
@@ -97,18 +98,18 @@ rules, so a pattern accepted when a file is loaded is never rejected here.
 
 **Check (public)**: Checks a text and returns its findings.
 
-- _Parameters_: `string text`, `string? sourceName` (default null). The source name is put on each finding and also
+- *Parameters*: `string text`, `string? sourceName` (default null). The source name is put on each finding and also
   decides whether the Markdown patterns apply.
-- _Returns_: a read-only list of `SpellingIssue` in text order; never null; empty for an empty text.
-- _Preconditions_: the text is not null.
-- _Postconditions_: the text is not modified; nothing is read or written; the list is immutable.
+- *Returns*: a read-only list of `SpellingIssue` in text order; never null; empty for an empty text.
+- *Preconditions*: the text is not null.
+- *Postconditions*: the text is not modified; nothing is read or written; the list is immutable.
 
 Steps: (1) scan the text for directives, which yields the regions that are switched off, the text of the directives
 that add words or patterns, the words they add, the patterns of the `ignoreRegExp` directives, and the unsupported
 directives; (2) add the ranges that are never checked: the
 default patterns (URLs, email addresses, hexadecimal values, hashes, encoded data), the Markdown patterns when
 `MarkdownPatterns.AppliesTo` accepts the source name (link targets, labels, anchors, and entities), the patterns of
-the settings, and the patterns of the directives (see _ApplyDirectivePatterns_), each run over the whole text by
+the settings, and the patterns of the directives (see *ApplyDirectivePatterns*), each run over the whole text by
 `PatternCatalog.FindExcludedRanges`, so a pattern can span lines and can cut a word in two; then sort all excluded
 ranges by position; (3) when the directives added words, layer them over the
 shared rules; (4) check each stretch of text between excluded ranges as a separate segment, so a word that an excluded
@@ -117,13 +118,13 @@ invalid directive pattern; (6) convert offsets to lines and columns.
 
 **ApplyDirectivePatterns (private)**: Applies the patterns of the `ignoreRegExp` directives of one text.
 
-- _Parameters_: the text, the `PatternDirectives` of the scan, and the list of excluded ranges that receives the
+- *Parameters*: the text, the `PatternDirectives` of the scan, and the list of excluded ranges that receives the
   matches.
-- _Returns_: the patterns that cannot be used and are to be reported, each with its range and reason, in text order.
-- _Postconditions_: a pattern applies to the whole text, wherever its directive is, also when the directive is inside a
+- *Returns*: the patterns that cannot be used and are to be reported, each with its range and reason, in text order.
+- *Postconditions*: a pattern applies to the whole text, wherever its directive is, also when the directive is inside a
   disabled region (there it is applied but not reported, because `IsReportable` is false). The text of the directive
   itself is never checked, because the scan excludes it; a pattern that cannot be used hides nothing else.
-- _Algorithm_: for each directive in text order: (1) when its pattern text was already seen, reuse the earlier outcome,
+- *Algorithm*: for each directive in text order: (1) when its pattern text was already seen, reuse the earlier outcome,
   so each DISTINCT pattern (see the key below) is resolved and matched once, however many directives
   repeat it, while every repetition is still reported at its own position. The key is the one the lookup uses: an
   entry that has the shape of a pattern name is keyed by its trimmed text compared ignoring letter case (the catalog
@@ -136,36 +137,36 @@ invalid directive pattern; (6) convert offsets to lines and columns.
   `m`, the name of a definition of the `patterns` setting, or a predefined name; a regular expression that results
   is run over the text with `PatternCatalog.FindExcludedRanges`, and a failure gives the reason; (4) when the outcome is
   a reason and the directive is reportable, add the range and the reason to the result.
-- _Constraints_: a pattern that exceeds the time limit throws `RegexMatchTimeoutException` (see _Error Handling_).
+- *Constraints*: a pattern that exceeds the time limit throws `RegexMatchTimeoutException` (see *Error Handling*).
 
 The rule for patterns differs from cspell in three deliberate ways: a pattern that cannot be used is reported (cspell
 drops it silently); a plain name that is neither defined nor predefined is an error (cspell reads it as a literal
-regular expression); and an `ignoreRegExp` directive with nothing after its name is reported as an unsupported directive.
-A pattern that cspell would also use is applied in the same way, to the whole document. The number of patterns is
-bounded because a directive is written by whoever wrote the text.
+regular expression); and an `ignoreRegExp` directive with nothing after its name is reported as an unsupported
+directive. A pattern that cspell would also use is applied in the same way, to the whole document. The number of
+patterns is bounded because a directive is written by whoever wrote the text.
 
 **CheckRun.CheckToken / CheckWord / CheckPiece (private)**: The word-level algorithm for one segment.
 
 A segment is cut into tokens, the units that the entries with digits or punctuation are matched against and within
-which words are found (see _TextScanning Design_). For each token:
+which words are found (see *TextScanning Design*). For each token:
 
 1. When `ignoreRandomStrings` is on and the token has at least `minRandomLength` characters (UTF-16 code units) and
    `RandomStringDetector.IsRandom` judges it random, the token is skipped before anything else, as in cspell, so even a
    flagged word inside it is not reported and no word of it is looked up.
-2. If any list has an entry with digits or punctuation, the token with its edge punctuation trimmed is matched as a whole
-   against those entries: ignored or accepted ends the token, flagged reports the whole token.
-3. Otherwise the token is cut into words. For each word: (a) a flagged word is reported whatever its length, unless it is
-   also ignored; (b) a word shorter than the minimum length, or accepted, passes; accepted means in the dictionary or a
-   list, as the possessive of such a word, without a backslash escape or without the escape letter after a backslash, or
-   as a run of capitals with an ending whose capitals are accepted or too short to check; (c) an unknown word is split at
-   case changes and its pieces are grouped as described under _Joined case parts_ below; each piece that is left single
-   is checked on its own: a piece that is not flagged passes when it is too short, accepted,
-   or a contraction whose parts are acceptable, and otherwise, unless it is one repeated letter, it is reported, as a
-   flagged word when it is flagged and as an unknown word when it is not.
+2. If any list has an entry with digits or punctuation, the token with its edge punctuation trimmed is matched as a
+   whole against those entries: ignored or accepted ends the token, flagged reports the whole token.
+3. Otherwise the token is cut into words. For each word: (a) a flagged word is reported whatever its length, unless it
+   is also ignored; (b) a word shorter than the minimum length, or accepted, passes; accepted means in the dictionary or
+   a list, as the possessive of such a word, without a backslash escape or without the escape letter after a backslash,
+   or as a run of capitals with an ending whose capitals are accepted or too short to check; (c) an unknown word is
+   split at case changes and its pieces are grouped as described under *Joined case parts* below; each piece that is
+   left single is checked on its own: a piece that is not flagged passes when it is too short, accepted, or a
+   contraction whose parts are acceptable, and otherwise, unless it is one repeated letter, it is reported, as a flagged
+   word when it is flagged and as an unknown word when it is not.
 4. When `ignoreRandomStrings` is on and the token produced findings, `RandomStringDetector.FindHexSequences` finds the
    hexadecimal sequences of the token, and every unknown-word finding that starts inside one is removed. A flagged-word
-   finding is always kept. This step does not run for a token that ended in step 2, and it applies whatever the length of
-   the token.
+   finding is always kept. This step does not run for a token that ended in step 2, and it applies whatever the length
+   of the token.
 
 The precedence is therefore ignored, then flagged, then accepted words, then dictionary, and a flagged word shorter than
 the minimum is still reported. Checking the whole word before splitting it is what keeps a known compound identifier
@@ -178,13 +179,13 @@ word splitter, where a break may be taken or ignored and the segmentation with t
 the word is fine because `Weasy` and `Print` form an accepted word. The rule is limited to joining exact accepted words;
 it never looks inside a lower-case run, so it is not a compound splitter.
 
-- _Cost_: a single piece costs its length when it would be reported (flagged, or long enough, not accepted, not an
+- *Cost*: a single piece costs its length when it would be reported (flagged, or long enough, not accepted, not an
   acceptable contraction, and not one repeated letter) and nothing otherwise. A run of two or more adjacent pieces costs
   nothing and is a candidate only when its text, without a flag, is accepted as a whole word by `WordRules.IsAccepted`
   (the same letter-case rules, the dictionaries, the lists, and the backslash allowance for a run that starts the word).
   The contraction and capital-run-ending allowances are not applied to a run, because a join is made of exact accepted
   words only.
-- _Algorithm_: first price every piece alone (prefix sums); when the total is zero, stop, because no join can help.
+- *Algorithm*: first price every piece alone (prefix sums); when the total is zero, stop, because no join can help.
   Then, from the last piece to the first, `best[i]` is the least total cost of the pieces from `i`: take the single
   piece, or a run of 2 to 8 pieces starting at `i`. A run is tried only when it covers some cost (so all-accepted runs
   need no lookups), when its pieces are contiguous (`End` of one equals `Start` of the next, so a run never crosses a
@@ -192,28 +193,28 @@ it never looks inside a lower-case run, so it is not a compound splitter.
   when it holds no piece that is flagged on its own and its text is not flagged. Finally, walk the chosen runs and
   report each single piece that is unknown or flagged, by the rules above, so the findings (ranges, kinds, and
   suggestions) are those of checking every piece alone whenever no join helps.
-- _Flagged words_: a flag is never hidden. A run is never made across a flagged piece, so that piece is reported as
+- *Flagged words*: a flag is never hidden. A run is never made across a flagged piece, so that piece is reported as
   flagged exactly as before; and a joined text that is flagged is not accepted, as a flagged whole word never is, so
   the pieces are checked alone. A flagged joined text is not itself reported: the flag lists are matched against words
   and whole tokens, as in cspell, not against parts of a word.
-- _Bound_: a run holds at most `MaxJoinedPieces` (8) pieces. Accepted words made of case parts have a few parts
+- *Bound*: a run holds at most `MaxJoinedPieces` (8) pieces. Accepted words made of case parts have a few parts
   (`WeasyPrint`, `PostgreSQL`, `JavaScript`); eight leaves ample room, and the cap makes the work at most eight
   lookups per piece, each on text no longer than the word, so even an identifier of a million pieces is checked in
   linear time.
-- _Ties_: among groupings of equal cost, the one whose first run is longer wins, and the same rule applies from the
+- *Ties*: among groupings of equal cost, the one whose first run is longer wins, and the same rule applies from the
   following piece on (each `best[i]` keeps the longest run whose cost is no greater). The choice is deterministic and
   depends only on the pieces.
-- _Memory_: the scratch arrays (flags, prefix costs, best costs, best run lengths) belong to the `CheckRun`, grow only
+- *Memory*: the scratch arrays (flags, prefix costs, best costs, best run lengths) belong to the `CheckRun`, grow only
   to the largest word seen, and are reused for every word of the call.
 - A word of one piece is checked directly, without these steps, and a word accepted as a whole never reaches them.
 
-**Contractions.** The pieces of a word that has apostrophes keep them (`exec'd`, `OR'd`, `rock'n'roll`), and a piece that
-is neither too short nor accepted as a whole is tested with `WordRules.IsContractionAccepted`. The method splits the
-piece at each straight or typographic apostrophe; a backslash that ends a part belongs to the escaped apostrophe, not to
-the part, and is removed; an empty part is ignored; and the first part is tested as following a backslash only when the
-word does. A part is acceptable when it is not flagged and is too short to be checked, accepted, or a run of capitals
-with an accepted ending. The word is accepted when it has at least one apostrophe and every part is acceptable; one
-unacceptable part, including a flagged one, leaves the word unknown, and it is reported whole, apostrophes included.
+**Contractions.** The pieces of a word that has apostrophes keep them (`exec'd`, `OR'd`, `rock'n'roll`), and a piece
+that is neither too short nor accepted as a whole is tested with `WordRules.IsContractionAccepted`. The method splits
+the piece at each straight or typographic apostrophe; a backslash that ends a part belongs to the escaped apostrophe,
+not to the part, and is removed; an empty part is ignored; and the first part is tested as following a backslash only
+when the word does. A part is acceptable when it is not flagged and is too short to be checked, accepted, or a run of
+capitals with an accepted ending. The word is accepted when it has at least one apostrophe and every part is acceptable;
+one unacceptable part, including a flagged one, leaves the word unknown, and it is reported whole, apostrophes included.
 The test comes after the whole-word checks, so a word that is known as a whole never reaches it.
 
 **ToIssues (private)**: Converts findings to issues.
@@ -230,8 +231,8 @@ mistaken for an accepted word), or has no letter or digit.
 
 **CheckRun.RemoveFindingsInHexSequences (private)**: Applies the hexadecimal filter to one token.
 
-- _Parameters_: the token and the index of the first finding that the token produced.
-- _Algorithm_: ask `RandomStringDetector.FindHexSequences` for the sequences of the token; when there are none, stop;
+- *Parameters*: the token and the index of the first finding that the token produced.
+- *Algorithm*: ask `RandomStringDetector.FindHexSequences` for the sequences of the token; when there are none, stop;
   otherwise keep each finding of the token that is a flagged word or that starts outside every sequence, and drop the
   rest. Findings of earlier tokens are never touched.
 
@@ -270,11 +271,11 @@ The patterns that are generated at build time keep a fixed limit of 5 seconds an
 - **SpellingDictionary** (Dictionaries subsystem) - the language selection and the word lookup.
 - **WordTokenizer**, **DefaultPatterns**, and **DocumentDirectives** (TextScanning subsystem) - the tokens, words, and
   pieces; the text that is never checked; and the directives, including the patterns of `ignoreRegExp` directives. See
-  _TextScanning Design_.
-- **PatternCatalog**, **PatternParser**, **MarkdownPatterns**, and **RandomStringDetector** (TextScanning subsystem) - the
-  resolved patterns of the settings and of the directives and the code that runs them; the match time limit; the
-  patterns that apply to Markdown sources; and the judgment
-  of random-looking tokens and hexadecimal sequences. `InvalidPatternException` and `NamedPattern` come with them.
+  *TextScanning Design*.
+- **PatternCatalog**, **PatternParser**, **MarkdownPatterns**, and **RandomStringDetector** (TextScanning subsystem) -
+  the resolved patterns of the settings and of the directives and the code that runs them; the match time limit; the
+  patterns that apply to Markdown sources; and the judgment of random-looking tokens and hexadecimal sequences.
+  `InvalidPatternException` and `NamedPattern` come with them.
 - **.NET BCL** - collections, spans, and regular expressions (the compiled patterns are held as `Regex` values).
 
 #### Callers

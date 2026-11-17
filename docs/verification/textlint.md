@@ -17,7 +17,7 @@ configuration checks are design-constraint guards that are not linked to a requi
   with the assembly inspection below is the evidence for the self-contained lookup requirement.
   The library package id is a prefix of the tool package id, so the build asserts the library
   package after packing only the library and before packing the tool.
-- **Project configuration** _(guard, not requirement evidence)_: FileAssert (tag `library-project`)
+- **Project configuration** *(guard, not requirement evidence)*: FileAssert (tag `library-project`)
   checks that the library project file enables `IsAotCompatible` and `TreatWarningsAsErrors`,
   guarding the Trimming and Native AOT design constraint described in the system design.
 - **Assembly inspection**: tests in `TextLintTests.cs` load the compiled `DemaConsulting.TextLint`
@@ -107,9 +107,8 @@ requires the DictionaryBuilder project, which the library project builds first; 
 ## Acceptance Criteria
 
 - All FileAssert package and project checks pass on every build.
-- The library package contains exactly one `net10.0` and one `net11.0` assembly, each with its XML documentation, and its
-  nuspec names the package `DemaConsulting.TextLint` with the publisher, MIT license, README, and
-  icon metadata.
+- The library package contains exactly one `net10.0` and one `net11.0` assembly, each with its XML documentation, and
+  its nuspec names the package `DemaConsulting.TextLint` with the publisher, MIT license, README, and icon metadata.
 - A symbols package is produced alongside the library package.
 - The library project enables `IsAotCompatible` and `TreatWarningsAsErrors` (design-constraint guard).
 - All system-level tests pass on every supported platform with zero failures.
@@ -450,8 +449,8 @@ all of them. The test also checks that the lists hold `dialogs`, `metafile`, `co
 one. This scenario is tested by `TextLint_Dictionary_ReviewedTechnicalVocabulary_IsKnownInEveryLanguage`.
 
 **TextLint_Dictionary_DeveloperTools_AreKnownInEveryLanguage**: Every entry of the hand-curated tools list
-(`technical/general/tools.txt`) is read from the word-list folder, so no entry can be dropped unnoticed, and is looked up
-as written, capitalized, and in upper case in the American, the British, and the combined selection; each is known in
+(`technical/general/tools.txt`) is read from the word-list folder, so no entry can be dropped unnoticed, and is looked
+up as written, capitalized, and in upper case in the American, the British, and the combined selection; each is known in
 all of them. The test also looks up the tool names `pandoc`, `weasyprint`, `xunit`, `vstest`, `gcovr`, `graphviz`,
 `plantuml`, and `vswhere`, and checks that the list itself holds `weasyprint`, `xunit`, and `vstest`. This scenario is
 tested by `TextLint_Dictionary_DeveloperTools_AreKnownInEveryLanguage`.
@@ -588,8 +587,8 @@ directive, and the other misspellings are. This scenario is tested by
 `TextLint_CheckText_IgnoreRegExpDirective_SkipsMatchesInTheWholeText`.
 
 **TextLint_CheckText_IgnoreRegExpDirectiveInvalid_IsReportedAtItsPosition**: A directive names a pattern that nothing
-defines and a misspelling follows; the finding of the directive is an error at the position of its pattern that names the
-pattern and the directive and gives the reason, and the misspelling is still reported. This scenario is tested by
+defines and a misspelling follows; the finding of the directive is an error at the position of its pattern that names
+the pattern and the directive and gives the reason, and the misspelling is still reported. This scenario is tested by
 `TextLint_CheckText_IgnoreRegExpDirectiveInvalid_IsReportedAtItsPosition`.
 
 **TextLint_CheckText_PredefinedPatternNames_ExcludeTheirText**: Settings that list the predefined names `string`,
@@ -791,10 +790,10 @@ patterns that cannot be used and the word a missing name spells, and a directive
 tested by `TextLint_CspellParity_IgnoreRegExpCorpus_MatchesRecordedCspellOutput`.
 
 **TextLint_CspellParity_DirectiveLookalikesCorpus_MatchesRecordedCspellOutput**: The corpus of directives written with
-the dotless i, the long s, the dotted capital I, and the Kelvin sign in place of the letters of a prefix or a name (which
-cspell does not read), with a Kelvin sign before a prefix and an upper-case and a mixed-case directive (which it does),
-is checked with line feeds and with every line ending turned into a carriage return and a line feed; the findings equal
-the output that cspell recorded for each, with no listed difference. This scenario is tested by
+the dotless i, the long s, the dotted capital I, and the Kelvin sign in place of the letters of a prefix or a name
+(which cspell does not read), with a Kelvin sign before a prefix and an upper-case and a mixed-case directive (which it
+does), is checked with line feeds and with every line ending turned into a carriage return and a line feed; the findings
+equal the output that cspell recorded for each, with no listed difference. This scenario is tested by
 `TextLint_CspellParity_DirectiveLookalikesCorpus_MatchesRecordedCspellOutput`.
 
 <!-- cspell:ignore nzorbq zorbq dotless -->

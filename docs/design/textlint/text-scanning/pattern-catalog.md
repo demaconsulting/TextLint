@@ -29,11 +29,11 @@ includes the supporting type `NamedPattern`, the pair of a name and a pattern th
 - **Optional patterns**: the nine predefined patterns that exclude text only when listed, as generated regular
   expressions in a table compared ignoring letter case. They are ported from the cspell originals with the translation
   rules of `DefaultPatterns` (ASCII word characters and boundaries, the four line terminators, and the case-sensitivity
-  of the original; see _DefaultPatterns_), and each has the match time limit of `PatternParser`:
+  of the original; see *DefaultPatterns*), and each has the match time limit of `PatternParser`:
   - **HexValues** (insensitive): a color or a hexadecimal value in a common form: `#` and three to eight hexadecimal
     digits, `0x` and hexadecimal digits, `\u` and four, or `\x{` and four and `}`.
-  - **PublicKey** (sensitive): a public key block, from its BEGIN line (`PUBLIC KEY`, optionally `RSA PUBLIC KEY`) to the
-    END line of the same kind.
+  - **PublicKey** (sensitive): a public key block, from its BEGIN line (`PUBLIC KEY`, optionally `RSA PUBLIC KEY`) to
+    the END line of the same kind.
   - **EscapeCharacters** (insensitive): a backslash and one of `anrvtbf`, or `x` or `u` and hexadecimal digits.
   - **Base64** (sensitive): Base64 data of at least 40 characters, continued over several lines when each line is that
     long, with an optional shorter last line.
@@ -85,71 +85,71 @@ advice.
 
 **IsNameShaped**: Determines whether an entry has the shape of a name.
 
-- _Parameters_: the entry. Not null.
-- _Returns_: `true` for the shape above.
+- *Parameters*: the entry. Not null.
+- *Returns*: `true` for the shape above.
 
 **IsPredefined**: Determines whether a name is one of the twenty-eight predefined names, ignoring letter case and
 surrounding white space.
 
 **CheckDefinitionName**: Checks that a name may be given to a pattern of the `patterns` setting.
 
-- _Returns_: the reason as a sentence, or null when the name can be used. The reasons are: the name does not start
+- *Returns*: the reason as a sentence, or null when the name can be used. The reasons are: the name does not start
   with a letter or holds a character other than letters, digits, `_` and `-` (or has white space around it), and the
   name is predefined.
-- _Postconditions_: nothing is changed; duplicates are not detected here, because that needs the whole list.
+- *Postconditions*: nothing is changed; duplicates are not detected here, because that needs the whole list.
 
 **CheckReference**: Checks that a name written in `ignoreRegExpList` refers to a pattern.
 
-- _Parameters_: the name, and the set of names that `patterns` defines, compared ignoring letter case.
-- _Returns_: null when the name is predefined or defined; otherwise the sentence `'<name>' is not a defined or
+- *Parameters*: the name, and the set of names that `patterns` defines, compared ignoring letter case.
+- *Returns*: null when the name is predefined or defined; otherwise the sentence `'<name>' is not a defined or
   predefined pattern name; define it in 'patterns', or write a regular expression between slashes, such as /text/, to
   match literal text.`
 
 **Resolve**: Builds the regular expressions that the two settings describe, with the production match time limit.
 
-- _Parameters_: the entries of `ignoreRegExpList` and the definitions of `patterns`.
-- _Returns_: an immutable array of regular expressions, one per pattern that excludes text, in the order of the list;
+- *Parameters*: the entries of `ignoreRegExpList` and the definitions of `patterns`.
+- *Returns*: an immutable array of regular expressions, one per pattern that excludes text, in the order of the list;
   empty when both lists are empty.
-- _Preconditions_: neither list is null and no entry is null.
-- _Algorithm_: the 5-second limit (`MatchTimeoutMilliseconds`) is passed to `ParseDefinitions`, and the result to
+- *Preconditions*: neither list is null and no entry is null.
+- *Algorithm*: the 5-second limit (`MatchTimeoutMilliseconds`) is passed to `ParseDefinitions`, and the result to
   `ResolveEntries`; the two methods below do the work.
-- _Postconditions_: a definition that the list does not name adds nothing to the result, and an always-applied name adds
+- *Postconditions*: a definition that the list does not name adds nothing to the result, and an always-applied name adds
   nothing either, because those patterns run anyway.
 
 **ParseDefinitions**: Parses the definitions of the `patterns` setting.
 
-- _Parameters_: the definitions of `patterns`, and the match time limit of each expression (an internal test seam,
+- *Parameters*: the definitions of `patterns`, and the match time limit of each expression (an internal test seam,
   passed through to `PatternParser`; it must be positive).
-- _Returns_: an immutable dictionary of the regular expression of each definition by name, compared ignoring letter
+- *Returns*: an immutable dictionary of the regular expression of each definition by name, compared ignoring letter
   case.
-- _Preconditions_: the list is not null.
-- _Algorithm_: for every definition, in order, check the name with `CheckDefinitionName`, reject a name already defined
+- *Preconditions*: the list is not null.
+- *Algorithm*: for every definition, in order, check the name with `CheckDefinitionName`, reject a name already defined
   (compared ignoring letter case), and parse the pattern with `PatternParser` and the given limit, whether or not
   anything uses the definition, so a mistake is found where it is made.
-- _Postconditions_: throws `InvalidPatternException` for the first bad, duplicate, or predefined name or unusable
+- *Postconditions*: throws `InvalidPatternException` for the first bad, duplicate, or predefined name or unusable
   pattern.
 
 **ResolveEntries**: Builds the regular expressions of the `ignoreRegExpList` entries from parsed definitions.
 
-- _Parameters_: the entries of `ignoreRegExpList`, the parsed definitions, and the match time limit.
-- _Returns_: an immutable array of regular expressions, one per entry that excludes text, in the order of the list.
-- _Preconditions_: no argument and no entry is null.
-- _Algorithm_: for every entry, in order: an entry that has the shape of a name and was already used (compared ignoring
+- *Parameters*: the entries of `ignoreRegExpList`, the parsed definitions, and the match time limit.
+- *Returns*: an immutable array of regular expressions, one per entry that excludes text, in the order of the list.
+- *Preconditions*: no argument and no entry is null.
+- *Algorithm*: for every entry, in order: an entry that has the shape of a name and was already used (compared ignoring
   letter case) is skipped, so a name listed twice counts once; every other entry is resolved with `TryResolveEntry`,
   a failure is thrown as `InvalidPatternException` with the entry and the reason, and a result that is not null is
   added.
-- _Postconditions_: the first entry that cannot be used is thrown; always-applied names add nothing.
+- *Postconditions*: the first entry that cannot be used is thrown; always-applied names add nothing.
 
 **TryResolveEntry**: Resolves one entry, written in `ignoreRegExpList` or in an in-document directive, to a regular
 expression, with the failure returned as data.
 
-- _Parameters_: the entry, the parsed definitions, the match time limit, and the out parameters for the regular
+- *Parameters*: the entry, the parsed definitions, the match time limit, and the out parameters for the regular
   expression and for the problem.
-- _Returns_: `true` when the entry can be used, with the regular expression (null for a predefined name that is always
+- *Returns*: `true` when the entry can be used, with the regular expression (null for a predefined name that is always
   applied, which excludes nothing by itself); `false` with the reason as a sentence otherwise. Nothing is thrown for an
   unusable entry, so the caller can report the reason where the entry was written.
-- _Preconditions_: the entry and the definitions are not null.
-- _Algorithm_: (1) an entry that does not have the shape of a name is parsed with `PatternParser` and the given limit,
+- *Preconditions*: the entry and the definitions are not null.
+- *Algorithm*: (1) an entry that does not have the shape of a name is parsed with `PatternParser` and the given limit,
   and the reason of an `InvalidPatternException` becomes the problem (a literal keeps the flags it is written with; a
   bare expression is read with `i` and `m`); (2) otherwise the trimmed entry is looked up among the definitions
   (ignoring letter case) first, then among the optional predefined patterns, then among the always-applied names, which
@@ -158,13 +158,13 @@ expression, with the failure returned as data.
 
 **FindExcludedRanges**: Appends to a list the ranges of a text that any of the given regular expressions match.
 
-- _Parameters_: the regular expressions (from `Resolve`, `ResolveEntries`, `TryResolveEntry`, or `MarkdownPatterns`),
+- *Parameters*: the regular expressions (from `Resolve`, `ResolveEntries`, `TryResolveEntry`, or `MarkdownPatterns`),
   the text, and the list that
   receives the ranges.
-- _Algorithm_: run each expression over the whole text with the allocation-free match enumeration, and append the index
+- *Algorithm*: run each expression over the whole text with the allocation-free match enumeration, and append the index
   and length of each match that has at least one character. A match with no characters is skipped, because it excludes
   nothing: a pattern that ends in a star also matches the empty string at every position.
-- _Postconditions_: the list holds its earlier items followed by the ranges, expression by expression. They are neither
+- *Postconditions*: the list holds its earlier items followed by the ranges, expression by expression. They are neither
   sorted nor free of overlaps; the caller merges them, because only the caller knows what else is excluded. Each
   expression is applied to the whole text, so a match can span lines and can cut a word in two, and the text around the
   match is still checked.
@@ -185,8 +185,8 @@ Design choices and their reasons:
   library is built, so they use the source generator, which keeps the library trim and ahead-of-time safe and avoids the
   cost of building them at start-up; the patterns of a settings file are known only at run time and go through
   `PatternParser`.
-- **Failure as data for a single entry.** A directive is written by whoever wrote the text, and its unusable pattern must
-  be reported where it is written, with the rest of the text still checked, so `TryResolveEntry` returns the reason
+- **Failure as data for a single entry.** A directive is written by whoever wrote the text, and its unusable pattern
+  must be reported where it is written, with the rest of the text still checked, so `TryResolveEntry` returns the reason
   instead of throwing. The settings path (`Resolve`, `ResolveEntries`) keeps its exception, because an unusable setting
   stops the run. Both use the same method, so a pattern means the same in the settings and in a directive.
 - **A timeout parameter, only for tests.** `ParseDefinitions`, `ResolveEntries`, and `TryResolveEntry` take the match
@@ -213,7 +213,7 @@ passed in is changed, which must not be shared between threads.
 - **PatternParser** (same subsystem) - parses every pattern, and supplies the match time limit of the generated
   patterns.
 - **InvalidPatternException** (same unit as `PatternParser`) - reports every rejected entry.
-- **TextRange** (see _WordTokenizer_) - the type of the reported ranges.
+- **TextRange** (see *WordTokenizer*) - the type of the reported ranges.
 - **DefaultPatterns** and **DocumentDirectives** (same subsystem) - not called, but the nineteen always-applied names
   are the names of their patterns.
 - **.NET base class library** - `System.Text.RegularExpressions`, including the source generator, and

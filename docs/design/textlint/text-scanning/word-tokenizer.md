@@ -45,15 +45,15 @@ Terms used by the rules:
 
 **FindTokens**: Appends the tokens found in a part of a text.
 
-- _Parameters_: the text, the offsets `start` and `end` of the part, and the list that receives the ranges.
-- _Algorithm_: skip characters that cannot start a token; extend a token over every continuation character, taking
+- *Parameters*: the text, the offsets `start` and `end` of the part, and the list that receives the ranges.
+- *Algorithm*: skip characters that cannot start a token; extend a token over every continuation character, taking
   `\'` as one unit; append the range. The scan never reads outside the part, so a caller can scan the pieces of a
   text that remain after excluded ranges are removed.
-- _Postconditions_: the list holds its earlier items followed by the tokens in order.
+- *Postconditions*: the list holds its earlier items followed by the tokens in order.
 
 **FindWords**: Appends the words found inside a range.
 
-- _Algorithm_: skip characters that are not word letters; start a word with a letter and an optional combining mark;
+- *Algorithm*: skip characters that are not word letters; start a word with a letter and an optional combining mark;
   keep extending while the next letter follows directly or after one apostrophe (with an optional backslash before
   it). An apostrophe joins the word only when a letter follows it, which is how `don't` is one word and the closing
   quote of `'alpha'` is not part of one. The reported range is the original text, so a typographic apostrophe stays
@@ -61,11 +61,11 @@ Terms used by the rules:
 
 **SplitCase**: Appends the pieces of one word.
 
-- _Algorithm_: test every boundary between two characters. The character after the boundary must be a capital. The
+- *Algorithm*: test every boundary between two characters. The character after the boundary must be a capital. The
   boundary splits when a lower-case letter precedes it, or when a capital precedes it and a lower-case letter follows
   the capital, unless the English-suffix exception applies. A combining mark is looked through on both sides, so an
   accented capital written as a letter and a mark splits like a plain capital.
-- _Postconditions_: the pieces cover the word completely and in order; a word with no case change yields one piece.
+- *Postconditions*: the pieces cover the word completely and in order; a word with no case change yields one piece.
 
 **TrimToken**: Removes leading and trailing characters that are neither letters nor digits from a token, so that
 `(k8s)` or `v1.2.` in a sentence match the entries `k8s` and `v1.2`. A token with no letter or digit becomes an empty
@@ -73,12 +73,12 @@ range.
 
 **TryParseListEntry**: Interprets one entry of a word list (`words`, `ignoreWords`, `flagWords`, or a directive).
 
-- _Parameters_: the entry (null allowed), whether suggestions are allowed, and two out parameters for the result or
+- *Parameters*: the entry (null allowed), whether suggestions are allowed, and two out parameters for the result or
   the reason.
-- _Algorithm_: reject a blank entry; when suggestions are allowed, split `word->one, two` at the arrow, or
+- *Algorithm*: reject a blank entry; when suggestions are allowed, split `word->one, two` at the arrow, or
   `word: one` at the colon, trying the arrow first so a colon inside a suggestion list is not misread; trim the word;
   reject it if it could never match; otherwise normalize it like a token and classify it by finding the words in it.
-- _Reasons_: the exact phrases, each a reason that completes the sentence "The entry is rejected because ...", are:
+- *Reasons*: the exact phrases, each a reason that completes the sentence "The entry is rejected because ...", are:
   - `it is blank.`
   - `there is no word before its suggestions.`
   - `the forbidden-word marker '!' is not supported; list the word in flagWords instead.`

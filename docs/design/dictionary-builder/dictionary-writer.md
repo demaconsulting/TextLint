@@ -13,20 +13,20 @@ compared by hash.
 
 `DictionaryWriter` is an internal static class with no state. Its input is a read-only dictionary that maps
 each distinct folded word to its capitalization-form flags. Its output is one byte array holding the complete
-file, laid out as defined in the _DictionaryFormat_ design: the header, the blob of words, zero padding, and the
+file, laid out as defined in the *DictionaryFormat* design: the header, the blob of words, zero padding, and the
 slot table. Two private constants control the slot table size: it starts from one slot and doubles.
 
 ### Key Methods
 
 **Write**: serializes the words.
 
-- _Parameters_: the words, and optionally the largest blob length in bytes that is acceptable (the overload
+- *Parameters*: the words, and optionally the largest blob length in bytes that is acceptable (the overload
   without it applies the format's own limit; the limit is a parameter so that the over-limit error can be
   verified without a word list of a quarter of a gigabyte).
-- _Returns_: the complete dictionary file.
-- _Preconditions_: the words are not empty, each is in folded form, and each can be stored (at most 64
+- *Returns*: the complete dictionary file.
+- *Preconditions*: the words are not empty, each is in folded form, and each can be stored (at most 64
   characters, none above Latin-1).
-- _Postconditions_: the header describes the data; the words are in the blob in ordinal order, each followed by
+- *Postconditions*: the header describes the data; the words are in the blob in ordinal order, each followed by
   a line feed; every word can be found by probing from the slot its hash selects.
 
 The words are sorted in ordinal order, which for these characters equals ordering by their UTF-8 bytes. Each is

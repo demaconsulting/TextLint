@@ -27,11 +27,11 @@ because they are expected on real repositories.
 
 **ReadAsync (internal)**: Reads a file.
 
-- _Parameters_: `string fullPath`; `long maxFileSize` (0 means no limit other than the ceiling);
+- *Parameters*: `string fullPath`; `long maxFileSize` (0 means no limit other than the ceiling);
   `CancellationToken cancellationToken`.
-- _Returns_: a `FileTextContent`; never null.
-- _Preconditions_: the path is not null or empty, the size limit is not negative.
-- _Postconditions_: the file has been read, not written; the file handle is closed.
+- *Returns*: a `FileTextContent`; never null.
+- *Preconditions*: the path is not null or empty, the size limit is not negative.
+- *Postconditions*: the file has been read, not written; the file handle is closed.
 
 Steps: (1) validate the arguments and honor a token that is already canceled, so the contract does not depend on
 whether the file has content; (2) open the file for reading while allowing other readers and writers and deletion, so

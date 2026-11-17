@@ -16,7 +16,7 @@ The folder is the tag; there is no manifest. Each top-level folder is one dictio
 dictionary name that the build passes to the builder.
 
 | Folder | Content |
-| ------ | ------- |
+| --- | --- |
 | `en-common/` | English words spelled the same in American and British (-ise) English, plus `additions.txt` |
 | `en-US/` | American-only spellings |
 | `en-GB/` | British (-ise)-only spellings |
@@ -26,7 +26,7 @@ dictionary name that the build passes to the builder.
 | `exclusions.txt` | Reviewed words that must never be known in any dictionary (a file, not a dictionary) |
 
 Each English folder holds one file per source, so that a reviewer can see where every word comes from (see
-_English Sources_ below). The language lists are csharp, dotnet, typescript, node, html, css, powershell, and fonts
+*English Sources* below). The language lists are csharp, dotnet, typescript, node, html, css, powershell, and fonts
 (the names of font families such as `Segoe`, `Consolas`, and `Roboto`, which appear in documentation, style sheets,
 and project files in every language). The
 general lists are software-terms, companies, filetypes, public-licenses, fullstack, npm, k8s, additions, and tools.
@@ -45,7 +45,7 @@ Every English list file starts with comment lines that state its source, pinned 
 was generated. In priority order (a word is written only to the first file that has it):
 
 | File (in each of `en-common/`, `en-US/`, `en-GB/`) | Content |
-| -------------------------------------------------- | ------- |
+| --- | --- |
 | `common.txt`, `us.txt`, `gb.txt` | The SCOWL word lists, size 70, American and British (-ise) |
 | `hunspell.txt` | Forms generated from the SCOWL Hunspell en_US-large and en_GB-large dictionaries |
 | `cspell.txt` | The maintained cspell-dicts English lists (additional words, acronyms, shared, -ize, -ise) |
@@ -206,7 +206,7 @@ there is removed
 by the rule above, so a genuine programming term in a variant spelling belongs in `technical/variant-keep.txt`
 instead. The builder fails the build for a word in the keep list that is not a variant, so an inflection that is in
 neither the American nor the British list (`dialogs`) goes in `additions.txt`. An ordinary English word that every
-dialect uses but that SCOWL classifies wrongly belongs in `en-common/additions.txt` (see _Reviewed Common Words_).
+dialect uses but that SCOWL classifies wrongly belongs in `en-common/additions.txt` (see *Reviewed Common Words*).
 Every word of the curated lists is written for this project from its own review, with a public definition as the
 evidence, and no third-party word list is copied into them. Do not edit the imported files by hand, because the
 next refresh replaces them, and never add a misspelling to hide a spelling error.
@@ -220,7 +220,7 @@ produced it. The technical lists come from the following cspell-dicts packages (
 after the table):
 
 | Lists | Source | Pinned to | License |
-| ----- | ------ | --------- | ------- |
+| --- | --- | --- | --- |
 | `technical/general/software-terms.txt` | `@cspell/dict-software-terms` (default-on lists) | 5.4.8 | MIT |
 | `technical/general/companies.txt` | `@cspell/dict-companies` | 3.2.13 | MIT |
 | `technical/general/filetypes.txt` | `@cspell/dict-filetypes` | 3.0.18 | MIT |
@@ -243,7 +243,7 @@ only to decide which tools developers commonly use, and every entry was checked 
 (`crates/typos-dict/assets/words.csv`) so that no known misspelling is accepted as a tool name. No third-party list
 is copied into it, so it carries no third-party notice.
 
-The English lists (the files named under _English Sources_ above) come from:
+The English lists (the files named under *English Sources* above) come from:
 
 - `common.txt`, `us.txt`, `gb.txt`: SCOWL, <https://github.com/en-wl/wordlist>, size 70, variant level 1 (size 80,
   variant level 3 is used only to classify words). Tag `rel-2026.02.25`, commit

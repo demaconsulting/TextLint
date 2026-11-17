@@ -17,12 +17,12 @@ wording of each note, finding, and per-file line belongs to the library, so the 
 
 **Write**: Writes the whole result.
 
-- _Parameters_: `Context context`; `SpellCheckResult result`; `Func<string, string> displayPath`, which maps a
+- *Parameters*: `Context context`; `SpellCheckResult result`; `Func<string, string> displayPath`, which maps a
   path relative to the search directory to the name to show; `bool reportUnmatchedOverrides` (default `true`), which
   is `false` to leave out the warnings that an override matched none of the selected files.
-- _Returns_: `void`.
-- _Preconditions_: no argument is null.
-- _Postconditions_: the lines have been written to the context; the exit status is unchanged.
+- *Returns*: `void`.
+- *Preconditions*: no argument is null.
+- *Postconditions*: the lines have been written to the context; the exit status is unchanged.
 
 It validates its arguments, then writes the notes, the findings, the file diagnostics, and the summary, in that order.
 

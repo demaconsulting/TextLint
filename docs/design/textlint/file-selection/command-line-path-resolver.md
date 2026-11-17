@@ -33,11 +33,11 @@ a relative one), and the pattern text.
 
 **Resolve (public)**: Resolves arguments for the current operating system.
 
-- _Parameters_: `string rootDirectory` - the directory relative arguments are relative to, which may itself be
+- *Parameters*: `string rootDirectory` - the directory relative arguments are relative to, which may itself be
   relative to the current directory; `IReadOnlyList<string> arguments` - the arguments as typed.
-- _Returns_: a `CommandLineSelection`.
-- _Preconditions_: the root is not null, empty, or white space; the list is not null, not empty, and has no null.
-- _Postconditions_: every pattern has passed the same validation as a settings-file pattern.
+- *Returns*: a `CommandLineSelection`.
+- *Preconditions*: the root is not null, empty, or white space; the list is not null, not empty, and has no null.
+- *Postconditions*: every pattern has passed the same validation as a settings-file pattern.
 
 It makes the root absolute with the platform's own path logic, calls the internal overload with the Windows rules
 when running on Windows and the Unix rules otherwise and with a look-up that asks the file system whether a path

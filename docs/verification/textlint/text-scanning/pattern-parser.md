@@ -43,8 +43,8 @@ N/A - standard test environment.
   whose translation would be longer than 262,144 characters is rejected in milliseconds with the limit named while
   ordinary patterns (including long ones) are accepted, the shared caches give the same result on many threads, and
   hostile patterns end with a regular expression or the documented exception.
-- A braced code point accepts any number of leading zeros and is rejected only above 10FFFF, when empty, or when it holds
-  anything but hexadecimal digits, as in Node.js.
+- A braced code point accepts any number of leading zeros and is rejected only above 10FFFF, when empty, or when it
+  holds anything but hexadecimal digits, as in Node.js.
 - The regular expression has the invariant culture, no .NET case option (the case behavior of the i flag is in the
   translation and follows JavaScript), and a match limit of five seconds by default, and a limit that is not positive
   is rejected.
@@ -127,10 +127,10 @@ The rows cover inline options, atomic groups, conditionals, quoted and comment g
 group name, an unclosed name, escapes that are plain letters in JavaScript, references to groups that do not exist or
 are not complete, a named reference without a named group, octal escapes, misplaced and repeated quantifiers, repeated
 assertions, counts that are out of order or too large, unclosed groups and classes, a stray closing parenthesis, ranges
-that are out of order, a trailing backslash, malformed escapes, a code point out of range, Unicode properties without the
-u flag or that are not general categories, characters that
-must be escaped with the u flag, a class escape as the end of a range, escapes that are not allowed inside a class, and
-back-references when the i flag is set (numbered, named, with the u flag, and in a bare expression).
+that are out of order, a trailing backslash, malformed escapes, a code point out of range, Unicode properties without
+the u flag or that are not general categories, characters that must be escaped with the u flag, a class escape as the
+end of a range, escapes that are not allowed inside a class, and back-references when the i flag is set (numbered,
+named, with the u flag, and in a bare expression).
 
 **PatternParser_Parse_BlankOrEmptyBody_Throws**: An empty entry, an entry of white space, and two slashes with and
 without flags are rejected with a reason that says the entry is blank or empty.
@@ -170,9 +170,9 @@ that names the range of a code point, as Node.js does.
 characters of parentheses, closing parentheses, brackets, backslashes, stars, and braces, and of repeated named-group
 openings, are parsed or rejected with the documented exception, and nothing else escapes.
 
-**PatternParser_Parse_CatastrophicPattern_TimesOutWhenMatching**: A nested quantifier that backtracks without end, parsed
-with a limit of fifty milliseconds through the internal overload, carries that limit and throws the time-out error of
-the regular expression engine on a text that almost matches, instead of hanging.
+**PatternParser_Parse_CatastrophicPattern_TimesOutWhenMatching**: A nested quantifier that backtracks without end,
+parsed with a limit of fifty milliseconds through the internal overload, carries that limit and throws the time-out
+error of the regular expression engine on a text that almost matches, instead of hanging.
 
 **PatternParser_Parse_MatchTimeout_DefaultsToFiveSecondsAndMustBePositive**: A pattern parsed without a limit has the
 production limit of five seconds, and a limit of zero, a negative limit, and an infinite limit are each rejected with an

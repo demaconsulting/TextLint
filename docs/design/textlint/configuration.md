@@ -25,13 +25,13 @@ matching of an override's `filename` patterns against a path, which it delegates
 
 **SettingsLoader.LoadAsync**: Loads a settings file.
 
-- _Type_: In-process .NET static asynchronous method.
-- _Role_: Provider.
-- _Contract_: Accepts the path of a settings file and an optional cancellation token, and returns a
+- *Type*: In-process .NET static asynchronous method.
+- *Role*: Provider.
+- *Contract*: Accepts the path of a settings file and an optional cancellation token, and returns a
   `SettingsLoadResult`. The result holds either the settings or the list of errors, never both:
   settings are present exactly when there are no errors. Each error carries a message, the file
   path, and the 1-based line and column when the problem has a position.
-- _Constraints_: Content problems (an unreadable file, malformed YAML, a value of the wrong type,
+- *Constraints*: Content problems (an unreadable file, malformed YAML, a value of the wrong type,
   an unsupported key, an invalid glob pattern, an unsupported language, an unusable word-list entry,
   an invalid minimum word length or file size, an `ignoreRegExpList` entry or `patterns` definition that cannot be
   used, an invalid `ignoreRandomStrings`, `minRandomLength`, or `enabled`, and a mistake in an override such as a
@@ -40,46 +40,46 @@ matching of an override's `filename` patterns against a path, which it delegates
 
 **TextLintSettings**: The immutable settings value.
 
-- _Type_: .NET record with `init` properties.
-- _Role_: Provider: applications read it, and may construct it directly. The `FileSelection`
+- *Type*: .NET record with `init` properties.
+- *Role*: Provider: applications read it, and may construct it directly. The `FileSelection`
   subsystem does not consume it; an application passes the `Files`, `IgnorePaths`, and
   `EnableGlobDot` values to `FileSelector`, and the `SpellChecking` subsystem reads the spelling
   settings (`Language`, `Words`, `IgnoreWords`, `FlagWords`, `MinWordLength`, `MaxFileSize`, `IgnoreRegExpList`,
   `Patterns`, `IgnoreRandomStrings`, and `MinRandomLength`) and the `Enabled` and `Overrides` settings from it.
-- _Contract_: Exposes `Version`, `Enabled`, `Files`, `IgnorePaths`, `EnableGlobDot`, `Language`, `Words`,
+- *Contract*: Exposes `Version`, `Enabled`, `Files`, `IgnorePaths`, `EnableGlobDot`, `Language`, `Words`,
   `IgnoreWords`, `FlagWords`, `MinWordLength`, `MaxFileSize`, `IgnoreRegExpList`, `Patterns` (a list of `NamedPattern`
   values), `IgnoreRandomStrings`, `MinRandomLength`, and `Overrides` (a list of `SettingsOverride` values) with
   documented defaults (enabled, no patterns, no overrides, random strings ignored, and a minimum random length of 40,
   as in cspell), and supports `with` expressions for deriving modified copies.
-- _Constraints_: Immutable; list properties are copied on assignment; a null list, a list with a null entry, a null
+- *Constraints*: Immutable; list properties are copied on assignment; a null list, a list with a null entry, a null
   language, a minimum word length or minimum random length below 1, and a negative maximum file size are rejected on
   assignment.
 
 **SettingsOverride**: One entry of `Overrides`.
 
-- _Type_: .NET record with `init` properties.
-- _Role_: Provider: applications read it, and may construct it directly.
-- _Contract_: Exposes `Filename` (the ordered glob list that selects its files) and the settings it may change: the
+- *Type*: .NET record with `init` properties.
+- *Role*: Provider: applications read it, and may construct it directly.
+- *Contract*: Exposes `Filename` (the ordered glob list that selects its files) and the settings it may change: the
   word lists, `IgnoreRegExpList`, `Patterns`, `Language`, `MinWordLength`, `IgnoreRandomStrings`, `MinRandomLength`,
   and `Enabled`. A setting that is not set is `null` (or an empty list), which is how an override that does not set a
   value differs from one that sets it to the default. It also carries where it was read from: `SourceName`, `Line`,
   and `Column`.
-- _Constraints_: Immutable, with the same assignment checks as `TextLintSettings`.
+- *Constraints*: Immutable, with the same assignment checks as `TextLintSettings`.
 
 **SettingsOverrideResolver.Resolve**: Works out which overrides apply to a file and the effective settings for it.
 
-- _Type_: In-process .NET method of an internal sealed class.
-- _Role_: Provider to the `SpellChecking` subsystem; not part of the public API.
-- _Contract_: Is created from a `TextLintSettings` and an optional language that wins over every other; given a path
+- *Type*: In-process .NET method of an internal sealed class.
+- *Role*: Provider to the `SpellChecking` subsystem; not part of the public API.
+- *Contract*: Is created from a `TextLintSettings` and an optional language that wins over every other; given a path
   relative to the settings root it returns a `FileResolution` (whether the file is checked and which overrides
   match), and given a resolution it returns the merged `TextLintSettings` for the checker.
-- _Constraints_: Throws for an override that cannot be used (no `filename`, an unsupported language, an invalid glob
+- *Constraints*: Throws for an override that cannot be used (no `filename`, an unsupported language, an invalid glob
   pattern) when it is created, before any file is considered.
 
 ### Design
 
 `SettingsLoader` depends on `TextLintSettings` to build its
-result, on YamlDotNet to parse the file (see _YamlDotNet Integration Design_), and on four units of
+result, on YamlDotNet to parse the file (see *YamlDotNet Integration Design*), and on four units of
 other subsystems to validate values: the `GlobPatternExpander` and `OrderedGlobList` units of the `FileSelection`
 subsystem validate glob patterns (`OrderedGlobList` the ordered `files` and `filename` lists, `GlobPatternExpander`
 the `ignorePaths` list), the `SpellingDictionary` unit of the `Dictionaries` subsystem

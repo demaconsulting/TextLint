@@ -22,18 +22,18 @@ pattern would also suppress literal hidden includes, so the rule needs its own l
 
 **IsPathPermitted**: Decides whether the include patterns may select a file path.
 
-- _Parameters_: the root-relative path and the expanded include patterns.
-- _Returns_: `true` when the path has no hidden segment, or when some single pattern matches the whole
+- *Parameters*: the root-relative path and the expanded include patterns.
+- *Returns*: `true` when the path has no hidden segment, or when some single pattern matches the whole
   path with every hidden segment consumed by a pattern segment that starts with a literal dot.
-- _Preconditions_: the path is relative and uses forward slashes.
-- _Postconditions_: none; the method is pure.
+- *Preconditions*: the path is relative and uses forward slashes.
+- *Postconditions*: none; the method is pure.
 
 **CanContainPermittedPaths**: Decides whether a directory should be entered.
 
-- _Parameters_: the root-relative directory path and the expanded include patterns.
-- _Returns_: `true` when the directory has no hidden segment, or when some pattern could continue
+- *Parameters*: the root-relative directory path and the expanded include patterns.
+- *Returns*: `true` when the directory has no hidden segment, or when some pattern could continue
   beneath it under the same rule.
-- _Postconditions_: a hidden directory that no pattern can reach is not entered, so it is never read.
+- *Postconditions*: a hidden directory that no pattern can reach is not entered, so it is never read.
 
 Both operations use one alignment search of the path segments against the pattern segments, written as a
 dynamic program over the cells (path segments consumed, pattern segments consumed). A recursive pattern

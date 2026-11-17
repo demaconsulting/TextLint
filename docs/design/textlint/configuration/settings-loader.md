@@ -32,33 +32,33 @@ only the loader creates them.
 
 The supported keys and the rule for each are:
 
-| Key                   | Accepted value                                                | Absent or null  |
-| :-------------------- | :------------------------------------------------------------ | :-------------- |
-| `version`             | Any scalar, carried as text                                   | No version      |
-| `enabled`             | Unquoted `true` or `false` (lower, title, or upper case)      | `true`          |
-| `files`               | An ordered list of text values, each a valid glob pattern     | Empty list      |
-| `ignorePaths`         | A list of text values, each a valid glob pattern, none `!`    | Empty list      |
-| `enableGlobDot`       | Unquoted `true` or `false` (lower, title, or upper case)      | `false`         |
-| `language`            | Text naming supported languages (`en`, `en-US`, `en-GB`)      | `en`            |
-| `words`               | A list of text values, each a usable word-list entry          | Empty list      |
-| `ignoreWords`         | A list of text values, each a usable word-list entry          | Empty list      |
-| `flagWords`           | A list of usable entries; suggestion forms are also allowed   | Empty list      |
-| `minWordLength`       | An unquoted whole number of at least 1                        | 4               |
-| `maxFileSize`         | A number with optional unit, as described below; 0 = no limit | No limit (0)    |
-| `ignoreRegExpList`    | A list of text values, each a usable pattern or known name    | Empty list      |
-| `patterns`            | A list of mappings with a `name` and a `pattern`              | Empty list      |
-| `ignoreRandomStrings` | Unquoted `true` or `false` (lower, title, or upper case)      | `true`          |
-| `minRandomLength`     | An unquoted whole number of at least 1                        | 40              |
-| `overrides`           | A list of mappings, each with a `filename` and settings       | Empty list      |
+| Key | Accepted value | Absent or null |
+| :--- | :--- | :--- |
+| `version` | Any scalar, carried as text | No version |
+| `enabled` | Unquoted `true` or `false` (lower, title, or upper case) | `true` |
+| `files` | An ordered list of text values, each a valid glob pattern | Empty list |
+| `ignorePaths` | A list of text values, each a valid glob pattern, none `!` | Empty list |
+| `enableGlobDot` | Unquoted `true` or `false` (lower, title, or upper case) | `false` |
+| `language` | Text naming supported languages (`en`, `en-US`, `en-GB`) | `en` |
+| `words` | A list of text values, each a usable word-list entry | Empty list |
+| `ignoreWords` | A list of text values, each a usable word-list entry | Empty list |
+| `flagWords` | A list of usable entries; suggestion forms are also allowed | Empty list |
+| `minWordLength` | An unquoted whole number of at least 1 | 4 |
+| `maxFileSize` | A number with optional unit, as described below; 0 = no limit | No limit (0) |
+| `ignoreRegExpList` | A list of text values, each a usable pattern or known name | Empty list |
+| `patterns` | A list of mappings with a `name` and a `pattern` | Empty list |
+| `ignoreRandomStrings` | Unquoted `true` or `false` (lower, title, or upper case) | `true` |
+| `minRandomLength` | An unquoted whole number of at least 1 | 40 |
+| `overrides` | A list of mappings, each with a `filename` and settings | Empty list |
 
 #### Key Methods
 
 **LoadAsync**: Reads a file and maps it.
 
-- _Parameters_: `string path` - the settings file; `CancellationToken cancellationToken`.
-- _Returns_: `Task<SettingsLoadResult>`.
-- _Preconditions_: `path` is non-null and non-empty.
-- _Postconditions_: the result holds settings or diagnostics, never both.
+- *Parameters*: `string path` - the settings file; `CancellationToken cancellationToken`.
+- *Returns*: `Task<SettingsLoadResult>`.
+- *Preconditions*: `path` is non-null and non-empty.
+- *Postconditions*: the result holds settings or diagnostics, never both.
 
 Steps: (1) reject a null or empty path; (2) read the whole file as text asynchronously, honoring
 the cancellation token and a byte-order mark; (3) convert an input/output, access, or unsupported-path
@@ -81,9 +81,9 @@ in document order, apply the rule in the table above.
 problem. It runs before the keys are applied because `ignoreRegExpList` may come before `patterns` in the file and
 refers to the names defined in it, as in cspell.
 
-- _Algorithm_: find the top-level `patterns` key; when its value is a list, take the `name` of every item that is a
+- *Algorithm*: find the top-level `patterns` key; when its value is a list, take the `name` of every item that is a
   mapping and whose `name` is a text value, whatever else is wrong with the definition.
-- _Postconditions_: the result is a set of names compared ignoring letter case. A definition that is itself in error
+- *Postconditions*: the result is a set of names compared ignoring letter case. A definition that is itself in error
   (a bad pattern, for example) still contributes its name, so one mistake is reported once, at the definition, and not
   again as an unknown name at every use.
 
@@ -132,7 +132,7 @@ Mapping rules in detail:
   `Expected a size such as 100000, 500K, or 1.5MB (units B, K, KB, M, MB, G, GB) or 0 for no limit,
   for 'maxFileSize'.` at the value.
 - `ignoreRegExpList` is a list handled like the glob lists, except that each text item is checked as an entry of the
-  pattern settings: an item that has the shape of a name (see _PatternCatalog_) must be a name that `patterns` defines,
+  pattern settings: an item that has the shape of a name (see *PatternCatalog*) must be a name that `patterns` defines,
   wherever in the file, or a predefined name, compared ignoring letter case; any other item is parsed by
   `PatternParser`, exactly as the spell checker will parse it. A rejected item is the error
   `Cannot use the 'ignoreRegExpList' entry '<entry>': <problem>` at the item, where the problem is the reason of the
@@ -164,14 +164,14 @@ mistake in one override does not hide the mistakes in the others, and only compl
 
 **TryReadOverride** (private): Reads and validates one override mapping.
 
-- _Algorithm_: (1) collect the pattern names the override defines itself and add them to the top-level names, so that
+- *Algorithm*: (1) collect the pattern names the override defines itself and add them to the top-level names, so that
   an `ignoreRegExpList` entry may use a top-level name or the override's own, whichever comes first in the file; a
   name that only another override defines is unknown and is reported by the existing `ignoreRegExpList` rule at the
   entry; (2) read the keys in document order, applying the rule of each; (3) check the override as a whole; (4) put
   the diagnostics of this override in source order (a stable sort by line and column), because the whole-override
   checks run after the keys but may point earlier in the file. The rest of the file is already in document order,
   so the diagnostics of all overrides are in source order.
-- _Keys_: `filename` is one glob or an ordered list of globs, with the meaning of the `files` list (a scalar is a list
+- *Keys*: `filename` is one glob or an ordered list of globs, with the meaning of the `files` list (a scalar is a list
   of one; a mapping is `Expected a glob or a list of globs for 'filename'.`; a first item that starts with `!` is the
   error above). `words`, `ignoreWords`, `flagWords`, `ignoreRegExpList`, `patterns`, `language`, `minWordLength`,
   `ignoreRandomStrings`, and `minRandomLength` are read by the same readers as at the top level, so an entry is
@@ -179,17 +179,17 @@ mistake in one override does not hide the mistakes in the others, and only compl
   above, and a null `enabled` is unset too. A key with a null value (no value, `~`, or `null`) is absent in every
   respect: it is not a setting for the whole-override checks below, exactly as at the top level. A key that is not
   text is the error `Setting names must be text.` at the key.
-- _Rejected keys_: `files`, `ignorePaths`, and `enableGlobDot` are the error `Overrides cannot change which files are
+- *Rejected keys*: `files`, `ignorePaths`, and `enableGlobDot` are the error `Overrides cannot change which files are
   selected; use the top-level '<key>' setting.` at the key; `languageId` and `dictionaries` are `'<key>' is not
   supported in an override.`; `maxFileSize` is `'maxFileSize' is not supported in an override; it applies to the whole
   run.`; a nested `overrides` is `Nested 'overrides' are not supported.`; any other key, including `name`, is
   `'<key>' is not a supported setting.`, all at the key.
-- _Whole-override checks_: a missing, null, or empty `filename` is `An override needs a 'filename'.` at the start of
+- *Whole-override checks*: a missing, null, or empty `filename` is `An override needs a 'filename'.` at the start of
   the mapping; an override with a `filename` and no setting is `This override changes nothing: add settings, or remove
   it.` at the start of the mapping; `enabled: false` together with any other setting is `This override skips its
   files, so its other settings have no effect; remove them, or remove 'enabled: false' to apply them.` at the
   `enabled` key (`enabled: true` may be combined with other settings).
-- _Postconditions_: a kept override carries `SourceName`, and the `Line` and `Column` of the start of its mapping, which
+- *Postconditions*: a kept override carries `SourceName`, and the `Line` and `Column` of the start of its mapping, which
   is the position that notes later report (for `- filename: x` at line 14, `.textlint.yaml(14,5)`).
 
 **Size grammar** (`maxFileSize`): the leading run of digits and dots is the number, which must parse as a
@@ -227,7 +227,7 @@ performed; the caller decides how to present diagnostics. The loader is stateles
 
 - **YamlDotNet** - parses the text into a node model with source positions. Only the node model is used,
   never the reflection-based serializer, which keeps the library trim and AOT safe. No YamlDotNet type
-  appears in any public signature. See _YamlDotNet Integration Design_.
+  appears in any public signature. See *YamlDotNet Integration Design*.
 - **TextLintSettings** - the value that is built.
 - **GlobPatternExpander** (FileSelection subsystem) - validates the `ignorePaths` patterns at load time. This is a
   documented dependency of the Configuration subsystem on the FileSelection subsystem.

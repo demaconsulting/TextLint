@@ -32,9 +32,9 @@ N/A - standard test environment.
 
 #### Test Scenarios
 
-**RandomStringDetector_IsRandom_MixedTokens_AreRandom**: Tokens made of words, digits, and separators, mixed
-capitals and underscores, letters alternating with digits, letters separated by dots, and a plus sign between letters are
-judged random.
+**RandomStringDetector_IsRandom_MixedTokens_AreRandom**: Tokens made of words, digits, and separators, mixed capitals
+and underscores, letters alternating with digits, letters separated by dots, and a plus sign between letters are judged
+random.
 
 **RandomStringDetector_IsRandom_IdentifiersAndLongRuns_AreNotRandom**: Long runs of lower-case words, a long camel-case
 identifier, a long run of digits, short words, an apostrophe between words, and a token of separators alone are not
@@ -46,8 +46,8 @@ judged random, and the same tokens with letters appended, which lower the ratio 
 **RandomStringDetector_IsRandom_UnderscoresAndSeparatorRuns_FollowTheCategorization**: An underscore between two letters
 leaves a score of two of three, a run of two dots scores three of four, and underscores alone score nothing.
 
-**RandomStringDetector_IsRandom_CombiningMarks_AreCategorizedWithTheirLetter**: A decomposed accented word and a word with
-several marks are one word and not random, and a mark with no letter before it adds a symbol and reaches one half.
+**RandomStringDetector_IsRandom_CombiningMarks_AreCategorizedWithTheirLetter**: A decomposed accented word and a word
+with several marks are one word and not random, and a mark with no letter before it adds a symbol and reaches one half.
 
 **RandomStringDetector_IsRandom_LetterOutsideBasicPlane_CountsTwoCodeUnits**: A mathematical capital after a word and
 before a word is measured as two code units, and both tokens stay below one half.
@@ -55,9 +55,9 @@ before a word is measured as two code units, and both tokens stay below one half
 **RandomStringDetector_IsRandom_EmptyAndVeryLargeTokens_AreHandled**: An empty token is not random, and a token of one
 million alternating digits and capitals is judged random without error.
 
-**RandomStringDetector_FindHexSequences_QualifyingSequences_AreFound**: Hexadecimal digits and hyphens after a word, with
-several groups, in lower case or upper case, digits only, with a digit after letters, with a trailing hyphen left out,
-with a double hyphen, and with capitals in several groups are found whole.
+**RandomStringDetector_FindHexSequences_QualifyingSequences_AreFound**: Hexadecimal digits and hyphens after a word,
+with several groups, in lower case or upper case, digits only, with a digit after letters, with a trailing hyphen left
+out, with a double hyphen, and with capitals in several groups are found whole.
 
 **RandomStringDetector_FindHexSequences_NonQualifyingSequences_AreNotFound**: Sequences of mixed case, of seven or eight
 letters with no digit or hyphen, that start with a hyphen, that touch a letter before or after, that are too short, that
@@ -67,8 +67,8 @@ underscores are not found.
 **RandomStringDetector_FindHexSequences_TokenInsideText_ReportsTextOffsetsAndKeepsList**: A token that starts partway
 into a text yields a range that is an offset into the text, and a range already in the list is kept.
 
-**RandomStringDetector_FindHexSequences_MinimumLength_IsTheDocumentedOne**: The published minimum is eight, a sequence of
-seven digits is not found, and a sequence of eight is.
+**RandomStringDetector_FindHexSequences_MinimumLength_IsTheDocumentedOne**: The published minimum is eight, a sequence
+of seven digits is not found, and a sequence of eight is.
 
 **RandomStringDetector_FindHexSequences_InvalidArguments_Throw**: A null text and a null list throw a null-argument
 error, and a token that starts before the text or extends past it throws an out-of-range error.

@@ -9,8 +9,8 @@ TextLint is a fast text linter for source code and documentation, delivered as t
 **Status**: under active development. TextLint is being developed to provide cspell-compatible
 spell-checking, configured by a `.textlint.yaml` file, using embedded English and technical-term
 dictionaries, and to check files in parallel across all processor cores. Both the `textlint` tool
-(see _Checking Files_ below) and the library (see _Configuration File_, _Spell Checking_, and _Library
-Usage_ below) can already do this: they load a `.textlint.yaml` settings file, select the files to check,
+(see *Checking Files* below) and the library (see *Configuration File*, *Spell Checking*, and *Library
+Usage* below) can already do this: they load a `.textlint.yaml` settings file, select the files to check,
 check their spelling in parallel, and look words up in the embedded dictionaries.
 
 The workflow below shows how to use the `textlint` tool: configure the files to check, the project words, and the
@@ -27,7 +27,8 @@ files: the tool's Linting subsystem calls the library, whose SpellChecking subsy
 FileSelection, Dictionaries, and TextScanning.
 
 ![TextLint architecture: the Linting subsystem of the textlint tool calls the TextLint library, whose
-SpellChecking subsystem uses Configuration, FileSelection, Dictionaries and TextScanning to check files.](architecture.svg)
+SpellChecking subsystem uses Configuration, FileSelection, Dictionaries and TextScanning to check
+files.](architecture.svg)
 
 ## Scope
 
@@ -48,7 +49,7 @@ compliance evidence is generated automatically on every CI run.
 
 - **Requirements Traceability**: Every requirement is linked to passing tests, and a trace matrix is
   auto-generated on each release
-- **Linting Enforcement**: markdownlint, TextLint, and yamllint are enforced before any build proceeds
+- **Linting Enforcement**: LintMark, TextLint, and yamllint are enforced before any build proceeds
 - **Automated Audit Documentation**: Each release ships with generated requirements, justifications,
   trace matrix, and quality reports
 - **Documentation Generation**: Build notes, this user guide, code quality reports, requirements, justifications,
@@ -117,8 +118,8 @@ textlint
 
 The files named on the command line replace the `files` setting; the `ignorePaths`, `enableGlobDot`, `overrides`, and
 `enabled` settings still apply to them (a file that the settings disable is skipped). The pattern rules are those of
-_Glob Patterns_ below, with the additions in _Paths on the
-Command Line_.
+*Glob Patterns* below, with the additions in *Paths on the
+Command Line*.
 
 ### Paths on the Command Line
 
@@ -188,7 +189,7 @@ could not be read or checked is reported as `error`. The banner and the informat
 and are removed by `--silent`.
 
 Notes about how the settings were applied are printed before the findings, as `info:` lines or as `warning:` lines
-with the position of an override, and they never change the exit code (see _Notes During a Run_):
+with the position of an override, and they never change the exit code (see *Notes During a Run*):
 
 ```text
 info: --language en-US replaces en-GB for the override at .textlint.yaml(14,5).
@@ -199,14 +200,14 @@ Files that the settings disable with `enabled: false` are not read, not reported
 
 ### Exit Codes
 
-| Code | Meaning                                                                                       |
-| :--- | :-------------------------------------------------------------------------------------------- |
-| `0`  | Every selected file was checked and no issue was found; skipped binary files do not count.    |
-| `1`  | Anything else: issues found, a file that could not be checked, no file selected, or an error. |
+| Code | Meaning |
+| :--- | :--- |
+| `0` | Every selected file was checked and no issue was found; skipped binary files do not count. |
+| `1` | Anything else: issues found, a file that could not be checked, no file selected, or an error. |
 
 As in cspell, there is a single failure code. A selection that matches no files fails (a mistyped pattern is
 almost always the reason) unless `--allow-empty` is given. When files were selected but the settings disable all of
-them, the run succeeds and says so (see _Disabling Files_). `--allow-empty` applies only to patterns that were given
+them, the run succeeds and says so (see *Disabling Files*). `--allow-empty` applies only to patterns that were given
 and matched nothing: a run that was given no patterns at all, on the command line or in the settings, has nothing
 to check and always fails with a usage error. A script that checks a list of changed files should therefore call the
 tool only when the list is not empty:
@@ -379,7 +380,7 @@ misconfiguration failures automatically.
 
 TextLint is configured by a `.textlint.yaml` file whose key names follow cspell, so an existing cspell
 configuration can be carried over key by key. The `textlint` tool reads `.textlint.yaml` from the root directory
-(see _Settings File_ above), or the file named by `--config`. The library loads the file from an explicit path that
+(see *Settings File* above), or the file named by `--config`. The library loads the file from an explicit path that
 the application supplies; it does not search for it.
 
 ## Example
@@ -429,28 +430,28 @@ overrides:
 
 ## Supported Keys
 
-| Key                   | Type                | Default  | Meaning                                                    |
-| :-------------------- | :------------------ | :------- | :--------------------------------------------------------- |
-| `version`             | text                | none     | Schema version; carried but not validated.                 |
-| `files`               | ordered list        | empty    | Glob patterns that select the files; empty selects none.   |
-| `ignorePaths`         | list of patterns    | empty    | Glob patterns for files and directories to exclude.        |
-| `enableGlobDot`       | `true`/`false`      | `false`  | Let wildcards match hidden (dot-prefixed) names.           |
-| `enabled`             | `true`/`false`      | `true`   | Switch spell checking on or off for the whole run.         |
-| `language`            | text                | `en`     | English dictionaries: `en`, `en-US`, `en-GB`, or a list.   |
-| `words`               | list of words       | empty    | Words that are accepted as correct.                        |
-| `ignoreWords`         | list of words       | empty    | Words that are never reported, even if flagged.            |
-| `flagWords`           | list of words       | empty    | Words that are always reported, even if known.             |
-| `minWordLength`       | whole number        | `4`      | Words shorter than this are not checked (at least 1).      |
-| `maxFileSize`         | size                | no limit | Files larger than this are skipped and reported.           |
-| `ignoreRegExpList`    | list of text        | empty    | Patterns, or pattern names, whose matches are not checked. |
-| `patterns`            | list of mappings    | empty    | Named patterns for use in `ignoreRegExpList`.              |
-| `ignoreRandomStrings` | `true`/`false`      | `true`   | Skip long tokens that look like random data.               |
-| `minRandomLength`     | whole number        | `40`     | Length from which a token may be random (at least 1).      |
-| `overrides`           | list of mappings    | empty    | Settings for the files a `filename` selects.               |
+| Key | Type | Default | Meaning |
+| :--- | :--- | :--- | :--- |
+| `version` | text | none | Schema version; carried but not validated. |
+| `files` | ordered list | empty | Glob patterns that select the files; empty selects none. |
+| `ignorePaths` | list of patterns | empty | Glob patterns for files and directories to exclude. |
+| `enableGlobDot` | `true`/`false` | `false` | Let wildcards match hidden (dot-prefixed) names. |
+| `enabled` | `true`/`false` | `true` | Switch spell checking on or off for the whole run. |
+| `language` | text | `en` | English dictionaries: `en`, `en-US`, `en-GB`, or a list. |
+| `words` | list of words | empty | Words that are accepted as correct. |
+| `ignoreWords` | list of words | empty | Words that are never reported, even if flagged. |
+| `flagWords` | list of words | empty | Words that are always reported, even if known. |
+| `minWordLength` | whole number | `4` | Words shorter than this are not checked (at least 1). |
+| `maxFileSize` | size | no limit | Files larger than this are skipped and reported. |
+| `ignoreRegExpList` | list of text | empty | Patterns, or pattern names, whose matches are not checked. |
+| `patterns` | list of mappings | empty | Named patterns for use in `ignoreRegExpList`. |
+| `ignoreRandomStrings` | `true`/`false` | `true` | Skip long tokens that look like random data. |
+| `minRandomLength` | whole number | `40` | Length from which a token may be random (at least 1). |
+| `overrides` | list of mappings | empty | Settings for the files a `filename` selects. |
 
 An empty file, or one holding only comments, is valid and gives the defaults. A key with no value is
-treated as absent. The spelling keys and the pattern keys are described under _Spell Checking_ below, `files` under
-_Ordered File Lists_, `overrides` under _Overrides_, and `enabled` under _Disabling Files_.
+treated as absent. The spelling keys and the pattern keys are described under *Spell Checking* below, `files` under
+*Ordered File Lists*, `overrides` under *Overrides*, and `enabled` under *Disabling Files*.
 
 Any other key, such as `caseSensitive` or `languageId`, is an **error**: loading fails, and the message names the
 file, the line and column, and the key, for example
@@ -477,9 +478,9 @@ number of at least 1.
   the file system.
 - Absolute paths are rejected: a drive letter (`C:/docs/**`, `c:docs/**`, or `C:\docs\**`) and a
   double-slash network path (`//server/share/**`). Write the path relative to the root directory instead.
-  (Patterns typed on the command line are more forgiving; see _Paths on the Command Line_.)
+  (Patterns typed on the command line are more forgiving; see *Paths on the Command Line*.)
 - Matching is case-sensitive on every operating system.
-- A pattern in `files` or in an override's `filename` may start with `!` to exclude files; see _Ordered File Lists_.
+- A pattern in `files` or in an override's `filename` may start with `!` to exclude files; see *Ordered File Lists*.
   Everywhere else, `!` is rejected: in `ignorePaths` (which cannot re-include files, so narrow `files` instead) and
   on the command line. `..` segments and unbalanced braces are rejected too, and an invalid pattern in the file is
   reported at its line and column.
@@ -503,11 +504,12 @@ files:
 ```
 
 This selects every markdown file except those below `docs`, and then adds the files below `docs/guide` back. The
-other rules are those of _Glob Patterns_: brace alternatives, bare names at any depth, a trailing `/` for
+other rules are those of *Glob Patterns*: brace alternatives, bare names at any depth, a trailing `/` for
 directories, a leading `/` to anchor to the root, and case-sensitive matching.
 
 - The first pattern cannot start with `!`, because there is nothing for it to remove. The error is reported at the
-  pattern: `Invalid glob pattern '!x': '!' must follow a pattern it can remove files from; put it after the pattern it excludes`.
+  pattern:
+  `Invalid glob pattern '!x': '!' must follow a pattern it can remove files from; put it after the pattern it excludes`.
 - A `!` pattern that matches nothing is not an error.
 - Without any `!`, the list selects exactly the files it always has.
 - A bare name excludes at any depth, so `!node_modules` removes every directory of that name and the files below
@@ -549,7 +551,7 @@ overrides:
     language: en-GB
 ```
 
-- `filename` is required. It is a glob or an ordered list of globs, as described under _Ordered File Lists_, and it
+- `filename` is required. It is a glob or an ordered list of globs, as described under *Ordered File Lists*, and it
   is relative to the same root as `files`.
 - The other keys an entry can have are `words`, `ignoreWords`, `flagWords`, `ignoreRegExpList`, `patterns`,
   `language`, `minWordLength`, `ignoreRandomStrings`, `minRandomLength`, and `enabled`; they mean what they mean at
@@ -566,7 +568,7 @@ overrides:
   an absolute path on the command line changes the folder that the file names are shown relative to. A file outside
   the settings root matches no override.
 - Matching is case-sensitive, like every glob in the settings.
-- `--language` on the command line wins over the `language` of an override (see _Notes During a Run_).
+- `--language` on the command line wins over the `language` of an override (see *Notes During a Run*).
 
 A problem in an override is a settings error: nothing is checked, and the message gives the file, line, and column.
 The position is that of the key, the item, or (when the whole entry is at fault) the start of the entry. The
@@ -631,13 +633,13 @@ overrides:
 
 ## When to Use What
 
-| Need                                                                   | Use                                      |
-| :--------------------------------------------------------------------- | :--------------------------------------- |
-| Never ours (vendored, generated, build output)                         | `ignorePaths`: a hard fence, the fastest |
-| What is permanently in scope                                           | `files` with `!`                         |
-| Ours, skipped for a stated reason, can be toggled, can have exceptions | An override with `enabled: false`        |
-| Different rules for some files                                         | An override with settings                |
-| Pause everything                                                       | `enabled: false` at the top level        |
+| Need | Use |
+| :--- | :--- |
+| Never ours (vendored, generated, build output) | `ignorePaths`: a hard fence, the fastest |
+| What is permanently in scope | `files` with `!` |
+| Ours, skipped for a stated reason, can be toggled, can have exceptions | An override with `enabled: false` |
+| Different rules for some files | An override with settings |
+| Pause everything | `enabled: false` at the top level |
 
 ## Notes During a Run
 
@@ -660,7 +662,7 @@ info: Spell checking is disabled by the settings for all 37 selected file(s).
   note appears for each override that matched an enabled checked file and whose language selects different
   dictionaries from the one requested (`en` and `en-US` are the same, so they do not differ). An override with no
   position in a file is named by its number in the list.
-- **Every selected file is disabled.** See _Disabling Files_.
+- **Every selected file is disabled.** See *Disabling Files*.
 - **An override matched none of the selected files.** It is a warning because the override is probably wrong or
   out of date. It appears only on a **full run**, one with no patterns on the command line, so checking a subset of
   the files never triggers it, and only when at least one file was selected. An override with `enabled: false` that
@@ -670,7 +672,7 @@ info: Spell checking is disabled by the settings for all 37 selected file(s).
 
 The library checks the spelling of text and of files with the rules of cspell, so a project that uses cspell can
 move to TextLint with its configuration and its comments. This section describes what is checked, the settings,
-and the comment directives; _Differences from cspell_ lists where the two tools deliberately differ.
+and the comment directives; *Differences from cspell* lists where the two tools deliberately differ.
 
 ## What Is Checked
 
@@ -722,7 +724,7 @@ order mark; a file that contains a NUL character in its first 1,024 characters i
   edges; if the token does not match, its words are checked one by one.
 - **`ignoreWords`**: words that are never reported, even when they are also in `flagWords`. Entries are matched like
   `words`.
-- **`flagWords`**: words that are always reported, even when they are known words, with the kind _flagged_. An entry
+- **`flagWords`**: words that are always reported, even when they are known words, with the kind *flagged*. An entry
   written entirely in lower case flags the word in any letter case; an entry with a capital letter flags only that
   exact spelling. The forms `word->suggestion, other` and `word: suggestion` attach suggestions to the finding. The
   order of precedence is: ignored, then flagged, then accepted, then the dictionaries.
@@ -775,7 +777,7 @@ patterns:
   supported.` A project that builds its settings in code gets an `InvalidPatternException` that names the entry when
   the `TextChecker` is created.
 - **Patterns in a comment.** A document can add a pattern for itself with the `ignoreRegExp` directive (see
-  _Directives in Comments_). The same forms, names, and rules apply.
+  *Directives in Comments*). The same forms, names, and rules apply.
 
 ### Predefined Pattern Names
 
@@ -788,17 +790,17 @@ listing one is accepted and changes nothing; they exist so that a configuration 
 
 Nine apply only when listed:
 
-| Name               | Text it hides                                                                      |
-| :----------------- | :--------------------------------------------------------------------------------- |
-| `HexValues`        | `#` colors, `0x` numbers, and `\u` and `\x{}` escapes                              |
-| `PublicKey`        | A `BEGIN PUBLIC KEY` block (also `RSA PUBLIC KEY`) up to its `END`                 |
-| `EscapeCharacters` | Backslash escapes such as `\n`, `\t`, `\x41`, and `\u0041`                         |
-| `Base64`           | Runs of Base64 text (at least 40 characters)                                       |
-| `href`             | An `href="..."` attribute                                                          |
-| `string`           | Quoted strings, in single, double, and back quotes                                 |
-| `CStyleComment`    | `//` comments and `/* */` comments                                                 |
-| `PhpHereDoc`       | A PHP heredoc, from `<<<NAME` to `NAME;`                                           |
-| `Everything`       | Every character, which switches checking off                                       |
+| Name | Text it hides |
+| :--- | :--- |
+| `HexValues` | `#` colors, `0x` numbers, and `\u` and `\x{}` escapes |
+| `PublicKey` | A `BEGIN PUBLIC KEY` block (also `RSA PUBLIC KEY`) up to its `END` |
+| `EscapeCharacters` | Backslash escapes such as `\n`, `\t`, `\x41`, and `\u0041` |
+| `Base64` | Runs of Base64 text (at least 40 characters) |
+| `href` | An `href="..."` attribute |
+| `string` | Quoted strings, in single, double, and back quotes |
+| `CStyleComment` | `//` comments and `/* */` comments |
+| `PhpHereDoc` | A PHP heredoc, from `<<<NAME` to `NAME;` |
+| `Everything` | Every character, which switches checking off |
 
 Any other name, such as the Markdown or language-specific names of cspell, is an error unless the `patterns` setting
 defines it. The Markdown patterns need no name: they are always on for Markdown files (see below).
@@ -904,13 +906,13 @@ letters: a look-alike such as the long s (`ſ`), the dotless i (`ı`), the dotte
 (`K`) is not the letter it resembles, so a prefix or a name that contains one is text, as in cspell. The examples below
 use `textlint`.
 
-| Directive                                  | Effect                                                              |
-| :----------------------------------------- | :------------------------------------------------------------------ |
-| `textlint:disable` ... `textlint:enable`   | Hides the text between them; with no `enable`, to the end of text   |
-| `textlint:disable-line`                    | Hides the whole line, including text before the directive           |
-| `textlint:disable-next-line` (or `-next`)  | Hides the rest of its line and the next line                        |
-| `textlint:ignore word1 word2` (or `words`) | Adds the words, separated by spaces, commas, or semicolons          |
-| `textlint:ignoreRegExp /pattern/flags`     | Adds a pattern whose matches are not checked, in the whole document |
+| Directive | Effect |
+| :--- | :--- |
+| `textlint:disable` ... `textlint:enable` | Hides the text between them; with no `enable`, to the end of text |
+| `textlint:disable-line` | Hides the whole line, including text before the directive |
+| `textlint:disable-next-line` (or `-next`) | Hides the rest of its line and the next line |
+| `textlint:ignore word1 word2` (or `words`) | Adds the words, separated by spaces, commas, or semicolons |
+| `textlint:ignoreRegExp /pattern/flags` | Adds a pattern whose matches are not checked, in the whole document |
 
 - A block is closed only by an `enable` written with the same prefix as the `disable` that opened it (letter case
   aside), so one prefix does not close another.
@@ -968,7 +970,7 @@ corpora (see the verification of TextLint). These differences are deliberate:
   example `caseSensitive`, `allowCompoundWords`, `dictionaries`, and `includeRegExpList`), which are not
   available yet.
 - **Overrides are stricter and smaller than cspell's.** An override accepts only the settings listed under
-  _Overrides_ in the configuration chapter. `languageId`, `dictionaries`, `maxFileSize`, nested `overrides`, and
+  *Overrides* in the configuration chapter. `languageId`, `dictionaries`, `maxFileSize`, nested `overrides`, and
   `name` and `description` are errors in an override (a YAML comment does the job of the last two), and so are
   `files`, `ignorePaths`, and `enableGlobDot`, because an override cannot change which files are selected. An
   override that has only a `filename`, or that has `enabled: false` together with other settings, is an error
@@ -981,7 +983,7 @@ corpora (see the verification of TextLint). These differences are deliberate:
   directives accept JavaScript regular expressions, but the flags `x`, `y`, `d`, and `v`, and constructs without a
   safe .NET equivalent, are errors where cspell would run them as the JavaScript engine decides, or, in a directive,
   drop them without a word. A back-reference to a group that did not match, and `.` beside characters outside the
-  basic plane, differ as described under _Regular Expression Rules_, as does the rejection of a back-reference when the
+  basic plane, differ as described under *Regular Expression Rules*, as does the rejection of a back-reference when the
   `i` flag is set. Every pattern has a 5-second limit, which cspell lacks.
 - **Unknown pattern names are errors (stricter than cspell).** A name in `ignoreRegExpList` or in an `ignoreRegExp`
   directive that is neither defined by `patterns` nor predefined is an error, where cspell reads it as a literal
@@ -1003,8 +1005,8 @@ corpora (see the verification of TextLint). These differences are deliberate:
 - **Unicode versions.** Which characters are letters, and the general categories of `\p{...}`, are those of the Unicode
   version of the .NET runtime that runs TextLint, and cspell uses those of its Node.js. The result is the same on every
   operating system for one .NET version; characters that a very recent Unicode version added can be classified
-  differently by an older .NET. The letter-case rules of patterns do not depend on .NET (see _Regular Expression
-  Rules_).
+  differently by an older .NET. The letter-case rules of patterns do not depend on .NET (see *Regular Expression
+  Rules*).
 - **A word accepted by escape.** After cspell accepts a word through the backslash-escape rule (`\nfoo` accepts
   `foo`), it also accepts `nfoo` anywhere later in the same file, a side effect of its cache. TextLint does not.
 - **No limit on repeats.** cspell stops reporting a word after five repeats and a file after 100 problems by
@@ -1093,7 +1095,7 @@ The `TextChecker` constructor throws `ArgumentException` for a language that is 
 list entry, and `InvalidPatternException` (also an `ArgumentException`) for an unusable pattern; a null entry in any
 list of the settings is rejected when the settings are built. `Check` throws `RegexMatchTimeoutException` only when
 hostile text defeats one of the ignore patterns, including a pattern of an `ignoreRegExp` directive, within its time
-limit of 5 seconds; see the worst case under _Regular Expression Rules_.
+limit of 5 seconds; see the worst case under *Regular Expression Rules*.
 
 ## Selecting Files
 
@@ -1191,7 +1193,7 @@ are ordered by ordinal relative path, so the order is the same on every platform
 Paths and patterns that a person types on a command line are more forgiving than patterns in a settings file:
 they may be absolute, and on Windows they may use backslashes. `CommandLinePathResolver` is the single place that
 interprets them, so every program built on the library reads them the same way as the `textlint` tool does (see
-_Paths on the Command Line_). It turns the arguments into a search directory and validated patterns, and says how
+*Paths on the Command Line*). It turns the arguments into a search directory and validated patterns, and says how
 the files found are to be named:
 
 ```csharp
@@ -1230,10 +1232,10 @@ foreach (var issue in check.Issues)
 
 <!-- cspell:ignore favourite cafè -->
 
-The library also answers whether a word is known, using dictionaries embedded in the assembly: the English words
-that American and British English share, the American-only and the British-only spellings, and a dictionary of
-technical terms (programming languages, tools, companies, file types, licenses, and font names). A selection always includes
-the common words and the technical terms, and adds the spellings of the languages you choose.
+The library also answers whether a word is known, using dictionaries embedded in the assembly: the English words that
+American and British English share, the American-only and the British-only spellings, and a dictionary of technical
+terms (programming languages, tools, companies, file types, licenses, and font names). A selection always includes the
+common words and the technical terms, and adds the spellings of the languages you choose.
 
 ```csharp
 using DemaConsulting.TextLint.Dictionaries;
@@ -1319,12 +1321,12 @@ Console.WriteLine(british.IsKnown("centre"));     // True
 
 A word that only your project uses, such as a product name, a person, an internal abbreviation, or an identifier,
 belongs in the `words` setting of your `.textlint.yaml` (or in an inline `textlint:words` comment), not in the
-dictionaries. A British spelling of an ordinary word is a real finding under `en-US`: choose `en-GB`, or fix the
-text. A general technical or scientific term that other projects would also use, and that a public dictionary or
-standard defines, can be proposed as an issue or a pull request that adds it to the reviewed list
+dictionaries. A British spelling of an ordinary word is a real finding under `en-US`: choose `en-GB`, or fix the text. A
+general technical or scientific term that other projects would also use, and that a public dictionary or standard
+defines, can be proposed as an issue or a pull request that adds it to the reviewed list
 (`dictionaries/technical/general/additions.txt`; see `dictionaries/README.md` for the rules). The name of a public
-developer tool that the dictionaries lack goes in the hand-curated tools list (`dictionaries/technical/general/tools.txt`)
-the same way.
+developer tool that the dictionaries lack goes in the hand-curated tools list
+(`dictionaries/technical/general/tools.txt`) the same way.
 
 Two rules of the English data are worth knowing:
 
@@ -1342,24 +1344,24 @@ Two rules of the English data are worth knowing:
 
 The following command-line options are supported:
 
-| Option                                | Description                                                              |
-| ------------------------------------- | ------------------------------------------------------------------------ |
-| `[globs...]`                          | Files to check: paths or glob patterns, replacing the `files` setting    |
-| `--config <file>`                     | Settings file (default: `.textlint.yaml` in the root directory)          |
-| `--root <dir>`                        | Directory that patterns and the default settings file are relative to    |
-| `--language <languages>`              | Dictionary language such as `en-US`; wins over settings and overrides    |
-| `--allow-empty`                       | Accept patterns that match no files (default: exit code 1)               |
-| `--max-parallelism <#>`               | Maximum number of files checked at the same time (default: processors)   |
-| `-v`, `--version`                     | Display version information                                              |
-| `-?`, `-h`, `--help`                  | Display help message                                                     |
-| `--silent`                            | Suppress console output (usage errors still go to stderr)                |
-| `--validate`                          | Run self-validation                                                      |
-| `--results <file>`, `--result <file>` | Write validation results to file (TRX or JUnit format)                   |
-| `--depth <#>`                         | Set heading depth for markdown output (default: 1)                       |
-| `--log <file>`                        | Write output to log file                                                 |
+| Option | Description |
+| --- | --- |
+| `[globs...]` | Files to check: paths or glob patterns, replacing the `files` setting |
+| `--config <file>` | Settings file (default: `.textlint.yaml` in the root directory) |
+| `--root <dir>` | Directory that patterns and the default settings file are relative to |
+| `--language <languages>` | Dictionary language such as `en-US`; wins over settings and overrides |
+| `--allow-empty` | Accept patterns that match no files (default: exit code 1) |
+| `--max-parallelism <#>` | Maximum number of files checked at the same time (default: processors) |
+| `-v`, `--version` | Display version information |
+| `-?`, `-h`, `--help` | Display help message |
+| `--silent` | Suppress console output (usage errors still go to stderr) |
+| `--validate` | Run self-validation |
+| `--results <file>`, `--result <file>` | Write validation results to file (TRX or JUnit format) |
+| `--depth <#>` | Set heading depth for markdown output (default: 1) |
+| `--log <file>` | Write output to log file |
 
 Each option that takes a value may be given only once. `[globs...]` may be mixed with the options in any order.
-`--language` also wins over the `language` of an override (see _Notes During a Run_). See _Checking Files_ for the
+`--language` also wins over the `language` of an override (see *Notes During a Run*). See *Checking Files* for the
 meaning of the patterns, the settings file, the output, and the exit codes.
 
 # Examples

@@ -25,16 +25,16 @@ verdict a gate should use.
 
 **TextChecker.Check**: Checks a string.
 
-- _Type_: In-process .NET instance method on a checker that is created from a `TextLintSettings` value.
-- _Role_: Provider.
-- _Contract_: Accepts the text and an optional source name, and returns a read-only list of `SpellingIssue`, each
+- *Type*: In-process .NET instance method on a checker that is created from a `TextLintSettings` value.
+- *Role*: Provider.
+- *Contract*: Accepts the text and an optional source name, and returns a read-only list of `SpellingIssue`, each
   with the source name, a 1-based line, a 1-based column in UTF-16 code units, the text of the finding, its kind
   (unknown word, flagged word, unsupported directive, or invalid directive), its suggestions, and its detail (the
   reason an invalid directive cannot be used; null for the other kinds). The list is in text order. The text is
   not checked in the parts that the default patterns, the patterns of the settings, the directives (including the
   patterns of `ignoreRegExp` directives), and, for a source
   name with a Markdown extension, the Markdown patterns match, nor in a long token that looks like random data.
-- _Constraints_: Creating the checker throws `ArgumentNullException` for null settings and `ArgumentException` for
+- *Constraints*: Creating the checker throws `ArgumentNullException` for null settings and `ArgumentException` for
   an unsupported language or a word-list entry that could never match, and `InvalidPatternException` (an
   `ArgumentException`) for an `ignoreRegExpList` entry or a `patterns` definition that cannot be used; all messages
   name what is wrong.
@@ -43,9 +43,9 @@ verdict a gate should use.
 
 **SpellChecker.CheckAsync**: Checks the files that the settings select.
 
-- _Type_: In-process .NET static asynchronous method.
-- _Role_: Provider.
-- _Contract_: Accepts the settings, a root directory, optional `SpellCheckOptions` (the degree of parallelism,
+- *Type*: In-process .NET static asynchronous method.
+- *Role*: Provider.
+- *Contract*: Accepts the settings, a root directory, optional `SpellCheckOptions` (the degree of parallelism,
   which defaults to the number of processors; the settings root directory that override patterns are relative to; and
   a language that wins over the settings), and a cancellation token. It applies the `enabled` and `overrides` settings:
   a file that the settings disable is not read, reported, or counted, and every other file is checked with the
@@ -55,7 +55,7 @@ verdict a gate should use.
   of files the settings disabled; the `SpellCheckNote` entries that describe what the settings did to the run (a
   command-line language that replaced an override's language, every selected file disabled, an override that matched
   no file); and `HasProblems`, which is true when there is a finding or an error diagnostic. Notes are never problems.
-- _Constraints_: Throws `ArgumentNullException` and `ArgumentException` for bad arguments or unusable settings,
+- *Constraints*: Throws `ArgumentNullException` and `ArgumentException` for bad arguments or unusable settings,
   including an unusable override or an unsupported language in the options
   (before any file is touched), `DirectoryNotFoundException` for a missing root (a root that cannot be read throws
   `UnauthorizedAccessException` or `IOException` instead), `InvalidGlobPatternException` for
@@ -89,7 +89,7 @@ string into findings, so an editor, a build step, or a test can use it directly,
 exactly one place. `FileTextReader` knows nothing about spelling: it turns a path into text or into a reason, so
 the encoding rules and the file problems can be tested with bytes and temporary files. `SpellChecker` knows about
 neither detail: it selects files, calls the reader, calls the checker, and merges. Keeping the layers apart is what
-allows a file problem to be data in the result while a defect in the checker remains an exception (see _Failures_
+allows a file problem to be data in the result while a defect in the checker remains an exception (see *Failures*
 below).
 
 **Determinism without locks.** Files are independent, so they are checked in parallel, but a result must not depend
@@ -117,23 +117,22 @@ The known word forms that cspell allows (the possessive, a word after a backslas
 plural or verb ending, a contraction whose parts are acceptable, and a piece that is one repeated letter) are part of
 the checker so that prose, string literals, acronyms, and placeholders do not produce findings that cspell does not.
 
-**Excluded text, patterns, and random strings.** What is not checked at all is decided before any word is looked at,
-by ranges that are merged and sorted: the directives (including the patterns that `ignoreRegExp` directives add, which
-are resolved like the entries of `ignoreRegExpList` and apply to the whole text), the default ignore patterns, the
-patterns of the `ignoreRegExpList`
-and `patterns` settings, and, only when the source name has a Markdown extension, the Markdown patterns for link
-targets, labels, anchors, and entities. The checker resolves the settings' patterns once, when it is created, so a
-pattern is parsed once for any number of texts, and an unusable one stops the checker from being created instead of
-failing in the middle of a run. The Markdown decision is made from the source name alone, which is why `Check` takes the
-name (`SpellChecker` passes the relative path of each file), and a text with no name is never treated as Markdown. Two
-further rules work on tokens: a long token that looks
-like random data, such as a key, is skipped before anything else is asked about it, and the unknown words that lie inside
-a hexadecimal sequence of a token are dropped from its findings unless they are flagged; both follow cspell and both
-are switched by `ignoreRandomStrings`, with `minRandomLength` as the length from which a token is judged. A contraction
-such as `exec'd` or `rock'n'roll` is accepted when each part between the apostrophes is acceptable, and is otherwise
-reported whole, so a misspelled part still shows. The rules of each part are in the designs of the units that hold them
-(see _TextChecker_ and the _TextScanning Design_), and the parity corpora of the system tests cover custom patterns,
-the predefined patterns, Markdown links, random strings, and contractions next to the original corpora.
+**Excluded text, patterns, and random strings.** What is not checked at all is decided before any word is looked at, by
+ranges that are merged and sorted: the directives (including the patterns that `ignoreRegExp` directives add, which are
+resolved like the entries of `ignoreRegExpList` and apply to the whole text), the default ignore patterns, the patterns
+of the `ignoreRegExpList` and `patterns` settings, and, only when the source name has a Markdown extension, the Markdown
+patterns for link targets, labels, anchors, and entities. The checker resolves the settings' patterns once, when it is
+created, so a pattern is parsed once for any number of texts, and an unusable one stops the checker from being created
+instead of failing in the middle of a run. The Markdown decision is made from the source name alone, which is why
+`Check` takes the name (`SpellChecker` passes the relative path of each file), and a text with no name is never treated
+as Markdown. Two further rules work on tokens: a long token that looks like random data, such as a key, is skipped
+before anything else is asked about it, and the unknown words that lie inside a hexadecimal sequence of a token are
+dropped from its findings unless they are flagged; both follow cspell and both are switched by `ignoreRandomStrings`,
+with `minRandomLength` as the length from which a token is judged. A contraction such as `exec'd` or `rock'n'roll` is
+accepted when each part between the apostrophes is acceptable, and is otherwise reported whole, so a misspelled part
+still shows. The rules of each part are in the designs of the units that hold them (see *TextChecker* and the
+*TextScanning Design*), and the parity corpora of the system tests cover custom patterns, the predefined patterns,
+Markdown links, random strings, and contractions next to the original corpora.
 
 **Where the subsystem deliberately differs from cspell.** These differences are documented for users, and the
 parity test compares the full list of them with the actual output so that a fixed or a new difference is noticed.
@@ -190,14 +189,14 @@ caller who needs less lowers the degree of parallelism; a project can also set a
 both, no file larger than 1 GiB is ever read, because a .NET string cannot hold more than about a billion characters
 and the bytes and the text are in memory together.
 
-**Settings are validated once, up front.** Settings built in code bypass the checks of the settings file loader, so
-the checker validates the language, every word-list entry, and every pattern when it is created, and `SpellChecker` creates
+**Settings are validated once, up front.** Settings built in code bypass the checks of the settings file loader, so the
+checker validates the language, every word-list entry, and every pattern when it is created, and `SpellChecker` creates
 the checker before it touches the file system. An entry that could never match (blank, containing white space, using the
 forbidden-word marker, or with no letter or digit) and a pattern that cannot be used (an unsupported flag or construct,
-an invalid expression, or a name that is not defined) are errors that name the setting and the entry, because a
-setting the user believes is in force must not silently do nothing. The same holds for overrides: `SpellChecker`
-builds a checker for every override that has settings before any file is read, including an override that no file
-will match, so a bad override fails the run at once.
+an invalid expression, or a name that is not defined) are errors that name the setting and the entry, because a setting
+the user believes is in force must not silently do nothing. The same holds for overrides: `SpellChecker` builds a
+checker for every override that has settings before any file is read, including an override that no file will match, so
+a bad override fails the run at once.
 
 **Overrides and `enabled` are resolved before the parallel phase.** Which overrides apply to a file depends only on
 its path, so `SpellChecker` resolves every selected file in a sequential pre-pass that only matches paths, which is

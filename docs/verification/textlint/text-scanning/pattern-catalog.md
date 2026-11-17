@@ -60,13 +60,13 @@ row per name, resolves to no pattern, because the default patterns and the direc
 **PatternCatalog_Resolve_PredefinedNameInOtherCase_IsFound**: A predefined name in lower case and in upper case resolves
 to the same pattern.
 
-**PatternCatalog_Resolve_OptionalPredefinedName_FindsWhatCspellFinds**: Each row, recorded from cspell, gives an optional
-name, a text, and the matches cspell finds. The rows cover hexadecimal values and escapes of several lengths; public key
-blocks, with a private key and a mismatched end left alone; escape characters, including an escaped backslash; Base64
-data at and one below the minimum length, over several lines, and with a leading plus sign or a trailing padding sign;
-`href` attributes in either case and one that spans lines; strings in three kinds of quotes, with escapes, empty, and
-unclosed; line and block comments, including a URL scheme that is not a comment and an unclosed block; PHP here
-documents, quoted, unclosed, and indented; and the pattern that excludes whole lines.
+**PatternCatalog_Resolve_OptionalPredefinedName_FindsWhatCspellFinds**: Each row, recorded from cspell, gives an
+optional name, a text, and the matches cspell finds. The rows cover hexadecimal values and escapes of several lengths;
+public key blocks, with a private key and a mismatched end left alone; escape characters, including an escaped
+backslash; Base64 data at and one below the minimum length, over several lines, and with a leading plus sign or a
+trailing padding sign; `href` attributes in either case and one that spans lines; strings in three kinds of quotes, with
+escapes, empty, and unclosed; line and block comments, including a URL scheme that is not a comment and an unclosed
+block; PHP here documents, quoted, unclosed, and indented; and the pattern that excludes whole lines.
 
 **PatternCatalog_OptionalRegexes_EveryPattern_HasDocumentedMatchTimeout**: Every regular expression of the optional
 predefined patterns has the documented match limit of five seconds.

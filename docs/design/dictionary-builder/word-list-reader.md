@@ -33,11 +33,11 @@ skipping blank lines and lines whose first non-blank character is `#`.
 
 **FindWordListFiles**: lists the files of a dictionary folder.
 
-- _Parameters_: the dictionary folder, an output for the problem found while searching, an output that says
+- *Parameters*: the dictionary folder, an output for the problem found while searching, an output that says
   whether the folder is missing, and optionally the file operations to use.
-- _Returns_: the full paths of the files beneath the folder (at any depth) whose extension is `.txt` in any letter
+- *Returns*: the full paths of the files beneath the folder (at any depth) whose extension is `.txt` in any letter
   case, sorted in ordinal order; empty when the folder does not exist, holds none, or could not be searched.
-- _Postconditions_: the extension test ignores case, like every other file-name comparison of the builder, so a
+- *Postconditions*: the extension test ignores case, like every other file-name comparison of the builder, so a
   list named `LIST.TXT` is never silently skipped on a case-insensitive file system and the same files are found
   on every operating system; the sort is ordinal, so they are found in the same order everywhere. There is
   deliberately no existence check before the search, because such a check cannot tell a missing folder from one
@@ -48,9 +48,9 @@ skipping blank lines and lines whose first non-blank character is `#`.
 
 **Read**: reads and merges the files of a dictionary folder.
 
-- _Parameters_: the dictionary folder and optionally the file operations to use.
-- _Returns_: a `WordListReadResult`.
-- _Postconditions_: every problem in every file has been counted; the first 100 are kept in detail, followed by
+- *Parameters*: the dictionary folder and optionally the file operations to use.
+- *Returns*: a `WordListReadResult`.
+- *Postconditions*: every problem in every file has been counted; the first 100 are kept in detail, followed by
   one summary diagnostic that states how many more were not shown, so a hopelessly broken list cannot flood the
   build log. A folder that could not be searched is the first problem of the result; a folder that does not exist
   gives an empty result without a problem.
@@ -84,7 +84,7 @@ arguments are programming errors and are not defended against.
 - **DictionaryFormat** - the alphabet test, the fold, the maximum word length, and the capitalization
   classification.
 - **.NET BCL** - file system access, strict UTF-8 decoding, and collections. The folder search goes through
-  `FileOperations` (part of the _BuilderProgram_ unit), so tests can make the search and the file reads fail.
+  `FileOperations` (part of the *BuilderProgram* unit), so tests can make the search and the file reads fail.
 
 ### Callers
 

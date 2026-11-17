@@ -49,8 +49,8 @@ for the code that reads the files.
 
 The builder produces four dictionaries from the word lists under `dictionaries/`: the English words common
 to both dialects, the American-only words, the British-only words, and the technical terms. The technical
-dictionary is the only one that is combined from several kinds of list, as described under _Word Lists_
-below and in the _VariantFilter_ design. The word lists themselves are generated (the English lists, by
+dictionary is the only one that is combined from several kinds of list, as described under *Word Lists*
+below and in the *VariantFilter* design. The word lists themselves are generated (the English lists, by
 `dictionaries/refresh.py` from SCOWL, Hunspell dictionaries, and cspell-dicts word lists) or curated by hand;
 the builder neither knows nor cares which, and the reviewed exclusions list is how the project removes an
 imported word that hides a real typo without editing the imported data.
@@ -59,9 +59,9 @@ imported word that hides a real typo without editing the imported data.
 
 **Command Line**: the input from the build.
 
-- _Type_: command line.
-- _Role_: consumer (the build starts the builder).
-- _Contract_: `--input <word-list-folder> --output <folder> <name> [<name> ...]`, optionally followed by
+- *Type*: command line.
+- *Role*: consumer (the build starts the builder).
+- *Contract*: `--input <word-list-folder> --output <folder> <name> [<name> ...]`, optionally followed by
   `--technical <name> --variants <name> [--variants <name> ...]` and by `--exclusions <word-list-file>`. For
   each name the builder reads the word
   lists beneath `<word-list-folder>/<name>/` and writes `<folder>/<name>.tld`. Dictionary names consist of
@@ -71,7 +71,7 @@ imported word that hides a real typo without editing the imported data.
   dictionary, and each `--variants` names a declared dictionary whose words are regional spelling variants
   (the American-only and the British-only dictionaries); the two options must be given together.
   `--exclusions` names one word-list file whose words are removed from every dictionary.
-- _Constraints_: exit code 0 on success, 1 when the word lists or the declarations are invalid or the files
+- *Constraints*: exit code 0 on success, 1 when the word lists or the declarations are invalid or the files
   cannot be written (nothing is changed), 2 when the command line is invalid (including an option with an
   empty value), and 3 when the output folder could not be left clean and consistent: a write failed and the file
   system also prevented restoring the previous files, or a temporary file or backup could not be deleted (a fatal
@@ -79,14 +79,14 @@ imported word that hides a real typo without editing the imported data.
 
 **Word Lists**: the input data.
 
-- _Type_: files under the input folder, one sub-folder per dictionary.
-- _Role_: consumer.
-- _Contract_: UTF-8 text, one entry per line. A line whose first non-blank character is `#` is a comment
+- *Type*: files under the input folder, one sub-folder per dictionary.
+- *Role*: consumer.
+- *Contract*: UTF-8 text, one entry per line. A line whose first non-blank character is `#` is a comment
   and blank lines are ignored. Spaces and tabs around an entry are trimmed; a byte order mark and CRLF
   line endings are tolerated. An entry is 1 to 64 characters made of ASCII letters, Latin-1 letters, and
   the straight apostrophe; it starts and ends with a letter and has no two apostrophes in a row.
   Capitalization is meaningful because it is recorded; order and repetition are not.
-- _Constraints_: any other character, including digits, hyphens, spaces, the typographic apostrophe,
+- *Constraints*: any other character, including digits, hyphens, spaces, the typographic apostrophe,
   and letters of other scripts, makes the entry invalid.
 
 The folder is the tag, and there is no manifest. An ordinary dictionary reads every `.txt` file (the extension in any
@@ -106,25 +106,25 @@ which is harmless because a lookup combines the common dictionary with the regio
 
 **Dictionary Files**: the output data.
 
-- _Type_: binary files, one per declared dictionary, with the extension `.tld`.
-- _Role_: provider.
-- _Contract_: the layout defined in the _DictionaryFormat_ design. The files are deterministic and
+- *Type*: binary files, one per declared dictionary, with the extension `.tld`.
+- *Role*: provider.
+- *Contract*: the layout defined in the *DictionaryFormat* design. The files are deterministic and
   contain no timestamp or machine data.
-- _Constraints_: a file whose content would not change is not rewritten; either every changed file is
+- *Constraints*: a file whose content would not change is not rewritten; either every changed file is
   installed or none is, except when the file system prevents the restoration after a failed write, which is a
   reported fatal condition and never silent.
 
 **Standard Output and Standard Error**: progress and diagnostics.
 
-- _Type_: standard I/O.
-- _Role_: provider.
-- _Contract_: standard output receives one summary line per dictionary (path, word count, size, and
+- *Type*: standard I/O.
+- *Role*: provider.
+- *Contract*: standard output receives one summary line per dictionary (path, word count, size, and
   whether the file was written or unchanged); the line of the technical dictionary also states how many
   spelling variants were kept through language lists, kept through the reviewed list, and stripped, and when an
   exclusions list was given every line states how many words were excluded from that dictionary.
   Standard error receives each problem as `path(line): error: message`, or `path: error: message` when the
   problem has no line, which MSBuild and editors turn into clickable errors.
-- _Constraints_: on any problem the output folder is left as it was; if it cannot be left as it was, or a temporary
+- *Constraints*: on any problem the output folder is left as it was; if it cannot be left as it was, or a temporary
   file cannot be deleted, the error stream says so, names every affected file, and names every backup that holds a
   previous version.
 
@@ -133,7 +133,7 @@ which is harmless because a lookup combines the common dictionary with the regio
 The system uses only the .NET base class library. It has no OTS items, no shared packages, and no
 dependency on the TextLint library or the TextLint tool; the dependency runs the other way, because the
 library's build runs the builder. The source file of `DictionaryFormat` is linked into the library
-project. See the _TextLint_ design for how the build uses the builder.
+project. See the *TextLint* design for how the build uses the builder.
 
 ## Risk Control Measures
 
@@ -145,13 +145,12 @@ change any output when a problem exists protect the data quality of the product,
 1. The build starts the builder with the folder of word lists, the output folder, the dictionary names, and
    the declaration of the technical and variant dictionaries.
 2. `BuilderProgram` validates the command line. A problem ends the run with exit code 2.
-3. `BuilderProgram` lists the input folder once and resolves each declared ordinary name to the folder of that name
-   as spelled on disk (ignoring letter case; a name that matches two folders is an ambiguity problem, and no match
-   is a missing folder), then asks `WordListReader` to find the files of the folder; a folder that exists but cannot
-   be searched is a problem, and the
-   reader then reads the files. The reader reads the files in ordinal path order, decodes them strictly as UTF-8, validates
-   each entry, folds it with `DictionaryFormat`, and merges it into one set of distinct words with the
-   capitalization forms each word had. Every problem is collected, not just the first.
+3. `BuilderProgram` lists the input folder once and resolves each declared ordinary name to the folder of that name as
+   spelled on disk (ignoring letter case; a name that matches two folders is an ambiguity problem, and no match is a
+   missing folder), then asks `WordListReader` to find the files of the folder; a folder that exists but cannot be
+   searched is a problem, and the reader then reads the files. The reader reads the files in ordinal path order, decodes
+   them strictly as UTF-8, validates each entry, folds it with `DictionaryFormat`, and merges it into one set of
+   distinct words with the capitalization forms each word had. Every problem is collected, not just the first.
 4. For the technical dictionary, `BuilderProgram` checks that every word list lies in the general folder, the
    language folder, or the reviewed list, has the reader read those three sources, and asks `VariantFilter`
    to combine them using the words of the variant dictionaries: language-list and reviewed-list words are kept,

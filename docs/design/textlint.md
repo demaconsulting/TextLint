@@ -5,7 +5,7 @@
 ## Architecture
 
 TextLint is the `DemaConsulting.TextLint` .NET class library. It is the reusable core of the
-TextLint product: the `textlint` command-line tool (see the _TextLintTool_ design) consumes it,
+TextLint product: the `textlint` command-line tool (see the *TextLintTool* design) consumes it,
 and any other .NET application may reference it directly.
 
 The library is composed of five subsystems and consumes two OTS items:
@@ -13,24 +13,24 @@ The library is composed of five subsystems and consumes two OTS items:
 - **Configuration** turns a `.textlint.yaml` file, or values built in code, into one immutable
   settings value, and reports every configuration problem as a positioned error. It contains the
   `TextLintSettings` (with `SettingsOverride`), `SettingsLoader`, and `SettingsOverrideResolver` units. See
-  _Configuration Design_.
-- **FileSelection** applies include and ignore glob patterns to a root directory and returns the ordered list of files to
-  check. It contains the `GlobPatternExpander`, `HiddenPathPolicy`, `OrderedGlobList`, `FileSelector`, and
-  `CommandLinePathResolver` units. See _FileSelection Design_.
+  *Configuration Design*.
+- **FileSelection** applies include and ignore glob patterns to a root directory and returns the ordered list of files
+  to check. It contains the `GlobPatternExpander`, `HiddenPathPolicy`, `OrderedGlobList`, `FileSelector`, and
+  `CommandLinePathResolver` units. See *FileSelection Design*.
 - **Dictionaries** answers whether a word is known to the selected English language (American, British, or
   both) and the technical vocabulary, from dictionaries embedded in the assembly. It contains the
-  `SpellingDictionary` and `DictionaryImage` units. See _Dictionaries Design_.
+  `SpellingDictionary` and `DictionaryImage` units. See *Dictionaries Design*.
 - **TextScanning** is the pure text logic of spell checking: it decides what a word is, finds the text that is
   never checked (URLs, hashes, similar text, the text that the project's own patterns match, and the link targets of
   Markdown files), recognizes tokens that look like random data, and reads the directives that comments use to control
   checking. It reads no file and no setting. It contains the `WordTokenizer`, `DefaultPatterns`, `DocumentDirectives`,
-  `PatternParser`, `PatternCatalog`, `MarkdownPatterns`, and `RandomStringDetector` units. See _TextScanning Design_.
+  `PatternParser`, `PatternCatalog`, `MarkdownPatterns`, and `RandomStringDetector` units. See *TextScanning Design*.
 - **SpellChecking** puts the other subsystems together: `TextChecker` checks a string against the dictionary and
   the word lists of the settings, `FileTextReader` turns a file into text, and `SpellChecker` selects the files
   of a directory, applies the settings' `enabled` and `overrides`, checks the files in parallel, and returns one
-  deterministic result. See _SpellChecking Design_.
+  deterministic result. See *SpellChecking Design*.
 - **YamlDotNet** (OTS) parses the settings file and **Microsoft.Extensions.FileSystemGlobbing**
-  (OTS) matches glob patterns against the file system. See _OTS Software Integration Design_.
+  (OTS) matches glob patterns against the file system. See *OTS Software Integration Design*.
 
 The dependencies between the subsystems form a directed graph without cycles, and they are the reason for the
 split into five subsystems. `TextScanning` and `Dictionaries` depend on nothing else in the library.
@@ -53,7 +53,7 @@ values to the checker; `SpellChecker` does this itself. The dependencies are doc
 subsystem.
 
 The library is also the consumer of a build-time system, the **DictionaryBuilder** (see the
-_DictionaryBuilder_ design). Its build runs the builder to convert the plain-text word lists under
+*DictionaryBuilder* design). Its build runs the builder to convert the plain-text word lists under
 `dictionaries/`, and the reviewed exclusions list beside them, into four binary dictionary files, which it
 embeds in the assembly, and it compiles
 one source file of the builder, `DictionaryFormat`, so that the program that writes the dictionaries and
@@ -74,21 +74,21 @@ belongs to the library (see `CommandLinePathResolver`), so every front-end reads
 
 **NuGet Package**: The distribution interface for consumers.
 
-- _Type_: NuGet package.
-- _Role_: Provider.
-- _Contract_: The package is named `DemaConsulting.TextLint`, carries the README, icon, MIT license
+- *Type*: NuGet package.
+- *Role*: Provider.
+- *Contract*: The package is named `DemaConsulting.TextLint`, carries the README, icon, MIT license
   expression, third-party notices file, and source-link metadata, and ships `net10.0` and `net11.0`
   assemblies with XML documentation and a symbols package. Each assembly embeds the four dictionaries.
-- _Constraints_: The package contains no native assets and has exactly two runtime package
+- *Constraints*: The package contains no native assets and has exactly two runtime package
   dependencies, YamlDotNet and Microsoft.Extensions.FileSystemGlobbing. The notices file, named
   `THIRD-PARTY-NOTICES.txt`, is at the package root and reproduces the license notices of the
   third-party word lists that the assembly embeds.
 
 **Public API**: The programmatic interface for consuming applications.
 
-- _Type_: .NET assembly.
-- _Role_: Provider.
-- _Contract_: In the `DemaConsulting.TextLint.Configuration` namespace, `TextLintSettings` (an
+- *Type*: .NET assembly.
+- *Role*: Provider.
+- *Contract*: In the `DemaConsulting.TextLint.Configuration` namespace, `TextLintSettings` (an
   immutable record) with `SettingsOverride` (one entry of its `Overrides`), `SettingsLoader` (asynchronous loading of a
   settings file), `SettingsLoadResult`,
   and `SettingsDiagnostic`. In the `DemaConsulting.TextLint.FileSelection` namespace, `FileSelector`
@@ -103,30 +103,30 @@ belongs to the library (see `CommandLinePathResolver`), so every front-end reads
   `DemaConsulting.TextLint.TextScanning` namespace, `NamedPattern` (a name and a pattern of the `patterns` setting) and
   `InvalidPatternException` (thrown when settings built in code hold an unusable pattern); every other type of the
   `TextScanning` subsystem is internal.
-- _Constraints_: No public signature exposes a type from YamlDotNet or
+- *Constraints*: No public signature exposes a type from YamlDotNet or
   Microsoft.Extensions.FileSystemGlobbing, so upgrading those packages can never break consumers.
   Every public type is trim and AOT safe.
 
 **Embedded dictionaries**: The data the library carries.
 
-- _Type_: Four manifest resources of the assembly (`en-common`, `en-US`, `en-GB`, and `technical`, each
+- *Type*: Four manifest resources of the assembly (`en-common`, `en-US`, `en-GB`, and `technical`, each
   with the extension `.tld`, under the logical-name prefix `DemaConsulting.TextLint.Dictionaries.`).
-- _Role_: Provider to the library's own Dictionaries subsystem; not a public interface.
-- _Contract_: Binary files in the layout defined by the _DictionaryFormat_ design.
-- _Constraints_: Produced by the build from the word lists, never committed; the resource names are stable
+- *Role*: Provider to the library's own Dictionaries subsystem; not a public interface.
+- *Contract*: Binary files in the layout defined by the *DictionaryFormat* design.
+- *Constraints*: Produced by the build from the word lists, never committed; the resource names are stable
   because the code loads them by name.
 
 **Configuration file**: The settings file read by the library.
 
-- _Type_: YAML file, conventionally named `.textlint.yaml`, supplied to the loader by explicit path.
-- _Role_: Consumer.
-- _Contract_: A single YAML document of cspell-compatible keys. The supported keys are `version`, `enabled`,
+- *Type*: YAML file, conventionally named `.textlint.yaml`, supplied to the loader by explicit path.
+- *Role*: Consumer.
+- *Contract*: A single YAML document of cspell-compatible keys. The supported keys are `version`, `enabled`,
   `files`, `ignorePaths`, `enableGlobDot`, `language`, `words`, `ignoreWords`, `flagWords`, `minWordLength`,
   `maxFileSize`, `ignoreRegExpList`, `patterns`, `ignoreRandomStrings`, `minRandomLength`, and `overrides` (a list of
   entries that each name files with `filename` and change a subset of the settings for them); `files` is an ordered
   list in which a leading `!` excludes. An empty file or a file
   of only comments is valid and yields default settings.
-- _Constraints_: Any other key is an error that names the key. A file with more than one YAML
+- *Constraints*: Any other key is an error that names the key. A file with more than one YAML
   document is an error. Glob patterns, the language, word-list entries, patterns and pattern names, the minimum word
   length, the minimum random length, the maximum
   file size, and every override must be valid. The library never
@@ -135,7 +135,7 @@ belongs to the library (see `CommandLinePathResolver`), so every front-end reads
 ## Dependencies
 
 - **Runtime**: YamlDotNet and Microsoft.Extensions.FileSystemGlobbing. Both are runtime package
-  dependencies that flow to consumers of the package. See _OTS Software Integration Design_ for how
+  dependencies that flow to consumers of the package. See *OTS Software Integration Design* for how
   each is used.
 - **Build time**: SourceLink and the SBOM targets package (both private to the build), and the
   .NET and Sonar analyzers. None of these flow to consumers of the package. The library's build also
@@ -204,7 +204,7 @@ words up, and check text and files:
    were applied.
 
 At build time a further flow produces the data: the build runs the DictionaryBuilder over the word lists
-and embeds the four resulting files in the assembly; see _Design Constraints_.
+and embeds the four resulting files in the assembly; see *Design Constraints*.
 
 ## Design Constraints
 
@@ -254,7 +254,7 @@ and embeds the four resulting files in the assembly; see _Design Constraints_.
   Linux, and macOS, because it needs only the .NET host that is already running the build.
 - Safe code only: the library contains no unsafe code, no unsafe compiler option, and no analyzer suppression
   for unsafe code. The embedded dictionaries are read once into managed arrays and accessed through
-  bounds-checked spans, as described in the _Dictionaries Design_, which also explains why a precomputed binary
+  bounds-checked spans, as described in the *Dictionaries Design*, which also explains why a precomputed binary
   format was chosen over building a set at run time. Safety is chosen over speed when they conflict.
 - Third-party notices: the third-party word lists and the rules ported from cspell-lib require their notices to
   accompany the data and the code, so the
@@ -275,19 +275,19 @@ and embeds the four resulting files in the assembly; see _Design Constraints_.
   `PatternParser.Parse`, an internal `TextChecker` constructor, and an optional parameter of the internal file-checking
   method) let the tests use a limit of milliseconds; production code always uses five seconds. The expressions are
   ports of cspell's with explicit ASCII classes, because
-  JavaScript and .NET differ in what the word class and the word boundary mean; see the _DefaultPatterns Design_ and
-  the _PatternParser Design_.
+  JavaScript and .NET differ in what the word class and the word boundary mean; see the *DefaultPatterns Design* and
+  the *PatternParser Design*.
 - Deterministic parallelism: files are checked on all processor cores, and the result is the same whatever the
   degree of parallelism. Shared state is immutable (the checker, the word sets, the dictionaries, and the
   generated expressions); the per-file outcomes are written to separate array slots and assembled in the
-  order of the ordinal-sorted file selection. See the _SpellChecking Design_.
+  order of the ordinal-sorted file selection. See the *SpellChecking Design*.
 - Per-file problems are data: a file that cannot be read, looks binary, is too large, or times out is reported in
   the result and never stops the run; argument errors, a missing root directory, defects, and cancellation are
   exceptions. There is no default file size limit beyond a fixed ceiling of 1 GiB that a string cannot
   exceed anyway.
 - Documented differences from cspell: the checker follows cspell's documented word-splitting, ignore, directive,
   word-list, pattern, Markdown, random-string, and contraction rules and proves it with a parity corpus (see the
-  _TextLint Verification_ document), but it does
+  *TextLint Verification* document), but it does
   not port cspell's heuristic splitter, uses its own dictionaries, reports unsupported directives and the patterns of
   `ignoreRegExp` directives that cannot be used (which cspell drops silently), rejects the pattern
   flags and constructs that have no safe .NET equivalent and the names that no pattern defines (cspell reads an unknown

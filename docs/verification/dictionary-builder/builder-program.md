@@ -119,9 +119,9 @@ deleting any temporary file fails; the run returns exit code 3, the error names 
 output folder, and the first file is restored. This scenario is tested by
 `BuilderProgram_Run_StagedFileCannotBeDeleted_ReportsLeftoverAndReturnsFatal`.
 
-**BuilderProgram_Run_BackupCannotBeDeleted_ReportsLeftoverAndReturnsFatal**: the installation succeeds but deleting
-a backup fails; the run returns exit code 3, names the backup, which still holds the previous content, and the new
-files are in place. This scenario is tested by `BuilderProgram_Run_BackupCannotBeDeleted_ReportsLeftoverAndReturnsFatal`.
+**BuilderProgram_Run_BackupCannotBeDeleted_ReportsLeftoverAndReturnsFatal**: the installation succeeds but deleting a
+backup fails; the run returns exit code 3, names the backup, which still holds the previous content, and the new files
+are in place. This scenario is tested by `BuilderProgram_Run_BackupCannotBeDeleted_ReportsLeftoverAndReturnsFatal`.
 
 **BuilderProgram_Run_ValidLists_WritesFilesAndReturnsZero**: two valid dictionaries produce two files, a
 summary line each, and no errors. This scenario is tested by
@@ -170,10 +170,11 @@ dictionaries written in the same run hold all their own words. This scenario is 
 keep list would have saved is stripped. This scenario is tested by
 `BuilderProgram_Run_TechnicalWithoutKeepList_Succeeds`.
 
-**BuilderProgram_Run_TechnicalListOutsideKnownPlaces_ReturnsOneNamingFile**, **BuilderProgram_Run_KeepWordNotVariant_ReturnsOneNamingWord**,
-and **BuilderProgram_Run_TechnicalWithoutLanguageLists_ReturnsOneNamingLists**: a stray list in the technical
-folder, an ordinary word in the keep list, and a missing language list each return exit code 1, name the file,
-word, or lists at fault, and write nothing. These scenarios are tested by the tests of the same names.
+**BuilderProgram_Run_TechnicalListOutsideKnownPlaces_ReturnsOneNamingFile**,
+**BuilderProgram_Run_KeepWordNotVariant_ReturnsOneNamingWord**, and
+**BuilderProgram_Run_TechnicalWithoutLanguageLists_ReturnsOneNamingLists**: a stray list in the technical folder, an
+ordinary word in the keep list, and a missing language list each return exit code 1, name the file, word, or lists at
+fault, and write nothing. These scenarios are tested by the tests of the same names.
 
 **BuilderProgram_Run_ExclusionsList_RemovesWordsFromEveryDictionary**: in the small variant tree an exclusions list
 names `tokenizer` and `Grey` in other letter cases; the run succeeds, neither word is in any dictionary

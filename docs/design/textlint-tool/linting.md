@@ -15,22 +15,22 @@ the result.
 
 **LintRunner.Run**: Runs the check the command line describes.
 
-- _Type_: In-process .NET static method.
-- _Role_: Provider.
-- _Contract_: Accepts a `Context` (the parsed command line and the output channels) and a cancellation token.
+- *Type*: In-process .NET static method.
+- *Role*: Provider.
+- *Contract*: Accepts a `Context` (the parsed command line and the output channels) and a cancellation token.
   Writes the result to the context, marks the context failed when the result has problems, and writes an error
   for every failure the user can cause. Returns nothing.
-- _Constraints_: Throws `ArgumentNullException` for a null context. Does not catch defects, such as a damaged
+- *Constraints*: Throws `ArgumentNullException` for a null context. Does not catch defects, such as a damaged
   embedded dictionary, which propagate. The call blocks until the check ends.
 
 **LintReporter.Write**: Writes the result of a check.
 
-- _Type_: In-process .NET static method.
-- _Role_: Provider.
-- _Contract_: Accepts a `Context`, a `SpellCheckResult`, a function that maps a path relative to the search
+- *Type*: In-process .NET static method.
+- *Role*: Provider.
+- *Contract*: Accepts a `Context`, a `SpellCheckResult`, a function that maps a path relative to the search
   directory to the name to show, and a switch that leaves out the warnings about overrides that matched no file
   (on by default). Writes one line per note, one per finding, one per skipped or unchecked file, and a summary.
-- _Constraints_: Throws `ArgumentNullException` for a null argument. Does not set the exit status.
+- *Constraints*: Throws `ArgumentNullException` for a null argument. Does not set the exit status.
 
 **Dependencies on other subsystems**: The `Cli` subsystem's `Context` for the parsed command line and the
 output channels, and the `TextLint` library (the settings loader, the command-line path resolver, the spell
@@ -58,8 +58,8 @@ self-validation. The runner works in this order:
    the library makes that decision. When it has none, the `files` setting is used. When there are none anywhere,
    that is a usage error with an example. The resolver also says whether files are to be named by absolute path.
 4. It passes the language option, which wins over the settings and over the languages of their overrides, and the root
-   directory as the settings root, which the library matches the overrides against, in the options of the check, together
-   with the parallelism limit when one was given. The tool applies no override itself.
+   directory as the settings root, which the library matches the overrides against, in the options of the check,
+   together with the parallelism limit when one was given. The tool applies no override itself.
 5. It calls the library's spell checker and waits for the result once, at the boundary of the synchronous entry
    point.
 6. A result in which no file was checked, none was skipped or failed, and none was disabled by the settings means the

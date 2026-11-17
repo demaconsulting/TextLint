@@ -31,32 +31,32 @@ and the bits are kept for a later case-sensitive check.
 
 **Constructor**: Validates the bytes of a file and takes ownership of the array.
 
-- _Parameters_: `string name` - the dictionary's name for messages; `byte[] data` - the complete file.
-- _Preconditions_: neither argument is null, and the array is not modified afterwards.
-- _Postconditions_: the image is valid, or `InvalidDataException` was thrown.
+- *Parameters*: `string name` - the dictionary's name for messages; `byte[] data` - the complete file.
+- *Preconditions*: neither argument is null, and the array is not modified afterwards.
+- *Postconditions*: the image is valid, or `InvalidDataException` was thrown.
 
 The header checks take constant time and are, in order: the data is at least as long as the header; the identifier is
-the supported one; the option flags are zero; the hash identifier is the supported one; the reserved bytes are
-zero; the slot count is a power of two (which excludes zero); the word count is within the load limit of
-the slot count; the word block is no larger than the format allows; the total length equals exactly what the header
-implies (header, padded word block, and slot table); and a non-empty word block ends with a terminator. Two linear
-passes over the data already in memory then tie the header to the content: the number of terminators in the word
-block must equal the word count, and a scan of the slot table must find exactly that many occupied slots, each holding
-an offset that lies inside the word block at the start of a word (the first byte, or the byte after a terminator), and
-no two slots may hold the same offset. A word block has exactly as many word starts as terminators, so distinct valid
-offsets in exactly that many slots mean every word is referenced by exactly one slot; a corrupted slot that duplicates
-another word's offset is rejected instead of leaving the other word impossible to find. Distinctness is tracked in a temporary
-bit array with one bit per byte of the word block (about 190 KB for the largest dictionary), released after loading.
-This rejects a header that claims words the block does not hold, which would otherwise load as a valid but wrong
-dictionary, and it means a lookup can trust every offset it reads. The scans do not prove that the words are sorted,
-distinct, or reachable from their hash position; the builder guarantees those properties and its tests verify them with
-an independent reader. There is deliberately no checksum: the bytes come from the build of this repository.
+the supported one; the option flags are zero; the hash identifier is the supported one; the reserved bytes are zero; the
+slot count is a power of two (which excludes zero); the word count is within the load limit of the slot count; the word
+block is no larger than the format allows; the total length equals exactly what the header implies (header, padded word
+block, and slot table); and a non-empty word block ends with a terminator. Two linear passes over the data already in
+memory then tie the header to the content: the number of terminators in the word block must equal the word count, and a
+scan of the slot table must find exactly that many occupied slots, each holding an offset that lies inside the word
+block at the start of a word (the first byte, or the byte after a terminator), and no two slots may hold the same
+offset. A word block has exactly as many word starts as terminators, so distinct valid offsets in exactly that many
+slots mean every word is referenced by exactly one slot; a corrupted slot that duplicates another word's offset is
+rejected instead of leaving the other word impossible to find. Distinctness is tracked in a temporary bit array with one
+bit per byte of the word block (about 190 KB for the largest dictionary), released after loading. This rejects a header
+that claims words the block does not hold, which would otherwise load as a valid but wrong dictionary, and it means a
+lookup can trust every offset it reads. The scans do not prove that the words are sorted, distinct, or reachable from
+their hash position; the builder guarantees those properties and its tests verify them with an independent reader. There
+is deliberately no checksum: the bytes come from the build of this repository.
 
 **LoadEmbedded**: Reads an embedded resource and builds an image.
 
-- _Parameters_: `Assembly assembly`, `string resourceName`.
-- _Returns_: the validated image.
-- _Postconditions_: the resource stream is closed and the resource was read exactly once.
+- *Parameters*: `Assembly assembly`, `string resourceName`.
+- *Returns*: the validated image.
+- *Postconditions*: the resource stream is closed and the resource was read exactly once.
 
 Steps: (1) open the resource stream, and report a missing resource by name; (2) refuse a stream longer than the
 largest array; (3) allocate an array of exactly the stream's length and read the stream into it completely; (4) pass the
@@ -64,16 +64,16 @@ array to the constructor, with the resource name as the dictionary name.
 
 **Contains**: Reports whether a key is stored.
 
-- _Parameters_: `ReadOnlySpan<byte> key` - the folded key bytes; `uint hash` - their hash.
-- _Returns_: `true` when the key is stored.
-- _Postconditions_: nothing is allocated and nothing changes.
+- *Parameters*: `ReadOnlySpan<byte> key` - the folded key bytes; `uint hash` - their hash.
+- *Returns*: `true` when the key is stored.
+- *Postconditions*: nothing is allocated and nothing changes.
 
 Steps: (1) take the home slot as the hash masked to the slot count; (2) read the slot with a bounds-checked
-little-endian read, and answer `false` at an empty slot; (3) decode the stored offset, which loading has already
-proved lies at the start of a word; (4) the slot matches when more bytes remain in the block than the key is long, the byte
+little-endian read, and answer `false` at an empty slot; (3) decode the stored offset, which loading has already proved
+lies at the start of a word; (4) the slot matches when more bytes remain in the block than the key is long, the byte
 after those is the terminator, and the bytes equal the key, so a stored word that merely starts with the key does not
-match, and a key longer than what remains cannot match; (5) otherwise move to the next slot, wrapping at the end,
-and stop after one full cycle of the table, which makes the loop finite.
+match, and a key longer than what remains cannot match; (5) otherwise move to the next slot, wrapping at the end, and
+stop after one full cycle of the table, which makes the loop finite.
 
 #### Error Handling
 
