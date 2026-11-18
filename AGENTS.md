@@ -105,6 +105,7 @@ from `.github/standards/`. Use this matrix to determine which to load:
 - **Software structure**: `sysml2-modeling.md`
 - **Diagrams in documentation**: `diagram-documentation.md` (and the `canvasnet` skill for tooling)
 - **Any documentation**: `technical-documentation.md`
+- **Reading PDF or Office documents**: the `docdown` skill
 
 Load only the standards relevant to your specific task scope.
 
