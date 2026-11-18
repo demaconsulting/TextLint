@@ -62,9 +62,12 @@ as kubectl, kubernetes, github, powershell, and nuget are accepted from the bund
 a URL, an e-mail address, and a hexadecimal number are ignored, as cspell 10 records for the same constructs in the
 parity corpus).
 
-Every scenario that claims findings compares the complete list of finding lines (`LintRunOutcome.Findings`, each
-`file(line,column): error: message` line of the run, in order) with the expected list, or checks the exact finding
-and the absence of the others, so an extra or a missing finding fails the scenario.
+Every scenario compares the complete list of error lines of each run (`LintRunOutcome.Findings`, each
+`file(line,column): error: message` line, in order) with its expected list, which is empty for a clean run, so an extra
+or a missing finding fails the scenario. Every run that checks files must also write the exact summary line
+(`LintRunOutcome.Reports` and `Summary`), and every other line a scenario relies on, such as the binary-file information
+line or the empty-selection error, is matched as a complete line (`LintRunOutcome.HasLine`), never as a substring. The
+settings-error and empty-selection runs check nothing, so they must write no summary line at all.
 
 **LintSandbox** (nested class): A private working area for one scenario. Implements `IDisposable`. It owns a
 `TemporaryDirectory` that holds a `work` sample directory and the log files. `WriteFile` and `WriteBytes` create sample

@@ -20,8 +20,9 @@ N/A - standard test environment.
 - `context.ExitCode` is 0 when all sub-tests pass.
 - Every self-validation scenario is reported by name, and the spell-checking scenarios run in private temporary
   directories without changing the current directory.
-- Each scenario that claims findings passes only when exactly the expected findings, with file, line, and column,
-  are reported, so a run of the shipped tool that misses or adds a finding fails its self-validation.
+- Each spell-checking scenario passes only when exactly the expected findings (none for a clean run), with file,
+  line, and column, and the exact summary line are reported, so a run of the shipped tool that misses or adds a
+  finding fails its self-validation.
 - TRX and JUnit XML result files are created with the correct XML root elements.
 - An unsupported result file extension produces no file and an error message on the context.
 

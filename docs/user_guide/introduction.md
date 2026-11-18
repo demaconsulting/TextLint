@@ -317,8 +317,9 @@ Failed: 0
 
 Each test proves specific functionality works correctly. The spell-checking tests run the real tool against
 sample files in a private temporary directory, so passing proves that the tool checks spelling correctly on the
-operating system and .NET runtime that ran them. Each test that expects findings passes only when exactly the
-expected findings are reported, with their file, line, and column, so the results file is evidence that the
+operating system and .NET runtime that ran them. Each spell-checking test passes only when exactly the
+expected findings (none for a clean file) are reported, with their file, line, and column, and the summary line
+matches exactly, so the results file is evidence that the
 installed tool does its job, not only that it starts:
 
 - **`TextLintTool_VersionDisplay`** - `--version` outputs a valid version string.
