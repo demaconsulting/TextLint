@@ -9,6 +9,12 @@
 [![Security][badge-security]][link-security]
 [![NuGet][badge-nuget]][link-nuget]
 
+![TextLint banner: the TextLint name with the tagline 'Every word, checked. Every typo, caught.' and the command
+'textlint "**/*.md"'. Markdown documents, source code, the project word list in .textlint.yaml, and the bundled
+en-US, en-GB, and technical dictionaries flow on curved arrows into the textlint .NET tool, and arrows lead out to
+findings reported at file(line,column), a CI gate that passes with exit 0 and fails with exit 1, suggestions for
+flagged words, and misspellings underlined in your editor][hero]
+
 TextLint is a fast, cspell-compatible text linter for source code and documentation. It is delivered as the
 `DemaConsulting.TextLint` .NET library and the `DemaConsulting.TextLint.Tool` .NET tool (command `textlint`), which is
 a thin command-line front-end over the library.
@@ -174,6 +180,7 @@ By contributing to this project, you agree that your contributions will be licen
 [badge-nuget]: https://img.shields.io/nuget/v/DemaConsulting.TextLint.Tool?style=plastic
 
 <!-- Link References -->
+[hero]: https://raw.githubusercontent.com/demaconsulting/TextLint/main/docs/images/hero.png
 [workflow]: https://raw.githubusercontent.com/demaconsulting/TextLint/main/docs/images/workflow.png
 [link-forks]: https://github.com/demaconsulting/TextLint/network/members
 [link-stars]: https://github.com/demaconsulting/TextLint/stargazers
