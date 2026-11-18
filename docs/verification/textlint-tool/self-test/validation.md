@@ -20,6 +20,8 @@ N/A - standard test environment.
 - `context.ExitCode` is 0 when all sub-tests pass.
 - Every self-validation scenario is reported by name, and the spell-checking scenarios run in private temporary
   directories without changing the current directory.
+- Each scenario that claims findings passes only when exactly the expected findings, with file, line, and column,
+  are reported, so a run of the shipped tool that misses or adds a finding fails its self-validation.
 - TRX and JUnit XML result files are created with the correct XML root elements.
 - An unsupported result file extension produces no file and an error message on the context.
 
@@ -56,12 +58,16 @@ the context. This scenario is tested by
 `Validation_Run_WithUnsupportedResultsFormat_DoesNotWriteFile`.
 
 **Validation_Run_WithSilentContext_ReportsEveryScenarioPassed**: `Validation.Run` is called with a silent context
-whose log is read afterwards; the version check, the help check, and each of the eleven spell-checking scenarios,
+whose log is read afterwards; the version check, the help check, and each of the thirteen spell-checking scenarios,
 including `TextLintTool_CheckOverrides`, which applies an ordered `files` list with a negation, an override that
 accepts a word for `docs`, and an override that disables `legacy` and expects only `a.md` to be reported with exit
-code 1, are reported as passed by name, and the totals equal the number of scenarios with no failure. This scenario
+code 1, `TextLintTool_CheckTechnicalTerms`, which expects software terms from the bundled technical dictionary to be
+accepted under both languages beside exactly one misspelling, and `TextLintTool_CheckCspellTokenization`, which
+expects exactly the camel-case findings that cspell records for the same constructs, are reported as passed by name, and
+the totals equal the number of scenarios with no failure. This scenario
 is tested by `Validation_Run_WithSilentContext_ReportsEveryScenarioPassed`.
 
 **Validation_Run_WithTrxResultsFile_NamesEveryScenario**: `Validation.Run` is called with a TRX results path; the
-file carries the name of every scenario, including `TextLintTool_CheckOverrides`, so that requirements and platform
+file carries the name of every scenario, including `TextLintTool_CheckOverrides` and
+`TextLintTool_CheckCspellTokenization`, so that requirements and platform
 requirements can link to each. This scenario is tested by `Validation_Run_WithTrxResultsFile_NamesEveryScenario`.

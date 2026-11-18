@@ -191,6 +191,7 @@ sections:
           - TextLintTool-Linting-ExitStatus
         tests:
           - TextLintTool_Check_MisspelledFile_ReportsIssueAndExitsOne
+          - TextLintTool_CheckMisspelling
 
       - id: TextLintTool-System-CleanPass
         title: >-
@@ -204,6 +205,7 @@ sections:
           - TextLintTool-Linting-Reporting
         tests:
           - TextLintTool_Check_CleanFile_ExitsZero
+          - TextLintTool_CheckCleanFile
 
       - id: TextLintTool-System-Config
         title: >-
@@ -219,6 +221,7 @@ sections:
           - TextLintTool-Linting-SettingsResolution
         tests:
           - TextLintTool_Check_DefaultSettingsFile_AppliesSettings
+          - TextLintTool_CheckSettingsFile
 
       - id: TextLintTool-System-ConfigOption
         title: >-
@@ -248,6 +251,7 @@ sections:
           - TextLintTool-Linting-SettingsErrors
         tests:
           - TextLintTool_Check_InvalidSettings_ReportsErrorAndExitsOne
+          - TextLintTool_CheckSettingsError
 
       - id: TextLintTool-System-Globs
         title: >-
@@ -262,6 +266,7 @@ sections:
           - TextLintTool-Linting-FileSelection
         tests:
           - TextLintTool_Check_GlobArguments_ReplaceConfiguredFiles
+          - TextLintTool_CheckGlobsReplaceFiles
 
       - id: TextLintTool-System-Root
         title: >-
@@ -294,6 +299,7 @@ sections:
           - TextLintTool_Check_AbsolutePath_ReportsAbsolutePath
           - TextLintTool_Check_AbsoluteDirectory_ChecksFilesBelow
           - TextLintTool_Check_PlatformRelativePath_ChecksFile
+          - TextLintTool_CheckAbsolutePath
 
       - id: TextLintTool-System-Language
         title: >-
@@ -310,6 +316,7 @@ sections:
         tests:
           - TextLintTool_Check_LanguageOption_SelectsDictionary
           - TextLintTool_Check_LanguageOptionAndOverride_OptionWinsAndNoteIsPrinted
+          - TextLintTool_CheckLanguageOption
 
       - id: TextLintTool-System-Overrides
         title: >-
@@ -336,6 +343,7 @@ sections:
           - TextLintTool_Check_DisabledFilesAndUnmatchedOverride_ExitZeroWithNotes
           - TextLintTool_Check_LanguageOptionAndOverride_OptionWinsAndNoteIsPrinted
           - TextLintTool_ValidateFlag_Provided_RunsLintScenarios
+          - TextLintTool_CheckOverrides
 
       - id: TextLintTool-System-NoFiles
         title: >-
@@ -358,6 +366,7 @@ sections:
           - TextLintTool_Check_NoFilesMatchedAllowEmpty_ExitsZero
           - TextLintTool_Check_NoPatternsAllowEmpty_ExitsOne
           - TextLintTool_Check_DisabledFilesAndUnmatchedOverride_ExitZeroWithNotes
+          - TextLintTool_CheckNoFilesMatched
 
       - id: TextLintTool-System-SkippedFiles
         title: >-
@@ -372,6 +381,7 @@ sections:
           - TextLintTool-Linting-ExitStatus
         tests:
           - TextLintTool_Check_BinaryFile_ReportsInfoAndExitsZero
+          - TextLintTool_CheckBinaryFileSkipped
 
       - id: TextLintTool-System-Parallelism
         title: >-

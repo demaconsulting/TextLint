@@ -29,6 +29,7 @@ sections:
           - "windows@TextLintTool_CheckMisspelling"
           - "windows@TextLintTool_CheckSettingsFile"
           - "windows@TextLintTool_CheckAbsolutePath"
+          - "windows@TextLintTool_CheckTechnicalTerms"
 
       - id: TextLintTool-Platform-Linux
         title: The tool shall execute successfully on Linux platforms.
@@ -42,6 +43,7 @@ sections:
           - "ubuntu@TextLintTool_CheckMisspelling"
           - "ubuntu@TextLintTool_CheckSettingsFile"
           - "ubuntu@TextLintTool_CheckAbsolutePath"
+          - "ubuntu@TextLintTool_CheckTechnicalTerms"
 
       - id: TextLintTool-Platform-MacOS
         title: The tool shall execute successfully on macOS platforms.
@@ -55,6 +57,7 @@ sections:
           - "macos@TextLintTool_CheckMisspelling"
           - "macos@TextLintTool_CheckSettingsFile"
           - "macos@TextLintTool_CheckAbsolutePath"
+          - "macos@TextLintTool_CheckTechnicalTerms"
 
       - id: TextLintTool-Platform-Net10
         title: The tool shall support .NET 10 runtime.
@@ -67,3 +70,4 @@ sections:
           - "dotnet10.x@TextLintTool_CheckMisspelling"
           - "dotnet10.x@TextLintTool_CheckSettingsFile"
           - "dotnet10.x@TextLintTool_CheckAbsolutePath"
+          - "dotnet10.x@TextLintTool_CheckTechnicalTerms"

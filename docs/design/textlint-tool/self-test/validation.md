@@ -27,7 +27,7 @@ a second one that no dictionary holds, and an American and a British spelling of
 
 Calls `PrintValidationHeader`, constructs a `TestResults` object named
 `"TextLint Tool Self-Validation"`, calls `RunVersionTest` and `RunHelpTest`, then `RunLintScenario` once for each
-of the eleven spell-checking scenarios, prints
+of the thirteen spell-checking scenarios, prints
 totals (using `WriteError` if any tests failed), and calls `WriteResultsFile` if
 `context.ResultsFile` is set.
 
@@ -42,25 +42,36 @@ Creates a `LintSandbox`, runs the scenario in it, and records a pass or a failur
 `testName`. Any exception is caught by a broad `catch (Exception)` and recorded via `HandleTestException`, so one
 broken scenario cannot hide the others.
 
-The scenarios are each named after the behavior they prove, so that requirements and platform requirements can
-link to them: `TextLintTool_CheckCleanFile` (a correct file gives exit code 0 and no issue),
-`TextLintTool_CheckMisspelling` (a misspelling is reported at its line and column and gives exit code 1),
-`TextLintTool_CheckSettingsFile` (the settings file in the root is found and its file list, ignore list, accepted
-word, and flagged word apply), `TextLintTool_CheckSettingsError` (an unsupported key is reported with its position
-and nothing is checked), `TextLintTool_CheckGlobsReplaceFiles` (a command-line pattern replaces the `files`
-setting), `TextLintTool_CheckInlineDirective` (directives of both supported prefixes suppress findings),
+The scenarios are each named after the behavior they prove, so that requirements and platform requirements can link to
+them: `TextLintTool_CheckCleanFile` (a correctly spelled document gives exit code 0, no finding, and the exact clean
+summary line), `TextLintTool_CheckMisspelling` (two misspellings on different lines are reported as exactly two findings
+with their file, line, and column, the summary counts two issues, and the exit code is 1),
+`TextLintTool_CheckSettingsFile` (the settings file in the root is found and its file list, ignore list, accepted word,
+and flagged word apply), `TextLintTool_CheckSettingsError` (an unsupported key is reported with its position and nothing
+is checked), `TextLintTool_CheckGlobsReplaceFiles` (a command-line pattern replaces the `files` setting),
+`TextLintTool_CheckInlineDirective` (directives of both supported prefixes suppress findings),
 `TextLintTool_CheckLanguageOption` (American and British spellings are each accepted by their own language only),
 `TextLintTool_CheckBinaryFileSkipped` (a binary file is information and does not fail the run),
-`TextLintTool_CheckNoFilesMatched` (an empty selection fails unless allowed), `TextLintTool_CheckAbsolutePath`
-(a file named by an absolute path is reported by that path), and `TextLintTool_CheckOverrides` (an ordered `files`
-list with a `!` pattern, an override that adds a word for one directory, and an override with `enabled: false` all
-apply: exit code 1, and only the one file that no setting touches is reported).
+`TextLintTool_CheckNoFilesMatched` (an empty selection fails unless allowed), `TextLintTool_CheckAbsolutePath` (a file
+named by an absolute path is reported by that path), and `TextLintTool_CheckOverrides` (an ordered `files` list with a
+`!` pattern, an override that adds a word for one directory, and an override with `enabled: false` all apply: exit code
+1, and only the one file that no setting touches is reported), `TextLintTool_CheckTechnicalTerms` (software terms such
+as kubectl, kubernetes, github, powershell, and nuget are accepted from the bundled technical dictionary under both
+`en-US` and `en-GB`, while the one misspelling beside them is the only finding), and
+`TextLintTool_CheckCspellTokenization` (a camel-case identifier is split and each word reported at its own column, while
+a URL, an e-mail address, and a hexadecimal number are ignored, as cspell 10 records for the same constructs in the
+parity corpus).
+
+Every scenario that claims findings compares the complete list of finding lines (`LintRunOutcome.Findings`, each
+`file(line,column): error: message` line of the run, in order) with the expected list, or checks the exact finding
+and the absence of the others, so an extra or a missing finding fails the scenario.
 
 **LintSandbox** (nested class): A private working area for one scenario. Implements `IDisposable`. It owns a
-`TemporaryDirectory` that holds a `work` sample directory and the log files. `WriteFile` and `WriteBytes` create
-sample files; `RunTool` runs the tool in-process with `["--silent", "--log", log, "--root", work, ...]`, so the
-process's current directory is never changed, and returns the exit code and everything written. The log is kept
-beside the sample directory, so it can never be selected as a file to check. `Dispose` removes everything.
+`TemporaryDirectory` that holds a `work` sample directory and the log files. `WriteFile` and `WriteBytes` create sample
+files; `RunTool` runs the tool in-process with `["--silent", "--log", log, "--root", work, ...]`, so the process's
+current directory is never changed, and returns a `LintRunOutcome` with the exit code, everything written, and the
+finding lines. The run context is disposed before the log is read, so the log is complete and not locked. The log is
+kept beside the sample directory, so it can never be selected as a file to check. `Dispose` removes everything.
 
 **RunVersionTest**: Verifies that `--version` produces a version string.
 

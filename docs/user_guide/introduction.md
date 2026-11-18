@@ -305,9 +305,11 @@ Example validation report:
 ✓ TextLintTool_CheckNoFilesMatched - Passed
 ✓ TextLintTool_CheckAbsolutePath - Passed
 ✓ TextLintTool_CheckOverrides - Passed
+✓ TextLintTool_CheckTechnicalTerms - Passed
+✓ TextLintTool_CheckCspellTokenization - Passed
 
-Total Tests: 13
-Passed: 13
+Total Tests: 15
+Passed: 15
 Failed: 0
 ```
 
@@ -315,12 +317,16 @@ Failed: 0
 
 Each test proves specific functionality works correctly. The spell-checking tests run the real tool against
 sample files in a private temporary directory, so passing proves that the tool checks spelling correctly on the
-operating system and .NET runtime that ran them:
+operating system and .NET runtime that ran them. Each test that expects findings passes only when exactly the
+expected findings are reported, with their file, line, and column, so the results file is evidence that the
+installed tool does its job, not only that it starts:
 
 - **`TextLintTool_VersionDisplay`** - `--version` outputs a valid version string.
 - **`TextLintTool_HelpDisplay`** - `--help` outputs usage and options information.
-- **`TextLintTool_CheckCleanFile`** - A correctly spelled file is accepted with exit code 0.
-- **`TextLintTool_CheckMisspelling`** - A misspelling is reported at its line and column with exit code 1.
+- **`TextLintTool_CheckCleanFile`** - A correctly spelled document is accepted with no finding, the clean summary,
+  and exit code 0.
+- **`TextLintTool_CheckMisspelling`** - Two misspellings on different lines are reported as exactly two findings at
+  their line and column, with exit code 1.
 - **`TextLintTool_CheckSettingsFile`** - The settings file in the root directory is found, and its file list,
   ignore list, accepted words, and flagged words are applied.
 - **`TextLintTool_CheckSettingsError`** - An invalid settings file is reported with its position, and nothing is
@@ -335,6 +341,11 @@ operating system and .NET runtime that ran them:
 - **`TextLintTool_CheckOverrides`** - An ordered `files` list with `!`, an override that adds words for some
   files, and an override with `enabled: false` that skips others are applied, so only the one misspelling that
   remains is reported.
+- **`TextLintTool_CheckTechnicalTerms`** - Software terms such as kubectl, kubernetes, github, powershell, and
+  nuget are accepted from the bundled technical dictionary under both `en-US` and `en-GB`, and the one misspelling
+  beside them is the only finding.
+- **`TextLintTool_CheckCspellTokenization`** - As in cspell, a camel-case identifier is split and each word is
+  reported at its own column, while a URL, an e-mail address, and a hexadecimal number are not checked.
 
 ## Silent Mode
 

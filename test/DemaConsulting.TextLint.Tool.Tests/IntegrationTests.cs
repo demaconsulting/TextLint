@@ -916,7 +916,9 @@ public class IntegrationTests
             "TextLintTool_CheckBinaryFileSkipped",
             "TextLintTool_CheckNoFilesMatched",
             "TextLintTool_CheckAbsolutePath",
-            "TextLintTool_CheckOverrides"
+            "TextLintTool_CheckOverrides",
+            "TextLintTool_CheckTechnicalTerms",
+            "TextLintTool_CheckCspellTokenization"
         ];
         foreach (var scenario in scenarios)
         {

@@ -39,7 +39,8 @@ TextLint provides:
 - 📖 **Embedded Dictionaries**: Ships US and UK English plus technical terms; no data files needed
 - 🚦 **Compiler-Style Output**: Reports `file(line,col): error:` lines, a summary, and exit codes
 - 📦 **Reusable Library**: Embeds the same checker in your own .NET applications
-- ✅ **Self-Validation**: Built-in validation tests with TRX and JUnit output
+- ✅ **Self-Validation**: Built-in tests that spell-check sample files end to end and assert the exact findings,
+  with TRX and JUnit output
 - 🖥️ **Multi-Platform Support**: Builds and runs on Windows, Linux, and macOS
 - ⚙️ **Multi-Runtime Support**: The tool needs .NET 10; the library supports .NET 10 and 11
 - 🔁 **Comprehensive CI/CD**: GitHub Actions workflows for quality checks, builds, and tests

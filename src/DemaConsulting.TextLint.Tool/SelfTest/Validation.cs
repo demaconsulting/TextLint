@@ -19,7 +19,7 @@
 // SOFTWARE.
 
 using System.Runtime.InteropServices;
-// cspell:ignore wrold xyzzyq favourite
+// cspell:ignore wrold xyzzyq favourite zorb zorbquix quix
 
 using DemaConsulting.TestResults.IO;
 using DemaConsulting.TextLint.Tool.Cli;
@@ -94,6 +94,8 @@ internal static class Validation
         RunLintScenario(context, testResults, "TextLintTool_CheckNoFilesMatched", VerifyNoFilesMatched);
         RunLintScenario(context, testResults, "TextLintTool_CheckAbsolutePath", VerifyAbsolutePath);
         RunLintScenario(context, testResults, "TextLintTool_CheckOverrides", VerifyOverrides);
+        RunLintScenario(context, testResults, "TextLintTool_CheckTechnicalTerms", VerifyTechnicalTerms);
+        RunLintScenario(context, testResults, "TextLintTool_CheckCspellTokenization", VerifyCspellTokenization);
 
         // Calculate totals
         var totalTests = testResults.Results.Count;
@@ -334,13 +336,17 @@ internal static class Validation
     /// <returns>Null when the scenario passed; otherwise what was wrong.</returns>
     private static string? VerifyCleanFile(LintSandbox sandbox)
     {
-        // A correctly spelled sentence must give exit code 0 and an empty issue count
-        sandbox.WriteFile("clean.md", "Hello world.\n");
+        // A correctly spelled document must give exit code 0, no finding, and the exact clean summary
+        sandbox.WriteFile("clean.md", "# Release Notes\n\nThe quick brown fox jumps over the lazy dog.\nEvery change is reviewed before it is merged.\n");
         var outcome = sandbox.RunTool("clean.md");
 
-        return outcome.ExitCode == 0 && outcome.Output.Contains("0 issue(s)", StringComparison.Ordinal)
+        return outcome.ExitCode == 0 &&
+               outcome.Findings.Count == 0 &&
+               outcome.Output.Contains(
+                   "Checked 1 file(s): 0 issue(s) in 0 file(s), 0 skipped, 0 could not be checked.",
+                   StringComparison.Ordinal)
             ? null
-            : $"Expected exit code 0 and no issues, but got exit code {outcome.ExitCode}: {outcome.Output}";
+            : $"Expected exit code 0, no findings, and a clean summary, but got exit code {outcome.ExitCode}: {outcome.Output}";
     }
 
     /// <summary>
@@ -350,13 +356,20 @@ internal static class Validation
     /// <returns>Null when the scenario passed; otherwise what was wrong.</returns>
     private static string? VerifyMisspelling(LintSandbox sandbox)
     {
-        // The misspelled word starts at column 7 of line 1
-        sandbox.WriteFile("a.md", $"Hello {Misspelling}\n");
+        // Two misspellings among correct words: each must be reported at its own line and column, and nothing else
+        sandbox.WriteFile("a.md", $"Hello {Misspelling}\nThe second line has {OtherMisspelling} in it.\n");
         var outcome = sandbox.RunTool("a.md");
 
-        return outcome.ExitCode == 1 && outcome.Output.Contains($"a.md(1,7): error: Unknown word '{Misspelling}'", StringComparison.Ordinal)
+        string[] expected =
+        [
+            $"a.md(1,7): error: Unknown word '{Misspelling}'",
+            $"a.md(2,21): error: Unknown word '{OtherMisspelling}'"
+        ];
+        return outcome.ExitCode == 1 &&
+               outcome.Findings.SequenceEqual(expected, StringComparer.Ordinal) &&
+               outcome.Output.Contains("Checked 1 file(s): 2 issue(s) in 1 file(s)", StringComparison.Ordinal)
             ? null
-            : $"Expected exit code 1 and the issue at a.md(1,7), but got exit code {outcome.ExitCode}: {outcome.Output}";
+            : $"Expected exit code 1 and exactly the findings at a.md(1,7) and a.md(2,21), but got exit code {outcome.ExitCode}: {outcome.Output}";
     }
 
     /// <summary>
@@ -542,6 +555,57 @@ internal static class Validation
     }
 
     /// <summary>
+    ///     Verifies that the bundled technical-term dictionary is loaded and applies in every language.
+    /// </summary>
+    /// <param name="sandbox">The sandbox to run in.</param>
+    /// <returns>Null when the scenario passed; otherwise what was wrong.</returns>
+    private static string? VerifyTechnicalTerms(LintSandbox sandbox)
+    {
+        // Software terms that no English word list holds sit beside one real misspelling, so the run proves that
+        // the technical terms are known and that the file was really checked; this holds for both languages
+        sandbox.WriteFile("a.md", $"Deploy with kubectl to kubernetes from github using powershell and nuget {Misspelling}\n");
+        string[] expected = [$"a.md(1,74): error: Unknown word '{Misspelling}'"];
+
+        foreach (var language in new[] { "en-US", "en-GB" })
+        {
+            var outcome = sandbox.RunTool("--language", language, "a.md");
+            if (outcome.ExitCode != 1 || !outcome.Findings.SequenceEqual(expected, StringComparer.Ordinal))
+            {
+                return $"Expected only '{Misspelling}' at a.md(1,74) with {language} (exit code {outcome.ExitCode}): {outcome.Output}";
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    ///     Verifies the cspell-compatible handling of identifiers, addresses, and hexadecimal numbers.
+    /// </summary>
+    /// <param name="sandbox">The sandbox to run in.</param>
+    /// <returns>Null when the scenario passed; otherwise what was wrong.</returns>
+    /// <remarks>
+    ///     The expected findings are those that cspell 10 records for the same constructs in the parity corpus: a
+    ///     camel-case identifier is split into its words, each reported at its own column, while a URL, an
+    ///     e-mail address, and a hexadecimal number are ignored by the default patterns.
+    /// </remarks>
+    private static string? VerifyCspellTokenization(LintSandbox sandbox)
+    {
+        sandbox.WriteFile(
+            "a.md",
+            "Call zorbQuix at https://zorb.example/quix or mail user@zorbquix.org with 0xDEADBEEF\n");
+        var outcome = sandbox.RunTool("a.md");
+
+        string[] expected =
+        [
+            "a.md(1,6): error: Unknown word 'zorb'",
+            "a.md(1,10): error: Unknown word 'Quix'"
+        ];
+        return outcome.ExitCode == 1 && outcome.Findings.SequenceEqual(expected, StringComparer.Ordinal)
+            ? null
+            : $"Expected exactly 'zorb' at a.md(1,6) and 'Quix' at a.md(1,10) (exit code {outcome.ExitCode}): {outcome.Output}";
+    }
+
+    /// <summary>
     ///     Writes test results to a file in TRX or JUnit format.
     /// </summary>
     /// <param name="context">The context for output.</param>
@@ -636,7 +700,21 @@ internal static class Validation
     /// </summary>
     /// <param name="ExitCode">The exit code the run would have returned to the operating system.</param>
     /// <param name="Output">Everything the run wrote, as it was written to the log.</param>
-    private sealed record LintRunOutcome(int ExitCode, string Output);
+    private sealed record LintRunOutcome(int ExitCode, string Output)
+    {
+        /// <summary>
+        ///     Gets the finding lines of the run, in the order they were written.
+        /// </summary>
+        /// <remarks>
+        ///     A finding is a compiler-style line <c>file(line,column): error: message</c>; comparing the whole
+        ///     list lets a scenario prove that exactly the expected findings were reported and nothing else.
+        /// </remarks>
+        public List<string> Findings { get; } = Output
+            .Split('\n')
+            .Select(static line => line.TrimEnd('\r'))
+            .Where(static line => line.Contains("): error: ", StringComparison.Ordinal))
+            .ToList();
+    }
 
     /// <summary>
     ///     A private working area for one spell-checking scenario: a directory of sample files and a way to run

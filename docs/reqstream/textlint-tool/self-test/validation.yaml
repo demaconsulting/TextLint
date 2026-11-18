@@ -55,8 +55,10 @@ sections:
           The Validation class shall run, in private temporary directories and without changing the process's
           current directory, a scenario for each of: a clean file, a misspelling, a settings file, a settings
           error, patterns that replace the files setting, in-document directives, the language option, a
-          binary file, an empty selection, an absolute path, and ordered files with overrides and a disabled
-          override, and shall record each under its own name in the results.
+          binary file, an empty selection, an absolute path, ordered files with overrides and a disabled
+          override, the bundled technical terms, and cspell-compatible tokenization, and shall record each under its
+          own name in the results; a scenario that expects findings shall pass only when exactly the expected
+          findings, with file, line, and column, are reported.
         justification: |
           Each scenario is the evidence that one behavior works on the platform that ran it, so each needs its
           own name in the results, and running in private directories keeps scenarios from affecting each other

@@ -402,6 +402,7 @@ sections:
           - TextLint-Dictionaries-TechnicalTerms
         tests:
           - TextLint_Dictionary_TechnicalTerm_IsKnownInEveryLanguage
+          - TextLintTool_CheckTechnicalTerms
 
       - id: TextLint-System-SelfContainedLookup
         title: >-
@@ -613,6 +614,7 @@ sections:
           - TextLint-SpellChecking-TextChecking
         tests:
           - TextLint_CheckText_CamelAndSnakeCase_ReportsEachWordSeparately
+          - TextLintTool_CheckCspellTokenization
           - TextLint_CheckText_CaseSeparatedListedWord_IsAccepted
           - TextLint_CheckText_ShortWords_AreNotChecked
           - TextLint_CheckText_ApostropheWords_StayWhole
@@ -644,6 +646,7 @@ sections:
           - TextLint-TextScanning-IgnoredPatterns
         tests:
           - TextLint_CheckText_UrlsAndEmails_AreNotChecked
+          - TextLintTool_CheckCspellTokenization
           - TextLint_CheckText_HexUuidAndHashValues_AreNotChecked
           - TextLint_CheckText_EncodedData_IsNotChecked
 
