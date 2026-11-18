@@ -19,7 +19,7 @@
 // SOFTWARE.
 
 using System.Runtime.InteropServices;
-// cspell:ignore wrold xyzzyq favourite
+// cspell:ignore wrold xyzzyq favourite zorb zorbquix quix
 
 using DemaConsulting.TestResults.IO;
 using DemaConsulting.TextLint.Tool.Cli;
@@ -94,6 +94,8 @@ internal static class Validation
         RunLintScenario(context, testResults, "TextLintTool_CheckNoFilesMatched", VerifyNoFilesMatched);
         RunLintScenario(context, testResults, "TextLintTool_CheckAbsolutePath", VerifyAbsolutePath);
         RunLintScenario(context, testResults, "TextLintTool_CheckOverrides", VerifyOverrides);
+        RunLintScenario(context, testResults, "TextLintTool_CheckTechnicalTerms", VerifyTechnicalTerms);
+        RunLintScenario(context, testResults, "TextLintTool_CheckCspellTokenization", VerifyCspellTokenization);
 
         // Calculate totals
         var totalTests = testResults.Results.Count;
@@ -334,13 +336,13 @@ internal static class Validation
     /// <returns>Null when the scenario passed; otherwise what was wrong.</returns>
     private static string? VerifyCleanFile(LintSandbox sandbox)
     {
-        // A correctly spelled sentence must give exit code 0 and an empty issue count
-        sandbox.WriteFile("clean.md", "Hello world.\n");
+        // A correctly spelled document must give exit code 0, no finding, and the exact clean summary
+        sandbox.WriteFile("clean.md", "# Release Notes\n\nThe quick brown fox jumps over the lazy dog.\nEvery change is reviewed before it is merged.\n");
         var outcome = sandbox.RunTool("clean.md");
 
-        return outcome.ExitCode == 0 && outcome.Output.Contains("0 issue(s)", StringComparison.Ordinal)
+        return outcome.ExitCode == 0 && outcome.Reports([], Summary(1, 0, 0))
             ? null
-            : $"Expected exit code 0 and no issues, but got exit code {outcome.ExitCode}: {outcome.Output}";
+            : $"Expected exit code 0, no findings, and a clean summary, but got exit code {outcome.ExitCode}: {outcome.Output}";
     }
 
     /// <summary>
@@ -350,13 +352,18 @@ internal static class Validation
     /// <returns>Null when the scenario passed; otherwise what was wrong.</returns>
     private static string? VerifyMisspelling(LintSandbox sandbox)
     {
-        // The misspelled word starts at column 7 of line 1
-        sandbox.WriteFile("a.md", $"Hello {Misspelling}\n");
+        // Two misspellings among correct words: each must be reported at its own line and column, and nothing else
+        sandbox.WriteFile("a.md", $"Hello {Misspelling}\nThe second line has {OtherMisspelling} in it.\n");
         var outcome = sandbox.RunTool("a.md");
 
-        return outcome.ExitCode == 1 && outcome.Output.Contains($"a.md(1,7): error: Unknown word '{Misspelling}'", StringComparison.Ordinal)
+        string[] expected =
+        [
+            $"a.md(1,7): error: Unknown word '{Misspelling}'",
+            $"a.md(2,21): error: Unknown word '{OtherMisspelling}'"
+        ];
+        return outcome.ExitCode == 1 && outcome.Reports(expected, Summary(1, 2, 1))
             ? null
-            : $"Expected exit code 1 and the issue at a.md(1,7), but got exit code {outcome.ExitCode}: {outcome.Output}";
+            : $"Expected exit code 1 and exactly the findings at a.md(1,7) and a.md(2,21), but got exit code {outcome.ExitCode}: {outcome.Output}";
     }
 
     /// <summary>
@@ -374,11 +381,9 @@ internal static class Validation
         sandbox.WriteFile("ignored.md", $"Hello {OtherMisspelling}\n");
         var outcome = sandbox.RunTool();
 
-        // The accepted word and the ignored file are silent; the flagged word is reported with its suggestion
+        // The accepted word and the ignored file are silent; the flagged word is the only finding, with its suggestion
         var applied = outcome.ExitCode == 1 &&
-                      outcome.Output.Contains("a.md(1,13): error: Flagged word 'utilize'; suggestions: use", StringComparison.Ordinal) &&
-                      !outcome.Output.Contains($"'{Misspelling}'", StringComparison.Ordinal) &&
-                      !outcome.Output.Contains("ignored.md", StringComparison.Ordinal);
+                      outcome.Reports(["a.md(1,13): error: Flagged word 'utilize'; suggestions: use"], Summary(1, 1, 1));
         return applied ? null : $"The settings file was not applied (exit code {outcome.ExitCode}): {outcome.Output}";
     }
 
@@ -394,10 +399,13 @@ internal static class Validation
         sandbox.WriteFile("a.md", $"Hello {Misspelling}\n");
         var outcome = sandbox.RunTool("a.md");
 
+        // The settings error is the only error line, and no summary is written because nothing is checked
+        var settingsPath = PathHelpers.SafePathCombine(sandbox.WorkDirectory, ".textlint.yaml");
         var reported = outcome.ExitCode == 1 &&
-                       outcome.Output.Contains(".textlint.yaml(1,1): error: ", StringComparison.Ordinal) &&
-                       outcome.Output.Contains("'bogusKey'", StringComparison.Ordinal) &&
-                       !outcome.Output.Contains("Checked", StringComparison.Ordinal);
+                       outcome.Findings.SequenceEqual(
+                           [$"{settingsPath}(1,1): error: 'bogusKey' is not a supported setting."],
+                           StringComparer.Ordinal) &&
+                       !outcome.HasSummary;
         return reported ? null : $"Expected a positioned settings error and no check (exit code {outcome.ExitCode}): {outcome.Output}";
     }
 
@@ -415,8 +423,7 @@ internal static class Validation
         var outcome = sandbox.RunTool("a.md");
 
         var replaced = outcome.ExitCode == 1 &&
-                       outcome.Output.Contains("a.md(1,7)", StringComparison.Ordinal) &&
-                       !outcome.Output.Contains("b.md", StringComparison.Ordinal);
+                       outcome.Reports([$"a.md(1,7): error: Unknown word '{Misspelling}'"], Summary(1, 1, 1));
         return replaced ? null : $"Expected only a.md to be checked (exit code {outcome.ExitCode}): {outcome.Output}";
     }
 
@@ -432,7 +439,7 @@ internal static class Validation
         sandbox.WriteFile("textlint-prefix.md", $"<!-- textlint:ignore {OtherMisspelling} -->\nHello {OtherMisspelling}\n");
         var outcome = sandbox.RunTool("*.md");
 
-        return outcome.ExitCode == 0 && outcome.Output.Contains("2 file(s)", StringComparison.Ordinal)
+        return outcome.ExitCode == 0 && outcome.Reports([], Summary(2, 0, 0))
             ? null
             : $"Expected both files to be checked and clean (exit code {outcome.ExitCode}): {outcome.Output}";
     }
@@ -449,10 +456,10 @@ internal static class Validation
         var american = sandbox.RunTool("--language", "en-US", "a.md");
         var british = sandbox.RunTool("--language", "en-GB", "a.md");
 
-        var americanOk = american.Output.Contains($"Unknown word '{BritishSpelling}'", StringComparison.Ordinal) &&
-                         !american.Output.Contains($"Unknown word '{AmericanSpelling}'", StringComparison.Ordinal);
-        var britishOk = british.Output.Contains($"Unknown word '{AmericanSpelling}'", StringComparison.Ordinal) &&
-                        !british.Output.Contains($"Unknown word '{BritishSpelling}'", StringComparison.Ordinal);
+        var americanOk = american.ExitCode == 1 &&
+                         american.Reports([$"a.md(1,10): error: Unknown word '{BritishSpelling}'"], Summary(1, 1, 1));
+        var britishOk = british.ExitCode == 1 &&
+                        british.Reports([$"a.md(1,1): error: Unknown word '{AmericanSpelling}'"], Summary(1, 1, 1));
         return americanOk && britishOk
             ? null
             : $"The language option did not select the dictionary. en-US: {american.Output} en-GB: {british.Output}";
@@ -471,8 +478,9 @@ internal static class Validation
         var outcome = sandbox.RunTool("*");
 
         var skipped = outcome.ExitCode == 0 &&
-                      outcome.Output.Contains("data.bin: info: ", StringComparison.Ordinal) &&
-                      outcome.Output.Contains("1 skipped", StringComparison.Ordinal);
+                      outcome.Reports([], Summary(1, 0, 0, skipped: 1)) &&
+                      outcome.HasLine(
+                          "data.bin: info: The file looks like binary data: it contains a NUL character in its first 1,024 characters.");
         return skipped ? null : $"Expected the binary file to be skipped without failing (exit code {outcome.ExitCode}): {outcome.Output}";
     }
 
@@ -489,8 +497,12 @@ internal static class Validation
         var allowed = sandbox.RunTool("--allow-empty", "*.nomatch");
 
         var handled = failing.ExitCode == 1 &&
-                      failing.Output.Contains("No files matched", StringComparison.Ordinal) &&
-                      allowed.ExitCode == 0;
+                      failing.Findings.Count == 0 &&
+                      failing.HasLine(
+                          "No files matched the file selection, so nothing was checked. Use --allow-empty to accept an empty selection.") &&
+                      !failing.HasSummary &&
+                      allowed.ExitCode == 0 &&
+                      allowed.Reports([], Summary(0, 0, 0));
         return handled
             ? null
             : $"Expected exit code 1 then 0 with --allow-empty, but got {failing.ExitCode} then {allowed.ExitCode}: {failing.Output} {allowed.Output}";
@@ -507,7 +519,8 @@ internal static class Validation
         var path = sandbox.WriteFile("a.md", $"Hello {Misspelling}\n");
         var outcome = sandbox.RunTool(path);
 
-        return outcome.ExitCode == 1 && outcome.Output.Contains($"{path}(1,7): error: Unknown word '{Misspelling}'", StringComparison.Ordinal)
+        return outcome.ExitCode == 1 &&
+               outcome.Reports([$"{path}(1,7): error: Unknown word '{Misspelling}'"], Summary(1, 1, 1))
             ? null
             : $"Expected the issue to be reported by absolute path (exit code {outcome.ExitCode}): {outcome.Output}";
     }
@@ -533,12 +546,61 @@ internal static class Validation
         var outcome = sandbox.RunTool();
 
         // Only the file that no setting touches is reported, and the others are silent
+        // a.md and docs/b.md are checked (the disabled legacy file is not counted), and a.md holds the only finding
         var applied = outcome.ExitCode == 1 &&
-                      outcome.Output.Contains($"a.md(1,7): error: Unknown word '{Misspelling}'", StringComparison.Ordinal) &&
-                      !outcome.Output.Contains("docs/b.md", StringComparison.Ordinal) &&
-                      !outcome.Output.Contains("skipped/", StringComparison.Ordinal) &&
-                      !outcome.Output.Contains("legacy/", StringComparison.Ordinal);
+                      outcome.Reports([$"a.md(1,7): error: Unknown word '{Misspelling}'"], Summary(2, 1, 1));
         return applied ? null : $"Expected only a.md to be reported (exit code {outcome.ExitCode}): {outcome.Output}";
+    }
+
+    /// <summary>
+    ///     Verifies that the bundled technical-term dictionary is loaded and applies in every language.
+    /// </summary>
+    /// <param name="sandbox">The sandbox to run in.</param>
+    /// <returns>Null when the scenario passed; otherwise what was wrong.</returns>
+    private static string? VerifyTechnicalTerms(LintSandbox sandbox)
+    {
+        // Software terms that no English word list holds sit beside one real misspelling, so the run proves that
+        // the technical terms are known and that the file was really checked; this holds for both languages
+        sandbox.WriteFile("a.md", $"Deploy with kubectl to kubernetes from github using powershell and nuget {Misspelling}\n");
+        string[] expected = [$"a.md(1,74): error: Unknown word '{Misspelling}'"];
+
+        foreach (var language in new[] { "en-US", "en-GB" })
+        {
+            var outcome = sandbox.RunTool("--language", language, "a.md");
+            if (outcome.ExitCode != 1 || !outcome.Reports(expected, Summary(1, 1, 1)))
+            {
+                return $"Expected only '{Misspelling}' at a.md(1,74) with {language} (exit code {outcome.ExitCode}): {outcome.Output}";
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    ///     Verifies the cspell-compatible handling of identifiers, addresses, and hexadecimal numbers.
+    /// </summary>
+    /// <param name="sandbox">The sandbox to run in.</param>
+    /// <returns>Null when the scenario passed; otherwise what was wrong.</returns>
+    /// <remarks>
+    ///     The expected findings are those that cspell 10 records for the same constructs in the parity corpus: a
+    ///     camel-case identifier is split into its words, each reported at its own column, while a URL, an
+    ///     e-mail address, and a hexadecimal number are ignored by the default patterns.
+    /// </remarks>
+    private static string? VerifyCspellTokenization(LintSandbox sandbox)
+    {
+        sandbox.WriteFile(
+            "a.md",
+            "Call zorbQuix at https://zorb.example/quix or mail user@zorbquix.org with 0xDEADBEEF\n");
+        var outcome = sandbox.RunTool("a.md");
+
+        string[] expected =
+        [
+            "a.md(1,6): error: Unknown word 'zorb'",
+            "a.md(1,10): error: Unknown word 'Quix'"
+        ];
+        return outcome.ExitCode == 1 && outcome.Reports(expected, Summary(1, 2, 1))
+            ? null
+            : $"Expected exactly 'zorb' at a.md(1,6) and 'Quix' at a.md(1,10) (exit code {outcome.ExitCode}): {outcome.Output}";
     }
 
     /// <summary>
@@ -636,7 +698,58 @@ internal static class Validation
     /// </summary>
     /// <param name="ExitCode">The exit code the run would have returned to the operating system.</param>
     /// <param name="Output">Everything the run wrote, as it was written to the log.</param>
-    private sealed record LintRunOutcome(int ExitCode, string Output);
+    private sealed record LintRunOutcome(int ExitCode, string Output)
+    {
+        /// <summary>
+        ///     Gets the finding lines of the run, in the order they were written.
+        /// </summary>
+        /// <remarks>
+        ///     A finding is a compiler-style line <c>file(line,column): error: message</c>; comparing the whole
+        ///     list lets a scenario prove that exactly the expected findings were reported and nothing else.
+        /// </remarks>
+        public List<string> Findings { get; } = Output
+            .Split('\n')
+            .Select(static line => line.Trim())
+            .Where(static line => line.Contains("): error: ", StringComparison.Ordinal))
+            .ToList();
+
+        /// <summary>
+        ///     Gets whether the run wrote a line that is exactly the given text, ignoring surrounding white space.
+        /// </summary>
+        /// <param name="expected">The complete line, such as the summary line.</param>
+        /// <returns><see langword="true"/> when a complete line of the output equals <paramref name="expected"/>.</returns>
+        public bool HasLine(string expected) => Output
+            .Split('\n')
+            .Any(line => string.Equals(line.Trim(), expected, StringComparison.Ordinal));
+
+        /// <summary>
+        ///     Gets whether the run wrote a summary line, which it does only when files were checked.
+        /// </summary>
+        public bool HasSummary => Output
+            .Split('\n')
+            .Any(static line => line.Trim().StartsWith("Checked ", StringComparison.Ordinal));
+
+        /// <summary>
+        ///     Gets whether the findings are exactly the expected ones, in order, and the run wrote the expected
+        ///     summary line.
+        /// </summary>
+        /// <param name="expectedFindings">Every finding line the run must write, and no other.</param>
+        /// <param name="expectedSummary">The complete summary line.</param>
+        /// <returns><see langword="true"/> when both match exactly.</returns>
+        public bool Reports(string[] expectedFindings, string expectedSummary) =>
+            Findings.SequenceEqual(expectedFindings, StringComparer.Ordinal) && HasLine(expectedSummary);
+    }
+
+    /// <summary>
+    ///     Formats the summary line the tool writes at the end of a check.
+    /// </summary>
+    /// <param name="files">The number of files checked.</param>
+    /// <param name="issues">The number of findings.</param>
+    /// <param name="filesWithIssues">The number of files the findings are in.</param>
+    /// <param name="skipped">The number of files skipped on purpose.</param>
+    /// <returns>The complete summary line.</returns>
+    private static string Summary(int files, int issues, int filesWithIssues, int skipped = 0) =>
+        $"Checked {files} file(s): {issues} issue(s) in {filesWithIssues} file(s), {skipped} skipped, 0 could not be checked.";
 
     /// <summary>
     ///     A private working area for one spell-checking scenario: a directory of sample files and a way to run

@@ -58,7 +58,8 @@ sections:
           The tool shall include in its self-validation scenarios that check real spell-checking behavior in the
           deployment environment: a clean file, a misspelling, a settings file, a settings error, patterns that
           replace the files setting, in-document directives, the language option, a binary file, an empty
-          selection, an absolute path, and ordered files with overrides and a disabled override.
+          selection, an absolute path, ordered files with overrides and a disabled override, the bundled technical
+          terms, and cspell-compatible tokenization, each asserting the exact findings, positions, and exit code.
         justification: |
           Qualifying the tool in a regulated environment must prove that it does its job on that operating
           system and runtime, not only that it can print its version; each scenario names the behavior it

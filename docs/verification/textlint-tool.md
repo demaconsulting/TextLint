@@ -109,7 +109,8 @@ non-zero code and no file is created at the specified path. This scenario is tes
 `TextLintTool_ValidateWithBadExtension_ExtensionInvalid_ReturnsNonZero`.
 
 **TextLintTool_ValidateFlag_Provided_RunsLintScenarios**: The `--validate` flag is passed; the output reports each
-of the eleven spell-checking scenarios as passed, including the one for ordered files and overrides, and the tool
+of the thirteen spell-checking scenarios as passed (fifteen self-validation tests with the version and help
+checks), including the one for ordered files and overrides, and the tool
 exits with code 0, so the self-validation proves real
 spell checking and not only the version and help output. This scenario is tested by
 `TextLintTool_ValidateFlag_Provided_RunsLintScenarios`.

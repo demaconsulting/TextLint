@@ -9,6 +9,12 @@
 [![Security][badge-security]][link-security]
 [![NuGet][badge-nuget]][link-nuget]
 
+![TextLint banner: the TextLint name with the tagline 'Every word, checked. Every typo, caught.' and the command
+'textlint "**/*.md"'. Markdown documents, source code, the project word list in .textlint.yaml, and the bundled
+en-US, en-GB, and technical dictionaries flow on curved arrows into the textlint .NET tool, and arrows lead out to
+findings reported at file(line,column), a CI gate that passes with exit 0 and fails with exit 1, suggestions for
+flagged words, and misspellings underlined in your editor][hero]
+
 TextLint is a fast, cspell-compatible text linter for source code and documentation. It is delivered as the
 `DemaConsulting.TextLint` .NET library and the `DemaConsulting.TextLint.Tool` .NET tool (command `textlint`), which is
 a thin command-line front-end over the library.
@@ -39,7 +45,8 @@ TextLint provides:
 - 📖 **Embedded Dictionaries**: Ships US and UK English plus technical terms; no data files needed
 - 🚦 **Compiler-Style Output**: Reports `file(line,col): error:` lines, a summary, and exit codes
 - 📦 **Reusable Library**: Embeds the same checker in your own .NET applications
-- ✅ **Self-Validation**: Built-in validation tests with TRX and JUnit output
+- ✅ **Self-Validation**: Built-in tests that spell-check sample files end to end and assert the exact findings,
+  with TRX and JUnit output
 - 🖥️ **Multi-Platform Support**: Builds and runs on Windows, Linux, and macOS
 - ⚙️ **Multi-Runtime Support**: The tool needs .NET 10; the library supports .NET 10 and 11
 - 🔁 **Comprehensive CI/CD**: GitHub Actions workflows for quality checks, builds, and tests
@@ -173,6 +180,7 @@ By contributing to this project, you agree that your contributions will be licen
 [badge-nuget]: https://img.shields.io/nuget/v/DemaConsulting.TextLint.Tool?style=plastic
 
 <!-- Link References -->
+[hero]: https://raw.githubusercontent.com/demaconsulting/TextLint/main/docs/images/hero.png
 [workflow]: https://raw.githubusercontent.com/demaconsulting/TextLint/main/docs/images/workflow.png
 [link-forks]: https://github.com/demaconsulting/TextLint/network/members
 [link-stars]: https://github.com/demaconsulting/TextLint/stargazers
