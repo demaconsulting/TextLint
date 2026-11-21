@@ -205,7 +205,8 @@ approach. Tools: **ReqStream** (requirements traceability), **ReviewMark** (file
 
 The model under `docs/sysml2/` predates the one-package-per-file rule: `package TextLint` is declared in 28 files
 (including `model/ots.sysml` and `views/design-views.sysml`), `package TextLintTool` in 12, and
-`package DictionaryBuilder` in 8. OTS parts live in `TextLint` (not `OtsDependencies`) and the views reopen the three
-system packages (no `TextLintDesignViews` package). The Package Structure rules in `sysml2-modeling.md` and the
-qualified-name examples in the `sysml2tools-query` skill apply once the model is migrated in a dedicated PR; until then,
-agents use the existing package names and must not partially restructure the model.
+`package DictionaryBuilder` in 8. OTS parts live in `TextLint` (not `OtsDependencies`) and the views reopen the three system
+packages (no `TextLintDesignViews` package) and still use the unparenthesized `filter not @SysML::Documentation;`. The
+Package Structure rules in `sysml2-modeling.md` and the qualified-name examples in the `sysml2tools-query` skill apply
+once the model is migrated in a dedicated PR; until then, agents use the existing package names and must not partially
+restructure the model.
