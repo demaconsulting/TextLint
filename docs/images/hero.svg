@@ -1,7 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1600" height="640" viewBox="0 0 1600 640">
   <!-- The README hero banner. Markdown documents, source code, the project word list in .textlint.yaml, and the
        bundled dictionaries flow into the textlint tool, which comes out with findings at file(line,column), a
-       pass or fail CI gate, suggestions for flagged words, and squiggles in the editor.
+       pass or fail CI gate, and suggestions for flagged words; an editor reading those findings from the log
+       underlines the word (downstream, not drawn by textlint itself).
        The definitions and the left panel follow the shared DEMA Consulting hero (CanvasNet and BuildMark).
        This file is docs/images/hero.svg, beside its rendered docs/images/hero.png (matching base names, per the
        diagram documentation standard); the files it embeds are in docs/images/hero/. -->
@@ -9,7 +10,7 @@
     <style>
       .word { font: bold 92px sans-serif; fill: #ffffff; }
       .eyebrow { font: bold 25px sans-serif; fill: #a5b4fc; }
-      .tag { font: bold 40px sans-serif; fill: #f8fafc; }
+      .tag { font: bold 36px sans-serif; fill: #f8fafc; }
       .body { font: 25px sans-serif; fill: #cbd5e1; }
       .cmd { font: 25px monospace; fill: #e2e8f0; }
       .prompt { fill: #5eead4; }
@@ -115,18 +116,18 @@
   <image href="hero/dc-logo-dark.svg" x="46" y="54" width="50" height="50"/>
   <text class="eyebrow" x="100" y="90">DEMA Consulting</text>
   <text class="word" x="52" y="176">Text</text>
-  <text class="word brandText" x="241.2" y="176">Lint</text>
+  <text class="word brandText" x="234.2" y="176">Lint</text>
   <rect x="58" y="200" width="132" height="6" rx="3" fill="url(#brand)"/>
-  <text class="tag" x="56" y="266">Every word, checked.</text>
-  <text class="tag brandText" x="56" y="316">Every typo, caught.</text>
-  <text class="body" x="58" y="368">Spell-checks Markdown and source code</text>
-  <text class="body" x="58" y="402">with bundled English and tech terms,</text>
-  <text class="body" x="58" y="436">configured by one .textlint.yaml.</text>
+  <text class="tag" x="56" y="266">A spell checker for</text>
+  <text class="tag" x="56" y="314" style="fill: #a5b4fc">Markdown and source code.</text>
+  <text class="body" x="58" y="368">Checks files in parallel against</text>
+  <text class="body" x="58" y="402">bundled en-US, en-GB and technical</text>
+  <text class="body" x="58" y="436">dictionaries; reports file(line,col).</text>
   <rect x="56" y="468" width="480" height="54" rx="12" fill="#0a1022" fill-opacity="0.8" stroke="#a78bfa" stroke-opacity="0.45" stroke-width="1.5"/>
   <text class="cmd prompt" x="78" y="503">$</text>
   <text class="cmd" x="108" y="503">textlint</text>
   <text class="cmd file" x="243" y="503">"**/*.md"</text>
-  <text class="note" x="58" y="568">cspell-compatible. No Node.js.</text>
+  <text class="note" x="58" y="568">.NET 10 tool &#183; No Node.js required</text>
 
   <!-- Input cards -->
   <g>
@@ -276,7 +277,7 @@
     <text class="miniMono" x="1232" y="520" fill="#bbf7d0" text-anchor="middle">use</text>
     <text class="label" x="1232" y="585">Suggestions</text>
 
-    <!-- Output four: a misspelling underlined in the editor -->
+    <!-- Output four, downstream: an editor reads the findings from the tool's output and underlines the word -->
     <rect class="card" x="1355" y="390" width="205" height="210" rx="16"/>
     <rect class="panel" x="1363" y="398" width="189" height="152" rx="10"/>
     <rect x="1377" y="410" width="161" height="128" rx="8" fill="#111827" stroke="#ffffff" stroke-opacity="0.15"/>
@@ -287,6 +288,6 @@
     <text class="mini" x="1391" y="487" fill="#e2e8f0">recieve</text>
     <path d="M1391 496 q4 -5 8 0 t8 0 t8 0 t8 0 t8 0 t8 0 t8 0 t8 0 t8 0 t8 0 t8 0" fill="none" stroke="#f472b6" stroke-width="2"/>
     <rect class="bar" x="1391" y="514" width="96" height="7" rx="3.5" fill-opacity="0.6"/>
-    <text class="label" x="1457" y="585">In your editor</text>
+    <text class="label" x="1457" y="585">Editor via log</text>
   </g>
 </svg>
