@@ -116,7 +116,7 @@
   <image href="hero/dc-logo-dark.svg" x="46" y="54" width="50" height="50"/>
   <text class="eyebrow" x="100" y="90">DEMA Consulting</text>
   <text class="word" x="52" y="176">Text</text>
-  <text class="word brandText" x="241.2" y="176">Lint</text>
+  <text class="word brandText" x="234.2" y="176">Lint</text>
   <rect x="58" y="200" width="132" height="6" rx="3" fill="url(#brand)"/>
   <text class="tag" x="56" y="266">A spell checker for</text>
   <text class="tag" x="56" y="314" style="fill: #a5b4fc">Markdown and source code.</text>
