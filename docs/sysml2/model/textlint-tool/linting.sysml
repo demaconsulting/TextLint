@@ -1,4 +1,6 @@
-package TextLintTool {
+package TextLintTool_LintingSubsystem {
+    public import TextLintTool_LintReporter::*;
+    public import TextLintTool_LintRunner::*;
     private import SoftwareItemMetadata::*;
 
     part def LintingSubsystem {

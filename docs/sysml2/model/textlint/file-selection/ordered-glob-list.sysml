@@ -1,4 +1,4 @@
-package TextLint {
+package TextLint_OrderedGlobList {
     private import SoftwareItemMetadata::*;
 
     part def OrderedGlobList {
@@ -15,7 +15,7 @@ package TextLint {
 
     // The list expands each pattern with the pattern expander, applies the hidden-name rule of the
     // hidden-path policy to each pattern, and matches with the globbing library.
-    dependency OrderedGlobListUsesGlobPatternExpander from OrderedGlobList to GlobPatternExpander;
-    dependency OrderedGlobListUsesHiddenPathPolicy from OrderedGlobList to HiddenPathPolicy;
-    dependency OrderedGlobListUsesFileSystemGlobbing from OrderedGlobList to FileSystemGlobbing;
+    dependency OrderedGlobListUsesGlobPatternExpander from OrderedGlobList to TextLint::GlobPatternExpander;
+    dependency OrderedGlobListUsesHiddenPathPolicy from OrderedGlobList to TextLint::HiddenPathPolicy;
+    dependency OrderedGlobListUsesFileSystemGlobbing from OrderedGlobList to OtsDependencies::FileSystemGlobbing;
 }

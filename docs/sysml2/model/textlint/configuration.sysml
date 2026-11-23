@@ -1,4 +1,7 @@
-package TextLint {
+package TextLint_ConfigurationSubsystem {
+    public import TextLint_SettingsLoader::*;
+    public import TextLint_SettingsOverrideResolver::*;
+    public import TextLint_TextLintSettings::*;
     private import SoftwareItemMetadata::*;
 
     part def ConfigurationSubsystem {

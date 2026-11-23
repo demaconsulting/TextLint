@@ -1,4 +1,4 @@
-package TextLint {
+package TextLint_WordTokenizer {
     private import SoftwareItemMetadata::*;
 
     part def WordTokenizer {

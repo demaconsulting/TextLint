@@ -1,4 +1,4 @@
-package TextLint {
+package TextLint_HiddenPathPolicy {
     private import SoftwareItemMetadata::*;
 
     part def HiddenPathPolicy {

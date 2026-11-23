@@ -1,4 +1,4 @@
-package TextLint {
+package TextLint_FileTextReader {
     private import SoftwareItemMetadata::*;
 
     part def FileTextReader {

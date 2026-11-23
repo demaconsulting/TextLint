@@ -1,4 +1,4 @@
-package TextLint {
+package TextLint_DictionaryImage {
     private import SoftwareItemMetadata::*;
 
     part def DictionaryImage {

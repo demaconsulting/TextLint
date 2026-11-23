@@ -1,4 +1,4 @@
-package TextLint {
+package TextLint_RandomStringDetector {
     private import SoftwareItemMetadata::*;
 
     part def RandomStringDetector {
@@ -14,5 +14,5 @@ package TextLint {
     }
 
     // The match time limit is the one of the pattern parser (a documented dependency of the code).
-    dependency RandomStringDetectorUsesPatternParser from RandomStringDetector to PatternParser;
+    dependency RandomStringDetectorUsesPatternParser from RandomStringDetector to TextLint::PatternParser;
 }

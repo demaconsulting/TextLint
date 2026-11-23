@@ -1,4 +1,9 @@
-package TextLint {
+package TextLint_FileSelectionSubsystem {
+    public import TextLint_CommandLinePathResolver::*;
+    public import TextLint_FileSelector::*;
+    public import TextLint_GlobPatternExpander::*;
+    public import TextLint_HiddenPathPolicy::*;
+    public import TextLint_OrderedGlobList::*;
     private import SoftwareItemMetadata::*;
 
     part def FileSelectionSubsystem {

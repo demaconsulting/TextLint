@@ -1,4 +1,4 @@
-package TextLint {
+package TextLint_DefaultPatterns {
     private import SoftwareItemMetadata::*;
 
     part def DefaultPatterns {

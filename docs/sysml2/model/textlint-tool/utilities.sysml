@@ -1,4 +1,5 @@
-package TextLintTool {
+package TextLintTool_UtilitiesSubsystem {
+    public import TextLintTool_PathHelpers::*;
     private import SoftwareItemMetadata::*;
 
     part def UtilitiesSubsystem {

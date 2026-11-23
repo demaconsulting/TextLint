@@ -1,4 +1,4 @@
-package DictionaryBuilder {
+package DictionaryBuilder_VariantFilter {
     private import SoftwareItemMetadata::*;
 
     part def VariantFilter {

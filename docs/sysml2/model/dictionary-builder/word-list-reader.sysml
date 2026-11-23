@@ -1,4 +1,4 @@
-package DictionaryBuilder {
+package DictionaryBuilder_WordListReader {
     private import SoftwareItemMetadata::*;
 
     part def WordListReader {

@@ -1,4 +1,6 @@
-package TextLint {
+package TextLint_DictionariesSubsystem {
+    public import TextLint_DictionaryImage::*;
+    public import TextLint_SpellingDictionary::*;
     private import SoftwareItemMetadata::*;
 
     part def DictionariesSubsystem {

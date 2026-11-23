@@ -1,4 +1,9 @@
 package TextLintTool {
+    public import TextLintTool_CliSubsystem::*;
+    public import TextLintTool_LintingSubsystem::*;
+    public import TextLintTool_Program::*;
+    public import TextLintTool_SelfTestSubsystem::*;
+    public import TextLintTool_UtilitiesSubsystem::*;
     private import SoftwareItemMetadata::*;
 
     doc

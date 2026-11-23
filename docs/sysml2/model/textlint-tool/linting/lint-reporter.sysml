@@ -1,4 +1,4 @@
-package TextLintTool {
+package TextLintTool_LintReporter {
     private import SoftwareItemMetadata::*;
 
     part def LintReporter {

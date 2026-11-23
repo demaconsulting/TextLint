@@ -1,4 +1,4 @@
-package TextLintTool {
+package TextLintTool_Program {
     private import SoftwareItemMetadata::*;
 
     part def Program {

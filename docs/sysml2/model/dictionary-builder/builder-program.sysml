@@ -1,4 +1,4 @@
-package DictionaryBuilder {
+package DictionaryBuilder_BuilderProgram {
     private import SoftwareItemMetadata::*;
 
     part def BuilderProgram {
