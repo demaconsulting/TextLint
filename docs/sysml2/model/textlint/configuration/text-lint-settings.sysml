@@ -1,4 +1,4 @@
-package TextLint {
+package TextLint_TextLintSettings {
     private import SoftwareItemMetadata::*;
 
     part def TextLintSettings {
@@ -18,5 +18,5 @@ package TextLint {
 
     // The settings hold the named patterns, a value type that the pattern catalog defines (a documented
     // dependency of the code).
-    dependency TextLintSettingsUsesPatternCatalog from TextLintSettings to PatternCatalog;
+    dependency TextLintSettingsUsesPatternCatalog from TextLintSettings to TextLint::PatternCatalog;
 }

@@ -1,4 +1,4 @@
-package DictionaryBuilder {
+package DictionaryBuilder_ExclusionFilter {
     private import SoftwareItemMetadata::*;
 
     part def ExclusionFilter {

@@ -1,4 +1,4 @@
-package TextLintTool {
+package TextLintTool_Validation {
     private import SoftwareItemMetadata::*;
 
     part def Validation {

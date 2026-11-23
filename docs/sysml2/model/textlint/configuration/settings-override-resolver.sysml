@@ -1,4 +1,4 @@
-package TextLint {
+package TextLint_SettingsOverrideResolver {
     private import SoftwareItemMetadata::*;
 
     part def SettingsOverrideResolver {
@@ -19,7 +19,7 @@ package TextLint {
     // The resolver reads the settings value, matches each override's filename list with the ordered
     // glob list of the FileSelection subsystem, and checks override languages with the language
     // selection of the Dictionaries subsystem (documented subsystem dependencies).
-    dependency SettingsOverrideResolverUsesTextLintSettings from SettingsOverrideResolver to TextLintSettings;
-    dependency SettingsOverrideResolverUsesOrderedGlobList from SettingsOverrideResolver to OrderedGlobList;
-    dependency SettingsOverrideResolverUsesSpellingDictionary from SettingsOverrideResolver to SpellingDictionary;
+    dependency SettingsOverrideResolverUsesTextLintSettings from SettingsOverrideResolver to TextLint::TextLintSettings;
+    dependency SettingsOverrideResolverUsesOrderedGlobList from SettingsOverrideResolver to TextLint::OrderedGlobList;
+    dependency SettingsOverrideResolverUsesSpellingDictionary from SettingsOverrideResolver to TextLint::SpellingDictionary;
 }

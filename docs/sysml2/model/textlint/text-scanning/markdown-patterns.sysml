@@ -1,4 +1,4 @@
-package TextLint {
+package TextLint_MarkdownPatterns {
     private import SoftwareItemMetadata::*;
 
     part def MarkdownPatterns {
@@ -14,5 +14,5 @@ package TextLint {
     }
 
     // The match time limit is the one of the pattern parser (a documented dependency of the code).
-    dependency MarkdownPatternsUsesPatternParser from MarkdownPatterns to PatternParser;
+    dependency MarkdownPatternsUsesPatternParser from MarkdownPatterns to TextLint::PatternParser;
 }

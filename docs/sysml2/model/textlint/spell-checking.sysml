@@ -1,4 +1,7 @@
-package TextLint {
+package TextLint_SpellCheckingSubsystem {
+    public import TextLint_FileTextReader::*;
+    public import TextLint_SpellChecker::*;
+    public import TextLint_TextChecker::*;
     private import SoftwareItemMetadata::*;
 
     part def SpellCheckingSubsystem {

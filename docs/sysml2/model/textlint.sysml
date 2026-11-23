@@ -1,4 +1,10 @@
 package TextLint {
+    public import TextLint_ConfigurationSubsystem::*;
+    public import TextLint_DictionariesSubsystem::*;
+    public import TextLint_FileSelectionSubsystem::*;
+    public import TextLint_SpellCheckingSubsystem::*;
+    public import TextLint_TextScanningSubsystem::*;
+    private import OtsDependencies::*;
     private import SoftwareItemMetadata::*;
 
     doc

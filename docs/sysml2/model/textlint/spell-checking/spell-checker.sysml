@@ -1,4 +1,4 @@
-package TextLint {
+package TextLint_SpellChecker {
     private import SoftwareItemMetadata::*;
 
     part def SpellChecker {
@@ -30,10 +30,10 @@ package TextLint {
     // the other units of its own subsystem. It resolves the per-file overrides with the override resolver
     // of the Configuration subsystem and compares the dictionaries of two languages when it reports that
     // the command-line language replaced an override language (documented subsystem dependencies).
-    dependency SpellCheckerUsesTextLintSettings from SpellChecker to TextLintSettings;
-    dependency SpellCheckerUsesSettingsOverrideResolver from SpellChecker to SettingsOverrideResolver;
-    dependency SpellCheckerUsesSpellingDictionary from SpellChecker to SpellingDictionary;
-    dependency SpellCheckerUsesFileSelector from SpellChecker to FileSelector;
-    dependency SpellCheckerUsesTextChecker from SpellChecker to TextChecker;
-    dependency SpellCheckerUsesFileTextReader from SpellChecker to FileTextReader;
+    dependency SpellCheckerUsesTextLintSettings from SpellChecker to TextLint::TextLintSettings;
+    dependency SpellCheckerUsesSettingsOverrideResolver from SpellChecker to TextLint::SettingsOverrideResolver;
+    dependency SpellCheckerUsesSpellingDictionary from SpellChecker to TextLint::SpellingDictionary;
+    dependency SpellCheckerUsesFileSelector from SpellChecker to TextLint::FileSelector;
+    dependency SpellCheckerUsesTextChecker from SpellChecker to TextLint::TextChecker;
+    dependency SpellCheckerUsesFileTextReader from SpellChecker to TextLint::FileTextReader;
 }

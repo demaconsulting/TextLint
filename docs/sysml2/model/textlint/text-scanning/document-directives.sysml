@@ -1,4 +1,4 @@
-package TextLint {
+package TextLint_DocumentDirectives {
     private import SoftwareItemMetadata::*;
 
     part def DocumentDirectives {
@@ -18,5 +18,5 @@ package TextLint {
 
     // The directive patterns share the match time limit of the default patterns (a documented dependency
     // within the subsystem).
-    dependency DocumentDirectivesUsesDefaultPatterns from DocumentDirectives to DefaultPatterns;
+    dependency DocumentDirectivesUsesDefaultPatterns from DocumentDirectives to TextLint::DefaultPatterns;
 }

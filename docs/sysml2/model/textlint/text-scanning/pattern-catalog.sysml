@@ -1,4 +1,4 @@
-package TextLint {
+package TextLint_PatternCatalog {
     private import SoftwareItemMetadata::*;
 
     part def PatternCatalog {
@@ -16,5 +16,5 @@ package TextLint {
         }
     }
 
-    dependency PatternCatalogUsesPatternParser from PatternCatalog to PatternParser;
+    dependency PatternCatalogUsesPatternParser from PatternCatalog to TextLint::PatternParser;
 }

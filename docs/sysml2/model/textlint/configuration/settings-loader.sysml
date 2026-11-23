@@ -1,4 +1,4 @@
-package TextLint {
+package TextLint_SettingsLoader {
     private import SoftwareItemMetadata::*;
 
     part def SettingsLoader {
@@ -22,12 +22,12 @@ package TextLint {
     // glob pattern expander of the FileSelection subsystem, the language selection of the
     // Dictionaries subsystem, and the word tokenizer of the TextScanning subsystem (documented
     // subsystem dependencies). It checks the ordered file lists with the ordered glob list.
-    dependency SettingsLoaderUsesTextLintSettings from SettingsLoader to TextLintSettings;
-    dependency SettingsLoaderUsesYamlDotNet from SettingsLoader to YamlDotNet;
-    dependency SettingsLoaderUsesGlobPatternExpander from SettingsLoader to GlobPatternExpander;
-    dependency SettingsLoaderUsesOrderedGlobList from SettingsLoader to OrderedGlobList;
-    dependency SettingsLoaderUsesSpellingDictionary from SettingsLoader to SpellingDictionary;
-    dependency SettingsLoaderUsesWordTokenizer from SettingsLoader to WordTokenizer;
-    dependency SettingsLoaderUsesPatternCatalog from SettingsLoader to PatternCatalog;
-    dependency SettingsLoaderUsesPatternParser from SettingsLoader to PatternParser;
+    dependency SettingsLoaderUsesTextLintSettings from SettingsLoader to TextLint::TextLintSettings;
+    dependency SettingsLoaderUsesYamlDotNet from SettingsLoader to OtsDependencies::YamlDotNet;
+    dependency SettingsLoaderUsesGlobPatternExpander from SettingsLoader to TextLint::GlobPatternExpander;
+    dependency SettingsLoaderUsesOrderedGlobList from SettingsLoader to TextLint::OrderedGlobList;
+    dependency SettingsLoaderUsesSpellingDictionary from SettingsLoader to TextLint::SpellingDictionary;
+    dependency SettingsLoaderUsesWordTokenizer from SettingsLoader to TextLint::WordTokenizer;
+    dependency SettingsLoaderUsesPatternCatalog from SettingsLoader to TextLint::PatternCatalog;
+    dependency SettingsLoaderUsesPatternParser from SettingsLoader to TextLint::PatternParser;
 }

@@ -1,4 +1,4 @@
-package TextLint {
+package TextLint_PatternParser {
     private import SoftwareItemMetadata::*;
 
     part def PatternParser {
@@ -28,5 +28,5 @@ package TextLint {
 
     // The match time limit is the one defined by the default patterns, so that every pattern of the library
     // is bounded by the same limit (a documented dependency of the code).
-    dependency PatternParserUsesDefaultPatterns from PatternParser to DefaultPatterns;
+    dependency PatternParserUsesDefaultPatterns from PatternParser to TextLint::DefaultPatterns;
 }

@@ -1,4 +1,4 @@
-package TextLint {
+package TextLint_GlobPatternExpander {
     private import SoftwareItemMetadata::*;
 
     part def GlobPatternExpander {

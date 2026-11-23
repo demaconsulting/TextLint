@@ -1,4 +1,4 @@
-package TextLintTool {
+package TextLintTool_PathHelpers {
     private import SoftwareItemMetadata::*;
 
     part def PathHelpers {

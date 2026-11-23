@@ -1,4 +1,4 @@
-package TextLint {
+package TextLint_TextChecker {
     private import SoftwareItemMetadata::*;
 
     part def TextChecker {
@@ -23,12 +23,12 @@ package TextLint {
     // The checker takes its language, word lists, and minimum length from the settings value, looks words
     // up in the spelling dictionary, and uses the units of the text scanning subsystem to split the text
     // into words, to find the text that is never checked, and to read the directives.
-    dependency TextCheckerUsesTextLintSettings from TextChecker to TextLintSettings;
-    dependency TextCheckerUsesSpellingDictionary from TextChecker to SpellingDictionary;
-    dependency TextCheckerUsesWordTokenizer from TextChecker to WordTokenizer;
-    dependency TextCheckerUsesDefaultPatterns from TextChecker to DefaultPatterns;
-    dependency TextCheckerUsesDocumentDirectives from TextChecker to DocumentDirectives;
-    dependency TextCheckerUsesPatternCatalog from TextChecker to PatternCatalog;
-    dependency TextCheckerUsesMarkdownPatterns from TextChecker to MarkdownPatterns;
-    dependency TextCheckerUsesRandomStringDetector from TextChecker to RandomStringDetector;
+    dependency TextCheckerUsesTextLintSettings from TextChecker to TextLint::TextLintSettings;
+    dependency TextCheckerUsesSpellingDictionary from TextChecker to TextLint::SpellingDictionary;
+    dependency TextCheckerUsesWordTokenizer from TextChecker to TextLint::WordTokenizer;
+    dependency TextCheckerUsesDefaultPatterns from TextChecker to TextLint::DefaultPatterns;
+    dependency TextCheckerUsesDocumentDirectives from TextChecker to TextLint::DocumentDirectives;
+    dependency TextCheckerUsesPatternCatalog from TextChecker to TextLint::PatternCatalog;
+    dependency TextCheckerUsesMarkdownPatterns from TextChecker to TextLint::MarkdownPatterns;
+    dependency TextCheckerUsesRandomStringDetector from TextChecker to TextLint::RandomStringDetector;
 }

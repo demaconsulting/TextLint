@@ -1,4 +1,10 @@
 package DictionaryBuilder {
+    public import DictionaryBuilder_BuilderProgram::*;
+    public import DictionaryBuilder_DictionaryFormat::*;
+    public import DictionaryBuilder_DictionaryWriter::*;
+    public import DictionaryBuilder_ExclusionFilter::*;
+    public import DictionaryBuilder_VariantFilter::*;
+    public import DictionaryBuilder_WordListReader::*;
     private import SoftwareItemMetadata::*;
 
     doc

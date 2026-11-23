@@ -1,4 +1,4 @@
-package TextLint {
+package OtsDependencies {
     private import SoftwareItemMetadata::*;
 
     // Runtime OTS (off-the-shelf) dependencies of the TextLint library. Both ship as package

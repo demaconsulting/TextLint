@@ -1,4 +1,5 @@
-package TextLintTool {
+package TextLintTool_SelfTestSubsystem {
+    public import TextLintTool_Validation::*;
     private import SoftwareItemMetadata::*;
 
     part def SelfTestSubsystem {

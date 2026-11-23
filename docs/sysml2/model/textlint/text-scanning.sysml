@@ -1,4 +1,11 @@
-package TextLint {
+package TextLint_TextScanningSubsystem {
+    public import TextLint_DefaultPatterns::*;
+    public import TextLint_DocumentDirectives::*;
+    public import TextLint_MarkdownPatterns::*;
+    public import TextLint_PatternCatalog::*;
+    public import TextLint_PatternParser::*;
+    public import TextLint_RandomStringDetector::*;
+    public import TextLint_WordTokenizer::*;
     private import SoftwareItemMetadata::*;
 
     part def TextScanningSubsystem {

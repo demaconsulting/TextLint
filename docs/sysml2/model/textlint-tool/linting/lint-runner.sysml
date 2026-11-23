@@ -1,4 +1,4 @@
-package TextLintTool {
+package TextLintTool_LintRunner {
     private import SoftwareItemMetadata::*;
 
     part def LintRunner {

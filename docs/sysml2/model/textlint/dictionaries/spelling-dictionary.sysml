@@ -1,4 +1,4 @@
-package TextLint {
+package TextLint_SpellingDictionary {
     private import SoftwareItemMetadata::*;
 
     part def SpellingDictionary {
@@ -15,6 +15,6 @@ package TextLint {
 
     // The lookup asks the dictionary images of its selection and uses the shared format definitions,
     // owned by the DictionaryBuilder system, to turn a word into its key.
-    dependency SpellingDictionaryUsesDictionaryImage from SpellingDictionary to DictionaryImage;
+    dependency SpellingDictionaryUsesDictionaryImage from SpellingDictionary to TextLint::DictionaryImage;
     dependency SpellingDictionaryUsesDictionaryFormat from SpellingDictionary to DictionaryBuilder::DictionaryFormat;
 }

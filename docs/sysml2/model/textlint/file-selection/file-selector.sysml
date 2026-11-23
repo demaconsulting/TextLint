@@ -1,4 +1,4 @@
-package TextLint {
+package TextLint_FileSelector {
     private import SoftwareItemMetadata::*;
 
     part def FileSelector {
@@ -23,8 +23,8 @@ package TextLint {
     // subsystem; it uses the pattern expander and hidden-path policy of its own subsystem, and
     // matches with the globbing library. It keeps the include patterns in an ordered glob list so that
     // a leading '!' removes files and the walk can skip excluded subtrees.
-    dependency FileSelectorUsesGlobPatternExpander from FileSelector to GlobPatternExpander;
-    dependency FileSelectorUsesOrderedGlobList from FileSelector to OrderedGlobList;
-    dependency FileSelectorUsesHiddenPathPolicy from FileSelector to HiddenPathPolicy;
-    dependency FileSelectorUsesFileSystemGlobbing from FileSelector to FileSystemGlobbing;
+    dependency FileSelectorUsesGlobPatternExpander from FileSelector to TextLint::GlobPatternExpander;
+    dependency FileSelectorUsesOrderedGlobList from FileSelector to TextLint::OrderedGlobList;
+    dependency FileSelectorUsesHiddenPathPolicy from FileSelector to TextLint::HiddenPathPolicy;
+    dependency FileSelectorUsesFileSystemGlobbing from FileSelector to OtsDependencies::FileSystemGlobbing;
 }

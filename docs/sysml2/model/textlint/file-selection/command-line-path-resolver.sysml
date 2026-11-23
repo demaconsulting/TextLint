@@ -1,4 +1,4 @@
-package TextLint {
+package TextLint_CommandLinePathResolver {
     private import SoftwareItemMetadata::*;
 
     part def CommandLinePathResolver {

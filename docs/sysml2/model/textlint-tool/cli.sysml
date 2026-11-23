@@ -1,4 +1,5 @@
-package TextLintTool {
+package TextLintTool_CliSubsystem {
+    public import TextLintTool_Context::*;
     private import SoftwareItemMetadata::*;
 
     part def CliSubsystem {
