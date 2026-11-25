@@ -47,6 +47,7 @@ This document covers the verification design for the following software items:
   - **Program** — entry point and execution orchestrator
   - **Cli** subsystem
     - **Context** — argument parser and I/O owner
+    - **HelpCommand** — built-in help command
   - **SelfTest** subsystem
     - **Validation** — self-validation test runner
   - **Utilities** subsystem
@@ -64,6 +65,7 @@ This document covers the verification design for the following software items:
 - **BuildMark** — build-notes documentation tool
 - **FileAssert** — document assertion tool
 - **FileSystemGlobbing** — glob pattern matching library (runtime)
+- **HelpCards** — built-in help library (runtime, tool)
 - **Pandoc** — Markdown-to-HTML conversion tool
 - **ReqStream** — requirements traceability tool
 - **ReviewMark** — file review enforcement tool
@@ -107,6 +109,7 @@ test/
 │                                          independent dictionary file reader, variant fixture,
 │                                          faulting file operations)
 └── DemaConsulting.TextLint.Tool.Tests/  — unit and integration tests
+    └── TestData/HelpExamples/           — input files that the help examples check
 ```
 
 ## Companion Artifact Structure

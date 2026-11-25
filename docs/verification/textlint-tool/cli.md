@@ -11,6 +11,8 @@ real logic in the scenarios that exercise a check; no mocking is applied at any 
 what is written through the log of a silent context and use `--root` with a private temporary directory, so
 they never depend on or change the current directory.
 
+The help command is verified through `HelpCommand.Create`, which writes to in-memory writers.
+
 ### Test Environment
 
 N/A - standard test environment.
@@ -25,6 +27,7 @@ N/A - standard test environment.
   check gives exit code 1.
 - Log files and results files are created at the specified paths when the corresponding flags
   are used.
+- The `help` command prints a requested topic from the built-in help cards.
 
 ### Test Scenarios
 
@@ -110,3 +113,7 @@ that matches nothing gives 1; the same pattern with `--allow-empty` gives 0. Thi
 missing option value, a repeated option, an out-of-range number, and an unknown option after a pattern; each gives
 exit code 1 and an error that names the problem. This scenario is tested by
 `CliSubsystem_InvalidOptionFlow_ContextAndProgram_RejectsMalformedOptions`.
+
+**CliSubsystem_HelpCommand_TopicRequested_PrintsTopic**: Arguments `["help", "command-line"]` are
+offered to `HelpCommand.TryRun`, which answers with the command-line topic and exit code 0. This
+scenario is tested by `CliSubsystem_HelpCommand_TopicRequested_PrintsTopic`.

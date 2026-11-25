@@ -15,6 +15,13 @@ about the default settings file and the root option need; the tests never change
 test process itself. Every check scenario creates its own temporary directory with sample files.
 The misspellings used in the samples (`wrold`, `xyzzyq`) are words that no dictionary holds.
 
+The help examples are verified with the example runner of HelpCards. It saves the source
+examples of each help card to a fresh scratch folder and calls a delegate for each command
+example; the delegate copies the files of `TestData/HelpExamples` (the settings file that the
+configuration card shows, and the documents that the examples check) into that folder, runs the
+built tool there with `Runner.RunIn`, and the runner compares the exit code and the output with
+the `exit` and `expect` values of the example.
+
 The package requirement is verified differently, because the artifact to inspect is the produced
 NuGet package and not a running process. After the build pipeline packs the tool, it runs FileAssert
 (`.fileassert.yaml`, tag `tool-package`) against the real `DemaConsulting.TextLint.Tool.<version>.nupkg`.
@@ -39,6 +46,9 @@ combinations. Temporary files and directories are created and cleaned up within 
 - Silent mode (`--silent`) produces empty combined output for every command line that is understood. A command
   line that cannot be understood (an unknown option, a missing or repeated option value) is the one exception: it
   is found before the output settings exist, so its error is still written to standard error and the exit code is 1.
+- The `help` command lists the topics with exit code 0, and exits with code 2 for an unknown
+  topic.
+- Every command example in the help cards gives the exit code and output that its card states.
 - The tool package contains `THIRD-PARTY-NOTICES.txt` at its root with the notices of the third-party word
   lists in the bundled library.
 
@@ -224,5 +234,21 @@ cancellation scenarios of the *Linting* verification.
 finds exactly one `THIRD-PARTY-NOTICES.txt` at its root whose text names the author of the English word lists,
 carries the permission sentence of their license verbatim, and names the publisher of the technical word lists.
 This scenario is tested by `TextLintTool_Package_Packed_ContainsThirdPartyNotices`.
+
+**TextLintTool_HelpTopics_HelpVerb_ListsTopics**: The `help` command is passed as the
+sole argument; the combined output lists every root topic with its command, contains no banner, and
+the tool exits with code 0. This scenario is tested by
+`TextLintTool_HelpTopics_HelpVerb_ListsTopics`.
+
+**TextLintTool_HelpTopics_UnknownTopic_ReturnsUsageError**: The arguments
+`help no-such-topic` name a topic that does not exist; the tool exits with code 2 and the
+combined output names the topic. This scenario is tested by
+`TextLintTool_HelpTopics_UnknownTopic_ReturnsUsageError`.
+
+**TextLintTool_HelpExamples_AllCommandExamples_GiveStatedResults**: The catalog that the
+tool ships is built, and every command example of every card is run against the built tool in a
+scratch folder that holds the files of `TestData/HelpExamples`; each run gives the exit code and
+output fragment that its card states, and at least one command example exists. This scenario is
+tested by `TextLintTool_HelpExamples_AllCommandExamples_GiveStatedResults`.
 
 <!-- cspell:ignore wrold xyzzyq -->

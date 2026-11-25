@@ -42,7 +42,8 @@ Local items:
     files of a directory in parallel, applying the settings' overrides and `enabled`, with its options and result
     types and the notes it reports: `SpellCheckNote`, `SpellCheckNoteKind`, and `SpellCheckNoteSeverity`)
 - **TextLintTool**: system, subsystem, and unit design for all local components of the
-  command-line tool: the **Cli** subsystem (argument parsing and output), the **Linting** subsystem
+  command-line tool: the **Cli** subsystem (argument parsing and output, and **HelpCommand**, which answers the
+  built-in `help` command), the **Linting** subsystem
   (**LintRunner**, which runs one check, and **LintReporter**, which writes the results), the **SelfTest**
   subsystem, the **Utilities** subsystem, and the **Program** unit.
 - **DictionaryBuilder**: system and unit design for the build-time program that converts the word
@@ -58,6 +59,7 @@ OTS items:
 - **BuildMark**: integration and usage design.
 - **FileAssert**: integration and usage design.
 - **FileSystemGlobbing** (Microsoft.Extensions.FileSystemGlobbing): integration and usage design.
+- **HelpCards** (DemaConsulting.HelpCards): integration and usage design.
 - **Pandoc**: integration and usage design.
 - **ReqStream**: integration and usage design.
 - **ReviewMark**: integration and usage design.
@@ -76,15 +78,14 @@ The following topics are out of scope:
 
 ## Software Structure
 
-The software structure is modeled in SysML2 under `docs/sysml2/` and rendered to the diagram
-below by SysML2Tools as part of the build pipeline. AI agents should query the SysML2 model
-directly (see the `sysml2tools-query` skill) rather than parsing this diagram or the prose
-elsewhere in this document. The model captures the shipped systems' runtime composition: the local
-items of the library and the tool and the runtime OTS items the library depends on (YamlDotNet and
-Microsoft.Extensions.FileSystemGlobbing), and also the build-time DictionaryBuilder system, which is
-not shipped but produces data that ships. The remaining OTS items listed in Scope above are
-build-time and pipeline tooling, documented separately (see `docs/design/ots.md`) rather than
-modeled as SysML2 parts.
+The software structure is modeled in SysML2 under `docs/sysml2/` and rendered to the diagram below by SysML2Tools as
+part of the build pipeline. AI agents should query the SysML2 model directly (see the `sysml2tools-query` skill) rather
+than parsing this diagram or the prose elsewhere in this document. The model captures the shipped systems' runtime
+composition: the local items of the library and the tool, the runtime OTS items the library depends on (YamlDotNet and
+Microsoft.Extensions.FileSystemGlobbing), the runtime OTS item the tool depends on (HelpCards), and also the build-time
+DictionaryBuilder system, which is not shipped but produces data that ships. The remaining OTS items listed in Scope
+above are build-time and pipeline tooling, documented separately (see `docs/design/ots.md`) rather than modeled as
+SysML2 parts.
 
 ![Software Structure](SoftwareStructureView.svg)
 
@@ -143,7 +144,8 @@ on nothing but the .NET base class library.
     - **SpellChecking/** - text checking, file reading, and parallel file checking subsystem
   - **DemaConsulting.TextLint.DictionaryBuilder/** - build-time dictionary builder source (six units)
   - **DemaConsulting.TextLint.Tool/** - main application source
-    - **Cli/** - command-line interface subsystem
+    - **Cli/** - command-line interface subsystem, including `HelpCommand.cs` for the built-in help
+    - **Help/** - built-in help cards (Markdown with front matter), embedded in the assembly
     - **Linting/** - one check run: settings resolution, calling the library, and reporting
     - **SelfTest/** - self-validation subsystem
     - **Utilities/** - shared utilities subsystem

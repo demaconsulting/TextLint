@@ -1,8 +1,8 @@
 package OtsDependencies {
     private import SoftwareItemMetadata::*;
 
-    // Runtime OTS (off-the-shelf) dependencies of the TextLint library. Both ship as package
-    // dependencies, so they are modeled here; build-time and pipeline tooling is not modeled.
+    // Runtime OTS (off-the-shelf) dependencies of the TextLint library and the textlint tool. They ship as
+    // package dependencies, so they are modeled here; build-time and pipeline tooling is not modeled.
 
     part def YamlDotNet {
         doc /* YAML parsing library; its node model with source positions is used to read .textlint.yaml. */
@@ -21,6 +21,16 @@ package OtsDependencies {
             designFiles = ("docs/design/ots/filesystemglobbing.md");
             verificationFiles = ("docs/verification/ots/filesystemglobbing.md");
             requirementFiles = ("docs/reqstream/ots/filesystemglobbing.yaml");
+        }
+    }
+
+    part def HelpCards {
+        doc /* DemaConsulting.HelpCards: serves the built-in help of the textlint tool from embedded help cards. */
+
+        metadata info : SoftwareInfo {
+            designFiles = ("docs/design/ots/help-cards.md");
+            verificationFiles = ("docs/verification/ots/help-cards.md");
+            requirementFiles = ("docs/reqstream/ots/help-cards.yaml");
         }
     }
 }

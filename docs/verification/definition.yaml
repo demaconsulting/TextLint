@@ -49,6 +49,7 @@ input-files:
   - docs/verification/textlint-tool/program.md
   - docs/verification/textlint-tool/cli.md
   - docs/verification/textlint-tool/cli/context.md
+  - docs/verification/textlint-tool/cli/help-command.md
   - docs/verification/textlint-tool/linting.md
   - docs/verification/textlint-tool/linting/lint-runner.md
   - docs/verification/textlint-tool/linting/lint-reporter.md
@@ -67,6 +68,7 @@ input-files:
   - docs/verification/ots/buildmark.md
   - docs/verification/ots/fileassert.md
   - docs/verification/ots/filesystemglobbing.md
+  - docs/verification/ots/help-cards.md
   - docs/verification/ots/pandoc.md
   - docs/verification/ots/reqstream.md
   - docs/verification/ots/reviewmark.md

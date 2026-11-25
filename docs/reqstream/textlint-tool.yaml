@@ -37,6 +37,43 @@ sections:
         tests:
           - TextLintTool_HelpFlag_Provided_OutputsUsageInformation
 
+      - id: TextLintTool-System-HelpTopics
+        title: The tool shall list its help topics when run with the `help` command.
+        tags: [system]
+        justification: |
+          Users and AI agents that have only the installed tool must be able to learn how to
+          use it from the tool itself. The short `--help` usage text points to the topic list,
+          and each topic explains a task with worked examples.
+        children:
+          - TextLintTool-Program-HelpCommand
+          - TextLintTool-Program-HelpFooter
+          - TextLintTool-Cli-HelpTopics
+        tests:
+          - TextLintTool_HelpTopics_HelpVerb_ListsTopics
+
+      - id: TextLintTool-System-HelpUnknownTopic
+        title: The tool shall exit with code 2 when the `help` command names an unknown topic.
+        tags: [system]
+        justification: |
+          Scripts and AI agents must be able to tell a mistyped topic from a successful answer,
+          and from the exit code 1 of a failed check.
+        children:
+          - TextLintTool-Program-HelpCommand
+        tests:
+          - TextLintTool_HelpTopics_UnknownTopic_ReturnsUsageError
+
+      - id: TextLintTool-System-HelpExamples
+        title: The tool shall provide help examples that give the result each example states when run.
+        tags: [system]
+        justification: |
+          A worked example in the help is only useful when it works. Running every command
+          example against the built tool, and comparing the exit code and output with what
+          the example states, keeps the help in step with the tool.
+        children:
+          - TextLint-OTS-HelpCards-Testing
+        tests:
+          - TextLintTool_HelpExamples_AllCommandExamples_GiveStatedResults
+
       - id: TextLintTool-System-Validate
         title: The tool shall execute self-validation tests when the validate flag is provided.
         tags: [system]
