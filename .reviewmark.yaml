@@ -14,6 +14,7 @@ needs-review:
   - "docs/verification/**/*.md"   # Verification documentation files
   - "docs/user_guide/**/*.md"     # User guide documentation
   - "docs/sysml2/**/*.sysml"      # SysML2 architecture model
+  - "src/**/Help/**"              # Built-in help cards of the tool
   - "dictionaries/refresh.py"     # Word list import script (code that produces the builder's input data)
   - "dictionaries/word_forms.py"  # Hunspell expansion and spelling-region routing used by the import script
   - "dictionaries/README.md"      # Word list documentation: provenance, format rules, and refresh procedure
@@ -597,6 +598,21 @@ reviews:
       - "src/**/Cli/Context.cs"
       - "test/**/Cli/ContextTests.cs"
 
+  - id: TextLintTool-Cli-HelpCommand
+    title: Review that TextLintTool Cli HelpCommand Implementation is Correct
+    context:
+      - docs/design/textlint-tool.md
+      - docs/reqstream/textlint-tool.yaml
+      - docs/design/textlint-tool/cli.md
+      - docs/reqstream/textlint-tool/cli.yaml
+    paths:
+      - "docs/reqstream/textlint-tool/cli/help-command.yaml"
+      - "docs/design/textlint-tool/cli/help-command.md"
+      - "docs/verification/textlint-tool/cli/help-command.md"
+      - "src/**/Cli/HelpCommand.cs"
+      - "src/**/Help/**"
+      - "test/**/Cli/HelpCommandTests.cs"
+
   # TextLintTool - Linting
   - id: TextLintTool-Linting
     title: Review that TextLintTool Linting Satisfies Subsystem Requirements
@@ -885,6 +901,13 @@ reviews:
       - "docs/reqstream/ots/filesystemglobbing.yaml"
       - "docs/design/ots/filesystemglobbing.md"
       - "docs/verification/ots/filesystemglobbing.md"
+
+  - id: OTS-HelpCards
+    title: Review that HelpCards Provides Required Functionality
+    paths:
+      - "docs/reqstream/ots/help-cards.yaml"
+      - "docs/design/ots/help-cards.md"
+      - "docs/verification/ots/help-cards.md"
 
   - id: OTS-Pandoc
     title: Review that Pandoc Provides Required Functionality

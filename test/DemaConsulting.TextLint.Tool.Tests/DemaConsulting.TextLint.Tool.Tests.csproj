@@ -68,4 +68,9 @@
     <ProjectReference Include="..\..\src\DemaConsulting.TextLint.Tool\DemaConsulting.TextLint.Tool.csproj" />
   </ItemGroup>
 
+  <!-- Test Data -->
+  <ItemGroup>
+    <None Update="TestData\**\*" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>
