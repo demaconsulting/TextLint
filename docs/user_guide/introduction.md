@@ -36,6 +36,7 @@ This user guide covers:
 
 - Installation instructions
 - Usage examples for common tasks
+- The built-in `textlint help` command
 - Command-line options reference
 - Practical examples for various scenarios
 
@@ -204,8 +205,9 @@ Files that the settings disable with `enabled: false` are not read, not reported
 | :--- | :--- |
 | `0` | Every selected file was checked and no issue was found; skipped binary files do not count. |
 | `1` | Anything else: issues found, a file that could not be checked, no file selected, or an error. |
+| `2` | A wrong `help` argument or an unknown help topic (see *Built-in Help*). |
 
-As in cspell, there is a single failure code. A selection that matches no files fails (a mistyped pattern is
+A check has a single failure code, as in cspell. A selection that matches no files fails (a mistyped pattern is
 almost always the reason) unless `--allow-empty` is given. When files were selected but the settings disable all of
 them, the run succeeds and says so (see *Disabling Files*). `--allow-empty` applies only to patterns that were given
 and matched nothing: a run that was given no patterns at all, on the command line or in the settings, has nothing
@@ -239,6 +241,24 @@ Display usage information:
 ```bash
 textlint --help
 ```
+
+The usage information ends with a pointer to the built-in help.
+
+## Built-in Help
+
+The `help` command prints help topics that explain each task with worked examples, for people and
+for AI agents that have only the installed tool. List the topics, then print one with its examples:
+
+```bash
+textlint help
+textlint help getting-started
+```
+
+Add `--search <words>` to find a topic, `--example <name>` to print one example of a topic, and
+`--json` to get any help answer as JSON. `help` is a command, not an option: it must be the first
+argument, and `--silent` and `--log` do not apply to it. It exits with code 0 on success, and with
+code 2 after printing a hint for an unknown topic or a wrong help argument. To check a file named
+`help`, write it as `./help`, and a folder named `help` as `./help/`.
 
 ## Self-Validation
 
@@ -359,7 +379,8 @@ textlint --silent "**/*.md"
 
 ## Logging
 
-Write output to a log file; the log receives everything, including what `--silent` hides from the console:
+Write output to a log file; the log receives everything, including what `--silent` hides from the console, except
+argument errors (see *Error Handling*):
 
 ```bash
 textlint --log output.log "**/*.md"
@@ -386,7 +407,8 @@ A settings file that cannot be used is reported with its file, line, and column,
 ```
 
 This behavior enables automated scripts and CI/CD pipelines to detect and surface
-misconfiguration failures automatically.
+misconfiguration failures automatically. Argument errors are found before `--silent` and `--log`
+take effect, so they are always printed and never logged.
 
 # Configuration File
 

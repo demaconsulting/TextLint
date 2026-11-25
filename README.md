@@ -41,6 +41,8 @@ TextLint provides:
 - 📦 **Reusable Library**: Embeds the same checker in your own .NET applications
 - ✅ **Self-Validation**: Built-in tests that spell-check sample files end to end and assert the exact findings,
   with TRX and JUnit output
+- ❓ **Built-in Help**: `textlint help` serves help topics with runnable examples, search, and JSON output for AI
+  agents ([DemaConsulting.HelpCards][link-helpcards])
 - 🖥️ **Multi-Platform Support**: Builds and runs on Windows, Linux, and macOS
 - ⚙️ **Multi-Runtime Support**: The tool needs .NET 10; the library supports .NET 10 and 11
 - 🔁 **Comprehensive CI/CD**: GitHub Actions workflows for quality checks, builds, and tests
@@ -65,6 +67,10 @@ dotnet add package DemaConsulting.TextLint
 ## Tool Quick Start
 
 ```bash
+# List the built-in help topics, then read one
+textlint help
+textlint help getting-started
+
 # Check the files that match the globs (quote them so that your shell does not expand them)
 textlint "**/*.md"
 
@@ -189,6 +195,7 @@ By contributing to this project, you agree that your contributions will be licen
 [link-nuget]: https://www.nuget.org/packages/DemaConsulting.TextLint.Tool
 [link-releases]: https://github.com/demaconsulting/TextLint/releases
 [link-continuous-compliance]: https://github.com/demaconsulting/ContinuousCompliance
+[link-helpcards]: https://www.nuget.org/packages/DemaConsulting.HelpCards
 [dotnet-download]: https://dotnet.microsoft.com/download
 [link-guide]: https://github.com/demaconsulting/TextLint/blob/main/docs/user_guide/introduction.md
 [link-guide-options]: https://github.com/demaconsulting/TextLint/blob/main/docs/user_guide/introduction.md#command-line-options
