@@ -20,6 +20,7 @@ flowchart TD
     Program
     subgraph Cli
         Context
+        HelpCommand
     end
     subgraph Linting
         LintRunner
@@ -31,6 +32,7 @@ flowchart TD
     subgraph Utilities
         PathHelpers
     end
+    Program --> HelpCommand
     Program --> Context
     Program --> LintRunner
     Program --> Validation
@@ -42,7 +44,8 @@ flowchart TD
     LintRunner -.-> Library[TextLint library]
 ```
 
-`Program` is the entry point. It creates a `Context` from the `Cli` subsystem, dispatches to
+`Program` is the entry point. It first offers the arguments to `HelpCommand`, which answers the `help`
+command from the built-in help cards; otherwise it creates a `Context` from the `Cli` subsystem, dispatches to
 `Validation` when `--validate` is passed and to `LintRunner` otherwise, and returns the exit code from
 `Context`. `LintRunner` finds and loads the settings, calls the `TextLint` library, and hands the result to
 `LintReporter`, which writes it through `Context`. `Validation` calls `Program.Run` recursively to exercise the
@@ -55,7 +58,8 @@ temporary file paths.
 
 - *Type*: CLI.
 - *Role*: Consumer (the host environment invokes the system with command-line arguments).
-- *Contract*: Accepts arguments `-v`/`--version`, `-?`/`-h`/`--help`, `--silent`, `--validate`,
+- *Contract*: Accepts the `help` command as the first argument (see Help Command below), or the arguments
+  `-v`/`--version`, `-?`/`-h`/`--help`, `--silent`, `--validate`,
   `--results <file>`, `--result <file>` (legacy alias for `--results`), `--depth <n>`, `--log <file>`,
   `--config <file>`, `--root <dir>`, `--language <languages>`, `--allow-empty`, and
   `--max-parallelism <n>`, and any number of file patterns as positional arguments, which replace the `files`
@@ -65,8 +69,20 @@ temporary file paths.
   disable are still selected, so disabling every file is a success with a note), a settings or
   usage error, or a failed self-validation.
 - *Constraints*: Unknown, missing, empty, repeated, or out-of-range arguments cause exit code 1 and an error
-  message on stderr. Running with no file patterns and no `files` setting is a usage error with guidance, not a
-  success.
+  message on stderr. Argument errors are found before `--silent` and `--log` take effect, so they are always
+  printed and never logged (see Standard Error). Running with no file patterns and no `files` setting is a usage
+  error with guidance, not a success.
+
+**Help Command**: Built-in help, answered from help cards embedded in the tool assembly.
+
+- *Type*: CLI.
+- *Role*: Provider.
+- *Contract*: `textlint help` prints the topic index and `textlint help <topic>` prints a topic card with its
+  examples; HelpCards adds `--example`, `--search`, and `--json`. Returns exit code 0 for success, 2 for a
+  wrong help argument or an unknown topic, and 70 for a defective card catalog.
+- *Constraints*: `help` must be the first argument. It is answered before the options are parsed, so `--silent`
+  and `--log` do not apply and no banner is printed. A file named `help` is checked by writing it as `./help`,
+  and a folder as `./help/`.
 
 **Standard Output**: Normal program output written to `Console.Out`.
 
@@ -136,6 +152,8 @@ temporary file paths.
   accumulating self-validation results.
 - **DemaConsulting.TestResults.IO**: provides `TrxSerializer` and `JUnitSerializer` for writing
   results files.
+- **DemaConsulting.HelpCards**: loads, validates, and serves the built-in help cards for the `help` command
+  (see *HelpCards*, the OTS integration design).
 
 ## Risk Control Measures
 
@@ -145,22 +163,25 @@ N/A - not a safety-classified software item.
 
 1. The host environment starts the tool process and passes command-line arguments to
    `Program.Main`.
-2. `Program.Main` registers a Ctrl+C handler that cancels a token, then calls `Context.Create(args)`, which
-   parses the arguments and opens the log
+2. `Program.Main` registers a Ctrl+C handler that cancels a token, then offers the arguments to
+   `HelpCommand.TryRun`. When the first argument is `help`, the help command builds the card catalog, writes its
+   answer to the console, and `Program.Main` returns its exit code. Any other first argument returns at once
+   without building the catalog.
+3. `Program.Main` calls `Context.Create(args)`, which parses the arguments and opens the log
    file if `--log` was specified. An `ArgumentException` or `InvalidOperationException` at
    this point is caught, written to stderr, and causes exit code 1.
-3. `Program.RunCancelable(context, token)` inspects the parsed flags and dispatches to one handler:
+4. `Program.RunCancelable(context, token)` inspects the parsed flags and dispatches to one handler:
    - `--version` flag → `context.WriteLine(Version)`, then return.
    - Otherwise, `PrintBanner` is called first; then:
-     - `--help` flag → `PrintHelp(context)`, then return.
+     - `--help` flag → `PrintHelp(context)`, which ends with the pointer to the help command, then return.
      - `--validate` flag → `Validation.Run(context)`.
      - No flags → `LintRunner.Run(context, token)`.
-4. `LintRunner.Run` resolves the root directory, finds and loads the settings, lets the library turn the
+5. `LintRunner.Run` resolves the root directory, finds and loads the settings, lets the library turn the
    command-line patterns into a search directory and patterns, passes the language option and the settings root to
    the library, calls
    `SpellChecker.CheckAsync`, and calls `LintReporter.Write`. It marks the run failed when the result has
    problems. Failures caused by the user's input or environment are written to stderr as errors.
-5. `Program.Main` returns `context.ExitCode` (0 if no errors were reported and the run was not marked failed,
+6. `Program.Main` returns `context.ExitCode` (0 if no errors were reported and the run was not marked failed,
    1 otherwise).
 
 ## Design Constraints

@@ -88,3 +88,8 @@ ignorePaths:
   # Word lists: hundreds of thousands of generated entries (the technical lists include
   # intentionally non-English terms), checked by the dictionary builder instead of spell-checking.
   - "dictionaries/**/*.txt"
+
+overrides:
+  # Skipped: the help-card examples check these files and must report the misspellings they contain
+  - filename: test/DemaConsulting.TextLint.Tool.Tests/TestData/HelpExamples/**
+    enabled: false

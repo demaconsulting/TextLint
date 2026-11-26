@@ -5,8 +5,9 @@
 ### Purpose
 
 `Program` is the entry point and execution orchestrator for the TextLint Tool. Its single
-responsibility is to create a `Context` from the command-line arguments, dispatch to the
-appropriate handler based on the parsed flags, and return the exit code.
+responsibility is to hand the `help` command to `HelpCommand`, otherwise create a `Context`
+from the command-line arguments, dispatch to the appropriate handler based on the parsed flags,
+and return the exit code.
 
 ### Data Model
 
@@ -20,12 +21,15 @@ locally.
 **Main**: Entry point for the tool process.
 
 - *Parameters*: `string[] args` — command-line arguments from the host environment.
-- *Returns*: `int` — exit code; 0 for success, 1 for expected errors.
+- *Returns*: `int` — exit code; 0 for success, 1 for expected errors; for the `help` command,
+  the exit code of `HelpCommand` (see *Help Command* in the system design).
 - *Preconditions*: None.
 - *Postconditions*: Exit code reflects whether any errors were reported during execution.
 
 Registers a handler for Ctrl+C that cancels a token (and cancels the console's default termination, so the check
-can stop cleanly), creates a `Context` using `Context.Create(args)`, calls `RunCancelable(context, token)`,
+can stop cleanly), and then calls `HelpCommand.Default.TryRun(args, out exitCode)`. The `help` command is not an
+option, so `Context.Create` would reject it; when the help command answers, `Main` returns its exit code.
+Otherwise it creates a `Context` using `Context.Create(args)`, calls `RunCancelable(context, token)`,
 and returns `context.ExitCode`; the handler is removed again in a `finally`. Catches `ArgumentException` and
 `InvalidOperationException` — writes
 `"Error: {message}"` to stderr and returns 1. Catches any other `Exception` — writes
@@ -57,8 +61,9 @@ true, calls `PrintHelp` and returns; (4) if `context.Validate` is true, calls
 - *Parameters*: `Context context` — output target.
 - *Returns*: `void`.
 
-**PrintHelp**: Writes the usage synopsis, the options table, the meaning of the pattern arguments, and the exit
-codes to `context`.
+**PrintHelp**: Writes the usage synopsis (including `textlint help [topic]`), the options table, the meaning of
+the pattern arguments, and the exit codes (including code 2 of the help command) to `context`, and ends with
+`HelpCommand.Default.Footer`, the pointer to the help command.
 
 - *Parameters*: `Context context` — output target.
 - *Returns*: `void`.
@@ -83,6 +88,8 @@ them as errors; cancellation is reported there too.
 
 ### Dependencies
 
+- **HelpCommand** — `Program.Main` offers the arguments to `HelpCommand.Default.TryRun` before
+  the options are parsed, and `PrintHelp` writes `HelpCommand.Default.Footer`.
 - **Context** — `Program` reads parsed flags from `Context` and calls `Context.WriteLine` and
   `Context.WriteError` for all output.
 - **Validation** — `Program.RunCancelable` calls `Validation.Run(context)` when the `--validate` flag is

@@ -1,0 +1,21 @@
+---
+version: "0.2"
+language: en-US
+files:
+  - "**/*.md"
+  - "!drafts/**"
+ignorePaths:
+  - node_modules
+  - bin/
+  - obj/
+words:
+  - Zorblax
+flagWords:
+  - "utilize->use"
+minWordLength: 4
+maxFileSize: 1MB
+ignoreRegExpList:
+  - /\bTICKET-\d+\b/
+overrides:
+  - filename: CHANGELOG.md
+    enabled: false

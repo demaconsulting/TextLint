@@ -39,6 +39,7 @@ includes:
   - docs/reqstream/textlint-tool/program.yaml
   - docs/reqstream/textlint-tool/cli.yaml
   - docs/reqstream/textlint-tool/cli/context.yaml
+  - docs/reqstream/textlint-tool/cli/help-command.yaml
   - docs/reqstream/textlint-tool/linting.yaml
   - docs/reqstream/textlint-tool/linting/lint-runner.yaml
   - docs/reqstream/textlint-tool/linting/lint-reporter.yaml
@@ -68,3 +69,4 @@ includes:
   - docs/reqstream/ots/sysml2tools.yaml
   - docs/reqstream/ots/yamldotnet.yaml
   - docs/reqstream/ots/filesystemglobbing.yaml
+  - docs/reqstream/ots/help-cards.yaml

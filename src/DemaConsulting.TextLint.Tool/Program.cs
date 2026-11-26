@@ -59,13 +59,20 @@ internal static class Program
     /// <returns>Exit code: 0 for success, non-zero for failure.</returns>
     /// <exception cref="Exception">Thrown when an unexpected error occurs; re-thrown after writing to stderr.</exception>
     /// <remarks>
-    ///     <see cref="ArgumentException"/> and <see cref="InvalidOperationException"/> are treated as
-    ///     expected errors: their messages are written to stderr and exit code 1 is returned without
-    ///     a stack trace. Any other exception is written to stderr and then re-thrown so that the
-    ///     runtime can record it in event logs. These messages are written even when <c>--silent</c> is given, as
-    ///     in the other DEMA command-line tools: they arise while the command line is being parsed, before the
-    ///     output settings exist, and a command line that cannot be understood must never fail without a word.
-    ///     Everything written through the <see cref="Context"/> honors <c>--silent</c>.
+    ///     <para>
+    ///         The <c>help</c> command is answered first, by <see cref="HelpCommand"/>, before the
+    ///         command-line options are parsed: <c>help</c> is a command and not an option, so
+    ///         <see cref="Context.Create"/> would reject it. Its exit code is returned as is.
+    ///     </para>
+    ///     <para>
+    ///         <see cref="ArgumentException"/> and <see cref="InvalidOperationException"/> are treated as
+    ///         expected errors: their messages are written to stderr and exit code 1 is returned without
+    ///         a stack trace. Any other exception is written to stderr and then re-thrown so that the
+    ///         runtime can record it in event logs. These messages are written even when <c>--silent</c> is given,
+    ///         as in the other DEMA command-line tools: they arise while the command line is being parsed, before
+    ///         the output settings exist, and a command line that cannot be understood must never fail without a
+    ///         word. Everything written through the <see cref="Context"/> honors <c>--silent</c>.
+    ///     </para>
     /// </remarks>
     public static int Main(string[] args)
     {
@@ -82,6 +89,12 @@ internal static class Program
 
         try
         {
+            // Answer the help command before the options are parsed
+            if (HelpCommand.Default.TryRun(args, out var helpExitCode))
+            {
+                return helpExitCode;
+            }
+
             // Create context from command-line arguments
             using var context = Context.Create(args);
 
@@ -181,12 +194,13 @@ internal static class Program
     }
 
     /// <summary>
-    ///     Prints usage information.
+    ///     Prints usage information, ending with a pointer to the built-in help topics.
     /// </summary>
     /// <param name="context">The context for output.</param>
     private static void PrintHelp(Context context)
     {
-        context.WriteLine("Usage: textlint [options] [globs...]");
+        context.WriteLine($"Usage: {HelpCommand.ToolName} [options] [globs...]");
+        context.WriteLine($"       {HelpCommand.ToolName} help [topic]");
         context.WriteLine("");
         context.WriteLine("Options:");
         context.WriteLine("  -v, --version              Display version information");
@@ -209,7 +223,9 @@ internal static class Program
         context.WriteLine("expand them.");
         context.WriteLine("");
         context.WriteLine("Exit codes: 0 = no issues; 1 = issues found, a file could not be checked, no files matched, or an error");
-        context.WriteLine("occurred.");
+        context.WriteLine("occurred; 2 = a wrong 'help' argument or an unknown help topic.");
+        context.WriteLine("");
+        context.WriteLine(HelpCommand.Default.Footer);
     }
 
     /// <summary>

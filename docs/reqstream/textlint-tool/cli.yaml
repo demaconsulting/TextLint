@@ -3,7 +3,8 @@
 #
 # PURPOSE:
 # - Define requirements for the TextLintTool Cli subsystem
-# - The Cli subsystem spans Context.cs (command-line argument parsing and I/O)
+# - The Cli subsystem spans Context.cs (command-line argument parsing and I/O) and
+#   HelpCommand.cs (the built-in help command)
 # - Subsystem requirements describe the externally visible command-line interface behavior
 
 sections:
@@ -214,3 +215,14 @@ sections:
           - TextLintTool-Context-OptionValidation
         tests:
           - CliSubsystem_InvalidOptionFlow_ContextAndProgram_RejectsMalformedOptions
+
+      - id: TextLintTool-Cli-HelpTopics
+        title: The Cli subsystem shall answer the `help` command from built-in help cards.
+        justification: |
+          Users and AI agents need help topics with worked examples from the installed tool.
+        children:
+          - TextLintTool-HelpCommand-HelpVerb
+          - TextLintTool-HelpCommand-ValidCards
+          - TextLintTool-HelpCommand-LineWidth
+        tests:
+          - CliSubsystem_HelpCommand_TopicRequested_PrintsTopic

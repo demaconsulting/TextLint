@@ -1,9 +1,10 @@
 package TextLintTool_CliSubsystem {
     public import TextLintTool_Context::*;
+    public import TextLintTool_HelpCommand::*;
     private import SoftwareItemMetadata::*;
 
     part def CliSubsystem {
-        doc /* Command-line argument parsing, output-channel management, and exit-code tracking. */
+        doc /* Command-line argument parsing, output-channel management, exit-code tracking, and the built-in help command. */
 
         metadata info : SoftwareInfo {
             testFiles = ("test/DemaConsulting.TextLint.Tool.Tests/Cli/CliSubsystemTests.cs");
@@ -13,5 +14,6 @@ package TextLintTool_CliSubsystem {
         }
 
         part context : Context;
+        part helpCommand : HelpCommand;
     }
 }

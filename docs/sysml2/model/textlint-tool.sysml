@@ -4,6 +4,7 @@ package TextLintTool {
     public import TextLintTool_Program::*;
     public import TextLintTool_SelfTestSubsystem::*;
     public import TextLintTool_UtilitiesSubsystem::*;
+    private import OtsDependencies::*;
     private import SoftwareItemMetadata::*;
 
     doc
@@ -29,6 +30,8 @@ package TextLintTool {
         part linting : LintingSubsystem;
         part selfTest : SelfTestSubsystem;
         part utilities : UtilitiesSubsystem;
+        // Runtime OTS dependency: ships as a package dependency of the tool.
+        part helpCards : HelpCards;
     }
 
     // The tool is a thin command-line front-end: every linting capability lives in the

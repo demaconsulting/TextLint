@@ -1,8 +1,8 @@
 # OTS Software Verification
 
 This section provides verification evidence for all Off-The-Shelf (OTS) software items used by
-TextLint: the runtime dependencies of the `DemaConsulting.TextLint` library and the build, test, and
-documentation tooling used by the repository.
+TextLint: the runtime dependencies of the `DemaConsulting.TextLint` library, the runtime dependency of the
+`textlint` tool, and the build, test, and documentation tooling used by the repository.
 
 ## Scope
 
@@ -12,6 +12,8 @@ Each OTS item is verified by one of:
 - Pipeline output assertions performed by FileAssert on documents produced by the tool
 - Transitive evidence from the library test suite, for the runtime dependencies (YamlDotNet and
   Microsoft.Extensions.FileSystemGlobbing), which the library's tests exercise for real, without test doubles
+- Transitive evidence from the tool test suite, for the runtime dependency of the tool (HelpCards), which the
+  tool's tests exercise for real, without test doubles
 
 Internal OTS tool design is out of scope; only integration and usage evidence is documented.
 
@@ -22,6 +24,7 @@ The following OTS items have verification evidence in this section:
 - BuildMark (*buildmark.md*) — build-notes documentation tool
 - FileAssert (*fileassert.md*) — document assertion tool
 - FileSystemGlobbing (*filesystemglobbing.md*) — glob pattern matching library (runtime)
+- HelpCards (*help-cards.md*) — built-in help library (runtime, tool)
 - Pandoc (*pandoc.md*) — Markdown-to-HTML conversion tool
 - ReqStream (*reqstream.md*) — requirements traceability tool
 - ReviewMark (*reviewmark.md*) — file review enforcement tool
