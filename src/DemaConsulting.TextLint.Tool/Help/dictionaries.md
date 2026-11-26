@@ -56,7 +56,7 @@ with digits or punctuation, such as `k8s`, matches the whole token.
 - `ignoreWords` are never reported, even when they are flagged.
 - `flagWords` are always reported. An entry in lower case matches any
   letter case, and `word->suggestion` adds a suggestion ([[#flagged]]).
-- The order is: ignored, then flagged, then accepted, then the
+- The order is: ignored, then flagged, then accepted by `words` or the
   dictionaries.
 - Words for some folders only go in an override; see [[configuration]].
 - A comment `textlint:words term1 term2` adds words for one document

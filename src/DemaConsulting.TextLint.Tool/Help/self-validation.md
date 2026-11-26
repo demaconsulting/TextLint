@@ -41,10 +41,11 @@ examples:
     exit: 1
     expect: 'Unsupported results file format'
 ---
-`--validate` runs 15 tests of the tool itself, so a regulated project can
-show that the installed version works on its build machine. Most of them
-run real spell checks on sample files in a temporary folder, and each
-passes only when exactly the expected findings and summary are reported.
+`--validate` runs a short set of tests of the tool itself, so a regulated
+project can show that the installed version works on its build machine.
+Most of them run real spell checks on sample files in a temporary folder,
+and each passes only when exactly the expected findings and summary are
+reported.
 
 **Report.** The output is Markdown. It starts with a heading and a table of
 the tool version, machine name, operating system, .NET runtime, and time

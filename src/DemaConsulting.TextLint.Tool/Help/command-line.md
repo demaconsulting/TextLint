@@ -65,7 +65,7 @@ any order.
 | --- | --- |
 | `[globs...]` | Files or quoted glob patterns to check; they replace `files`. |
 | `--config <file>` | Settings file; default `.textlint.yaml` in the root folder. |
-| `--root <dir>` | Folder that globs and settings are relative to; default the current one. |
+| `--root <dir>` | Folder that globs and the default settings file are relative to; default the current one. |
 | `--language <list>` | `en-US`, `en-GB`, or both; wins over the settings. |
 | `--allow-empty` | Globs that match no files do not fail the run. |
 | `--max-parallelism <n>` | Files checked at the same time; default the processor count. |

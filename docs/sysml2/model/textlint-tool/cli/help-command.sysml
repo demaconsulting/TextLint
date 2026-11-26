@@ -1,6 +1,5 @@
 package TextLintTool_HelpCommand {
     private import SoftwareItemMetadata::*;
-    private import OtsDependencies::*;
 
     part def HelpCommand {
         doc /* Built-in help command: answers the help verb from the help cards embedded in the assembly. */
@@ -15,5 +14,5 @@ package TextLintTool_HelpCommand {
     }
 
     // Serves the help command from the cards embedded in the assembly
-    dependency HelpCommand to HelpCards;
+    dependency HelpCommandUsesHelpCards from HelpCommand to OtsDependencies::HelpCards;
 }
