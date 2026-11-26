@@ -978,6 +978,39 @@ public class IntegrationTests
     }
 
     /// <summary>
+    ///     Test that the search and example modes that the help advertises answer from the shipped cards.
+    /// </summary>
+    [Fact]
+    public void TextLintTool_HelpTopics_SearchAndExample_AnswerFromShippedCards()
+    {
+        // Arrange: (none — constructor initializes _dllPath)
+
+        // Act: search the topics for a word, and print the CI example of the getting-started topic
+        var searchExitCode = Runner.Run(
+            out var searchOutput,
+            "dotnet",
+            _dllPath,
+            "help",
+            "--search",
+            "install");
+        var exampleExitCode = Runner.Run(
+            out var exampleOutput,
+            "dotnet",
+            _dllPath,
+            "help",
+            "getting-started",
+            "--example",
+            "ci-steps");
+
+        // Assert: the search lists the getting-started topic, and the example holds the run step of the tool
+        Assert.Equal(0, searchExitCode);
+        Assert.Contains($"{HelpCommand.ToolName} help getting-started", searchOutput);
+        Assert.Equal(0, exampleExitCode);
+        Assert.Contains("actions/setup-dotnet@v4", exampleOutput);
+        Assert.Contains($"run: dotnet {HelpCommand.ToolName}", exampleOutput);
+    }
+
+    /// <summary>
     ///     Test that every command example in the help cards gives the result that its card states.
     /// </summary>
     [Fact]

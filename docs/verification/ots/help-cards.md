@@ -33,6 +33,16 @@ in the tool assembly. The package is not mocked anywhere in the tool tests.
 
 **Requirement coverage**: `TextLint-OTS-HelpCards-Cli`.
 
+#### TextLintTool_HelpTopics_SearchAndExample_AnswerFromShippedCards
+
+**Scenario**: The built tool is run with `help --search install`, and with
+`help getting-started --example ci-steps`.
+
+**Expected**: Both exit with code 0; the search lists the getting-started topic, and the example
+holds the `actions/setup-dotnet@v4` step and the run step of the tool.
+
+**Requirement coverage**: `TextLint-OTS-HelpCards-Cli`.
+
 #### HelpCommand_CreateOptions_ShippedCatalog_PassesValidation
 
 **Scenario**: The validator checks the shipped catalog with warnings treated as errors.

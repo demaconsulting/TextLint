@@ -23,6 +23,7 @@ sections:
             tests:
               - HelpCommand_TryRun_HelpVerb_PrintsTopicIndexAndReturnsZero
               - TextLintTool_HelpTopics_HelpVerb_ListsTopics
+              - TextLintTool_HelpTopics_SearchAndExample_AnswerFromShippedCards
 
           - id: TextLint-OTS-HelpCards-Testing
             title: >-

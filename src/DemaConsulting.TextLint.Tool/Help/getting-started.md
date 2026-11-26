@@ -23,14 +23,22 @@ examples:
     content: |
       dotnet new tool-manifest
       dotnet tool install --local DemaConsulting.TextLint.Tool
-  - name: run-in-ci
+  - name: ci-steps
     kind: snippet
-    language: shell
-    save-as: run-in-ci.sh
-    description: Restore the manifest tools in CI, then run the tool.
+    language: yaml
+    save-as: ci-steps.yaml
+    description: GitHub Actions steps that set up .NET and run the tool.
     content: |
-      dotnet tool restore
-      dotnet {{tool}}
+      - name: Check out the repository
+        uses: actions/checkout@v4
+      - name: Set up .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.x
+      - name: Restore the local .NET tools
+        run: dotnet tool restore
+      - name: Check spelling with {{tool}}
+        run: dotnet {{tool}}
   - name: version
     kind: command
     language: shell
@@ -68,16 +76,15 @@ files that `--log` and `--results` name; `--validate` uses a temporary
 folder.
 
 1. **Install it.** Installing needs a .NET SDK, and running the tool needs
-   the .NET 10 runtime, which the .NET 10 SDK includes. In CI, set it up
-   first when the runner lacks it, for example with
-   `actions/setup-dotnet` and `dotnet-version: 10.x`.
-   For a repository or CI, install it as a local tool. Run the commands
+   the .NET 10 runtime, which the .NET 10 SDK includes. For a
+   repository or CI, install it as a local tool. Run the commands
    that [[#install-local]] prints once, without
    `dotnet new tool-manifest` when `.config/dotnet-tools.json` exists, and
-   commit that file. In CI, run `dotnet tool restore` first, then run the
-   tool as `dotnet {{tool}}`, as in the commands that
-   [[#run-in-ci]] prints. For one machine, install it globally and
-   run it as `{{tool}}`:
+   commit that file. In GitHub Actions, copy the steps that
+   [[#ci-steps]] prints. They set up .NET 10 with
+   `actions/setup-dotnet`, run `dotnet tool restore`, and then run
+   `dotnet {{tool}}`. For one machine, install it globally and run it
+   as `{{tool}}`:
 
    ```bash
    dotnet tool install -g DemaConsulting.TextLint.Tool
